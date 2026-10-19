@@ -239,29 +239,33 @@ GitHub Actions covers production configuration, source snapshots, backend and fr
 
 ## Production operations
 
-Production deploys run on the Contabo VPS through the repository's controlled immutable-release process.
+**Primary deployment method: GitHub Actions with an explicit operator approval.** A pull-request merge into `main` **does not deploy** production. Developers can perform a normal release through the GitHub web interface without obtaining VPS root credentials.
+
+**[🚀 Deploy in five minutes — Russian operator guide](docs/deploy-quickstart-ru.md)** · [Run production workflow](https://github.com/antony502189-max/Ttest/actions/workflows/manual-production-deploy.yml) · [English CI/CD runbook](docs/manual-production-cicd.md)
 
 ```text
-Reviewed PR + required CI
-          ↓
-Protected main branch
-          ↓
-Exact origin/main commit
-          ↓
-Verified backups + release lock
-          ↓
-Immutable worktree → migrations → containers
-          ↓
-Health checks + public build fingerprint
+Reviewed PR + passing required CI → merge to main
+                                       ↓
+GitHub Actions → Run workflow (main + explicit checkbox)
+                                       ↓
+Verify exact current main SHA and merged-PR checks
+                                       ↓
+Review deployments → Approve and deploy (if required)
+                                       ↓
+Restricted SSH → Contabo VPS → backup + release lock
+                                       ↓
+Immutable worktree → migrations → containers → smoke
+                                       ↓
+Green deploy + matching /build-info.json + manual UI check
 ```
 
-A production operator runs `deploy/deploy-release.sh <exact-40-character-origin-main-sha>` from the correct prepared release. The script checks the release lock and stateful image compatibility, requires a fresh authenticated MinIO backup, creates a PostgreSQL backup, applies migrations, starts the release and verifies the public site. A failed deployment may roll back application code, **not** financial transactions or irreversible database changes.
+The `production` GitHub Environment controls who may approve a release. To let the **same owner launch and approve**, configure **Required reviewers** with that account and **disable Prevent self-review**. With Prevent self-review enabled, another designated reviewer is mandatory. If reviewers are disabled, the second approval step disappears; the manual Run workflow confirmation is still required. **Neither mode deploys automatically on merge or push.**
 
-**Never** delete production volumes or backups, bypass release locks, rewrite applied migrations, change Stripe payment flags without approval, or run cleanup jobs as part of normal deployment.
+The VPS release engine `deploy/deploy-release.sh <exact-origin-main-sha>` remains the controlled implementation and manual fallback for an authorized operator. It checks stateful image compatibility, backup freshness, PostgreSQL backup, migrations, application health and public build SHA. Application rollback **does not** reverse financial events or destructive data migrations.
 
-Verify the live version using [`build-info.json`](https://app.112233.es/build-info.json) and the server's active release. A GitHub merge alone does not deploy the website.
+Do not change `main` during an in-progress production release, start overlapping backups/deployments, remove persistent volumes, bypass the release lock, or share private SSH keys. Verify the live version using [`build-info.json`](https://app.112233.es/build-info.json) and the VPS current release; a successful PR CI run alone is not deployment evidence.
 
-[Deployment guide →](docs/deployment.md) · [Release checklist →](docs/release-checklist.md) · [Operations runbook →](docs/production-operations.md) · [Monitoring →](docs/production-monitoring.md)
+[Detailed deployment guide →](docs/deployment.md) · [Release checklist →](docs/release-checklist.md) · [Operations runbook →](docs/production-operations.md) · [Monitoring →](docs/production-monitoring.md)
 
 ---
 
@@ -274,7 +278,7 @@ Verify the live version using [`build-info.json`](https://app.112233.es/build-in
 | **💳 Commerce** | [Stripe Checkout](docs/stripe-checkout.md) · [Advertising](docs/homepage-advertising.md) · [Payment sandbox](docs/stripe-local-sandbox.md) |
 | **🛡️ Security** | [Engineering rules](docs/security-and-privacy.md) · [Security audit](docs/security/FINAL-SECURITY-REPORT.md) |
 | **🛠️ Development** | [Local environment](docs/local-development.md) · [Configuration](docs/configuration.md) · [Testing](docs/testing.md) · [Contributing](docs/contributing.md) |
-| **🚀 Infrastructure** | [Deployment](docs/deployment.md) · [Operations](docs/production-operations.md) · [Troubleshooting](docs/troubleshooting.md) |
+| **🚀 Infrastructure** | [GitHub deploy quickstart (RU)](docs/deploy-quickstart-ru.md) · [Deployment](docs/deployment.md) · [Operations](docs/production-operations.md) · [Troubleshooting](docs/troubleshooting.md) |
 | **📦 Other systems** | [External imports](docs/external-import.md) · [Admin performance](docs/admin-performance.md) |
 
 Browse the [complete documentation index](docs/index.md). Older implementation audits and dated reports remain available for traceability but may describe superseded behavior. **Current source code and independently verified runtime state take precedence.**
