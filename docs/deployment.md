@@ -2,29 +2,43 @@
 
 **Production:** `https://app.112233.es` on Contabo VPS **`169.58.147.65`** (expected hostname `vmi3640228`). GitHub Pages, Vercel and Netlify are **not** production targets. Source state in `main` is separate from the actually deployed server release.
 
-## GitHub Actions release with manual approval
+## Recommended: deploy from GitHub Actions
 
-The preferred operator flow after one-time SSH key and GitHub Environment
-setup is **Actions → Production deployment (manual approval) → Run workflow**,
-select `main` and confirm the production checkbox. If the `production`
-Environment has required reviewers configured, the designated approver must
-also click **Review deployments → Approve and deploy**. There is no automatic
-production deploy on PR merge or a push.
+**Normal release does not require a developer to SSH into production.** GitHub's one-click release is **manually initiated**, then automatically executed by the VPS deployment engine after CI and the required environment confirmation. **There is no production deployment on push, merge or PR close.**
 
-This GitHub Actions workflow delegates to the same reviewed VPS release
-script below: it does **not** replace the encryption, backup, migration,
-release lock or public smoke checks. See
-[Manual production CI/CD setup](manual-production-cicd.md) before first use.
+### Operator procedure
 
-## Only supported release path
+1. Work in a feature branch. Open a PR, validate the changed functionality, pass required CI checks, and merge it into **`main`**.
+2. Verify no other deployment, rollback or backup is still executing. **Do not change `main` while a deployment is running**: the target SHA must continue matching `origin/main`.
+3. Open [Actions → Production deployment (manual approval)](https://github.com/antony502189-max/Ttest/actions/workflows/manual-production-deploy.yml). Click **Run workflow**, select **main**, enable the explicit production confirmation checkbox, then click **Run workflow** again.
+4. Wait for **Confirm exact main commit and passing PR CI** to turn green. This job refuses unconfirmed requests, non-`main` commits, a stale SHA, merges without PR evidence and missing required CI. **Do not approve** if this validation fails.
+5. If the workflow is **Waiting for review**, open **Review deployments**, select `production`, and click **Approve and deploy**. To let the same operator approve their own run, the `production` environment must have that user as a required reviewer and **Prevent self-review disabled**. If that option is enabled, an independently designated reviewer must approve instead.
+6. Wait for **Deploy manually approved release to VPS** to finish. Do not cancel it casually, run another release, or push new commits to `main` while it is in progress.
+7. Verify green jobs, production `current` SHA, `status=success` metadata, public [`build-info.json`](https://app.112233.es/build-info.json), and the changed feature in an actual browser.
 
-1. Merge a reviewed PR into the protected `main` branch, after **all required CI checks** pass on that PR's latest SHA.
-2. Check that no deployment/rollback/backup/restore operation is in progress. Never bypass the shared `flock` or force a concurrent release.
-3. SSH into the **correct VPS**. Do **not** use the deprecated VPS `31.97.185.84`.
-4. Fetch the actual `origin/main` on the server, prepare its immutable Git worktree and run the matching SHA through `deploy/deploy-release.sh`.
-5. Confirm a final `status=success` in the release metadata, `current` pointing to that SHA, healthy containers and successful public-origin smoke test.
+See **[Russian quickstart for a new developer](deploy-quickstart-ru.md)** and [CI/CD environment setup and security](manual-production-cicd.md).
 
-The safe script performs preflight validation of the environment (including mode 600), checksum/pinned-image checks, latest MinIO recovery-point verification, writer quiescence, an encrypted PostgreSQL backup, migration, Docker rebuild/start, backend readiness and a public health/build-fingerprint check. On failure in the controlled release flow, it attempts to restore the previous application release. **There may be a brief maintenance window.** The script does not purge listings or media.
+### GitHub Environment and access controls
+
+The workflow uses **exactly** the GitHub Environment named `production`, restricted to branch `main`. Its **Required reviewers** setting adds a manual approval gate; the operator can self-approve only when **Prevent self-review** is unchecked. If required reviewers are disabled, the `deploy` job runs after passing CI without a second approval click, but still requires the manual workflow dispatch checkbox. These settings are configured in the GitHub UI, not in the YAML.
+
+The SSH integration uses two **Environment secrets**: `PRODUCTION_SSH_PRIVATE_KEY` (dedicated GitHub Actions → VPS key) and `PRODUCTION_SSH_KNOWN_HOSTS` (pinned VPS host identity). Do not print, publish or send the private key. The VPS authorization uses a **forced command** and `restrict`; GitHub Actions cannot use that key for a normal administrative shell.
+
+### What the release does on the VPS
+
+After approval the workflow uses a restricted SSH connection to `/usr/local/sbin/112233-manual-production-deploy` on `vmi3640228`. The runner starts a systemd-managed release for the exact reviewed SHA, preserves progress across SSH disconnections, checks the shared operation lock and current `origin/main`, ensures a recent authenticated MinIO recovery point, then invokes the existing **`deploy/deploy-release.sh`**. The deploy engine handles encrypted PostgreSQL backup, compatibility gates, migrations, application containers and smoke tests. **A short maintenance period may occur.** The script does not purge listing/media volumes. App rollback does not reverse irreversible migrations or payments.
+
+**A green GitHub release is not a substitute for testing the actual changed behavior.** A merged commit and a running VPS build are different states; confirm the public fingerprint before announcing a release.
+
+## Manual SSH deployment — exceptional operator fallback
+
+Use this **only** for an explicitly authorized manual recovery or when the GitHub Actions route cannot be used after investigation. It is **not** the day-to-day workflow for contributors.
+
+1. Confirm that a reviewed PR was merged into `main` and its final CI checks passed.
+2. Confirm no release, rollback, backup or restore operation is running or holds the shared lock.
+3. Connect to the **correct VPS**. Do **not** use the deprecated VPS `31.97.185.84`.
+4. Fetch exact `origin/main`, prepare the immutable worktree, and run `deploy/deploy-release.sh` with the **matching complete SHA**.
+5. Inspect `status=success`, active `current` SHA and public build fingerprint. Preserve incident logs on failure.
 
 ## SSH deployment example (interactive Linux shell)
 

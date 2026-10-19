@@ -8,7 +8,7 @@
 4. Preserve product modes `Vivienda` / `Turismo`, publication/gallery flows, and production listing/media integrity.
 5. Add tests verifying observable behavior (including boundaries and failure cases), plus documentation for any changed URL, API, config, migration or operational workflow.
 6. Run relevant local checks, open a PR, wait for required checks on **the final HEAD**, review the diff and merge by protected GitHub flow.
-7. Document release notes and deploy only through the controlled operator path after merge.
+7. After merge, an authorized release operator manually starts [GitHub Actions → Production deployment](https://github.com/antony502189-max/Ttest/actions/workflows/manual-production-deploy.yml), checks CI verification and (when enabled) approves the `production` environment. **Merging a PR does not deploy**. Use the [Russian deployment quickstart](deploy-quickstart-ru.md) and [release checklist](release-checklist.md).
 
 ## Project conventions
 

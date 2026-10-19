@@ -9,9 +9,33 @@ Production deployment (manual approval) > Run workflow, selects main,
 ticks the required confirmation box, and manually triggers the run. The
 workflow checks the exact latest main SHA and PR CI before any VPS access.
 The production job uses GitHub Environment "production". Configuring a
-required reviewer adds a second mandatory "Approve and deploy" action.
+required reviewer adds a second "Approve and deploy" action; this can be
+performed by the initiating user when Prevent self-review is disabled.
 GitHub's required-reviewer protection is supported for this PUBLIC repo;
 it must be configured in repository settings, not by committing a YAML file.
+
+## Quick operator path after setup
+
+For a **new developer**, begin with the [Russian step-by-step deployment guide](deploy-quickstart-ru.md); do **not** repeat the SSH/bootstrap steps below for each release.
+
+1. PR → passing checks → merge to `main`.
+2. [Open the production workflow](https://github.com/antony502189-max/Ttest/actions/workflows/manual-production-deploy.yml) → **Run workflow** → select **main**, tick confirmation → **Run workflow**.
+3. Verify **Confirm exact main commit and passing PR CI** is green.
+4. If `production` displays **Waiting for review**, use **Review deployments → Approve and deploy**. **A user may approve their own run only when `Prevent self-review` is disabled** and they are configured as an environment reviewer.
+5. Wait for **Deploy manually approved release to VPS** (the real remote release). Verify expected SHA, `status=success`, public `/build-info.json`, and test changed functionality.
+
+**Do not update `main` during an in-progress deployment.** A stale approved SHA is rejected on the VPS. A merge does not deploy. A disconnected SSH session does not prove the systemd-managed release stopped. Avoid overlapping release/backup/rollback operations.
+
+### Deployment approval modes
+
+| GitHub environment configuration | What happens |
+| --- | --- |
+| Required reviewers **on** + Prevent self-review **off** + operator is listed | Operator can **launch and approve their own deployment**. |
+| Required reviewers **on** + Prevent self-review **on** | A **different** listed reviewer must approve. |
+| Required reviewers **off** | One manual **Run workflow** confirmation; deployment starts automatically after CI verification without a second approval. |
+| Wait timer on | Adds a delay; not necessary for a normal owner-approved release. |
+
+The two secrets are stored in **Settings → Environments → production → Environment secrets**, never as repository files. Branch restriction should permit only `main`; administrator bypass of protection rules should normally remain disabled. **The existing running website is a separate state from GitHub `main`.**
 
 ## Initial setup (one time, by the server/repository owner)
 
@@ -105,8 +129,10 @@ validation and cannot silently learn an unverified server identity.
 Open GitHub repository > Settings > Environments > New environment.
 Name it precisely "production". Restrict deployment branches/tags to main.
 Configure Required reviewers, selecting your account (or a different
-designated approver). If the same person must launch and approve the run,
-do not enable "Prevent self-review" or approval will be impossible.
+designated approver). **For self-approval**, include the launching user among
+reviewers and disable **Prevent self-review**. If it is enabled, a different
+reviewer must approve. Do not enable administrator bypass without a documented
+reason; restrict deployment branches to `main`.
 Save both environment secrets from sections C and D.
 
 In a GitHub public repository such as this one, GitHub supports required
@@ -124,8 +150,9 @@ still ensures *manual*, not automatic, deployment.
    successful security/static/full/mobile CI jobs; for PRs that changed
    source code or tests it additionally requires payment CI. A direct push
    to main without verified PR evidence will be rejected.
-4. If an Environment reviewer is configured, open Review deployments
-   and click Approve and deploy.
+4. When an Environment reviewer is configured, open Review deployments,
+   select production, and click Approve and deploy (self-approval is permitted
+   only when Prevent self-review is off).
 5. The deploy job uses restricted SSH and systemd-run to start a
    persistent server-owned release. The VPS still performs authenticated
    MinIO backup gating, encrypted PostgreSQL backup, Alembic upgrade,
