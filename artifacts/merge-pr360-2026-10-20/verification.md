@@ -14,3 +14,5 @@
 - Original 0064 geography expansion is now unreleased 0065, following main's hourly migration. Immutable released migrations remain unchanged.
 
 Production audit and Payment audit passed on GitHub for 188436c9. Full audit then exposed legacy synthetic address fixtures; Mobile validation exposed missing JSON import attributes during Node collection. Both are corrected in the next commit and require a fresh GitHub run.
+
+Production-mode publication: 15 passed after guarding the retired select-only bridge and updating resolved-address fixtures. Four release-preflight regressions execute the real workflow Bash with paginated GitHub fixtures on Linux with jq (locally skipped because Windows has no jq). They cover a payment-relevant file on page two, missing/failed payment checks, and an incomplete file response.

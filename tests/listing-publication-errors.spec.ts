@@ -55,6 +55,8 @@ type PublicationTestState = {
 function lifecycleListing(status: 'pending' | 'published' | 'hidden' | 'closed' | 'rejected', id = '33333333-3333-4333-8333-333333333333') {
   return { ...listingResponse({
     title: 'Anuncio lifecycle remoto', city: 'Adeje', area: 'Costa Adeje', approximateAddress: 'Costa Adeje · ubicación aproximada',
+    street: 'Calle Prueba 1', postcode: '38660', provinceCode: '38',
+    exactLatitude: 28.09, exactLongitude: -16.73,
     rentalMode: 'long', monthlyPrice: 650, nightlyPrice: null, weeklyPrice: null, roomType: 'Habitación individual',
     availableFrom: '2026-09-01', availableUntil: null, minimumStayMonths: 1, minimumNights: null,
     depositAmount: 650, depositText: null, billsIncluded: true, billsText: 'Gastos incluidos',
@@ -239,12 +241,12 @@ async function openCompletedPublicationForm(page: Page) {
   await expect(page.getByRole('heading', { name: 'Publicar habitación' })).toBeVisible()
   await expect(page.locator('.stepper')).toHaveCount(0)
 
-  await page.locator('#publish-city').selectOption('Adeje')
-  await page.locator('#publish-area').fill('Costa Adeje')
-  await page.locator('#publish-postcode').fill('38660')
-  // A publication must explicitly confirm its location after address edits.
+  // The selected address supplies municipality metadata; publication has no city dropdown.
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('112233:publish-location-selected', {
-    detail: { coordinates: { lat: 28.09123, lng: -16.73561 }, zoom: 18 },
+    detail: { coordinates: { lat: 28.09123, lng: -16.73561 }, zoom: 18, address: {
+      formattedAddress: 'Calle Prueba 1, 38660 Adeje, España', city: 'Adeje', area: 'Costa Adeje',
+      street: 'Calle Prueba 1', postcode: '38660', coordinates: { lat: 28.09123, lng: -16.73561 },
+    } },
   })))
   await expect(page.locator('.listing-edit-location-pending')).toHaveCount(0)
   await page.getByLabel('Añadir fotos del anuncio').setInputFiles(requiredPhotoFiles())
