@@ -8,25 +8,25 @@ const enhancerCss = readFileSync('src/publish-location-enhancer.css', 'utf8')
 const CUSTOMER_ADDRESS_REFERENCE = { lat: 28.12909, lng: -16.75657 }
 
 async function openPublishLocation(page: Page) {
-  await page.goto('/#/')
+  await page.goto('/#/', { waitUntil: 'domcontentloaded' })
   await page.evaluate(() => {
     localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
     localStorage.setItem('112233:mobile-onboarding:v1', 'done')
   })
-  await page.reload()
-  await page.goto('/#/publicar')
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.goto('/#/publicar', { waitUntil: 'domcontentloaded' })
   await expect(page.locator('#publish-street[data-address-autocomplete="native"]')).toBeVisible()
 }
 
 async function openFirstListingEdit(page: Page) {
-  await page.goto('/#/')
+  await page.goto('/#/', { waitUntil: 'domcontentloaded' })
   await page.evaluate(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
-  await page.reload()
-  await page.goto('/#/mis-anuncios')
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.goto('/#/mis-anuncios', { waitUntil: 'domcontentloaded' })
   const edit = page.locator('.manage-card').first().getByRole('link', { name: /Editar/i })
   const href = await edit.getAttribute('href')
   expect(href).toBeTruthy()
-  await page.goto(href!.startsWith('#') ? `/${href}` : href!)
+  await page.goto(href!.startsWith('#') ? `/${href}` : href!, { waitUntil: 'domcontentloaded' })
   await expect(page.locator('#publish-street[data-address-autocomplete="native"]')).toBeVisible()
 }
 
@@ -49,6 +49,65 @@ test('native prediction dropdown is visible, touch-friendly and does not depend 
   expect(enhancerCss).toContain('.publish-address-prediction')
   expect(enhancerCss).toContain('.publish-address-predictions__attribution')
   expect(enhancerCss).toContain('max-height: min(18rem, 42dvh)')
+})
+
+test('address lookup starts after two characters and 120 ms without changing the native field', async ({ page }) => {
+  await openPublishLocation(page)
+  await page.evaluate(() => {
+    window.__112233TestAddressPredictions = async (query) => [{ label: query, detail: {} }]
+  })
+  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') })
+  await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'))
+  const street = page.locator('#publish-street')
+  await street.fill('Ca')
+  await page.clock.runFor(119)
+  await expect(page.locator('.publish-address-prediction')).toHaveCount(0)
+  await page.clock.runFor(1)
+  await expect(page.locator('.publish-address-prediction').first()).toContainText('Ca')
+  await expect(street).toHaveValue('Ca')
+})
+
+test('Escape cancels an in-flight lookup and a new query hides obsolete suggestions', async ({ page }) => {
+  await openPublishLocation(page)
+  await page.evaluate(() => {
+    window.__112233TestAddressPredictions = async (query) => {
+      await new Promise((resolve) => window.setTimeout(resolve, 300))
+      return [{ label: query, detail: {} }]
+    }
+  })
+  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') })
+  await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'))
+  const street = page.locator('#publish-street')
+  await street.fill('Calle Mayor')
+  await page.clock.runFor(120)
+  await street.press('Escape')
+  await page.clock.runFor(300)
+  await expect(page.locator('.publish-address-predictions')).toBeHidden()
+  await street.fill('Calle Sol')
+  await page.clock.runFor(420)
+  await expect(page.locator('.publish-address-prediction').first()).toContainText('Calle Sol')
+  await street.fill('Calle Luna')
+  await expect(page.locator('.publish-address-predictions')).toBeHidden()
+  await page.clock.runFor(420)
+  await expect(page.locator('.publish-address-prediction').first()).toContainText('Calle Luna')
+})
+
+test('empty predictions are retried instead of being cached for the whole editor session', async ({ page }) => {
+  await openPublishLocation(page)
+  await page.evaluate(() => { window.__112233TestAddressPredictions = async () => [] })
+  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') })
+  await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'))
+  const street = page.locator('#publish-street')
+  await street.fill('Calle Sol')
+  await page.clock.runFor(120)
+  await expect(page.locator('.publish-address-predictions')).toBeHidden()
+  await page.evaluate(() => {
+    window.__112233TestAddressPredictions = async () => [{ label: 'Calle Sol recuperada', detail: {} }]
+  })
+  await street.fill('')
+  await street.fill('Calle Sol')
+  await page.clock.runFor(120)
+  await expect(page.locator('.publish-address-prediction').first()).toHaveText('Calle Sol recuperada')
 })
 
 test('Calle José Espronceda 20 shows a suggestion inline and selecting it fixes municipality, postcode and exact map point', async ({ page }) => {
