@@ -1,5 +1,6 @@
 import asyncio
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 from io import BytesIO
 
 import pytest
@@ -15,9 +16,10 @@ from app.services.commercial_advertisements import normalize_destination
 pytestmark = pytest.mark.integration
 
 
-def image_file() -> bytes:
+def image_file(seed: str = "default") -> bytes:
     output = BytesIO()
-    Image.new("RGB", (100, 60), (193, 80, 130)).save(output, format="PNG")
+    color = tuple(sha256(seed.encode()).digest()[:3])
+    Image.new("RGB", (100, 60), color).save(output, format="PNG")
     return output.getvalue()
 
 
@@ -25,7 +27,7 @@ async def create_ad(client, register_user, email="advertiser@example.com"):
     token, user = await register_user(client, email=email)
     headers = {"Authorization": f"Bearer {token}"}
     upload = await client.post("/api/v1/advertisements/uploads", headers=headers,
-                               files={"file": ("banner.png", image_file(), "image/png")})
+                               files={"file": ("banner.png", image_file(email), "image/png")})
     assert upload.status_code == 201, upload.text
     payload = {
         "title": "Helpful local service", "description": "Friendly service for the local community.",
@@ -46,6 +48,60 @@ async def admin_headers(client, register_user):
         session.add(AdminAccess(email=account.email, active=True, created_by=None))
         await session.commit()
     return {"Authorization": f"Bearer {token}"}
+
+
+async def test_duplicate_banner_reupload_is_rejected_across_accounts(client, register_user):
+    ad, payload, headers, _ = await create_ad(client, register_user)
+    # Editing the original campaign is allowed.
+    assert (await client.patch(f"/api/v1/advertisements/{ad['id']}", headers=headers, json=payload)).status_code == 200
+    token, _ = await register_user(client, email="copy-ad@example.com")
+    other_headers = {"Authorization": f"Bearer {token}"}
+    uploaded = await client.post("/api/v1/advertisements/uploads", headers=other_headers,
+                                files={"file": ("renamed.png", image_file("advertiser@example.com"), "image/png")})
+    assert uploaded.status_code == 201
+    duplicate = await client.post("/api/v1/advertisements", headers=other_headers, json={
+        **payload, "imageAssetId": uploaded.json()["id"], "title": "Different title",
+        "destination": "https://example.org/different",
+    })
+    assert duplicate.status_code == 409, duplicate.text
+    assert duplicate.json()["code"] == "DUPLICATE_ADVERTISEMENT_IMAGE"
+    assert "imageAssetId" in duplicate.json()["fieldErrors"]
+
+
+async def test_edit_cannot_replace_banner_with_an_existing_creative(client, register_user):
+    _, original, _, _ = await create_ad(client, register_user, email="first-creative@example.com")
+    second, payload, headers, _ = await create_ad(client, register_user, email="second-creative@example.com")
+    uploaded = await client.post("/api/v1/advertisements/uploads", headers=headers,
+                                files={"file": ("copy.png", image_file("first-creative@example.com"), "image/png")})
+    assert uploaded.status_code == 201
+    rejected = await client.patch(f"/api/v1/advertisements/{second['id']}", headers=headers,
+                                  json={**payload, "imageAssetId": uploaded.json()["id"]})
+    assert rejected.status_code == 409, rejected.text
+    unchanged = await client.get(f"/api/v1/advertisements/{second['id']}", headers=headers)
+    assert unchanged.json()["imageAssetId"] == payload["imageAssetId"]
+    assert original["imageAssetId"] != payload["imageAssetId"]
+
+
+async def test_cancelled_banner_releases_its_photo_identity(client, register_user):
+    ad, payload, headers, _ = await create_ad(client, register_user)
+    assert (await client.delete(f"/api/v1/advertisements/{ad['id']}", headers=headers)).status_code == 204
+    recreated = await client.post("/api/v1/advertisements", headers=headers, json=payload)
+    assert recreated.status_code == 201, recreated.text
+
+
+async def test_concurrent_identical_banner_submissions_leave_one_campaign(client, register_user):
+    token, _ = await register_user(client, email="race-duplicate@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    uploaded = await client.post("/api/v1/advertisements/uploads", headers=headers,
+                                files={"file": ("race.png", image_file(), "image/png")})
+    assert uploaded.status_code == 201
+    payload = {"title": "Concurrent campaign", "description": "Duplicate image race regression.",
+               "imageAssetId": uploaded.json()["id"], "destinationType": "website",
+               "destination": "https://example.org/race", "packageId": "homepage_1d"}
+    results = await asyncio.gather(*(client.post("/api/v1/advertisements", headers=headers, json=payload) for _ in range(2)))
+    assert sorted(response.status_code for response in results) == [201, 409]
+    mine = await client.get("/api/v1/advertisements/mine", headers=headers)
+    assert len(mine.json()) == 1
 
 
 async def test_create_requires_auth_and_valid_image_and_destination(client, register_user):
@@ -200,8 +256,15 @@ async def test_spanish_phone_and_whatsapp_destinations_are_normalized(client, re
     assert phone.status_code == 201, phone.text
     assert phone.json()["destination"] == "+34612345678"
 
+    # Distinct campaigns need distinct creatives; contact normalization is
+    # independent from the duplicate-image guard.
+    other_image = await client.post("/api/v1/advertisements/uploads", headers=headers,
+                                   files={"file": ("whatsapp.png", image_file("whatsapp"), "image/png")})
+    assert other_image.status_code == 201
+
     whatsapp = await client.post("/api/v1/advertisements", headers=headers, json={
-        **base, "title": "Servicio WhatsApp", "destinationType": "whatsapp", "destination": "0034 712 345 678",
+        **base, "imageAssetId": other_image.json()["id"],
+        "title": "Servicio WhatsApp", "destinationType": "whatsapp", "destination": "0034 712 345 678",
     })
     assert whatsapp.status_code == 201, whatsapp.text
     assert whatsapp.json()["destination"] == "+34712345678"

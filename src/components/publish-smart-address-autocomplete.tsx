@@ -12,7 +12,7 @@ type TestPrediction = { label: string; detail: AddressDetail }
 
 type Prediction =
   | { kind: 'new'; key: string; label: string; placePrediction: google.maps.places.PlacePrediction }
-  | { kind: 'legacy'; key: string; label: string; placeId: string; detail: AddressDetail }
+  | { kind: 'legacy'; key: string; label: string; placeId: string }
   | { kind: 'geocode'; key: string; label: string; result: google.maps.GeocoderResult }
   | { kind: 'test'; key: string; label: string; detail: AddressDetail }
 
@@ -78,9 +78,22 @@ const COPY: Record<Language, Copy> = {
   },
 }
 
-const INPUT_DEBOUNCE_MS = 260
-const MIN_QUERY_LENGTH = 3
+const INPUT_DEBOUNCE_MS = 120
+const MIN_QUERY_LENGTH = 2
 const MAX_PREDICTIONS = 5
+const PREDICTION_TIMEOUT_MS = 1800
+
+async function boundedPredictions(request: Promise<Prediction[]>): Promise<Prediction[]> {
+  let timeout: number | undefined
+  try {
+    return await Promise.race([
+      request,
+      new Promise<Prediction[]>((resolve) => { timeout = window.setTimeout(() => resolve([]), PREDICTION_TIMEOUT_MS) }),
+    ])
+  } finally {
+    if (timeout !== undefined) window.clearTimeout(timeout)
+  }
+}
 
 function component(components: AddressComponent[] = [], type: string) {
   const item = components.find((entry) => entry.types.includes(type))
@@ -185,7 +198,8 @@ export function PublishSmartAddressAutocomplete() {
     let sessionToken: google.maps.places.AutocompleteSessionToken | null = null
     let legacyService: google.maps.places.AutocompleteService | null = null
     let placesLibrary: google.maps.PlacesLibrary | null = null
-    let newApiUnavailable = false
+    let placesPromise: Promise<google.maps.PlacesLibrary> | null = null
+    let newApiRetryAt = 0
     let preferredOrigin: Coordinates | null = null
     const cache = new Map<string, Prediction[]>()
 
@@ -286,9 +300,11 @@ export function PublishSmartAddressAutocomplete() {
 
     const ensurePlaces = async () => {
       if (placesLibrary) return placesLibrary
-      await loadGoogleMapsOnDemand()
-      placesLibrary = await google.maps.importLibrary('places') as google.maps.PlacesLibrary
-      return placesLibrary
+      placesPromise ??= loadGoogleMapsOnDemand()
+        .then(() => google.maps.importLibrary('places') as Promise<google.maps.PlacesLibrary>)
+        .then((places) => { placesLibrary = places; return places })
+        .catch((error: unknown) => { placesPromise = null; throw error })
+      return placesPromise
     }
 
     const ensureToken = async () => {
@@ -298,7 +314,7 @@ export function PublishSmartAddressAutocomplete() {
     }
 
     const fetchNewPredictions = async (query: string): Promise<Prediction[]> => {
-      if (newApiUnavailable) return []
+      if (Date.now() < newApiRetryAt) return []
       try {
         const places = await ensurePlaces()
         const token = await ensureToken()
@@ -319,7 +335,7 @@ export function PublishSmartAddressAutocomplete() {
           return label ? [{ kind: 'new' as const, key: `new-${index}-${label}`, label, placePrediction }] : []
         }))
       } catch {
-        newApiUnavailable = true
+        newApiRetryAt = Date.now() + 30_000
         return []
       }
     }
@@ -334,22 +350,13 @@ export function PublishSmartAddressAutocomplete() {
           componentRestrictions: { country: 'es' },
           types: ['geocode'],
         })
-        const geocoding = await google.maps.importLibrary('geocoding') as google.maps.GeocodingLibrary
-        const geocoder = new geocoding.Geocoder()
-        const checked = await Promise.all(response.predictions.slice(0, MAX_PREDICTIONS).map(async (prediction, index): Promise<Prediction | null> => {
+        // Resolve only the selected address. Geocoding every row delays the
+        // entire dropdown and bills up to five detail requests per keystroke.
+        return dedupePredictions(response.predictions.flatMap((prediction, index): Prediction[] => {
           const label = prediction.description?.trim() ?? ''
-          if (!prediction.place_id || !label) return null
-          try {
-            const resolved = await geocoder.geocode({ placeId: prediction.place_id })
-            const detail = resolved.results.map(detailFromGeocoderResult).find((candidate): candidate is AddressDetail => Boolean(candidate && hasRoute(candidate.addressComponents)))
-            return detail
-              ? { kind: 'legacy', key: `legacy-${prediction.place_id}-${index}`, label, placeId: prediction.place_id, detail }
-              : null
-          } catch {
-            return null
-          }
+          if (!prediction.place_id || !label) return []
+          return [{ kind: 'legacy', key: `legacy-${prediction.place_id}-${index}`, label, placeId: prediction.place_id }]
         }))
-        return dedupePredictions(checked.filter((prediction): prediction is Prediction => Boolean(prediction)))
       } catch {
         return []
       }
@@ -375,7 +382,7 @@ export function PublishSmartAddressAutocomplete() {
       }
     }
 
-    const fetchPredictions = async (query: string) => {
+    const fetchPredictions = async (query: string, id: number) => {
       if (googleMapsTestSdkEnabled) {
         const mocked = await window.__112233TestAddressPredictions?.(query) ?? []
         return mocked.map((prediction, index) => ({
@@ -385,22 +392,23 @@ export function PublishSmartAddressAutocomplete() {
           detail: prediction.detail,
         }))
       }
-      const modern = await fetchNewPredictions(query)
+      const modern = await boundedPredictions(fetchNewPredictions(query))
+      if (cancelled || id !== requestId) return []
       if (modern.length) return modern
-      const legacy = await fetchLegacyPredictions(query)
-      if (legacy.length) {
-        setStatus(copy.fallback, 'fallback')
-        return legacy
-      }
-      const geocoded = await fetchGeocoderPredictions(query)
-      if (geocoded.length) setStatus(copy.fallback, 'fallback')
-      return geocoded
+      const legacy = await boundedPredictions(fetchLegacyPredictions(query))
+      if (cancelled || id !== requestId) return []
+      if (legacy.length) return legacy
+      return boundedPredictions(fetchGeocoderPredictions(query))
     }
 
     const resolvePrediction = async (prediction: Prediction): Promise<AddressDetail | null> => {
       if (prediction.kind === 'test') return prediction.detail
       if (prediction.kind === 'geocode') return detailFromGeocoderResult(prediction.result)
-      if (prediction.kind === 'legacy') return prediction.detail
+      if (prediction.kind === 'legacy') {
+        const geocoding = await google.maps.importLibrary('geocoding') as google.maps.GeocodingLibrary
+        const resolved = await new geocoding.Geocoder().geocode({ placeId: prediction.placeId })
+        return resolved.results.map(detailFromGeocoderResult).find((detail) => detail && hasRoute(detail.addressComponents)) ?? null
+      }
       const place = prediction.placePrediction.toPlace()
       await place.fetchFields({ fields: ['formattedAddress', 'location', 'addressComponents'] })
       if (!place.location) return null
@@ -446,6 +454,8 @@ export function PublishSmartAddressAutocomplete() {
         return
       }
 
+      if (items[0].kind === 'legacy' || items[0].kind === 'geocode') setStatus(copy.fallback, 'fallback')
+
       items.forEach((prediction, index) => {
         const button = document.createElement('button')
         button.type = 'button'
@@ -480,10 +490,14 @@ export function PublishSmartAddressAutocomplete() {
       }
       setStatus(copy.loading, preferredOrigin ? 'nearby' : 'island')
       try {
-        let result = await fetchPredictions(contextual)
-        if (!result.length && contextual !== query) result = await fetchPredictions(query)
+        let result = await fetchPredictions(contextual, id)
         if (cancelled || id !== requestId) return
-        cache.set(cacheKey, result)
+        if (!result.length && contextual !== query) result = await fetchPredictions(query, id)
+        if (cancelled || id !== requestId) return
+        if (result.length) {
+          if (cache.size >= 50) cache.delete(cache.keys().next().value!)
+          cache.set(cacheKey, result)
+        }
         renderPredictions(result)
       } catch {
         if (!cancelled && id === requestId) {
@@ -495,6 +509,7 @@ export function PublishSmartAddressAutocomplete() {
 
     const scheduleQuery = (value: string) => {
       cancelPendingQuery()
+      closeList()
       const id = requestId
       const query = value.trim()
       if (query.length < MIN_QUERY_LENGTH) {
@@ -510,6 +525,7 @@ export function PublishSmartAddressAutocomplete() {
 
     const bindInput = (input: HTMLInputElement) => {
       if (activeInput === input) return
+      cancelPendingQuery()
       inputCleanup?.()
       inputCleanup = null
       locateCleanup?.()
@@ -526,6 +542,7 @@ export function PublishSmartAddressAutocomplete() {
       input.setAttribute('aria-expanded', 'false')
       activeInput = input
       seedPreferredOriginFromMap()
+      if (!googleMapsTestSdkEnabled) void ensurePlaces().catch(() => {})
 
       const current = ensureUi(input)
       const status = current.assist.querySelector<HTMLElement>('.publish-address-assist__status')
@@ -538,6 +555,7 @@ export function PublishSmartAddressAutocomplete() {
       }
       const onKeyDown = (event: KeyboardEvent) => {
         if (event.key === 'Escape') {
+          cancelPendingQuery()
           closeList()
           return
         }
@@ -556,13 +574,17 @@ export function PublishSmartAddressAutocomplete() {
         }
       }
       const onFocus = () => {
+        if (!googleMapsTestSdkEnabled) void ensurePlaces().catch(() => {})
         if (predictions.length) {
           current.list.hidden = false
           input.setAttribute('aria-expanded', 'true')
         }
       }
       const onBlur = () => window.setTimeout(() => {
-        if (!current.list.matches(':hover') && document.activeElement?.closest('.publish-address-predictions') !== current.list) closeList()
+        if (document.activeElement !== input && !current.list.matches(':hover') && document.activeElement?.closest('.publish-address-predictions') !== current.list) {
+          cancelPendingQuery()
+          closeList()
+        }
       }, 120)
 
       input.addEventListener('input', onInput)
@@ -632,6 +654,7 @@ export function PublishSmartAddressAutocomplete() {
     const onDocumentPointerDown = (event: PointerEvent) => {
       if (!(event.target instanceof Element)) return
       if (event.target.closest('#publish-street, .publish-address-predictions, .publish-address-assist')) return
+      cancelPendingQuery()
       closeList()
     }
 

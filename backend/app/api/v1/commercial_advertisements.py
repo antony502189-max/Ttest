@@ -29,6 +29,7 @@ from ...services.commercial_advertisements import (
     PACKAGE_ID,
     PACKAGE_PRICE_CENTS,
     approve,
+    assert_advertisement_image_is_unique,
     destination_url,
     lock_advertising_capacity,
     notify_advertiser,
@@ -183,7 +184,8 @@ async def create_advertisement(
     ))
     if (created_today or 0) >= 20:
         raise HTTPException(429, "Daily advertisement submission limit reached")
-    await valid_asset(session, payload.imageAssetId, user.id)
+    asset = await valid_asset(session, payload.imageAssetId, user.id)
+    await assert_advertisement_image_is_unique(session, asset)
     ad = Ad(owner_user_id=user.id, image_asset_id=payload.imageAssetId, title=payload.title,
             description=payload.description, destination_type=payload.destinationType,
             destination=payload.destination, status="pending_payment", payment_status="unpaid",
@@ -230,7 +232,8 @@ async def edit_advertisement(
         current_payment = await session.get(PaymentOrder, ad.current_payment_order_id)
         if current_payment and current_payment.financial_status != "normal":
             raise HTTPException(409, "A refund or dispute must be settled before editing")
-    await valid_asset(session, payload.imageAssetId, user.id)
+    asset = await valid_asset(session, payload.imageAssetId, user.id)
+    await assert_advertisement_image_is_unique(session, asset, exclude_id=ad.id)
     old_image_id = ad.image_asset_id
     changed = any((ad.title != payload.title, ad.description != payload.description,
                    ad.image_asset_id != payload.imageAssetId, ad.destination_type != payload.destinationType,
