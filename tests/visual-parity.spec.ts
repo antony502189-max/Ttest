@@ -1,3 +1,4 @@
+import { expectProvinceLocationVisual } from './helpers/province-location-visual'
 import { expect, test, type Page } from '@playwright/test'
 
 async function open(page: Page, route: string, width = 390, height = 844) {
@@ -33,7 +34,7 @@ test('current mobile home, results, location and map visual states', async ({ pa
   await page.getByRole('button', { name: 'Volver' }).click()
   await page.locator('.m2-select-row').click()
   await expect(page.getByTestId('location-screen')).toBeVisible()
-  await shot(page, 'current-location-390x844')
+  await expectProvinceLocationVisual(page)
 
   await open(page, '/#/buscar?q=Tenerife&vista=mapa')
   await expect(page.getByTestId('map-search')).toBeVisible()

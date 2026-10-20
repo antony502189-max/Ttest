@@ -1,3 +1,4 @@
+import { selectResolvedAddress } from './helpers/resolved-address'
 import { expect, test, type Page } from '@playwright/test'
 
 async function openAsHost(page: Page) {
@@ -62,11 +63,12 @@ for (const width of [320, 360, 375, 390, 430]) {
     expect(backBox!.x + backBox!.width).toBeLessThanOrEqual(width + 1)
     await expectNoHorizontalOverflow(page)
 
-    const city = page.locator('#publish-city')
+    const city = page.locator('#publish-province')
     await expect(city).toBeVisible()
     await city.focus()
-    await city.selectOption('San Cristóbal de La Laguna')
-    await expect(city).toHaveValue('San Cristóbal de La Laguna')
+    await selectResolvedAddress(page, { city: 'San Cristóbal de La Laguna', postcode: '38201', area: 'Centro', street: 'Calle Prueba 1', coordinates: { lat: 28.4874, lng: -16.3159 } })
+    await expect(city).toHaveValue('Santa Cruz de Tenerife')
+    await expect(city).toHaveAttribute('readonly', '')
 
     const cityBox = await city.boundingBox()
     expect(cityBox).not.toBeNull()

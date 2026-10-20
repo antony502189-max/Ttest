@@ -13,6 +13,7 @@ export function ProvinceLocationSearch({ language, rentalMode, onSelect, desktop
 }) {
   const { allListings, discarded, filters } = useApp()
   const [query, setQuery] = useState('')
+  const [focused, setFocused] = useState(false)
   const [counts, setCounts] = useState<Record<string, number> | null>(null)
   const [error, setError] = useState(false)
   const suggestions = useMemo(() => provinceSuggestions(query), [query])
@@ -39,15 +40,15 @@ export function ProvinceLocationSearch({ language, rentalMode, onSelect, desktop
   }, [allListings, discarded, filters, rentalMode])
   return <>
     <form className={desktop ? "location-selector-search" : "m2-location-search"} onSubmit={(event) => { event.preventDefault(); event.stopPropagation(); if (suggestions[0]) onSelect(suggestions[0].id) }}>
-      <Search aria-hidden="true" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={copy.placeholder} aria-label={copy.placeholder} autoComplete="off" />
+      <Search aria-hidden="true" /><input type="search" value={query} onFocus={() => setFocused(true)} onChange={(event) => setQuery(event.target.value)} placeholder={copy.placeholder} aria-label={copy.placeholder} autoComplete="off" />
       {query ? <button type="button" className="m2-location-clear" aria-label={language === 'ru' ? 'Очистить' : language === 'en' ? 'Clear' : 'Limpiar'} onClick={() => setQuery('')}><X /></button> : null}
     </form>
-    <div className={desktop ? "location-catalog-list location-province-list" : "m2-community-suggestions"} data-testid="province-suggestions">
+    {(desktop || focused || query) && <div className={desktop ? "location-catalog-list location-province-list" : "m2-community-suggestions"} data-testid="province-suggestions">
       {suggestions.length ? suggestions.map((province) => <button type="button" className={desktop ? "location-province-option" : "m2-community-option"} key={province.id} onClick={() => onSelect(province.id)} data-testid={`province-option-${province.id}`}>
         {desktop ? <MapPin aria-hidden="true" /> : null}
         <span><strong>{province.es}</strong><small>{copy.province}</small></span>
         <span className="m2-community-option__count">{error ? '—' : counts ? counts[province.id] ?? 0 : '…'} {copy.listings}</span><ChevronRight />
       </button>) : <p className="m2-community-empty">{copy.empty}</p>}
-    </div>
+    </div>}
   </>
 }

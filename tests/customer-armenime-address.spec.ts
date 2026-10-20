@@ -1,3 +1,4 @@
+import { selectResolvedAddress } from './helpers/resolved-address'
 import { expect, test, type Page } from '@playwright/test'
 
 const ARMEÑIME_REFERENCE = { lat: 28.12976, lng: -16.75563 }
@@ -84,11 +85,11 @@ test('Calle José Espronceda 20 + 38678 moves from Armeñime area focus to the m
   await page.getByLabel('Código postal').fill('38678')
 
   await expect.poll(() => page.evaluate(() => (window as Window & { __customerAddressQuery?: string }).__customerAddressQuery ?? '')).toBe(
-    'Calle José Espronceda 20, 38678, Armeñime, Tenerife, Spain',
+    'Calle José Espronceda 20, 38678, Armeñime, Spain',
   )
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(18)
   await expect.poll(() => currentCenter(page)).toEqual(CUSTOMER_ADDRESS_REFERENCE)
-  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.locator('#publish-city')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
   await expect(page.locator('#publish-street')).toHaveValue('Calle José Espronceda 20')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
@@ -128,7 +129,8 @@ test('C/ street abbreviation still matches the canonical Google Calle route', as
 
 test('full pasted Espronceda address resolves even when the selected municipality is stale and postcode is initially empty', async ({ page }) => {
   await openPublishLocation(page)
-  await page.getByLabel('Municipio').selectOption('Santa Cruz de Tenerife')
+  await selectResolvedAddress(page, { city: 'Santa Cruz de Tenerife', postcode: '38001', area: 'Centro', street: 'Calle Prueba 1', coordinates: { lat: 28.4636, lng: -16.2518 } })
+  await page.getByLabel('Código postal').fill('')
   await page.getByLabel('Zona o barrio').fill('Armeñime')
 
   await page.evaluate((coordinates) => {
@@ -159,7 +161,7 @@ test('full pasted Espronceda address resolves even when the selected municipalit
   await street.fill('Calle José Espronceda 20. Armeñime\nSanta Cruz de Tenerife.')
   await street.blur()
 
-  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.locator('#publish-city')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
   await expect(page.locator('#publish-street')).toHaveValue('Calle José Espronceda 20')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')

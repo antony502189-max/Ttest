@@ -1,3 +1,4 @@
+import { restoreMunicipalityMetadata } from './helpers/resolved-address'
 import { expect, test, type Page } from '@playwright/test'
 
 type GeocoderFixture = {
@@ -109,7 +110,7 @@ test('typing street, building number and postcode moves the owner marker to the 
 
 test('customer address Calle José Espronceda 20 in Armeñime resolves without stale municipality context and recenters to the matched rooftop', async ({ page }) => {
   await openPublishLocation(page)
-  await page.getByLabel('Municipio').selectOption('Adeje')
+  await restoreMunicipalityMetadata(page, 'Adeje')
   await page.getByLabel('Zona o barrio').fill('Armeñime')
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(13)
 
@@ -125,7 +126,7 @@ test('customer address Calle José Espronceda 20 in Armeñime resolves without s
   await typeExactAddress(page, 'Calle José Espronceda 20', '38678')
 
   await expect.poll(() => page.evaluate(() => (window as Window & { __lastExactAddressQuery?: string }).__lastExactAddressQuery ?? '')).toBe(
-    'Calle José Espronceda 20, 38678, Armeñime, Adeje, Tenerife, Spain',
+    'Calle José Espronceda 20, 38678, Armeñime, Adeje, Spain',
   )
   await expect.poll(() => page.evaluate(() => {
     const center = window.__googleMapsTestLastMap?.getCenter()
@@ -134,7 +135,7 @@ test('customer address Calle José Espronceda 20 in Armeñime resolves without s
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(18)
   await expect(page.locator('#publish-street')).toHaveValue('Calle José Espronceda 20')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
-  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.locator('#publish-city')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
 })
 
@@ -185,8 +186,8 @@ test('same house number and postcode on a different Google route is rejected', a
 
 test('explicitly chosen municipality rejects the right house number on a street in another municipality', async ({ page }) => {
   await openPublishLocation(page)
-  await page.getByLabel('Municipio').selectOption('Arico')
-  await expect(page.getByLabel('Municipio')).toHaveValue('Arico')
+  await restoreMunicipalityMetadata(page, 'Arico')
+  await expect(page.locator('#publish-city')).toHaveValue('Arico')
   await expect(page.locator('.listing-edit-coordinates')).toContainText('28.1925, -16.5042')
   const before = await page.locator('.listing-edit-coordinates').textContent()
 
@@ -200,7 +201,7 @@ test('explicitly chosen municipality rejects the right house number on a street 
   await typeExactAddress(page, 'Calle Londres 5', '38660')
 
   await expect(page.locator('.listing-edit-coordinates')).toHaveText(before ?? '')
-  await expect(page.getByLabel('Municipio')).toHaveValue('Arico')
+  await expect(page.locator('#publish-city')).toHaveValue('Arico')
   await expect(page.locator('.listing-edit-location-pending')).toBeVisible()
 })
 
@@ -264,11 +265,13 @@ test('placing the marker with empty address fields reverse-geocodes and fills th
   })
 
   const map = page.locator('.approximate-location-map')
-  await map.dblclick({ position: { x: 180, y: 180 } })
+  const markerBox = await map.boundingBox()
+  expect(markerBox).not.toBeNull()
+  await map.dblclick({ position: { x: Math.round(markerBox!.width / 2), y: Math.round(markerBox!.height / 2) } })
 
   await expect(page.locator('#publish-street')).toHaveValue('Calle José Espronceda 20')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
-  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.locator('#publish-city')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
   await expect(page.locator('.approximate-location-map-address')).toContainText('Calle José Espronceda 20')
 })
@@ -341,7 +344,7 @@ test('customer video regression: editing only the street re-geocodes stale saved
   await page.locator('#publish-street').fill('Avenida V Centenario 1')
 
   await expect.poll(() => page.evaluate(() => (window as Window & { __lastExactAddressQuery?: string }).__lastExactAddressQuery ?? '')).toBe(
-    'Avenida V Centenario 1, Tenerife, Spain',
+    'Avenida V Centenario 1, Spain',
   )
   await expect.poll(() => page.evaluate(() => {
     const center = window.__googleMapsTestLastMap?.getCenter()

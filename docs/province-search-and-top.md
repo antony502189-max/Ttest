@@ -73,3 +73,9 @@ block new purchases until reconciled.
 The remediation did not migrate production or perform real payments. See
 [the remediation report](../FULL_PROJECT_REMEDIATION_REPORT.md) for exact gates,
 T01–T30/A–J evidence, source references and remaining operational limits.
+
+The mobile province list opens when its search box receives focus; initial entry
+keeps all three map alternatives visible. Province suggestions use the existing
+light palette. Desktop legacy zone selection still applies directly to the URL.
+Older explicitly chosen municipality metadata remains covered as restored draft
+state; the current publication UI never offers a municipality dropdown.

@@ -46,8 +46,8 @@ test('country onboarding supports all Spain and location picker has no fixed reg
   await page.getByRole('button', { name: 'Seleccionar ubicación actual' }).click()
   await expect(page.getByTestId('location-screen')).toBeVisible()
   await expect(page.locator('.m2-location-region')).toHaveCount(0)
-  await page.getByTestId('community-search-input').focus()
-  await expect(page.locator('.m2-community-option')).toHaveCount(17)
+  await page.getByRole('searchbox').focus()
+  await expect(page.locator('.m2-community-option')).toHaveCount(52)
 })
 
 test('housing modes start inactive and occupant selector keeps one compatible primary choice', async ({ page }) => {
@@ -90,11 +90,11 @@ test('location screen preserves map shortcuts and a city selects its autonomous 
   await expect(page.getByText('Buscar alrededor de ti', { exact: true })).toBeVisible()
   await expect(page.getByTestId('search-phone')).toHaveCount(0)
 
-  const input = page.getByPlaceholder('Municipio, zona o dirección')
+  const input = page.getByRole('searchbox')
   await input.fill('Santa Cruz de Tenerife')
-  await expect(page.getByTestId('community-option-05')).toBeVisible()
+  await expect(page.getByTestId('province-option-38')).toBeVisible()
   await input.press('Enter')
-  await expect(page).toHaveURL(/comunidad=05/)
+  await expect(page).toHaveURL(/provincia=38/)
   await expect(page.getByTestId('mobile-results')).toBeVisible()
 })
 

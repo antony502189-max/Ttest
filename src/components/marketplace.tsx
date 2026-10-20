@@ -11,7 +11,7 @@ import {
   type ReactNode,
   type SyntheticEvent,
 } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import {
   ArrowLeft,
   Bath,
@@ -184,13 +184,15 @@ export function RentalTypeSwitch({
   );
 }
 
-export function SearchLocationInput({ value, onChange, error }: {
+export function SearchLocationInput({ value, onChange, error, home = false }: {
   value: string; onChange: (value: string) => void; error?: string; home?: boolean;
 }) {
   const id = useId();
   const listId = useId();
   const { filters, setFilters } = useApp();
   const { language } = useI18n();
+  const location = useLocation();
+  const navigate = useNavigate();
   const label = language === 'ru' ? 'Провинция' : language === 'en' ? 'Province' : 'Provincia';
   return <div className="search-location">
     <label htmlFor={id}>{label}</label>
@@ -199,7 +201,16 @@ export function SearchLocationInput({ value, onChange, error }: {
       <Input id={id} list={listId} value={value} onChange={(event) => onChange(event.target.value)} placeholder={label} aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined} />
       <datalist id={listId}>{provinceSuggestions('').map((province) => <option key={province.id} value={province.es} />)}</datalist>
       <LocationSelector selected={filters.areas} currentQuery={value} onLocationSelect={onChange}
-        onApply={(selected) => { setFilters({ ...filters, areas: selected }); onChange(selected.length === 1 ? selected[0] : 'España'); }} />
+        onApply={(selected) => {
+          const nextFilters = { ...filters, areas: selected };
+          const nextQuery = selected.length === 1 ? selected[0] : 'Tenerife';
+          setFilters(nextFilters); onChange(nextQuery);
+          if (!home) {
+            const params = filtersToParams(nextFilters, new URLSearchParams(location.search));
+            params.set('q', nextQuery); params.delete('provincia'); params.delete('comunidad'); params.delete('pagina');
+            navigate(`/buscar?${params.toString()}`);
+          }
+        }} />
     </div>
     {error ? <span id={`${id}-error`} className="location-validation" role="alert">{error}</span> : null}
   </div>;

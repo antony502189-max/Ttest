@@ -1,3 +1,4 @@
+import { restoreMunicipalityMetadata } from './helpers/resolved-address'
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 
@@ -37,7 +38,7 @@ test('publish address autocomplete uses the native field and resilient Google pr
   expect(smartSource).toContain("input.dataset.addressAutocomplete = 'native'")
   expect(smartSource).toContain("document.querySelectorAll('.publish-place-autocomplete').forEach((element) => element.remove())")
   expect(smartSource).toContain("includedRegionCodes: ['es']")
-  expect(smartSource).toContain('locationRestriction: TENERIFE_BOUNDS')
+  expect(smartSource).toContain('locationRestriction: SPAIN_BOUNDS')
   expect(smartSource).not.toContain('localStorage.setItem')
   expect(smartSource).not.toContain('sessionStorage.setItem')
 })
@@ -83,7 +84,7 @@ test('Calle José Espronceda 20 shows a suggestion inline and selecting it fixes
 
   await prediction.click()
 
-  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.locator('#publish-city')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
   await expect(page.locator('#publish-street')).toHaveValue('Calle José Espronceda 20')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
@@ -126,7 +127,7 @@ test('keyboard can choose an address prediction without opening a fullscreen mob
 test('customer video: leading list prefix does not reject a valid Avenida V Centenario building and postal town replaces stale area', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await openPublishLocation(page)
-  await page.getByLabel('Municipio').selectOption('Adeje')
+  await restoreMunicipalityMetadata(page, 'Adeje')
   await page.getByLabel('Zona o barrio').fill('Armeñime')
   await page.getByLabel('Código postal').fill('38678')
 
@@ -157,7 +158,7 @@ test('customer video: leading list prefix does not reject a valid Avenida V Cent
 
   await expect(street).toHaveValue('Avenida V Centenario 1')
   await expect(page.getByLabel('Código postal')).toHaveValue('38660')
-  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.locator('#publish-city')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Playa de las Américas')
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(18)
   await expect.poll(() => page.evaluate(() => {
@@ -168,7 +169,7 @@ test('customer video: leading list prefix does not reject a valid Avenida V Cent
 
 test('rejected address suggestion never overwrites the visible street while structured fields stay unchanged', async ({ page }) => {
   await openPublishLocation(page)
-  await page.getByLabel('Municipio').selectOption('Adeje')
+  await restoreMunicipalityMetadata(page, 'Adeje')
   await page.getByLabel('Zona o barrio').fill('Armeñime')
   await page.getByLabel('Código postal').fill('38678')
 
@@ -204,7 +205,7 @@ test('rejected address suggestion never overwrites the visible street while stru
 test('customer video: edit autocomplete searches the current area first for an ambiguous street', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await openFirstListingEdit(page)
-  await page.getByLabel('Municipio').selectOption('Adeje')
+  await restoreMunicipalityMetadata(page, 'Adeje')
   await page.getByLabel('Zona o barrio').fill('Playa de las Américas')
 
   await page.evaluate(() => {

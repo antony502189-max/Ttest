@@ -1,3 +1,4 @@
+import { restoreMunicipalityMetadata } from './helpers/resolved-address'
 import { expect, test, type Page } from '@playwright/test'
 
 async function openPublishLocation(page: Page) {
@@ -49,9 +50,9 @@ test('manual municipality change clears stale address data and moves the map to 
   await page.locator('#publish-street').fill('Calle antigua 8')
   await page.getByLabel('Código postal').fill('38678')
 
-  await page.getByLabel('Municipio').selectOption('Arico')
+  await restoreMunicipalityMetadata(page, 'Arico')
 
-  await expect(page.getByLabel('Municipio')).toHaveValue('Arico')
+  await expect(page.locator('#publish-city')).toHaveValue('Arico')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('')
   await expect(page.locator('#publish-street')).toHaveValue('')
   await expect(page.getByLabel('Código postal')).toHaveValue('')
@@ -70,9 +71,9 @@ test('municipality without a hard-coded center still recenters from bundled Tene
     return center ? { lat: center.lat(), lng: center.lng() } : null
   })
 
-  await page.getByLabel('Municipio').selectOption('Arafo')
+  await restoreMunicipalityMetadata(page, 'Arafo')
 
-  await expect(page.getByLabel('Municipio')).toHaveValue('Arafo')
+  await expect(page.locator('#publish-city')).toHaveValue('Arafo')
   await expect.poll(() => page.evaluate(() => {
     const center = window.__googleMapsTestLastMap?.getCenter()
     return center ? { lat: center.lat(), lng: center.lng() } : null
@@ -93,9 +94,9 @@ test('municipality focus clears a previously detected street shown under the map
   await map.dblclick({ position: { x: Math.round((box?.width ?? 300) * 0.55), y: Math.round((box?.height ?? 220) * 0.5) } })
   await expect(page.locator('.approximate-location-map-address')).toContainText('Calle visible 7')
 
-  await page.getByLabel('Municipio').selectOption('Arico')
+  await restoreMunicipalityMetadata(page, 'Arico')
 
-  await expect(page.getByLabel('Municipio')).toHaveValue('Arico')
+  await expect(page.locator('#publish-city')).toHaveValue('Arico')
   await expect(page.locator('.approximate-location-map-address')).toHaveCount(0)
 })
 
@@ -116,7 +117,7 @@ test('address selection recenters the exact publication point at exact-building 
 
   await expect(page.locator('#publish-street')).toHaveValue('Avenida V Centenario 1')
   await expect(page.getByLabel('Código postal')).toHaveValue('38660')
-  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.locator('#publish-city')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Costa Adeje')
   await expect(page.locator('.listing-edit-coordinates')).toContainText('28.0830, -16.7300')
   await expect.poll(() => page.evaluate(() => {
@@ -154,7 +155,7 @@ test('resolved map address updates structured fields while retaining fields abse
 
   await expect(page.locator('#publish-street')).toHaveValue('Avenida V Centenario 1')
   await expect(page.getByLabel('Código postal')).toHaveValue('38660')
-  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.locator('#publish-city')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Barrio manual')
 })
 
@@ -190,7 +191,7 @@ test('reverse geocoding without a real street never overwrites a manually entere
 
   await expect(page.locator('#publish-street')).toHaveValue('Calle manual 12')
   await expect(page.getByLabel('Código postal')).toHaveValue('38660')
-  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.locator('#publish-city')).toHaveValue('Adeje')
 })
 
 test('editing a confirmed address blocks publication until the map point is confirmed again', async ({ page }) => {
@@ -226,7 +227,9 @@ test('reverse-geocoding from an old marker cannot overwrite a newly typed street
     })
   })
   const map = page.locator('.approximate-location-map')
-  await map.dblclick({ position: { x: 180, y: 180 } })
+  const markerBox = await map.boundingBox()
+  expect(markerBox).not.toBeNull()
+  await map.dblclick({ position: { x: Math.round(markerBox!.width / 2), y: Math.round(markerBox!.height / 2) } })
   await expect.poll(() => page.evaluate(() => Boolean((window as Window & { resolveOldPin?: unknown }).resolveOldPin))).toBe(true)
 
   await page.locator('#publish-street').fill('Calle nueva 42')

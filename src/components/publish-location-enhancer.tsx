@@ -175,6 +175,12 @@ function applyAddress(detail: AddressDetail, requireRoute = false) {
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-postcode'), postcode)
   setNativeValue(citySelect, city, { addressSync: true })
   setNativeValue(document.querySelector<HTMLInputElement>('#publish-area'), area, { addressSync: true })
+  if (city && postcode && detail.coordinates) {
+    window.dispatchEvent(new CustomEvent('112233:publish-location-selected', { detail: {
+      coordinates: detail.coordinates, address: { city, area, street, postcode,
+        formattedAddress: detail.formattedAddress ?? street, coordinates: detail.coordinates },
+    } }))
+  }
   return Boolean(route)
 }
 

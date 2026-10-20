@@ -6,6 +6,8 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'Provincia': { ru: 'Провинция', en: 'Province' },
+  'Se determina por la dirección': { ru: 'Определяется по адресу', en: 'Determined from the address' },
   'Pagar con Stripe': { ru: 'Оплатить через Stripe', en: 'Pay with Stripe' },
   'All TOP places in this province are occupied': { ru: 'Все места TOP в этой провинции заняты.', en: 'All TOP places in this province are occupied.' },
   'A valid Spanish postcode is required to determine the listing province': { ru: 'Укажите корректный почтовый индекс в адресе объявления для определения провинции.', en: 'Enter a valid Spanish postcode in the listing address to determine its province.' },

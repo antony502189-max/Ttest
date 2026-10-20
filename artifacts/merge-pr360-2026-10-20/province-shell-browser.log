@@ -1,0 +1,20 @@
+[WebServer] (node:33444) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 11 tests using 1 worker
+
+(node:35448) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 tests\owner-listing-edit-flow.spec.ts:10:1 › mobile owner can open, edit and save a listing even with tenant product role (6.4s)
+  ok  2 tests\owner-listing-edit-flow.spec.ts:40:1 › a user still cannot edit a listing owned by another account (1.5s)
+  ok  3 tests\province-top.spec.ts:4:3 › full province blocks payment and counts down without changing the dialog at 320px (16.7s)
+  ok  4 tests\province-top.spec.ts:4:3 › full province blocks payment and counts down without changing the dialog at 1280px (16.8s)
+  ok  5 tests\province-top.spec.ts:46:1 › province search keeps the existing location rows and separates both Canary provinces (1.8s)
+  ok  6 tests\province-top.spec.ts:65:1 › publication derives the province from the selected address without a manual city selector (2.0s)
+  ok  7 tests\province-visual-check.spec.ts:3:1 › new province location has approved light shell and visible map actions (1.2s)
+  ok  8 tests\spain-community-search.spec.ts:14:3 › mobile Spain province search › home location starts unselected and location page has no Tenerife banner (1.2s)
+  ok  9 tests\spain-community-search.spec.ts:30:3 › mobile Spain province search › typing Barcelona offers its province and opens provincial results (1.5s)
+  ok 10 tests\spain-community-search.spec.ts:49:3 › mobile Spain province search › Madrid and Canary Islands choose distinct spatial searches (1.8s)
+  ok 11 tests\spain-community-search.spec.ts:65:1 › Spanish autonomous communities have correct point-in-boundary assignments and 17 regions (825ms)
+
+  11 passed (54.6s)

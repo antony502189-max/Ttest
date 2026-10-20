@@ -21,6 +21,7 @@ test.describe('mobile Spain province search', () => {
     await expect(page.getByTestId('draw-zone')).toBeVisible()
     await expect(page.getByTestId('search-map')).toBeVisible()
     await expect(page.getByTestId('search-nearby')).toBeVisible()
+    await page.getByRole('searchbox').focus()
     await expect(page.getByTestId('province-suggestions')).toBeVisible()
     await expect(page.locator('.m2-community-option')).toHaveCount(52)
     await expect(page.getByTestId('location-screen')).toBeVisible()

@@ -18,3 +18,7 @@ Production audit and Payment audit passed on GitHub for 188436c9. Full audit the
 Production-mode publication: 15 passed after guarding the retired select-only bridge and updating resolved-address fixtures. Four release-preflight regressions execute the real workflow Bash with paginated GitHub fixtures on Linux with jq (locally skipped because Windows has no jq). They cover a payment-relevant file on page two, missing/failed payment checks, and an incomplete file response.
 
 The four release-preflight regressions also passed in an ephemeral Linux container using actual Bash and jq; negative cases verify exit 65 and the intended refusal reason.
+
+Additional broad-CI compatibility: 22 historical location/publication scenarios and 11 provincial/owner-layout checks passed. Mobile province suggestions appear on focus in the light palette. The pinned visual baseline is untouched; for the replaced Tenerife-only location state, tests enforce explicit geometry/palette/action order using the same approach already used for the redesigned menu. Linux screenshots are included as review artifacts. Controlled map updates no longer trigger a second reverse-geocode request.
+
+The final complete address/browser compatibility run passed all 50 tests, including late reverse responses, manual marker input, postcode-only lookup, restored legacy drafts, and Spain-wide search.

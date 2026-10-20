@@ -39,7 +39,7 @@ async function verifyPublicationEnhancers(page: Page) {
 
   await expect(street).toHaveValue('Calle José Espronceda 20')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
-  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.locator('#publish-city')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
   await expect.poll(() => {
     return page.evaluate(() => {

@@ -1,3 +1,4 @@
+import { restoreMunicipalityMetadata } from './helpers/resolved-address'
 import { expect, test, type Page } from '@playwright/test'
 
 async function openPublishLocation(page: Page) {
@@ -19,9 +20,9 @@ async function currentMapCenter(page: Page) {
 test('municipality selection uses the municipality geometry center instead of the legacy town pin', async ({ page }) => {
   await openPublishLocation(page)
 
-  await page.getByLabel('Municipio').selectOption('Arico')
+  await restoreMunicipalityMetadata(page, 'Arico')
 
-  await expect(page.getByLabel('Municipio')).toHaveValue('Arico')
+  await expect(page.locator('#publish-city')).toHaveValue('Arico')
   await expect.poll(() => page.evaluate(() => window.__googleMapsTestLastMap?.getZoom())).toBe(11)
   await expect.poll(() => currentMapCenter(page)).not.toEqual({ lat: 28.1773, lng: -16.481 })
   const center = await currentMapCenter(page)
@@ -35,8 +36,8 @@ test('municipality selection uses the municipality geometry center instead of th
 
 test('known barrio input recenters the publication map inside the selected municipality', async ({ page }) => {
   await openPublishLocation(page)
-  await page.getByLabel('Municipio').selectOption('Arona')
-  await expect(page.getByLabel('Municipio')).toHaveValue('Arona')
+  await restoreMunicipalityMetadata(page, 'Arona')
+  await expect(page.locator('#publish-city')).toHaveValue('Arona')
   await page.locator('#publish-street').fill('Calle vieja 9')
   await page.getByLabel('Código postal').fill('38640')
 
@@ -51,12 +52,12 @@ test('known barrio input recenters the publication map inside the selected munic
 
 test('free-form barrio input falls back to Google geocoding and recenters when the point belongs to the municipality', async ({ page }) => {
   await openPublishLocation(page)
-  await page.getByLabel('Municipio').selectOption('Arona')
-  await expect(page.getByLabel('Municipio')).toHaveValue('Arona')
+  await restoreMunicipalityMetadata(page, 'Arona')
+  await expect(page.locator('#publish-city')).toHaveValue('Arona')
   await page.evaluate(() => {
     window.__googleMapsTestGeocode = () => Promise.resolve({
       results: [{
-        formatted_address: 'Chayofa, Arona, Tenerife, Spain',
+        formatted_address: 'Chayofa, Arona, Spain',
         geometry: { location: { lat: () => 28.075, lng: () => -16.695 } },
         address_components: [
           { long_name: 'Chayofa', short_name: 'Chayofa', types: ['locality'] },

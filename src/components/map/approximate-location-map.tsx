@@ -192,7 +192,9 @@ export function ApproximateLocationMap({ coordinates, onChange, onAddressResolve
         const zoom = Math.max(9, Math.min(20, detail.zoom ?? ADDRESS_SELECTION_ZOOM))
         mapInstance.panTo(point)
         mapInstance.setZoom(zoom)
-        commitPoint(point, !detail.address)
+        // Controlled selections own address resolution; only user pin gestures
+        // start a reverse lookup, so an older result cannot replace typed input.
+        commitPoint(point, false)
         if (detail.address) onAddressResolvedRef.current?.(detail.address)
       }
       applySelectedLocationRef.current = applySelectedLocation

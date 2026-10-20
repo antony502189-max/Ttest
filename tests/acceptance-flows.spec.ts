@@ -92,7 +92,7 @@ test("01–03 rental mode, búsqueda por fecha y selección de varias zonas", as
 }) => {
   await page.getByRole("radio", { name: "Turismo, corta estancia" }).click();
   await page.getByRole("button", { name: "Sin restricción" }).click();
-  await page.getByPlaceholder("Municipio, barrio o zona de Tenerife").fill("Tenerife");
+  await page.getByLabel("Provincia", { exact: true }).fill("Tenerife");
   await page.getByRole("button", { name: /abrir selección de ubicación/i }).click();
   await page.getByRole('button', { name: 'Seleccionar zonas en el mapa' }).click();
   for (const area of ["Granadilla de Abona", "Arona"])

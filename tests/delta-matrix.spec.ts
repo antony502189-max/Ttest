@@ -1,3 +1,4 @@
+import { selectResolvedAddress } from './helpers/resolved-address'
 import { randomFillSync } from 'node:crypto'
 import { deflateSync } from 'node:zlib'
 import { expect, test, type Page } from '@playwright/test'
@@ -124,7 +125,7 @@ test('USR-03..05 history, discarded listings and guest data stay in separate sco
 
   await openAs(page, 'tenant-demo', '/#/buscar?q=Arona&alquiler=long')
   await expect(page.locator(`[data-listing-id="${guestDiscardedId}"]`)).toBeVisible()
-  await page.getByLabel('Ciudad, barrio o zona').fill('Adeje')
+  await page.getByLabel('Provincia', { exact: true }).fill('Adeje')
   await page.getByRole('button', { name: 'Buscar' }).click()
   await expect(page).toHaveURL(/q=Adeje/)
   const tenantCard = page.locator('.results-list .property-card').first()
@@ -270,7 +271,7 @@ test('ROOM-01..04 MODE-01..03 holiday one-page values persist and all new filter
 test('LOC-01 selected zone coordinates persist, edit restores them and exact street stays private', async ({ page }) => {
   await openAs(page, hostSession, '/#/publicar')
   await continueWizard(page, 1)
-  await page.getByLabel('Municipio').selectOption('Granadilla de Abona')
+  await selectResolvedAddress(page, { city: 'Granadilla de Abona', postcode: '38612', area: 'El Médano', street: 'Calle Secreta 99', coordinates: { lat: 28.0477, lng: -16.5363 } })
   await page.getByLabel('Zona o barrio').fill('El Médano')
   await page.locator('#publish-street').fill('Calle Secreta 99')
 

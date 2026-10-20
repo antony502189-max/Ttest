@@ -6,7 +6,7 @@ test('home search accepts a mainland municipality with the selected occupant pro
   await page.goto('/')
   const form = page.locator('.mandatory-home-search')
   await form.getByRole('button', { name: 'Sin restricción', exact: true }).click()
-  await form.getByLabel('¿Dónde buscas habitación?').fill('Madrid')
+  await form.getByLabel('Provincia', { exact: true }).fill('Madrid')
   await form.getByRole('button', { name: 'Ver habitaciones' }).click()
   await expect(page).toHaveURL(/\/buscar\?q=Madrid/)
   expect(searchParams(page.url()).get('alquiler')).toBe('long')
@@ -14,7 +14,7 @@ test('home search accepts a mainland municipality with the selected occupant pro
 
 test('results search accepts a village and clears stale Tenerife area filters', async ({ page }) => {
   await page.goto('/#/buscar?q=Tenerife&zonas=Arme%C3%B1ime&alquiler=long')
-  await page.getByLabel('Ciudad, barrio o zona').fill('Albarracín')
+  await page.getByLabel('Provincia', { exact: true }).fill('Albarracín')
   await page.getByRole('button', { name: 'Buscar', exact: true }).click()
   await expect.poll(() => searchParams(page.url()).get('q')).toBe('Albarracín')
   expect(searchParams(page.url()).get('zonas')).toBeNull()

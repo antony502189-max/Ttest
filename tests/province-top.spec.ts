@@ -47,6 +47,7 @@ test('province search keeps the existing location rows and separates both Canary
   await page.setViewportSize({ width: 390, height: 844 })
   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
   await page.goto('/#/?panel=ubicacion')
+  await page.getByRole('searchbox').focus()
   await expect(page.getByTestId('province-suggestions').locator('.m2-community-option')).toHaveCount(52)
   const input = page.getByRole('searchbox')
   await input.fill('Tenerife')
