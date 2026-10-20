@@ -25,6 +25,7 @@ from ...services.homepage_purchase import eligible, slot_available
 from ...services.payment_fulfillment import advertisement_fingerprint, apply_stripe_session
 from ...services.payment_sessions import finish_creation, reconcile_order
 from ...services.promotion_offers import PromotionHours, amount_cents, offers
+from ...services.province_top import require_province_top_slot, top_availability
 from ...services.stripe_checkout import (
     create_stripe_session,
     expire_stripe_session,
@@ -108,6 +109,9 @@ async def checkout(
             await require_free_slot(session, exclude_id=target_id)
         elif kind == "homepage_hero" and not await slot_available(session):
             raise HTTPException(409, "Homepage placement is currently unavailable")
+        elif kind == "listing_top":
+            listing = await session.get(Listing, target_id)
+            await require_province_top_slot(session, listing, days=days, hours=duration_hours)
     elif previous:
         if (previous.days != days or previous.amount_cents != amount
                 or previous.duration_months != months or previous.duration_hours != duration_hours):
@@ -121,6 +125,7 @@ async def checkout(
         days=days, amount_cents=amount, status="creating", advertisement_fingerprint=fingerprint,
         duration_months=months, duration_hours=duration_hours,
         checkout_name=name, return_path=return_path,
+        top_municipality_code=user.municipality_code if kind == "listing_top" else None,
     )
     session.add(order)
     await session.flush()
@@ -269,10 +274,25 @@ async def listing_top_checkout(
     if unresolved:
         raise HTTPException(409, "Your TOP payment needs review; do not pay again")
     hours = payload.durationHours
+    await require_province_top_slot(session, listing, hours=hours)
     return await checkout(session, user, "listing_top", listing.id, (hours + 23) // 24,
                           amount_cents("listing_top", hours),
                           f"TOP 112233.es · {hours} horas", f"/mis-anuncios?top={listing.id}",
                           duration_hours=hours)
+
+
+@router.get("/listings/{listing_id}/top/availability")
+async def listing_top_availability(
+    listing_id: UUID, durationHours: int | None = Query(default=None),
+    days: int = Query(default=10, ge=10, le=365),
+    user: User = Depends(current_user), session: AsyncSession = Depends(get_session),
+):
+    listing = await session.scalar(select(Listing).where(Listing.id == listing_id, Listing.owner_user_id == user.id))
+    if not listing:
+        raise HTTPException(404, "Listing not found")
+    if durationHours is not None and durationHours not in (12, 24, 72):
+        raise HTTPException(422, "Choose a supported TOP duration: 12, 24 or 72 hours")
+    return await top_availability(session, listing, days=days, hours=durationHours)
 
 
 @router.get("/listings/{listing_id}/top/status")

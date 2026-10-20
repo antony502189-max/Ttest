@@ -1,0 +1,8 @@
+
+Running 12 tests using 1 worker
+
+(node:14968) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   1 [chromium] › tests\province-top.spec.ts:4:3 › full province blocks payment and counts down without changing the dialog at 320px (1.0m)
+(node:6412) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)

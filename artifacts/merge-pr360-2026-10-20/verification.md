@@ -1,0 +1,24 @@
+# PR 360 integration checks, 20 October 2026
+
+- Main base: 19c236e189c27e561c367aa9b073d5d55777c1a5.
+- Local unit: 806 passed, 7 skipped (external research/native FFmpeg).
+- PostgreSQL broad suite: 282 passed; Redis test was rerun with isolated Redis.
+- Focused municipal/hourly/Redis integration: 22 passed, including the formerly missing Redis check.
+- Province/TOP/map browser suite: 48 passed.
+- TOP priority and persistent geography: 7 passed.
+- Formerly failing real HTTP full-stack desktop/mobile scenarios: 10 passed.
+- TypeScript, Ruff, Mypy, i18n, production build, supply-chain and bundle checks pass.
+- Manual production workflow YAML/Bash syntax and Compose override validate.
+- Deployment uses paginated PR files and checks; complete file count is verified.
+- Test-only geocoder harness lives outside app and is mounted only by the explicit full-stack Compose override. Production cannot import it.
+- Original 0064 geography expansion is now unreleased 0065, following main's hourly migration. Immutable released migrations remain unchanged.
+
+Production audit and Payment audit passed on GitHub for 188436c9. Full audit then exposed legacy synthetic address fixtures; Mobile validation exposed missing JSON import attributes during Node collection. Both are corrected in the next commit and require a fresh GitHub run.
+
+Production-mode publication: 15 passed after guarding the retired select-only bridge and updating resolved-address fixtures. Four release-preflight regressions execute the real workflow Bash with paginated GitHub fixtures on Linux with jq (locally skipped because Windows has no jq). They cover a payment-relevant file on page two, missing/failed payment checks, and an incomplete file response.
+
+The four release-preflight regressions also passed in an ephemeral Linux container using actual Bash and jq; negative cases verify exit 65 and the intended refusal reason.
+
+Additional broad-CI compatibility: 22 historical location/publication scenarios and 11 provincial/owner-layout checks passed. Mobile province suggestions appear on focus in the light palette. The pinned visual baseline is untouched; for the replaced Tenerife-only location state, tests enforce explicit geometry/palette/action order using the same approach already used for the redesigned menu. Linux screenshots are included as review artifacts. Controlled map updates no longer trigger a second reverse-geocode request.
+
+The final complete address/browser compatibility run passed all 50 tests, including late reverse responses, manual marker input, postcode-only lookup, restored legacy drafts, and Spain-wide search.

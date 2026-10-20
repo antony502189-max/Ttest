@@ -6,11 +6,19 @@ export type GeolocationResult =
   | { ok: true; coordinates: Coordinates }
   | { ok: false; reason: GeolocationFailure }
 
+export const SPAIN_BOUNDS = { north: 43.9, south: 27.5, east: 4.5, west: -18.3 }
+
 const TENERIFE_BOUNDS = {
   north: 28.62,
   south: 27.95,
   east: -16.08,
   west: -16.96,
+}
+
+export function isInsideSpain({ lat, lng }: Coordinates) {
+  return Boolean(communityAtCoordinates(lat, lng))
+    || (lat >= 35.85 && lat <= 35.93 && lng >= -5.4 && lng <= -5.27)
+    || (lat >= 35.26 && lat <= 35.33 && lng >= -2.99 && lng <= -2.91)
 }
 
 const FALLBACK_OPTIONS: PositionOptions = {

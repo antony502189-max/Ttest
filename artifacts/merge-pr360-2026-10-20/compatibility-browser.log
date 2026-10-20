@@ -1,0 +1,31 @@
+[WebServer] (node:20812) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 22 tests using 1 worker
+
+(node:38632) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 tests\acceptance-flows.spec.ts:90:1 › 01–03 rental mode, búsqueda por fecha y selección de varias zonas (7.9s)
+  ok  2 tests\customer-armenime-address.spec.ts:54:1 › Calle José Espronceda 20 + 38678 moves from Armeñime area focus to the matched address point at zoom 18 (3.8s)
+  ok  3 tests\customer-armenime-address.spec.ts:130:1 › full pasted Espronceda address resolves even when the selected municipality is stale and postcode is initially empty (2.2s)
+  ok  4 tests\customer-priority-filters-location.spec.ts:60:1 › CUSTOMER-LOCATION map/geocoder resolves Tenerife municipality and locality and floor is in publication data (2.1s)
+  ok  5 tests\customer-video-critical-regressions.spec.ts:50:1 › customer video fix keeps fresh location unresolved safely and validates it at the wizard model boundary (12ms)
+  ok  6 tests\customer-video-critical-regressions.spec.ts:131:1 › customer video: edit rejects a different municipality as area but keeps valid manual addresses allowed (2.4s)
+  ok  7 tests\customer-video-critical-regressions.spec.ts:151:1 › leaving a new publication does not make existing host listings disappear (2.1s)
+  ok  8 tests\delta-matrix.spec.ts:110:1 › USR-03..05 history, discarded listings and guest data stay in separate scopes (6.4s)
+  ok  9 tests\delta-matrix.spec.ts:271:1 › LOC-01 selected zone coordinates persist, edit restores them and exact street stays private (4.0s)
+  ok 10 tests\google-maps-final-acceptance.spec.ts:69:1 › official district hierarchy selects a stable ID and restores it from URL (4.2s)
+  ok 11 tests\listing-edit-comfort.spec.ts:127:1 › press-and-drag moves a photo to a new position and updates the cover order (2.8s)
+  ok 12 tests\listing-edit-comfort.spec.ts:173:1 › create and edit forms share touch-capable press-and-drag photo ordering (18ms)
+  ok 13 tests\listing-edit-comfort.spec.ts:262:1 › owner can scroll down, edit distant sections and save without wizard navigation (3.1s)
+  ok 14 tests\localization-consistency.spec.ts:23:1 › critical JSX copy has translations and the complete catalog has locale parity (1.4s)
+  ok 15 tests\master-task.spec.ts:35:1 › P1 desktop multiple municipalities stay synchronized with URL, filters and reload (2.8s)
+  ok 16 tests\mobile-location-map.spec.ts:38:1 › country onboarding supports all Spain and location picker has no fixed regional banner (1.5s)
+  ok 17 tests\mobile-location-map.spec.ts:82:1 › location screen preserves map shortcuts and a city selects its autonomous community (1.8s)
+  ok 18 tests\mobile-publish-layout.spec.ts:51:3 › mobile publish header and location controls stay inside 320px viewport (1.6s)
+  ok 19 tests\mobile-publish-layout.spec.ts:51:3 › mobile publish header and location controls stay inside 360px viewport (1.7s)
+  ok 20 tests\mobile-publish-layout.spec.ts:51:3 › mobile publish header and location controls stay inside 375px viewport (1.6s)
+  ok 21 tests\mobile-publish-layout.spec.ts:51:3 › mobile publish header and location controls stay inside 390px viewport (1.6s)
+  ok 22 tests\mobile-publish-layout.spec.ts:51:3 › mobile publish header and location controls stay inside 430px viewport (1.6s)
+
+  22 passed (59.6s)

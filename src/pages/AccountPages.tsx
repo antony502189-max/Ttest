@@ -1,3 +1,4 @@
+import { OwnerAddressForm } from '@/components/owner-address';
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowLeft,
@@ -57,6 +58,7 @@ import { MediaStorageError, removeMedia, saveMediaFile } from "@/lib/media-stora
 import { api } from "@/api/client";
 import type { DemoUser } from "@/types";
 import { OwnerHomepagePurchase } from "@/components/owner-homepage-purchase";
+import { ProvinceTopAvailability, useProvinceTopAvailability } from "@/components/province-top-availability";
 import { TOP_PROMOTION_OFFERS, formatPromotionPrice, promotionDurationLabel, type PromotionHours } from "@/lib/promotion-offers";
 
 type TopPaymentStatus = { orderStatus: string | null; fulfillmentStatus: string | null; endsAt: string | null };
@@ -157,6 +159,7 @@ export function SavedSearchesPage() {
                   new URLSearchParams({
                     q: item.query,
                     alquiler: item.rentalMode,
+                    ...(item.provinceCode ? { provincia: item.provinceCode } : { ubicacion: "ciudad" }),
                   }),
                 );
                 return (
@@ -319,6 +322,7 @@ export function ProfilePage() {
           </Button>
         }
       />
+      {currentUser.role === "host" || currentUser.role === "admin" ? <OwnerAddressForm /> : null}
       <div className="profile-layout">
         <aside className="profile-card">
           <Avatar className="profile-avatar">
@@ -523,6 +527,7 @@ export function MyListingsPage() {
   const [topCandidateId, setTopCandidateId] = useState("");
   const [topDurationHours, setTopDurationHours] = useState<PromotionHours>(12);
   const selectedTopOffer = TOP_PROMOTION_OFFERS.find((offer) => offer.durationHours === topDurationHours)!;
+  const provinceTop = useProvinceTopAvailability(topCandidateId, topDurationHours, topDialogOpen && promotionStep !== "choose");
   const [topPaymentStatus, setTopPaymentStatus] = useState<TopPaymentStatus | null>(null);
   const [topPaymentBusy, setTopPaymentBusy] = useState(false);
   const [topPaymentError, setTopPaymentError] = useState("");
@@ -579,7 +584,7 @@ export function MyListingsPage() {
     setTopDialogOpen(true);
   };
   const payForTop = async () => {
-    if (!topCandidateId) return;
+    if (!topCandidateId || !provinceTop.canBuy) return;
     setTopPaymentBusy(true);
     setTopPaymentError("");
     try {
@@ -589,6 +594,7 @@ export function MyListingsPage() {
       window.location.assign(checkout.url);
     } catch (error) {
       setTopPaymentError((error as Error).message);
+      provinceTop.refresh();
       setTopPaymentBusy(false);
     }
   };
@@ -849,6 +855,7 @@ export function MyListingsPage() {
               <span className="owner-promotion-choice__icon"><Rocket aria-hidden="true" /></span><span><strong>{t("Sube tu anuncio a TOP")}</strong><small>{t("Haz que tu anuncio destaque y aparezca antes que los demás.")}</small></span>
             </button>
           </div> : <div className={`owner-top-dialog__next ${promotionStep === "duration" ? "owner-top-dialog__next--period" : ""}`} data-testid="owner-top-next-step">
+            <ProvinceTopAvailability state={provinceTop} />
             {promotionStep === "duration" ? <>
               <div className="owner-promotion-duration-options" role="group" aria-label={t("Duración de TOP")}>
                 {TOP_PROMOTION_OFFERS.map((offer) => <button type="button" key={offer.durationHours}
@@ -860,13 +867,13 @@ export function MyListingsPage() {
                 </button>)}
               </div>
               <p className="owner-promotion-duration-note">{t("El plazo empieza cuando se confirma el pago. Si ya tienes TOP, se añaden las horas al plazo actual.")}</p>
-              <Button type="button" onClick={() => setPromotionStep("payment")}>{t("Continuar")}</Button>
+              <Button type="button" disabled={!provinceTop.canBuy} onClick={() => setPromotionStep("payment")}>{t("Continuar")}</Button>
               <Button type="button" variant="outline" onClick={() => setPromotionStep("choose")}>{t("Volver")}</Button>
             </> : <>
               <strong>{promotionDurationLabel(topDurationHours, language)} · {formatPromotionPrice(selectedTopOffer.amountCents, locale)}</strong>
               <span>{t("El plazo empieza cuando se confirma el pago. Si ya tienes TOP, se añaden las horas al plazo actual.")}</span>
               {topPaymentError ? <span role="alert">{t(topPaymentError)}</span> : null}
-              <Button type="button" disabled={topPaymentBusy || !topCandidateId} onClick={() => { void payForTop() }}>{topPaymentBusy ? t("Cargando…") : t("Pagar con Stripe")}</Button>
+              <Button type="button" disabled={topPaymentBusy || !topCandidateId || !provinceTop.canBuy} onClick={() => { void payForTop() }}>{topPaymentBusy ? t("Cargando…") : t("Pagar con Stripe")}</Button>
               <Button type="button" variant="outline" disabled={topPaymentBusy} onClick={() => setPromotionStep("duration")}>{t("Volver")}</Button>
               <Button type="button" variant="outline" disabled={topPaymentBusy || !topCandidateId} onClick={() => { void cancelTopPayment() }}>{t("Cancelar pago")}</Button>
             </>}

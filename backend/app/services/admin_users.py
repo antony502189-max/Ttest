@@ -236,6 +236,9 @@ async def restrict_user(
     actor: User,
     session: AsyncSession,
 ) -> AdminUserDetailResponse:
+    from .commercial_advertisements import lock_advertising_capacity
+    from .payment_review import review_paid_top
+    await lock_advertising_capacity(session)
     target = await session.scalar(
         select(User)
         .where(User.id == user_id)
@@ -317,6 +320,7 @@ async def restrict_user(
         )
     )
     await touch_catalog(session)
+    await review_paid_top(session, owner_id=target.id, reason="Owner moderation restriction; original TOP period retained for review.")
     await session.commit()
     return await get_user_detail(target.id, session)
 
@@ -376,6 +380,9 @@ async def soft_delete_user(
     actor: User,
     session: AsyncSession,
 ) -> None:
+    from .commercial_advertisements import lock_advertising_capacity
+    from .payment_review import review_paid_top
+    await lock_advertising_capacity(session)
     target = await session.scalar(
         select(User)
         .where(User.id == user_id)
@@ -393,6 +400,7 @@ async def soft_delete_user(
     clean_reason = _clean_reason(reason)
     now = datetime.now(UTC)
     target.deleted_at = now
+    await review_paid_top(session, owner_id=target.id, reason="Owner removed by moderation; reconcile paid TOP.")
     sessions = (
         await session.scalars(
             select(AuthSession).where(

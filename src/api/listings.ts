@@ -6,6 +6,7 @@ import { MAX_LISTING_PHOTOS, MIN_LISTING_PHOTOS } from '@/lib/media-storage'
 import type { Filters, Listing, ListingStatus, TenantRequirement } from '@/types'
 
 type ListingDto = {
+  provinceCode?: string | null
   id: string
   ownerUserId: string
   owner: { name: string; initials: string; since: string | null; response: string; verified: boolean }
@@ -93,7 +94,7 @@ type ListingDto = {
   promotionEndsAt?: string | null
 }
 
-type ListingCardDto = Pick<ListingDto, 'id' | 'title' | 'city' | 'area' | 'approximateAddress' | 'rentalMode' | 'price' | 'roomType' | 'currentResidents' | 'roomCapacity' | 'bedroomCount' | 'roomSizeM2' | 'availableFrom' | 'billsIncluded' | 'restrictions' | 'advertiserType' | 'isExternal' | 'sourceUrl' | 'primarySource' | 'sourcePriceText' | 'pricePeriod' | 'priceIsFrom' | 'publishedAt' | 'promoted' | 'coverImageUrl' | 'description'> & { imageUrls?: string[] }
+type ListingCardDto = Pick<ListingDto, 'provinceCode' | 'id' | 'title' | 'city' | 'area' | 'approximateAddress' | 'rentalMode' | 'price' | 'roomType' | 'currentResidents' | 'roomCapacity' | 'bedroomCount' | 'roomSizeM2' | 'availableFrom' | 'billsIncluded' | 'restrictions' | 'advertiserType' | 'isExternal' | 'sourceUrl' | 'primarySource' | 'sourcePriceText' | 'pricePeriod' | 'priceIsFrom' | 'publishedAt' | 'promoted' | 'coverImageUrl' | 'description'> & { imageUrls?: string[] }
 export type ListingCardPage = { items: Listing[]; total: number; nextCursor: string | null; previousCursor: string | null }
 
 type ListingImageDto = {
@@ -153,6 +154,7 @@ export function toListing(dto: ListingDto): Listing {
     id: dto.id,
     title: dto.title,
     city: dto.city,
+    provinceCode: dto.provinceCode ?? undefined,
     area: dto.area,
     approximateAddress: dto.approximateAddress,
     ...(dto.street !== undefined ? { street: dto.street } : {}),
@@ -254,7 +256,7 @@ export function toListing(dto: ListingDto): Listing {
 export function toCardListing(dto: ListingCardDto): Listing {
   const availableFrom = dateOnly(dto.availableFrom, dto.isExternal ? '' : new Date().toISOString().slice(0, 10))
   return {
-    id: dto.id, title: dto.title, city: dto.city, area: dto.area,
+    id: dto.id, title: dto.title, city: dto.city, area: dto.area, provinceCode: dto.provinceCode ?? undefined,
     approximateAddress: dto.approximateAddress, rentalMode: dto.rentalMode,
     price: dto.price ?? 0, cadence: dto.rentalMode === 'holiday' ? 'noche' : 'mes',
     roomType: dto.roomType, currentResidents: dto.currentResidents, roomCapacity: dto.roomCapacity,
@@ -332,6 +334,7 @@ export type ListingSearchInput = {
   filters: Filters
   query?: string
   autonomousCommunity?: string
+  provinceCode?: string
   roomTypes?: Listing['roomType'][]
   bounds?: { north: number; south: number; east: number; west: number }
   polygon?: Array<{ latitude: number; longitude: number }>

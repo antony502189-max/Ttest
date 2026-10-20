@@ -1,3 +1,4 @@
+import { resolveProvince } from '@/lib/spain-provinces'
 import { defaultFilters } from '@/data/listings'
 import type { ListingSearchInput } from '@/api/listings'
 
@@ -9,7 +10,8 @@ export function buildListingSearchBody(input: ListingSearchInput): Record<string
     ...payload,
     ...(minPrice !== defaultFilters.minPrice ? { minPrice } : {}),
     ...(maxPrice !== defaultFilters.maxPrice ? { maxPrice } : {}),
-    query: input.query ?? 'Tenerife',
+    query: input.query ?? 'España',
+    provinceCode: input.provinceCode ?? (!input.autonomousCommunity && !bounds && !polygon?.length && !input.center ? resolveProvince(input.query ?? '')?.id : undefined),
     roomTypes: input.roomTypes ?? [],
     center: input.center,
     radiusKm: input.radiusKm,

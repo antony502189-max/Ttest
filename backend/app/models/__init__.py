@@ -42,6 +42,10 @@ class User(Timestamped, Base):
     whatsapp: Mapped[str] = mapped_column(String(64), default="")
     telegram: Mapped[str] = mapped_column(String(64), default="")
     about: Mapped[str] = mapped_column(Text, default="")
+    # Private owner address; populated only by the server geocoder.
+    verified_address: Mapped[dict | None] = mapped_column(JSONB)
+    municipality_code: Mapped[str | None] = mapped_column(String(5), index=True)
+    address_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     initials: Mapped[str] = mapped_column(String(8), default="")
     show_phone: Mapped[bool] = mapped_column(Boolean, default=False)
     show_whatsapp: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -128,6 +132,8 @@ class Listing(Timestamped, Base):
     area: Mapped[str] = mapped_column(String(120), index=True)
     street: Mapped[str] = mapped_column(String(160), default="")
     postcode: Mapped[str] = mapped_column(String(32), default="")
+    province_code: Mapped[str | None] = mapped_column(String(2), index=True)
+    address_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     approximate_address: Mapped[str] = mapped_column(String(240))
     rental_mode: Mapped[str] = mapped_column(Enum("long", "holiday", name="rental_mode"), index=True)
     monthly_price: Mapped[int | None] = mapped_column(Integer)
@@ -317,6 +323,7 @@ class DiscardedListing(Base):
 
 class SavedSearch(Timestamped, Base):
     __tablename__ = "saved_searches"
+    province_code: Mapped[str | None] = mapped_column(String(2))
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(120), default="")

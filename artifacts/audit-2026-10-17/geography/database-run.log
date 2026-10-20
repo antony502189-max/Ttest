@@ -1,0 +1,80 @@
+{"timestamp": "2026-10-17T18:28:44.728152+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "ae4cf527-cf34-4ef4-90d3-a943747cd822", "method": "POST", "path": "/api/v1/listings/search/cards", "status": 200, "duration_ms": 129.73}
+{"timestamp": "2026-10-17T18:28:44.731328+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings/search/cards \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-10-17T18:28:44.765093+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "8b90d1a1-16e1-43a7-9967-1f7479c84b04", "method": "POST", "path": "/api/v1/listings/search/cards", "status": 200, "duration_ms": 32.83}
+{"timestamp": "2026-10-17T18:28:44.767200+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings/search/cards \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-10-17T18:28:44.784280+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "ddb03a4b-e1dc-4c12-a5ed-579225d008a4", "method": "POST", "path": "/api/v1/listings/provinces/counts", "status": 200, "duration_ms": 15.73}
+{"timestamp": "2026-10-17T18:28:44.786419+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings/provinces/counts \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-10-17T18:28:44.957511+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "ee9d47fb-0ff3-4179-927f-c6aacae24415", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 142.23}
+{"timestamp": "2026-10-17T18:28:44.959621+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+{"timestamp": "2026-10-17T18:28:44.993591+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "574f8a01-50ac-44aa-930b-6fa9dfcddd27", "method": "GET", "path": "/api/v1/payments/listings/e714beff-9156-4a55-b355-a9c64ef0cc78/top/availability", "status": 200, "duration_ms": 32.58}
+{"timestamp": "2026-10-17T18:28:44.995301+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/payments/listings/e714beff-9156-4a55-b355-a9c64ef0cc78/top/availability?days=10 \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-10-17T18:28:45.040721+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "55db56f1-70a7-4055-957f-a01a2f962037", "method": "PATCH", "path": "/api/v1/listings/e714beff-9156-4a55-b355-a9c64ef0cc78", "status": 200, "duration_ms": 44.31}
+{"timestamp": "2026-10-17T18:28:45.042308+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: PATCH http://testserver/api/v1/listings/e714beff-9156-4a55-b355-a9c64ef0cc78 \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-10-17T18:28:45.079684+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "129dc947-b0a4-4969-9830-06729625e1ec", "method": "POST", "path": "/api/v1/saved-searches", "status": 201, "duration_ms": 35.93}
+{"timestamp": "2026-10-17T18:28:45.081259+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/saved-searches \"HTTP/1.1 201 Created\""}
+{"timestamp": "2026-10-17T18:28:45.158214+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "f225085c-51d5-469a-be29-8bbc277250bb", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 60.78}
+{"timestamp": "2026-10-17T18:28:45.160305+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+{"timestamp": "2026-10-17T18:28:45.258145+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "7743ae41-afd0-4ce6-b841-3da03781e5cf", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 78.04}
+{"timestamp": "2026-10-17T18:28:45.260824+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+{"timestamp": "2026-10-17T18:28:45.292707+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "e5f07f47-e2b3-46d4-9607-bd681dc5f6dc", "method": "POST", "path": "/api/v1/listings/search/cards", "status": 200, "duration_ms": 30.56}
+{"timestamp": "2026-10-17T18:28:45.296122+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings/search/cards \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-10-17T18:28:45.318204+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "aed502ae-5c0f-461a-a04c-505a31a375dd", "method": "GET", "path": "/api/v1/notifications", "status": 200, "duration_ms": 21.19}
+{"timestamp": "2026-10-17T18:28:45.319805+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/notifications \"HTTP/1.1 200 OK\""}
+{
+  "database": "audit_geo_extra",
+  "GEO01_import": {
+    "action": "imported",
+    "id": "68d0cfb6-cc44-434f-84c5-d90db83b709a",
+    "stored_postcode": "",
+    "sql_province": null,
+    "source_snapshot_province": "Madrid"
+  },
+  "GEO01_search_all": {
+    "http": 200,
+    "total": 1,
+    "contains_import": true
+  },
+  "GEO01_search_madrid": {
+    "http": 200,
+    "total": 0,
+    "contains_import": false
+  },
+  "GEO01_province_count_madrid": {
+    "id": "28",
+    "count": 0
+  },
+  "GEO02_create": {
+    "id": "e714beff-9156-4a55-b355-a9c64ef0cc78",
+    "city": "Madrid",
+    "postcode": "08001",
+    "provinceCode": "08",
+    "latitude": 40.4168,
+    "longitude": -3.7038,
+    "status": "published",
+    "http": 201
+  },
+  "GEO02_top_availability": {
+    "provinceCode": "08",
+    "province": "Barcelona",
+    "capacity": 3,
+    "available": true,
+    "availableSlots": 3,
+    "availableAt": "2026-10-17T18:28:44.980197+00:00",
+    "serverNow": "2026-10-17T18:28:44.980197+00:00"
+  },
+  "GEO02_postcode_only_patch": {
+    "http": 200,
+    "city": "Madrid",
+    "postcode": "29001",
+    "provinceCode": "29",
+    "latitude": 40.4168,
+    "longitude": -3.7038
+  },
+  "GEO03_saved_province_alert": {
+    "save_http": 201,
+    "getafe_in_province_search": true,
+    "capital_in_province_search": true,
+    "getafe_triggered_alert": false,
+    "capital_triggered_control_alert": true
+  }
+}

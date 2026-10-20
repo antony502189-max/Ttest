@@ -76,7 +76,7 @@ test('CUSTOMER-LOCATION map/geocoder resolves Tenerife municipality and locality
   })
   await expect(page.locator('#publish-street')).toHaveValue('Calle del Valle Menéndez 20')
   await expect(page.getByLabel('Código postal')).toHaveValue('38650')
-  await expect(page.getByLabel('Municipio')).toHaveValue('Arona')
+  await expect(page.locator('#publish-city')).toHaveValue('Arona')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Los Cristianos')
 
   const bedType = page.getByLabel('Tipo de cama')

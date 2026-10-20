@@ -1,0 +1,122 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> app\repositories\listings.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import base64
+ 4 | | import binascii
+ 5 | | import json
+ 6 | | import math
+ 7 | | from datetime import UTC, datetime, timedelta
+ 8 | | from hashlib import sha256
+ 9 | | from hmac import new as hmac_new
+10 | | from typing import Any
+11 | | from uuid import UUID
+12 | |
+13 | | from fastapi import HTTPException
+14 | | from geoalchemy2 import Geography, Geometry
+15 | | from geoalchemy2.functions import (
+16 | |     ST_X,
+17 | |     ST_Y,
+18 | |     ST_DWithin,
+19 | |     ST_GeomFromText,
+20 | |     ST_Intersects,
+21 | |     ST_MakeEnvelope,
+22 | |     ST_MakePoint,
+23 | |     ST_SetSRID,
+24 | | )
+25 | | from sqlalchemy import Float, Select, and_, case, cast, func, or_, select, update
+26 | | from sqlalchemy.dialects.postgresql import aggregate_order_by, insert
+27 | | from sqlalchemy.ext.asyncio import AsyncSession
+28 | |
+29 | | from ..core.config import get_settings
+30 | | from ..core.media_limits import MAX_LISTING_PHOTOS
+31 | | from ..models import Listing, ListingImage, ListingView, MediaAsset, User
+32 | | from ..models.moderation import ListingPromotion, ListingRestriction, UserRestriction
+33 | | from ..models.payment_order import PaymentOrder
+34 | | from ..models.room_details import ListingRoomDetails
+35 | | from ..spain_provinces import address_province_code, province_code_expression
+36 | | from ..schemas.listings import (
+37 | |     ClusterMarker,
+38 | |     ListingCardResponse,
+39 | |     ListingCardSearchRequest,
+40 | |     ListingCardSearchResponse,
+41 | |     ListingMapRequest,
+42 | |     ListingMapResponse,
+43 | |     ListingMarker,
+44 | |     ListingOwnerResponse,
+45 | |     ListingResponse,
+46 | |     ListingSearchRequest,
+47 | |     ListingSearchResponse,
+48 | |     OwnedListingResponse,
+49 | | )
+50 | | from ..services.rental_price_limit import public_price_limit_clause
+51 | | from ..spain_communities import community_contains_location, community_geometries
+   | |_________________________________________________________________________________^
+help: Organize imports
+   |
+34 | from ..models.room_details import ListingRoomDetails
+   - from ..spain_provinces import address_province_code, province_code_expression
+35 | from ..schemas.listings import (
+--------------------------------------------------------------------------------
+50 | from ..spain_communities import community_contains_location, community_geometries
+51 + from ..spain_provinces import address_province_code, province_code_expression
+52 |
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> app\spain_provinces.py:30:5
+   |
+29 |   def province_code_expression():
+30 | /     from sqlalchemy import case, func
+31 | |     from .models import Listing
+   | |_______________________________^
+32 |       value = func.trim(Listing.postcode)
+33 |       return case((value.op("~")(r"^(0[1-9]|[1-4][0-9]|5[0-2])[0-9]{3}$"), func.substr(value, 1, 2)), else_=None)
+   |
+help: Organize imports
+   |
+30 |     from sqlalchemy import case, func
+31 +
+32 |     from .models import Listing
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests\test_province_top.py:1:1
+   |
+ 1 | / from datetime import UTC, datetime, timedelta
+ 2 | | from types import SimpleNamespace
+ 3 | | from uuid import uuid4
+ 4 | | from unittest.mock import AsyncMock
+ 5 | |
+ 6 | | import pytest
+ 7 | | from fastapi import HTTPException
+ 8 | | from sqlalchemy.dialects import postgresql
+ 9 | |
+10 | | from app.models.moderation import ListingPromotion
+11 | | from app.models import Listing
+12 | | from app.models.payment_order import PaymentOrder
+13 | | from app.schemas.listings import ListingSearchRequest
+14 | | from app.services.province_top import next_available, require_top_address_mutable, top_availability
+15 | | from app.spain_provinces import PROVINCE_CODES, address_province_code, province_code_expression
+   | |_______________________________________________________________________________________________^
+16 |
+17 |   NOW = datetime(2026, 10, 17, tzinfo=UTC)
+   |
+help: Organize imports
+   |
+2  | from types import SimpleNamespace
+3  + from unittest.mock import AsyncMock
+4  | from uuid import uuid4
+   - from unittest.mock import AsyncMock
+5  |
+--------------------------------------------------------------------------------
+9  |
+10 + from app.models import Listing
+11 | from app.models.moderation import ListingPromotion
+   - from app.models import Listing
+12 | from app.models.payment_order import PaymentOrder
+   |
+
+Found 3 errors.
+[*] 3 fixable with the `--fix` option.

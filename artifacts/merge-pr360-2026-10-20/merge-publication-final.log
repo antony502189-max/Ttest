@@ -1,0 +1,28 @@
+[WebServer] (node:20056) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 15 tests using 1 worker
+
+(node:11900) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 12:28:50 [vite] (client) [console.error] listing_publication_failed {"status":409,"code":"EMAIL_VERIFICATION_REQUIRED","requestId":"email-request","fields":[]}
+[WebServer] 12:28:50 [vite] (client) [console.error] listing_publication_failed {"status":422,"code":"VALIDATION_ERROR","requestId":"validation-request","fields":["monthlyPrice"]}
+  ok  1 [chromium] › tests\listing-publication-errors.spec.ts:257:1 › publication preserves email and FastAPI validation errors in Spanish (6.1s)
+[WebServer] 12:28:53 [vite] (client) [console.error] listing_publication_failed {"status":409,"code":"DUPLICATE_LISTING_IMAGES","requestId":"duplicate-request","fields":["assetIds"]}
+  ok  2 [chromium] › tests\listing-publication-errors.spec.ts:273:1 › duplicate photo gallery keeps the exact draft, removes temporary uploads and shows localized replace-photo feedback (3.7s)
+  ok  3 [chromium] › tests\listing-publication-errors.spec.ts:325:1 › double click sends one idempotent publication and then synchronizes images (2.3s)
+  ok  4 [chromium] › tests\listing-publication-errors.spec.ts:348:1 › publish revalidates earlier steps after the host revisits and changes them (2.1s)
+[WebServer] 12:29:01 [vite] (client) [console.error] listing_media_prepare_failed {"status":500,"code":"internal_error","fields":[]}
+  ok  5 [chromium] › tests\listing-publication-errors.spec.ts:361:1 › image upload failure keeps the durable draft and retries before creating the listing (2.4s)
+  ok  6 [chromium] › tests\listing-publication-errors.spec.ts:388:1 › customer video: edit PATCH ignores stale global create draft and persists the current private address (3.2s)
+  ok  7 [chromium] › tests\listing-publication-errors.spec.ts:470:1 › customer video: an expired holiday listing can be edited without implicitly renewing its lifecycle (2.2s)
+  ok  8 [chromium] › tests\listing-publication-errors.spec.ts:557:1 › customer video: edit validation errors are localized instead of exposing the raw backend English message (2.1s)
+  ok  9 [chromium] › tests\listing-publication-errors.spec.ts:611:1 › customer follow-up: changing one room address synchronizes sibling rooms from the same old dwelling (2.5s)
+  ok 10 [chromium] › tests\listing-publication-errors.spec.ts:692:1 › customer video: edit is not reported as saved when the server echoes a different private location (2.1s)
+  ok 11 [chromium] › tests\listing-publication-errors.spec.ts:743:1 › publication contact validation matches the backend for hidden values and limits (4.9s)
+  ok 12 [chromium] › tests\listing-publication-errors.spec.ts:768:1 › favorites resolve a bounded card set without hydrating the public catalog (1.3s)
+  ok 13 [chromium] › tests\listing-publication-errors.spec.ts:783:1 › stale owner response cannot cross an account switch (2.3s)
+  ok 14 [chromium] › tests\listing-publication-errors.spec.ts:815:1 › pending owner listings survive reload without leaking into public search or map state (1.7s)
+  ok 15 [chromium] › tests\listing-publication-errors.spec.ts:833:1 › owner show intent returns a hidden listing to moderation and refreshes every listing consumer (2.1s)
+
+  15 passed (43.1s)

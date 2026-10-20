@@ -1,0 +1,18 @@
+[
+  {
+    "hash": "#/buscar?q=Madrid&provincia=28&vista=mapa&alquiler=long&mapAuto=1&mapLat=28.27857&mapLng=-16.80973&mapZoom=8.58",
+    "center": {
+      "lat": 28.278568090446175,
+      "lng": -16.809734228710454
+    },
+    "zoom": 8.583489384414538
+  },
+  {
+    "hash": "#/buscar?q=Madrid&comunidad=13&vista=mapa&alquiler=long&mapAuto=1&mapLat=40.52569&mapLng=-3.81559&mapZoom=8.38",
+    "center": {
+      "lat": 40.525685793446804,
+      "lng": -3.81559
+    },
+    "zoom": 8.375957272291934
+  }
+]

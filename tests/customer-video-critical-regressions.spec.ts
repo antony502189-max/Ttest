@@ -1,3 +1,4 @@
+import { selectResolvedAddress } from './helpers/resolved-address'
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 
@@ -68,10 +69,10 @@ test('customer video fix keeps fresh location unresolved safely and validates it
   expect(source).toContain("setNativeInputValue(postcode, '')")
   expect(source).toContain("!/^\\d{5}$/.test(postcode.value.trim())")
   expect(source).toContain('selector.hidden = true')
-  expect(publish).toContain("if (!municipalitySet.has(draft.city)) next.city = 'Selecciona un municipio válido.'")
+  expect(publish).toContain("if (!draft.city.trim()) next.city = 'Selecciona la dirección del anuncio.'")
   expect(publish).toContain('error={errors.city}')
-  expect(publish).toContain('aria-invalid={Boolean(errors.city)}')
-  expect(publish).toContain("if (draft.postcode.trim() && !/^\\d{5}$/.test(draft.postcode.trim()))")
+  expect(publish).toContain('<input id="publish-city" type="hidden"')
+  expect(publish).toContain('if (!provinceFromPostcode(draft.postcode))')
   expect(publish).toContain('El código postal debe tener exactamente 5 dígitos.')
   expect(publish).toContain('const validate = () =>')
   expect(publish).toContain('municipalityAreaError(draft.city, draft.area)')
@@ -135,7 +136,7 @@ test('customer video: edit rejects a different municipality as area but keeps va
   expect(href).toBeTruthy()
   await page.goto(href!)
 
-  await page.getByLabel('Municipio').selectOption('Adeje')
+  await selectResolvedAddress(page, { city: 'Adeje', postcode: '38678', area: 'Armeñime', street: 'Calle Prueba 1', coordinates: { lat: 28.12976, lng: -16.75563 } })
   await page.getByLabel('Zona o barrio').fill('Arona')
   await page.getByRole('button', { name: 'Guardar cambios' }).click()
   await expect(page.getByText(/corresponde a otro municipio/i)).toBeVisible()
@@ -156,7 +157,7 @@ test('leaving a new publication does not make existing host listings disappear',
   expect(before).toBeGreaterThan(0)
 
   await page.getByRole('link', { name: /nuevo anuncio/i }).click()
-  await expect(page.locator('#publish-city')).toBeVisible()
+  await expect(page.locator('#publish-province')).toBeVisible()
 
   await page.goBack()
   await expect(page).toHaveURL(/#\/mis-anuncios$/)

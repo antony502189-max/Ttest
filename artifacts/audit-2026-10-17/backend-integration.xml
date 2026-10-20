@@ -1,0 +1,520 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="18" skipped="0" tests="258" time="188.200" timestamp="2026-10-17T21:25:00.638473+03:00" hostname="DESKTOP-KAHKI17"><testcase classname="tests.integration.test_account_auth_moderation_audit" name="test_password_reset_is_single_use_preserves_exact_secret_and_revokes_all_sessions" time="1.689" /><testcase classname="tests.integration.test_account_auth_moderation_audit" name="test_logout_revokes_bound_access_token" time="0.798" /><testcase classname="tests.integration.test_account_auth_moderation_audit" name="test_password_reset_rejects_whitespace_policy_bypass_and_expired_token" time="0.767" /><testcase classname="tests.integration.test_account_auth_moderation_audit" name="test_profile_patch_is_partial_and_rejects_privilege_fields" time="0.841" /><testcase classname="tests.integration.test_account_auth_moderation_audit" name="test_avatar_rejects_media_owned_by_another_account" time="0.558" /><testcase classname="tests.integration.test_account_auth_moderation_audit" name="test_authorization_boundaries_deny_anonymous_foreign_owner_and_legacy_role_escalation" time="0.742" /><testcase classname="tests.integration.test_account_auth_moderation_audit" name="test_concurrent_account_deletion_is_single_effect_and_old_identity_cannot_return" time="0.553" /><testcase classname="tests.integration.test_account_auth_moderation_audit" name="test_profile_write_cannot_resurrect_fields_after_concurrent_deletion" time="0.570" /><testcase classname="tests.integration.test_account_auth_moderation_audit" name="test_manual_unrestrict_heals_historical_duplicate_active_rows" time="0.602" /><testcase classname="tests.integration.test_account_auth_moderation_audit" name="test_concurrent_user_restrictions_leave_one_active_row" time="0.614" /><testcase classname="tests.integration.test_account_auth_moderation_audit" name="test_moderation_full_publish_unrestrict_expiry_and_notices" time="1.126" /><testcase classname="tests.integration.test_admin_listing_pages" name="test_filtered_cursor_pages_reach_every_matching_listing_with_equal_timestamps" time="0.733" /><testcase classname="tests.integration.test_admin_listing_pages" name="test_display_search_preserves_the_existing_literal_title_owner_area_filter[habitACI\xd3N 00000-1]" time="0.683" /><testcase classname="tests.integration.test_admin_listing_pages" name="test_display_search_preserves_the_existing_literal_title_owner_area_filter[GARC\xcdA Centro-205]" time="0.693" /><testcase classname="tests.integration.test_admin_listing_pages" name="test_display_search_preserves_the_existing_literal_title_owner_area_filter[100%_/-1]" time="0.694" /><testcase classname="tests.integration.test_admin_listing_pages" name="test_display_search_preserves_the_existing_literal_title_owner_area_filter[City-only marker-0]" time="0.675" /><testcase classname="tests.integration.test_admin_listing_pages" name="test_display_search_preserves_the_existing_literal_title_owner_area_filter[listing-pages@example.com-0]" time="0.624" /><testcase classname="tests.integration.test_admin_listing_pages" name="test_display_search_preserves_the_existing_literal_title_owner_area_filter[   -205]" time="0.666" /><testcase classname="tests.integration.test_admin_listing_pages" name="test_display_search_preserves_the_existing_literal_title_owner_area_filter[ literal-1]" time="0.605" /><testcase classname="tests.integration.test_admin_listing_pages" name="test_display_search_preserves_the_existing_literal_title_owner_area_filter[ literal -1]" time="0.679" /><testcase classname="tests.integration.test_admin_listing_pages" name="test_display_search_preserves_the_existing_literal_title_owner_area_filter[ literal  -0]" time="0.653" /><testcase classname="tests.integration.test_admin_listing_pages" name="test_page_parameters_keep_admin_authorization_and_validation" time="0.745" /><testcase classname="tests.integration.test_auth_session_endpoints" name="test_parallel_sessions_survive_logout_of_another_device" time="0.559" /><testcase classname="tests.integration.test_auth_session_endpoints" name="test_refresh_requires_cookie" time="0.360" /><testcase classname="tests.integration.test_auth_session_limits" name="test_session_issuance_caps_active_devices_and_removes_expired_rows" time="0.431" /><testcase classname="tests.integration.test_auth_session_limits" name="test_session_issuance_has_an_account_level_rate_limit" time="0.435" /><testcase classname="tests.integration.test_autonomous_communities" name="test_autonomous_community_counts_match_published_spatial_card_search" time="0.687" /><testcase classname="tests.integration.test_banner_payment_lifecycle" name="test_seven_paid_banners_block_eighth_then_expiry_notifies_once" time="2.138" /><testcase classname="tests.integration.test_banner_payment_lifecycle" name="test_last_slot_concurrent_checkouts_and_double_click" time="1.531" /><testcase classname="tests.integration.test_banner_payment_lifecycle" name="test_missing_webhook_recovers_from_stripe_status_and_cancel_race_keeps_paid" time="0.617" /><testcase classname="tests.integration.test_banner_payment_lifecycle" name="test_cancellation_releases_reservation_without_waiting_for_webhook" time="0.643" /><testcase classname="tests.integration.test_banner_payment_lifecycle" name="test_worker_recovers_paid_order_without_any_return_visit" time="0.522" /><testcase classname="tests.integration.test_banner_payment_lifecycle" name="test_paid_changed_creative_requires_review_and_blocks_second_charge" time="0.622" /><testcase classname="tests.integration.test_banner_payment_lifecycle" name="test_payment_completion_wins_over_concurrent_cancellation" time="0.523" /><testcase classname="tests.integration.test_banner_payment_lifecycle" name="test_late_paid_expired_order_cannot_displace_seven_current_purchases" time="1.624" /><testcase classname="tests.integration.test_catalog_concurrency" name="test_concurrent_catalog_updates_do_not_lose_a_version_increment" time="0.431" /><testcase classname="tests.integration.test_collection_limits" name="test_direct_collection_add_is_idempotent_and_enforces_quota" time="0.466" /><testcase classname="tests.integration.test_collection_limits" name="test_guest_import_respects_zero_quota_without_breaking_import" time="0.388" /><testcase classname="tests.integration.test_collection_limits" name="test_hard_deleted_listing_removes_collection_rows" time="0.480" /><testcase classname="tests.integration.test_collection_limits" name="test_account_deletion_removes_rows_that_reference_owned_listings" time="0.453" /><testcase classname="tests.integration.test_collection_limits" name="test_account_deletion_serializes_with_concurrent_favorite_write" time="0.522" /><testcase classname="tests.integration.test_commercial_advertisements" name="test_create_requires_auth_and_valid_image_and_destination" time="0.533" /><testcase classname="tests.integration.test_commercial_advertisements" name="test_payment_moderation_public_visibility_and_media" time="1.081" /><testcase classname="tests.integration.test_commercial_advertisements" name="test_expired_campaign_requires_new_test_checkout" time="0.621" /><testcase classname="tests.integration.test_commercial_advertisements" name="test_blocked_owner_campaign_cannot_be_approved" time="0.575" /><testcase classname="tests.integration.test_commercial_advertisements" name="test_spanish_phone_and_whatsapp_destinations_are_normalized" time="0.477" /><testcase classname="tests.integration.test_commercial_advertisements" name="test_homepage_returns_seven_and_rejects_eighth_overlapping_campaign" time="0.625" /><testcase classname="tests.integration.test_commercial_advertisements" name="test_concurrent_approvals_cannot_overbook_seven_homepage_slots" time="0.724" /><testcase classname="tests.integration.test_commercial_advertisements" name="test_active_edit_preserves_paid_window_when_reapproved" time="0.687" /><testcase classname="tests.integration.test_critical_flows" name="test_complete_auth_geo_media_message_and_delete_flow" time="0.918" /><testcase classname="tests.integration.test_critical_flows" name="test_public_catalog_refreshes_after_create_update_hide_and_republish" time="0.880" /><testcase classname="tests.integration.test_critical_flows" name="test_listing_owner_can_hard_delete_local_listing_and_dependents" time="0.868" /><testcase classname="tests.integration.test_critical_flows" name="test_active_admin_can_hard_delete_another_owners_local_listing" time="0.715" /><testcase classname="tests.integration.test_critical_flows" name="test_imported_listing_cannot_be_deleted_by_owner_or_admin" time="0.781" /><testcase classname="tests.integration.test_critical_flows" name="test_admin_renewal_notifies_the_listing_owner" time="0.647" /><testcase classname="tests.integration.test_critical_flows" name="test_designated_administrators_require_google_identity_before_server_access" time="0.596" /><testcase classname="tests.integration.test_critical_flows" name="test_admin_moderation_restrictions_invalidate_the_public_catalog" time="1.567" /><testcase classname="tests.integration.test_critical_flows" name="test_sole_viable_admin_cannot_delete_account" time="0.435" /><testcase classname="tests.integration.test_critical_flows" name="test_deleting_one_of_multiple_admins_deactivates_their_grant" time="0.591" /><testcase classname="tests.integration.test_critical_flows" name="test_concurrent_admin_self_deletion_preserves_one_viable_admin" time="0.530" /><testcase classname="tests.integration.test_data_retention" name="test_retention_removes_only_old_completed_or_expired_records" time="0.411" /><testcase classname="tests.integration.test_data_retention" name="test_retention_batch_size_is_enforced_per_table" time="0.360" /><testcase classname="tests.integration.test_data_retention" name="test_external_import_retention_keeps_latest_success_and_active_backoff" time="0.373" /><testcase classname="tests.integration.test_data_retention" name="test_retention_releases_media_from_old_terminal_commercial_campaigns" time="0.378" /><testcase classname="tests.integration.test_database_server_settings" name="test_asyncpg_connections_receive_execution_budgets" time="0.343" /><testcase classname="tests.integration.test_email_verification_code" name="test_host_must_confirm_six_digit_email_code_before_creating_listing" time="0.674" /><testcase classname="tests.integration.test_email_verification_code" name="test_verification_code_is_consumed_after_five_failed_attempts" time="0.551" /><testcase classname="tests.integration.test_email_verification_code" name="test_resend_invalidates_old_code_and_enforces_hourly_limit" time="0.492" /><testcase classname="tests.integration.test_email_verification_code" name="test_expired_verification_code_is_rejected_and_does_not_verify_user" time="0.470" /><testcase classname="tests.integration.test_email_verification_code" name="test_verified_code_cannot_be_reused_and_verified_user_gets_no_new_code" time="0.456" /><testcase classname="tests.integration.test_email_verification_code" name="test_verification_resend_cooldown_rejects_immediate_second_request" time="0.430" /><testcase classname="tests.integration.test_email_verification_code" name="test_verification_request_rechecks_stale_user_state_before_issuing_code" time="0.423" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_external_upsert_preserves_source_public_address_without_map_point" time="0.422" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_coordinate_less_external_listing_is_public_in_list_but_not_spatial_search" time="0.451" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_reconcile_removes_legacy_centroid_but_keeps_listing_public_in_results" time="0.459" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_reconcile_leaves_unknown_legacy_snapshot_schema_untouched" time="0.404" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_external_upsert_keeps_card_visible_when_source_point_disappears_and_restores_marker" time="0.447" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_location_loss_promotes_only_an_alternative_with_verified_coordinates" time="0.453" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_external_upsert_is_idempotent_deduplicates_and_fails_over_primary_source" time="0.642" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_complete_source_failure_does_not_mark_existing_external_listing_missing" time="0.385" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_retiring_a_disabled_source_preserves_attribution_and_closes_unchecked_listing" time="0.377" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_retiring_a_disabled_source_promotes_an_active_duplicate" time="0.441" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_alquiler_docente_lifecycle_is_idempotent_and_updates_its_stable_public_id" time="0.627" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_alquiler_docente_reuses_source_url_when_property_id_changes[75140-77332]" time="0.615" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_alquiler_docente_reuses_source_url_when_property_id_changes[None-77332]" time="0.595" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_alquiler_docente_reuses_source_url_when_property_id_changes[77332-None]" time="0.578" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_detail_error_is_partial_and_blocked_source_records_diagnostics" time="0.475" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_incomplete_discovery_does_not_archive_active_source_or_catalog_entry" time="0.473" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_sudden_drop_to_zero_urls_is_partial_and_never_archives_existing_source" time="0.450" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_confirmed_missing_detail_purges_listing_in_same_complete_cycle[not_found]" time="0.529" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_confirmed_missing_detail_purges_listing_in_same_complete_cycle[removed]" time="0.493" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_confirmed_missing_detail_purges_listing_in_same_complete_cycle[expired]" time="0.523" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_410_returned_while_fetching_discovered_detail_purges_listing_immediately" time="0.484" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_ambiguous_missing_detail_keeps_listing_published[blocked]" time="0.488" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_ambiguous_missing_detail_keeps_listing_published[temporary_error]" time="0.490" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_ambiguous_missing_detail_keeps_listing_published[unknown]" time="0.467" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_primary_removal_promotes_full_alternative_snapshot_and_restores_reappearing_source" time="0.596" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_removal_checker_leaves_historical_missing_source_untouched" time="0.441" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_catalog_version_changes_for_create_close_and_restore" time="0.495" /><testcase classname="tests.integration.test_external_import_lifecycle" name="test_public_search_returns_all_records_across_multiple_api_pages" time="3.702" /><testcase classname="tests.integration.test_external_import_transaction_boundaries" name="test_source_discovery_and_detail_fetch_run_without_database_transaction" time="0.461" /><testcase classname="tests.integration.test_external_import_transaction_boundaries" name="test_public_image_fingerprints_use_full_bounded_gallery_and_fail_closed" time="0.395" /><testcase classname="tests.integration.test_external_import_transaction_boundaries" name="test_image_download_and_storage_do_not_reuse_another_users_private_asset" time="0.470" /><testcase classname="tests.integration.test_external_import_transaction_boundaries" name="test_s3_failure_skips_image_without_aborting_listing_import" time="0.427" /><testcase classname="tests.integration.test_external_import_transaction_boundaries" name="test_unchanged_source_retries_deferred_gallery_reconciliation" time="0.493" /><testcase classname="tests.integration.test_external_import_transaction_boundaries" name="test_partial_provider_gallery_preserves_existing_media_and_urls_while_updating_price[0]" time="0.436" /><testcase classname="tests.integration.test_external_import_transaction_boundaries" name="test_partial_provider_gallery_preserves_existing_media_and_urls_while_updating_price[1]" time="0.436" /><testcase classname="tests.integration.test_external_import_transaction_boundaries" name="test_external_gallery_reconciliation_caps_and_replaces_stale_images" time="0.536" /><testcase classname="tests.integration.test_external_import_transaction_boundaries" name="test_reconciliation_probes_run_without_database_transaction" time="0.443" /><testcase classname="tests.integration.test_external_removal" name="test_batch_anomaly_precedes_every_mutation_and_resets_each_sweep[20-2-False]" time="0.630" /><testcase classname="tests.integration.test_external_removal" name="test_batch_anomaly_precedes_every_mutation_and_resets_each_sweep[20-20-True]" time="0.848" /><testcase classname="tests.integration.test_external_removal" name="test_batch_anomaly_precedes_every_mutation_and_resets_each_sweep[20-17-True]" time="0.904" /><testcase classname="tests.integration.test_external_removal" name="test_batch_anomaly_precedes_every_mutation_and_resets_each_sweep[20-10-False]" time="0.698" /><testcase classname="tests.integration.test_external_removal" name="test_batch_anomaly_precedes_every_mutation_and_resets_each_sweep[5-5-True]" time="0.572" /><testcase classname="tests.integration.test_external_removal" name="test_batch_anomaly_precedes_every_mutation_and_resets_each_sweep[120-120-True]" time="2.764" /><testcase classname="tests.integration.test_external_removal" name="test_disabled_removal_also_blocks_importer_hard_purge" time="0.400" /><testcase classname="tests.integration.test_external_removal" name="test_provider_anomaly_does_not_stop_other_provider" time="0.441" /><testcase classname="tests.integration.test_external_removal" name="test_full_import_confirmations_cannot_bypass_batch_guard[missing]" time="0.574" /><testcase classname="tests.integration.test_external_removal" name="test_full_import_confirmations_cannot_bypass_batch_guard[discovered]" time="0.458" /><testcase classname="tests.integration.test_external_removal" name="test_direct_state_contract_and_repeated_unknown[active]" time="0.497" /><testcase classname="tests.integration.test_external_removal" name="test_direct_state_contract_and_repeated_unknown[removed]" time="0.496" /><testcase classname="tests.integration.test_external_removal" name="test_direct_state_contract_and_repeated_unknown[expired]" time="0.485" /><testcase classname="tests.integration.test_external_removal" name="test_direct_state_contract_and_repeated_unknown[not_found]" time="0.449" /><testcase classname="tests.integration.test_external_removal" name="test_direct_state_contract_and_repeated_unknown[blocked]" time="0.447" /><testcase classname="tests.integration.test_external_removal" name="test_direct_state_contract_and_repeated_unknown[temporary_error]" time="0.426" /><testcase classname="tests.integration.test_external_removal" name="test_direct_state_contract_and_repeated_unknown[unknown]" time="0.467" /><testcase classname="tests.integration.test_external_removal" name="test_alternative_source_survives_with_valid_primary_without_import_io[True]" time="0.484" /><testcase classname="tests.integration.test_external_removal" name="test_alternative_source_survives_with_valid_primary_without_import_io[False]" time="0.467" /><testcase classname="tests.integration.test_external_removal" name="test_native_relation_fails_closed_and_snapshot_race_is_not_applied" time="0.449" /><testcase classname="tests.integration.test_external_removal" name="test_150_record_keyset_sweep_bounded_http_and_provider_circuit[active]" time="2.512"><properties><property name="sweep_duration_seconds" value="2.128" /><property name="checked" value="150" /><property name="batches" value="2" /><property name="maximum_http" value="3" /></properties></testcase><testcase classname="tests.integration.test_external_removal" name="test_150_record_keyset_sweep_bounded_http_and_provider_circuit[blocked]" time="2.765"><properties><property name="sweep_duration_seconds" value="0.109" /><property name="checked" value="6" /><property name="batches" value="1" /><property name="maximum_http" value="3" /></properties></testcase><testcase classname="tests.integration.test_external_removal" name="test_150_record_keyset_sweep_bounded_http_and_provider_circuit[temporary_error]" time="3.515"><properties><property name="sweep_duration_seconds" value="0.126" /><property name="checked" value="6" /><property name="batches" value="1" /><property name="maximum_http" value="3" /></properties></testcase><testcase classname="tests.integration.test_external_removal" name="test_last_source_purge_cascades_favorites_retains_audit_and_queues_only_orphans" time="0.592" /><testcase classname="tests.integration.test_external_removal" name="test_shared_http_limit_and_isolated_adapter_failure" time="0.598" /><testcase classname="tests.integration.test_external_removal" name="test_probe_reloads_cached_rows_before_mutation[native]" time="0.500" /><testcase classname="tests.integration.test_external_removal" name="test_probe_reloads_cached_rows_before_mutation[url]" time="0.477" /><testcase classname="tests.integration.test_external_spain" name="test_provision_disabled_scopes_upserts_without_duplicate_or_implicit_activation" time="0.425" /><testcase classname="tests.integration.test_external_spain" name="test_holiday_scopes_keep_independent_cursors_and_rejected_recommendations_do_not_close_long" time="0.519" /><testcase classname="tests.integration.test_external_spain" name="test_holiday_catalogue_overlap_preserves_long_term_canonical_and_its_scope" time="0.444" /><testcase classname="tests.integration.test_external_spain" name="test_residential_import_cannot_take_over_existing_holiday_source" time="0.387" /><testcase classname="tests.integration.test_external_spain" name="test_selected_holiday_weekly_price_reaches_canonical_and_retains_provenance" time="0.478" /><testcase classname="tests.integration.test_external_spain" name="test_scope_checkpoint_drains_detail_tail_then_next_page_and_never_archives_unseen" time="0.701" /><testcase classname="tests.integration.test_external_spain" name="test_normalized_url_changed_id_retains_source_and_canonical" time="0.400" /><testcase classname="tests.integration.test_external_spain" name="test_whole_units_reach_run_source_and_canonical_prices[Estudio-0-long-mes]" time="0.446" /><testcase classname="tests.integration.test_external_spain" name="test_whole_units_reach_run_source_and_canonical_prices[Apartamento de 1 dormitorio-1-long-mes]" time="0.455" /><testcase classname="tests.integration.test_external_spain" name="test_whole_units_reach_run_source_and_canonical_prices[Estudio-0-holiday-noche]" time="0.467" /><testcase classname="tests.integration.test_external_spain" name="test_whole_units_reach_run_source_and_canonical_prices[Apartamento de 1 dormitorio-1-holiday-noche]" time="0.484" /><testcase classname="tests.integration.test_external_spain" name="test_bootstrap_detail_budget_remains_partial_and_does_not_archive_missing_source[False]" time="0.493" /><testcase classname="tests.integration.test_external_spain" name="test_bootstrap_detail_budget_remains_partial_and_does_not_archive_missing_source[True]" time="0.524" /><testcase classname="tests.integration.test_external_spain" name="test_identical_gallery_deduplicates_same_mode_but_preserves_holiday_offer" time="0.525" /><testcase classname="tests.integration.test_external_spain" name="test_bootstrap_checkpoint_resumes_scope_rounds_and_respects_small_budgets[False]" time="0.474" /><testcase classname="tests.integration.test_external_spain" name="test_bootstrap_checkpoint_resumes_scope_rounds_and_respects_small_budgets[True]" time="0.463" /><testcase classname="tests.integration.test_google_auth" name="test_google_gmail_user_selects_role_once_and_refresh_logout_are_safe" time="0.476" /><testcase classname="tests.integration.test_google_auth" name="test_google_workspace_links_an_existing_password_account_only_when_authoritative" time="0.586" /><testcase classname="tests.integration.test_google_auth" name="test_google_refuses_unsafe_third_party_email_auto_link" time="0.731" /><testcase classname="tests.integration.test_google_auth" name="test_google_verifier_transport_failure_returns_503" time="0.481" /><testcase classname="tests.integration.test_google_auth" name="test_google_role_selection_is_atomic_under_concurrency" time="0.749" /><testcase classname="tests.integration.test_homepage_purchase" name="test_single_slot_race_fulfillment_and_expiry" time="1.135" /><testcase classname="tests.integration.test_homepage_purchase" name="test_cancel_releases_homepage_reservation" time="0.632" /><testcase classname="tests.integration.test_homepage_purchase" name="test_monthly_banner_quote_and_approved_duration" time="0.806" /><testcase classname="tests.integration.test_listing_address_group_sync" name="test_location_edit_syncs_only_owner_rooms_with_same_previous_private_address" time="0.431" /><testcase classname="tests.integration.test_listing_address_group_sync" name="test_group_sync_requires_complete_location_payload" time="0.346" /><testcase classname="tests.integration.test_listing_creation_limits" name="test_active_listing_quota_counts_only_non_deleted_active_states" time="0.403" /><testcase classname="tests.integration.test_listing_creation_limits" name="test_allowlisted_google_admin_is_not_subject_to_host_quota" time="0.387" /><testcase classname="tests.integration.test_listing_creation_limits" name="test_legacy_admin_role_without_allowlist_is_subject_to_host_quota" time="0.393" /><testcase classname="tests.integration.test_listing_expiry_notifications" name="test_past_legacy_expiry_never_hides_or_closes_a_published_listing" time="0.610" /><testcase classname="tests.integration.test_listing_gallery_cards" name="test_bounded_cards_and_detail_keep_full_gallery_for_both_rental_modes[long]" time="0.430" /><testcase classname="tests.integration.test_listing_gallery_cards" name="test_bounded_cards_and_detail_keep_full_gallery_for_both_rental_modes[holiday]" time="0.399" /><testcase classname="tests.integration.test_listing_gallery_integrity_integration" name="test_renew_rejects_legacy_internal_listing_with_too_few_active_photos" time="0.373" /><testcase classname="tests.integration.test_listing_gallery_integrity_integration" name="test_repair_restores_only_missing_suffix_from_unique_cross_mode_sibling" time="0.450" /><testcase classname="tests.integration.test_listing_lifecycle_closure" name="test_production_moderation_lifecycle_keeps_owner_public_map_and_detail_consistent" time="1.349" /><testcase classname="tests.integration.test_listing_lifecycle_closure" name="test_past_legacy_expiry_does_not_hide_or_block_listing_edits" time="0.658" /><testcase classname="tests.integration.test_listing_lifecycle_closure" name="test_admin_must_use_moderation_endpoint_for_status_changes" time="0.682" /><testcase classname="tests.integration.test_listing_mutation_locking" name="test_owner_listing_mutation_locks_row_before_authorization_and_validation[update]" time="0.582" /><testcase classname="tests.integration.test_listing_mutation_locking" name="test_owner_listing_mutation_locks_row_before_authorization_and_validation[renew]" time="0.599" /><testcase classname="tests.integration.test_listing_mutation_locking" name="test_create_revalidates_preloaded_user_after_concurrent_deletion" time="0.619" /><testcase classname="tests.integration.test_listing_photo_contract" name="test_direct_api_create_and_edit_photo_boundaries" time="1.400" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_publication_returns_stable_auth_validation_and_limit_errors" time="1.021" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_unverified_host_error_contract" time="0.677" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_publication_is_idempotent_and_contact_sync_is_atomic" time="1.130" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_create_rejects_server_owned_fields[ownerUserId]" time="0.636" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_create_rejects_server_owned_fields[status]" time="0.627" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_create_rejects_server_owned_fields[promoted]" time="0.581" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_create_rejects_server_owned_fields[isExternal]" time="0.530" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_create_rejects_server_owned_fields[source]" time="0.718" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_customer_like_listing_with_eight_images_publishes" time="1.166" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_listing_and_media_ownership_boundaries" time="0.994" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_user_upload_persists_visual_fingerprint_for_duplicate_detection" time="0.605" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_duplicate_gallery_blocks_even_when_address_price_and_text_change" time="1.189" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_same_owner_duplicate_gallery_is_rejected_without_persisting_second_listing" time="1.651" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_unreconciled_external_gallery_does_not_block_user_publication" time="1.109" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_same_address_and_price_with_different_gallery_is_allowed" time="0.986" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_shared_home_photos_do_not_block_a_different_room_gallery" time="1.147" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_replacing_images_cannot_turn_listing_into_duplicate" time="1.170" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_concurrent_duplicate_publications_leave_one_listing" time="0.927" /><testcase classname="tests.integration.test_listing_publication_hardening" name="test_existing_duplicate_cleanup_is_dry_run_then_idempotent_apply" time="1.272" /><testcase classname="tests.integration.test_listing_video_contract" name="test_video_range_responses_use_only_partial_storage_reads" time="0.511" /><testcase classname="tests.integration.test_listing_video_contract" name="test_video_replacement_reuse_and_listing_deletion_cleanup" time="0.601" /><testcase classname="tests.integration.test_listing_video_contract" name="test_account_deletion_and_orphan_sweep_include_video" time="0.628" /><testcase classname="tests.integration.test_listing_view_limits" name="test_listing_view_deduplication_prunes_prior_days" time="0.442" /><testcase classname="tests.integration.test_local_auth" name="test_register_preserves_password_and_normalizes_identity_fields" time="0.803" /><testcase classname="tests.integration.test_local_auth" name="test_duplicate_registration_is_case_insensitive_and_does_not_issue_session" time="0.444" /><testcase classname="tests.integration.test_local_auth" name="test_wrong_password_blocked_and_deleted_accounts_never_issue_login_session" time="0.736" /><testcase classname="tests.integration.test_local_auth" name="test_full_restriction_keeps_identity_login_but_blocks_normal_account_actions" time="0.542" /><testcase classname="tests.integration.test_logical_audit_regressions" name="test_guest_listing_views_use_browser_cookie_not_shared_ip" time="0.599" /><testcase classname="tests.integration.test_logical_audit_regressions" name="test_account_deletion_invalidates_catalog_and_removes_owned_listing" time="0.631" /><testcase classname="tests.integration.test_logical_audit_regressions" name="test_public_profile_changes_invalidate_catalog_and_refresh_listing_contacts" time="0.571" /><testcase classname="tests.integration.test_mail_leases" name="test_claim_commits_before_network_io_and_redacts_sensitive_mail" time="0.473" /><testcase classname="tests.integration.test_mail_leases" name="test_expired_lease_is_recoverable_but_active_lease_is_not" time="0.407" /><testcase classname="tests.integration.test_mail_leases" name="test_failed_delivery_uses_backoff_and_terminally_redacts_secret" time="0.420" /><testcase classname="tests.integration.test_media_reference_concurrency" name="test_delete_and_attach_cannot_leave_a_reference_to_deleted_media" time="0.470" /><testcase classname="tests.integration.test_media_reference_concurrency" name="test_detach_and_attach_serialize_orphan_detection" time="0.495" /><testcase classname="tests.integration.test_media_reference_concurrency" name="test_avatar_and_listing_attachment_share_the_same_media_lock" time="0.460" /><testcase classname="tests.integration.test_media_reference_concurrency" name="test_database_guard_rejects_a_reference_to_deleted_media" time="0.362" /><testcase classname="tests.integration.test_media_reference_concurrency" name="test_account_deletion_detaches_owned_media_from_a_foreign_listing" time="0.455" /><testcase classname="tests.integration.test_media_reference_concurrency" name="test_atomic_listing_update_rolls_back_fields_when_image_assets_are_invalid" time="0.405" /><testcase classname="tests.integration.test_monthly_top_purchase" name="test_monthly_top_payment_priority_renewal_and_expiry" time="0.807"><failure message="AssertionError: {&quot;detail&quot;:&quot;A valid Spanish postcode is required to determine the listing province&quot;}&#10;assert 409 == 200&#10; +  where 409 = &lt;Response [409 Conflict]&gt;.status_code">client = &lt;conftest.ListingFixtureClient object at 0x0000024114A8FE30&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+
+    async def test_monthly_top_payment_priority_renewal_and_expiry(client, register_user, provider):
+        target, headers = await listing(client, register_user, 'monthly-top@example.com')
+        regular, _ = await listing(client, register_user, 'ordinary-top@example.com')
+        async with SessionLocal() as db:
+            old = await db.get(Listing, UUID(target))
+            old.created_at = datetime.now(UTC) - timedelta(days=10)
+            old.monthly_price = 990
+            await db.commit()
+&gt;       response, remote = await purchase(client, provider, target, headers)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_monthly_top_purchase.py:36: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = &lt;conftest.ListingFixtureClient object at 0x0000024114A8FE30&gt;
+provider = {}, target = 'd571d3b6-16e4-490d-9f7b-7f307ccdf588'
+headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NzQ4ZmE5NC00NDZmLTQ1OTgtOTdlMS0zOTc1MzE1Y2E...JmMjViYTk2LWE4OGEtNGJmNS1hYmFjLTIzMWM2ODZhZjcwNCIsImV4cCI6MTc5MjI2MjU1MH0.euy9U_1iPyVhOh3mboIo49c9zNp-oY-WPYOfL6mtXfs'}
+
+    async def purchase(client, provider, target, headers):
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout', headers=headers,
+                                     json={'days': 30, 'amountCents': 1, 'currency': 'usd'})
+&gt;       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = &lt;Response [409 Conflict]&gt;.status_code
+
+tests\integration\test_monthly_top_purchase.py:23: AssertionError</failure></testcase><testcase classname="tests.integration.test_monthly_top_purchase" name="test_monthly_top_rejects_old_packages_and_unauthorized_purchase" time="0.817"><failure message="AssertionError: {&quot;detail&quot;:&quot;A valid Spanish postcode is required to determine the listing province&quot;}&#10;assert 409 == 200&#10; +  where 409 = &lt;Response [409 Conflict]&gt;.status_code">client = &lt;conftest.ListingFixtureClient object at 0x000002411495C080&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+
+    async def test_monthly_top_rejects_old_packages_and_unauthorized_purchase(client, register_user, provider):
+        target, headers = await listing(client, register_user, 'monthly-owner@example.com')
+        _, stranger = await listing(client, register_user, 'monthly-stranger@example.com')
+        route = f'/api/v1/payments/listings/{target}/top/checkout'
+        for days in [1, 7, 9, 366, 30.5, '30', True]:
+            assert (await client.post(route, headers=headers, json={'days':days})).status_code == 422
+        assert (await client.post(route, headers=stranger, json={'days':30})).status_code == 404
+        assert not provider
+&gt;       await purchase(client, provider, target, headers)
+
+tests\integration\test_monthly_top_purchase.py:81: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = &lt;conftest.ListingFixtureClient object at 0x000002411495C080&gt;
+provider = {}, target = 'ddaea8bc-7009-46a6-9f29-a7f01629f4b1'
+headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiNmE0YmNhYy1iZTAwLTQzN2YtOTIxZC02ZTk5NDgyNjY...kwYjA0YzQwLTJhMTEtNGFhZS1hZjZiLWViM2RmODBhNzAzNyIsImV4cCI6MTc5MjI2MjU1MX0.biJsNvXv63-iI_Sl6OfFWa9PKdYh-tLe0Y1pcmTvLkg'}
+
+    async def purchase(client, provider, target, headers):
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout', headers=headers,
+                                     json={'days': 30, 'amountCents': 1, 'currency': 'usd'})
+&gt;       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = &lt;Response [409 Conflict]&gt;.status_code
+
+tests\integration\test_monthly_top_purchase.py:23: AssertionError</failure></testcase><testcase classname="tests.integration.test_monthly_top_purchase" name="test_top_selected_listing_duration_and_server_price" time="0.638"><failure message="assert (409 == 200)&#10; +  where 409 = &lt;Response [409 Conflict]&gt;.status_code">client = &lt;conftest.ListingFixtureClient object at 0x0000024114904860&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+
+    async def test_top_selected_listing_duration_and_server_price(client, register_user, provider):
+        first, headers = await listing(client, register_user, 'chosen-top@example.com')
+        # Make a second eligible listing owned by the same user.
+        async with SessionLocal() as db:
+            source = await db.get(Listing, UUID(first))
+            fields = {col.name: getattr(source, col.name) for col in Listing.__table__.columns
+                      if col.name not in {'id', 'created_at', 'updated_at'}}
+            fields['title'] = 'Second chosen listing'
+            fields['location'] = 'SRID=4326;POINT(-16.7260 28.0902)'
+            fields['exact_location'] = None
+            second = Listing(**fields)
+            db.add(second)
+            await db.flush()
+            images = (await db.scalars(select(ListingImage).where(ListingImage.listing_id == source.id))).all()
+            for image in images:
+                db.add(ListingImage(listing_id=second.id, media_asset_id=image.media_asset_id,
+                                    sort_order=image.sort_order, is_cover=image.is_cover))
+            await db.commit()
+            second_id = str(second.id)
+        response = await client.post(f'/api/v1/payments/listings/{second_id}/top/checkout', headers=headers,
+                                     json={'days':21, 'amountCents':1})
+&gt;       assert response.status_code == 200 and response.json()['amountCents'] == 2100
+E       assert (409 == 200)
+E        +  where 409 = &lt;Response [409 Conflict]&gt;.status_code
+
+tests\integration\test_monthly_top_purchase.py:109: AssertionError</failure></testcase><testcase classname="tests.integration.test_password_reset_limits" name="test_concurrent_reset_requests_create_only_one_token_and_email" time="0.515" /><testcase classname="tests.integration.test_password_reset_limits" name="test_hourly_reset_quota_is_silent_and_non_enumerating" time="0.495" /><testcase classname="tests.integration.test_password_reset_limits" name="test_forgot_password_response_does_not_enumerate_unknown_blocked_or_deleted_accounts" time="0.721" /><testcase classname="tests.integration.test_payment_audit" name="test_bug001_async_failure_releases_retry_without_grant" time="0.971"><failure message="AssertionError: {&quot;detail&quot;:&quot;A valid Spanish postcode is required to determine the listing province&quot;}&#10;assert 409 == 200&#10; +  where 409 = &lt;Response [409 Conflict]&gt;.status_code">client = &lt;conftest.ListingFixtureClient object at 0x0000024114141640&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, [])
+
+    async def test_bug001_async_failure_releases_retry_without_grant(client,register_user,provider,finances):
+&gt;       target, headers, remote, _, _ = await checkout_top(client,register_user,provider,finances,pay=False)
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:99: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = &lt;conftest.ListingFixtureClient object at 0x0000024114141640&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = False
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+&gt;       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = &lt;Response [409 Conflict]&gt;.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError</failure></testcase><testcase classname="tests.integration.test_payment_audit" name="test_bug002_paid_listing_and_account_cannot_disappear_before_refund" time="0.799"><failure message="AssertionError: {&quot;detail&quot;:&quot;A valid Spanish postcode is required to determine the listing province&quot;}&#10;assert 409 == 200&#10; +  where 409 = &lt;Response [409 Conflict]&gt;.status_code">client = &lt;conftest.ListingFixtureClient object at 0x000002411494E390&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, [])
+
+    async def test_bug002_paid_listing_and_account_cannot_disappear_before_refund(client,register_user,provider,finances):
+&gt;       target, headers, _, _, order_id = await checkout_top(client,register_user,provider,finances)
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:110: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = &lt;conftest.ListingFixtureClient object at 0x000002411494E390&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = True
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+&gt;       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = &lt;Response [409 Conflict]&gt;.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError</failure></testcase><testcase classname="tests.integration.test_payment_audit" name="test_bug003_open_checkout_blocks_account_deletion" time="0.856"><failure message="AssertionError: {&quot;detail&quot;:&quot;A valid Spanish postcode is required to determine the listing province&quot;}&#10;assert 409 == 200&#10; +  where 409 = &lt;Response [409 Conflict]&gt;.status_code">client = &lt;conftest.ListingFixtureClient object at 0x00000241148F6960&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, [])
+
+    async def test_bug003_open_checkout_blocks_account_deletion(client,register_user,provider,finances):
+&gt;       target, headers, _, _, _ = await checkout_top(client,register_user,provider,finances,pay=False)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:128: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = &lt;conftest.ListingFixtureClient object at 0x00000241148F6960&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = False
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+&gt;       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = &lt;Response [409 Conflict]&gt;.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError</failure></testcase><testcase classname="tests.integration.test_payment_audit" name="test_bug004_dispute_pause_won_restore_refund_and_duplicate_ordering" time="0.814"><failure message="AssertionError: {&quot;detail&quot;:&quot;A valid Spanish postcode is required to determine the listing province&quot;}&#10;assert 409 == 200&#10; +  where 409 = &lt;Response [409 Conflict]&gt;.status_code">client = &lt;conftest.ListingFixtureClient object at 0x00000241148F3B90&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, [])
+
+    async def test_bug004_dispute_pause_won_restore_refund_and_duplicate_ordering(client,register_user,provider,finances):
+&gt;       _target, _, remote, charge, order_id = await checkout_top(client,register_user,provider,finances)
+                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:135: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = &lt;conftest.ListingFixtureClient object at 0x00000241148F3B90&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = True
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+&gt;       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = &lt;Response [409 Conflict]&gt;.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError</failure></testcase><testcase classname="tests.integration.test_payment_audit" name="test_bug004_financial_event_before_checkout_never_grants_refunded_top" time="0.798"><failure message="AssertionError: {&quot;detail&quot;:&quot;A valid Spanish postcode is required to determine the listing province&quot;}&#10;assert 409 == 200&#10; +  where 409 = &lt;Response [409 Conflict]&gt;.status_code">client = &lt;conftest.ListingFixtureClient object at 0x0000024114A8CE60&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, [])
+
+    async def test_bug004_financial_event_before_checkout_never_grants_refunded_top(client,register_user,provider,finances):
+&gt;       _target, _, remote, charge, _ = await checkout_top(client,register_user,provider,finances,pay=False)
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:163: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = &lt;conftest.ListingFixtureClient object at 0x0000024114A8CE60&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = False
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+&gt;       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = &lt;Response [409 Conflict]&gt;.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError</failure></testcase><testcase classname="tests.integration.test_payment_audit" name="test_bug005_paid_rejected_banner_retains_seventh_place" time="2.472" /><testcase classname="tests.integration.test_payment_audit" name="test_bug006_slow_stripe_does_not_hold_global_sales_lock" time="5.915"><failure message="TimeoutError">fut = &lt;coroutine object Event.wait at 0x0000024114A9D9A0&gt;, timeout = 5
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout &lt;= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout &lt;= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+&gt;           return await fut
+                   ^^^^^^^^^
+
+..\..\..\..\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\asyncio\tasks.py:520: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;asyncio.locks.Event object at 0x0000024114514560 [unset]&gt;
+
+    async def wait(self):
+        """Block until the internal flag is true.
+    
+        If the internal flag is true on entry, return True
+        immediately.  Otherwise, block until another coroutine calls
+        set() to set the flag to true, then return True.
+        """
+        if self._value:
+            return True
+    
+        fut = self._get_loop().create_future()
+        self._waiters.append(fut)
+        try:
+&gt;           await fut
+E           asyncio.exceptions.CancelledError
+
+..\..\..\..\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\asyncio\locks.py:212: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+client = &lt;conftest.ListingFixtureClient object at 0x000002411463EAE0&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+
+    async def test_bug006_slow_stripe_does_not_hold_global_sales_lock(client,register_user,provider):
+        first, headers = await listing(client,register_user,'slow-first@example.com')
+        other, other_headers = await listing(client,register_user,'slow-second@example.com')
+        original = payments.create_stripe_session
+        started, release = asyncio.Event(), asyncio.Event()
+    
+        async def slow(order,*args):
+            if str(order.target_id) == first:
+                started.set()
+                await release.wait()
+            return await original(order,*args)
+    
+        from unittest.mock import patch
+        with patch.object(payments,'create_stripe_session',slow):
+            waiting = asyncio.create_task(client.post(f'/api/v1/payments/listings/{first}/top/checkout',headers=headers,json={'days':30}))
+&gt;           await asyncio.wait_for(started.wait(),5)
+
+tests\integration\test_payment_audit.py:205: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\..\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\asyncio\tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;Timeout [expired]&gt;
+exc_type = &lt;class 'asyncio.exceptions.CancelledError'&gt;
+exc_val = CancelledError(), exc_tb = &lt;traceback object at 0x0000024114B84340&gt;
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -&gt; Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() &lt;= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+&gt;               raise TimeoutError from exc_val
+E               TimeoutError
+
+..\..\..\..\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\asyncio\timeouts.py:115: TimeoutError</failure></testcase><testcase classname="tests.integration.test_payment_audit" name="test_bug006_commit_failure_recovers_same_reserved_order" time="0.606"><failure message="Failed: DID NOT RAISE RuntimeError">client = &lt;conftest.ListingFixtureClient object at 0x0000024113CD6C60&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002411493A570&gt;
+
+    async def test_bug006_commit_failure_recovers_same_reserved_order(client,register_user,provider,monkeypatch):
+        target, headers = await listing(client,register_user,'commit-failure@example.com')
+        original = AsyncSession.commit
+        failed = False
+    
+        async def fail_finalize(db):
+            nonlocal failed
+            if not failed and any(isinstance(row,PaymentOrder) and row.status == 'pending' and row.stripe_session_id for row in db.dirty):
+                failed = True
+                raise RuntimeError('Simulated commit failure')
+            await original(db)
+    
+        monkeypatch.setattr(AsyncSession,'commit',fail_finalize)
+&gt;       with pytest.raises(RuntimeError,match='Simulated commit failure'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE RuntimeError
+
+tests\integration\test_payment_audit.py:231: Failed</failure></testcase><testcase classname="tests.integration.test_payment_audit" name="test_bug007_review_can_restore_once_with_operator_audit" time="0.699"><failure message="AssertionError: {&quot;detail&quot;:&quot;A valid Spanish postcode is required to determine the listing province&quot;}&#10;assert 409 == 200&#10; +  where 409 = &lt;Response [409 Conflict]&gt;.status_code">client = &lt;conftest.ListingFixtureClient object at 0x000002411434D040&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, [])
+
+    async def test_bug007_review_can_restore_once_with_operator_audit(client,register_user,provider,finances):
+&gt;       target, _headers, remote, _, order_id = await checkout_top(client,register_user,provider,finances,pay=False)
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:240: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = &lt;conftest.ListingFixtureClient object at 0x000002411434D040&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = False
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+&gt;       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = &lt;Response [409 Conflict]&gt;.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError</failure></testcase><testcase classname="tests.integration.test_payment_audit" name="test_partial_refund_is_reviewed_and_remaining_balance_refunded_once" time="0.652"><failure message="AssertionError: {&quot;detail&quot;:&quot;A valid Spanish postcode is required to determine the listing province&quot;}&#10;assert 409 == 200&#10; +  where 409 = &lt;Response [409 Conflict]&gt;.status_code">client = &lt;conftest.ListingFixtureClient object at 0x000002411497AF90&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, [])
+
+    async def test_partial_refund_is_reviewed_and_remaining_balance_refunded_once(client,register_user,provider,finances):
+&gt;       _target, _, _, charge, order_id = await checkout_top(client,register_user,provider,finances)
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:261: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = &lt;conftest.ListingFixtureClient object at 0x000002411497AF90&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = True
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+&gt;       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = &lt;Response [409 Conflict]&gt;.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError</failure></testcase><testcase classname="tests.integration.test_payment_audit" name="test_refund_commit_failure_reuses_provider_receipt" time="0.689"><failure message="AssertionError: {&quot;detail&quot;:&quot;A valid Spanish postcode is required to determine the listing province&quot;}&#10;assert 409 == 200&#10; +  where 409 = &lt;Response [409 Conflict]&gt;.status_code">client = &lt;conftest.ListingFixtureClient object at 0x0000024114C03CE0&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, [])
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x0000024114A8C0B0&gt;
+
+    async def test_refund_commit_failure_reuses_provider_receipt(client,register_user,provider,finances,monkeypatch):
+&gt;       _, _, _, _, order_id = await checkout_top(client,register_user,provider,finances)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:275: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = &lt;conftest.ListingFixtureClient object at 0x0000024114C03CE0&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = True
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+&gt;       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = &lt;Response [409 Conflict]&gt;.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError</failure></testcase><testcase classname="tests.integration.test_payment_audit" name="test_pending_failed_refund_does_not_revoke_or_replay_after_restore" time="0.811"><failure message="AssertionError: {&quot;detail&quot;:&quot;A valid Spanish postcode is required to determine the listing province&quot;}&#10;assert 409 == 200&#10; +  where 409 = &lt;Response [409 Conflict]&gt;.status_code">client = &lt;conftest.ListingFixtureClient object at 0x000002411497C410&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, [])
+
+    async def test_pending_failed_refund_does_not_revoke_or_replay_after_restore(client,register_user,provider,finances):
+&gt;       _target, _, remote, charge, order_id = await checkout_top(client,register_user,provider,finances)
+                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:296: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = &lt;conftest.ListingFixtureClient object at 0x000002411497C410&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = True
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+&gt;       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = &lt;Response [409 Conflict]&gt;.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError</failure></testcase><testcase classname="tests.integration.test_payment_audit" name="test_unknown_checkout_after_idempotency_window_requires_verified_reconciliation" time="0.887"><failure message="AssertionError: {&quot;detail&quot;:&quot;A valid Spanish postcode is required to determine the listing province&quot;}&#10;assert 409 == 200&#10; +  where 409 = &lt;Response [409 Conflict]&gt;.status_code">client = &lt;conftest.ListingFixtureClient object at 0x0000024114A99F40&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, [])
+
+    async def test_unknown_checkout_after_idempotency_window_requires_verified_reconciliation(client,register_user,provider,finances):
+&gt;       target, headers, remote, _, order_id = await checkout_top(client,register_user,provider,finances,pay=False)
+                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:322: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = &lt;conftest.ListingFixtureClient object at 0x0000024114A99F40&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = False
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+&gt;       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = &lt;Response [409 Conflict]&gt;.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError</failure></testcase><testcase classname="tests.integration.test_payment_audit" name="test_refund_of_ungranted_order_preserves_independent_admin_top" time="0.646"><failure message="AssertionError: {&quot;detail&quot;:&quot;A valid Spanish postcode is required to determine the listing province&quot;}&#10;assert 409 == 200&#10; +  where 409 = &lt;Response [409 Conflict]&gt;.status_code">client = &lt;conftest.ListingFixtureClient object at 0x0000024114A919D0&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, [])
+
+    async def test_refund_of_ungranted_order_preserves_independent_admin_top(client,register_user,provider,finances):
+&gt;       target, _, remote, _, order_id = await checkout_top(client,register_user,provider,finances,pay=False)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:341: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = &lt;conftest.ListingFixtureClient object at 0x0000024114A919D0&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = False
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+&gt;       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = &lt;Response [409 Conflict]&gt;.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError</failure></testcase><testcase classname="tests.integration.test_payment_audit" name="test_refund_of_renewal_preserves_original_top_period_and_rank" time="0.565"><failure message="AssertionError: {&quot;detail&quot;:&quot;A valid Spanish postcode is required to determine the listing province&quot;}&#10;assert 409 == 200&#10; +  where 409 = &lt;Response [409 Conflict]&gt;.status_code">client = &lt;conftest.ListingFixtureClient object at 0x000002411449F8C0&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, [])
+
+    async def test_refund_of_renewal_preserves_original_top_period_and_rank(client,register_user,provider,finances):
+&gt;       target, headers, _, _, first_id = await checkout_top(client,register_user,provider,finances)
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:358: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = &lt;conftest.ListingFixtureClient object at 0x000002411449F8C0&gt;
+register_user = &lt;function register at 0x0000024110E88FE0&gt;, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = True
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+&gt;       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = &lt;Response [409 Conflict]&gt;.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError</failure></testcase><testcase classname="tests.integration.test_public_seo" name="test_canonical_listing_html_sitemap_and_visibility_lifecycle" time="0.626" /><testcase classname="tests.integration.test_rental_price_limit_integration" name="test_price_limit_across_create_patch_renew_and_public_visibility" time="1.068" /><testcase classname="tests.integration.test_saved_search_quota" name="test_direct_create_rejects_searches_above_account_quota" time="0.470" /><testcase classname="tests.integration.test_saved_search_quota" name="test_guest_import_stops_at_quota_without_failing_login_flow" time="0.423" /><testcase classname="tests.integration.test_schema_parity" name="test_migrated_postgresql_schema_matches_application_column_contract" time="0.716" /><testcase classname="tests.integration.test_search_history_concurrency" name="test_concurrent_history_writes_keep_a_strict_bound_and_deduplicate" time="2.182" /><testcase classname="tests.integration.test_second_audit_regressions" name="test_old_refresh_token_cannot_be_reused" time="0.651" /><testcase classname="tests.integration.test_second_audit_regressions" name="test_availability_window_excludes_already_ended_listing" time="0.731" /><testcase classname="tests.integration.test_second_audit_regressions" name="test_private_media_cache_and_listing_avatar_separation" time="0.948" /><testcase classname="tests.integration.test_second_audit_regressions" name="test_replacing_and_deleting_listing_cleans_orphaned_media" time="0.949" /><testcase classname="tests.integration.test_second_audit_regressions" name="test_account_deletion_erases_owned_state" time="0.919" /><testcase classname="tests.integration.test_spain_scale_catalog" name="test_keyset_pages_and_viewport_clusters_remain_bounded" time="2.839" /><testcase classname="tests.integration.test_storage_deletions" name="test_enqueue_is_idempotent_and_successful_delete_removes_job" time="0.467" /><testcase classname="tests.integration.test_storage_deletions" name="test_live_asset_is_retained_even_when_stale_deletion_job_exists" time="0.410" /><testcase classname="tests.integration.test_storage_deletions" name="test_failure_releases_lease_and_schedules_retry" time="0.409" /><testcase classname="tests.integration.test_storage_deletions" name="test_active_lease_is_not_double_claimed_but_expired_lease_recovers" time="0.448" /><testcase classname="tests.integration.test_storage_deletions" name="test_media_soft_delete_enqueues_storage_key_in_same_transaction" time="0.434" /><testcase classname="tests.integration.test_storage_deletions" name="test_avatar_replacement_and_account_deletion_enqueue_storage_keys" time="0.425" /><testcase classname="tests.integration.test_storage_deletions" name="test_orphaned_listing_media_is_soft_deleted_and_enqueued" time="0.353" /><testcase classname="tests.integration.test_storage_failure_handoff" name="test_redis_failure_buffer_is_committed_before_ack" time="0.325" /><testcase classname="tests.integration.test_storage_failure_redis" name="test_real_redis_failure_buffer_hands_off_to_postgresql" time="0.307"><failure message="AssertionError: assert ''&#10; +  where '' = Settings(app_env='test', app_name='112233-api', database_url='postgresql+asyncpg://audit:audit@127.0.0.1:55439/audit_n...nal_removal_check_enabled=True, external_removal_check_interval_seconds=21600, external_worker_stale_after_seconds=300).redis_url">async def test_real_redis_failure_buffer_hands_off_to_postgresql() -&gt; None:
+        settings = get_settings()
+&gt;       assert settings.redis_url
+E       AssertionError: assert ''
+E        +  where '' = Settings(app_env='test', app_name='112233-api', database_url='postgresql+asyncpg://audit:audit@127.0.0.1:55439/audit_n...nal_removal_check_enabled=True, external_removal_check_interval_seconds=21600, external_worker_stale_after_seconds=300).redis_url
+
+tests\integration\test_storage_failure_redis.py:21: AssertionError</failure></testcase></testsuite></testsuites>

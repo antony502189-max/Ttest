@@ -1,3 +1,4 @@
+import { expectProvinceLocationVisual } from './helpers/province-location-visual'
 import { expect, test, type Page } from '@playwright/test'
 
 async function open(page: Page, route: string, width: number, height: number) {
@@ -59,7 +60,7 @@ test('master current mobile list, map, drawing and location states', async ({ pa
   await open(page, '/#/?panel=ubicacion', 390, 844)
   await expect(page.getByTestId('location-screen')).toBeVisible()
   await expect(page.locator('.m2-location-action')).toHaveCount(3)
-  await shot(page, 'current-location-390x844')
+  await expectProvinceLocationVisual(page)
 })
 
 test('master desktop municipality selection and split map states', async ({ page }) => {

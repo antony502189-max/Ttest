@@ -22,6 +22,7 @@ class PaymentOrder(Base):
     kind: Mapped[str] = mapped_column(String(24))
     target_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), index=True)
     days: Mapped[int] = mapped_column(Integer)
+    top_municipality_code: Mapped[str | None] = mapped_column(String(5), index=True)
     duration_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # NULL marks historical day/month orders. Hour-based promotions use 12/24/72.
     duration_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)

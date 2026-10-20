@@ -1,0 +1,1183 @@
+........................................................................ [ 27%]
+........................................................................ [ 55%]
+........................................................................ [ 83%]
+FFF...FFFFF.FFFFFFFFF....................F                               [100%]
+================================== FAILURES ===================================
+____________ test_monthly_top_payment_priority_renewal_and_expiry _____________
+
+client = <conftest.ListingFixtureClient object at 0x0000024114A8FE30>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+
+    async def test_monthly_top_payment_priority_renewal_and_expiry(client, register_user, provider):
+        target, headers = await listing(client, register_user, 'monthly-top@example.com')
+        regular, _ = await listing(client, register_user, 'ordinary-top@example.com')
+        async with SessionLocal() as db:
+            old = await db.get(Listing, UUID(target))
+            old.created_at = datetime.now(UTC) - timedelta(days=10)
+            old.monthly_price = 990
+            await db.commit()
+>       response, remote = await purchase(client, provider, target, headers)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_monthly_top_purchase.py:36: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <conftest.ListingFixtureClient object at 0x0000024114A8FE30>
+provider = {}, target = 'd571d3b6-16e4-490d-9f7b-7f307ccdf588'
+headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NzQ4ZmE5NC00NDZmLTQ1OTgtOTdlMS0zOTc1MzE1Y2E...JmMjViYTk2LWE4OGEtNGJmNS1hYmFjLTIzMWM2ODZhZjcwNCIsImV4cCI6MTc5MjI2MjU1MH0.euy9U_1iPyVhOh3mboIo49c9zNp-oY-WPYOfL6mtXfs'}
+
+    async def purchase(client, provider, target, headers):
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout', headers=headers,
+                                     json={'days': 30, 'amountCents': 1, 'currency': 'usd'})
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = <Response [409 Conflict]>.status_code
+
+tests\integration\test_monthly_top_purchase.py:23: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-17T18:27:30.425123+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "3e607d5b-50da-4d82-97b1-b7cf46f3d5b0", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 60.02}
+
+{"timestamp": "2026-10-17T18:27:30.425648+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:30.441411+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "4afef39f-0d21-483a-a2e7-6096339d5b09", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 6.85}
+
+{"timestamp": "2026-10-17T18:27:30.442461+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:30.561061+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "5ea8a18b-3067-4ec9-af66-481bf0fd35a8", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 83.2}
+
+{"timestamp": "2026-10-17T18:27:30.562633+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:30.622342+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "86dcd37f-5571-456a-8709-a0e8027bb9eb", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 58.38}
+
+{"timestamp": "2026-10-17T18:27:30.622867+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:30.638635+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "e9e1a24f-fed9-47c7-9215-f294cde56142", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 6.65}
+
+{"timestamp": "2026-10-17T18:27:30.640200+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:30.746858+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "abd6e666-3e78-40b7-91fe-cdfe72fad3b5", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 72.94}
+
+{"timestamp": "2026-10-17T18:27:30.749464+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:30.790301+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "ba211cb8-5b3f-4873-b4c0-cc9f8959efea", "method": "POST", "path": "/api/v1/payments/listings/d571d3b6-16e4-490d-9f7b-7f307ccdf588/top/checkout", "status": 409, "duration_ms": 24.4}
+
+{"timestamp": "2026-10-17T18:27:30.790301+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/d571d3b6-16e4-490d-9f7b-7f307ccdf588/top/checkout \"HTTP/1.1 409 Conflict\""}
+
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/d571d3b6-16e4-490d-9f7b-7f307ccdf588/top/checkout "HTTP/1.1 409 Conflict"
+_______ test_monthly_top_rejects_old_packages_and_unauthorized_purchase _______
+
+client = <conftest.ListingFixtureClient object at 0x000002411495C080>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+
+    async def test_monthly_top_rejects_old_packages_and_unauthorized_purchase(client, register_user, provider):
+        target, headers = await listing(client, register_user, 'monthly-owner@example.com')
+        _, stranger = await listing(client, register_user, 'monthly-stranger@example.com')
+        route = f'/api/v1/payments/listings/{target}/top/checkout'
+        for days in [1, 7, 9, 366, 30.5, '30', True]:
+            assert (await client.post(route, headers=headers, json={'days':days})).status_code == 422
+        assert (await client.post(route, headers=stranger, json={'days':30})).status_code == 404
+        assert not provider
+>       await purchase(client, provider, target, headers)
+
+tests\integration\test_monthly_top_purchase.py:81: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <conftest.ListingFixtureClient object at 0x000002411495C080>
+provider = {}, target = 'ddaea8bc-7009-46a6-9f29-a7f01629f4b1'
+headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiNmE0YmNhYy1iZTAwLTQzN2YtOTIxZC02ZTk5NDgyNjY...kwYjA0YzQwLTJhMTEtNGFhZS1hZjZiLWViM2RmODBhNzAzNyIsImV4cCI6MTc5MjI2MjU1MX0.biJsNvXv63-iI_Sl6OfFWa9PKdYh-tLe0Y1pcmTvLkg'}
+
+    async def purchase(client, provider, target, headers):
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout', headers=headers,
+                                     json={'days': 30, 'amountCents': 1, 'currency': 'usd'})
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = <Response [409 Conflict]>.status_code
+
+tests\integration\test_monthly_top_purchase.py:23: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-17T18:27:31.529837+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "5b3a34d9-08b6-4e07-9e74-15728c9bdf87", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 59.6}
+
+{"timestamp": "2026-10-17T18:27:31.530373+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:31.547600+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "59ea3cdf-5be7-4908-b201-b44e2a714e03", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 7.81}
+
+{"timestamp": "2026-10-17T18:27:31.548652+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:31.635175+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "731d9948-a3d1-4c07-ac7e-a367a9e22960", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 56.39}
+
+{"timestamp": "2026-10-17T18:27:31.636679+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:31.693231+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "a606d9e5-c3c0-4132-b177-dc3d239ab860", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 54.66}
+
+{"timestamp": "2026-10-17T18:27:31.693765+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:31.708531+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "7ad06ce9-401f-4dca-8ac3-62f31c807057", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 6.48}
+
+{"timestamp": "2026-10-17T18:27:31.709654+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:31.786774+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "1e7ed1a1-51f7-4b13-b5be-403ecdc4703d", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 49.99}
+
+{"timestamp": "2026-10-17T18:27:31.788353+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:31.798873+00:00", "level": "WARNING", "logger": "app.main", "message": "request_validation_failed", "request_id": "93f64e7d-db78-4569-ad31-8acdd1108bdf", "method": "POST", "path": "/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout", "status": 422}
+
+{"timestamp": "2026-10-17T18:27:31.799395+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "93f64e7d-db78-4569-ad31-8acdd1108bdf", "method": "POST", "path": "/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout", "status": 422, "duration_ms": 9.89}
+
+{"timestamp": "2026-10-17T18:27:31.799395+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout \"HTTP/1.1 422 Unprocessable Entity\""}
+
+{"timestamp": "2026-10-17T18:27:31.810594+00:00", "level": "WARNING", "logger": "app.main", "message": "request_validation_failed", "request_id": "e99e1710-2de9-47bd-be12-fbdd5640aa86", "method": "POST", "path": "/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout", "status": 422}
+
+{"timestamp": "2026-10-17T18:27:31.811121+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "e99e1710-2de9-47bd-be12-fbdd5640aa86", "method": "POST", "path": "/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout", "status": 422, "duration_ms": 10.56}
+
+{"timestamp": "2026-10-17T18:27:31.811121+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout \"HTTP/1.1 422 Unprocessable Entity\""}
+
+{"timestamp": "2026-10-17T18:27:31.822034+00:00", "level": "WARNING", "logger": "app.main", "message": "request_validation_failed", "request_id": "a4023be5-9108-4692-a132-d289b2fc900e", "method": "POST", "path": "/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout", "status": 422}
+
+{"timestamp": "2026-10-17T18:27:31.822539+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "a4023be5-9108-4692-a132-d289b2fc900e", "method": "POST", "path": "/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout", "status": 422, "duration_ms": 10.02}
+
+{"timestamp": "2026-10-17T18:27:31.822539+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout \"HTTP/1.1 422 Unprocessable Entity\""}
+
+{"timestamp": "2026-10-17T18:27:31.833121+00:00", "level": "WARNING", "logger": "app.main", "message": "request_validation_failed", "request_id": "58a9b451-1f49-4126-8cca-dc6c020d9053", "method": "POST", "path": "/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout", "status": 422}
+
+{"timestamp": "2026-10-17T18:27:31.833648+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "58a9b451-1f49-4126-8cca-dc6c020d9053", "method": "POST", "path": "/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout", "status": 422, "duration_ms": 9.88}
+
+{"timestamp": "2026-10-17T18:27:31.833648+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout \"HTTP/1.1 422 Unprocessable Entity\""}
+
+{"timestamp": "2026-10-17T18:27:31.843124+00:00", "level": "WARNING", "logger": "app.main", "message": "request_validation_failed", "request_id": "f7a6ac78-bb3e-4674-8f20-5b3230ae1f7f", "method": "POST", "path": "/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout", "status": 422}
+
+{"timestamp": "2026-10-17T18:27:31.843124+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "f7a6ac78-bb3e-4674-8f20-5b3230ae1f7f", "method": "POST", "path": "/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout", "status": 422, "duration_ms": 8.78}
+
+{"timestamp": "2026-10-17T18:27:31.843640+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout \"HTTP/1.1 422 Unprocessable Entity\""}
+
+{"timestamp": "2026-10-17T18:27:31.855219+00:00", "level": "WARNING", "logger": "app.main", "message": "request_validation_failed", "request_id": "2aa3bc5c-6dab-43c5-8b7a-7eaeca3fa795", "method": "POST", "path": "/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout", "status": 422}
+
+{"timestamp": "2026-10-17T18:27:31.855753+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "2aa3bc5c-6dab-43c5-8b7a-7eaeca3fa795", "method": "POST", "path": "/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout", "status": 422, "duration_ms": 10.78}
+
+{"timestamp": "2026-10-17T18:27:31.855753+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout \"HTTP/1.1 422 Unprocessable Entity\""}
+
+{"timestamp": "2026-10-17T18:27:31.865306+00:00", "level": "WARNING", "logger": "app.main", "message": "request_validation_failed", "request_id": "22f9635a-ab1d-4a30-a8db-080616c78ece", "method": "POST", "path": "/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout", "status": 422}
+
+{"timestamp": "2026-10-17T18:27:31.865851+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "22f9635a-ab1d-4a30-a8db-080616c78ece", "method": "POST", "path": "/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout", "status": 422, "duration_ms": 9.06}
+
+{"timestamp": "2026-10-17T18:27:31.865851+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout \"HTTP/1.1 422 Unprocessable Entity\""}
+
+{"timestamp": "2026-10-17T18:27:31.880309+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "a43e0d77-b9b7-470f-948a-a819e9678a2e", "method": "POST", "path": "/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout", "status": 404, "duration_ms": 13.43}
+
+{"timestamp": "2026-10-17T18:27:31.880822+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout \"HTTP/1.1 404 Not Found\""}
+
+{"timestamp": "2026-10-17T18:27:31.900648+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "c5bdf420-6043-4606-af73-4899e2ecd99a", "method": "POST", "path": "/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout", "status": 409, "duration_ms": 19.36}
+
+{"timestamp": "2026-10-17T18:27:31.901174+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout \"HTTP/1.1 409 Conflict\""}
+
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+WARNING  app.main:main.py:339 request_validation_failed
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout "HTTP/1.1 422 Unprocessable Entity"
+WARNING  app.main:main.py:339 request_validation_failed
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout "HTTP/1.1 422 Unprocessable Entity"
+WARNING  app.main:main.py:339 request_validation_failed
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout "HTTP/1.1 422 Unprocessable Entity"
+WARNING  app.main:main.py:339 request_validation_failed
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout "HTTP/1.1 422 Unprocessable Entity"
+WARNING  app.main:main.py:339 request_validation_failed
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout "HTTP/1.1 422 Unprocessable Entity"
+WARNING  app.main:main.py:339 request_validation_failed
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout "HTTP/1.1 422 Unprocessable Entity"
+WARNING  app.main:main.py:339 request_validation_failed
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout "HTTP/1.1 422 Unprocessable Entity"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout "HTTP/1.1 404 Not Found"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/ddaea8bc-7009-46a6-9f29-a7f01629f4b1/top/checkout "HTTP/1.1 409 Conflict"
+_____________ test_top_selected_listing_duration_and_server_price _____________
+
+client = <conftest.ListingFixtureClient object at 0x0000024114904860>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+
+    async def test_top_selected_listing_duration_and_server_price(client, register_user, provider):
+        first, headers = await listing(client, register_user, 'chosen-top@example.com')
+        # Make a second eligible listing owned by the same user.
+        async with SessionLocal() as db:
+            source = await db.get(Listing, UUID(first))
+            fields = {col.name: getattr(source, col.name) for col in Listing.__table__.columns
+                      if col.name not in {'id', 'created_at', 'updated_at'}}
+            fields['title'] = 'Second chosen listing'
+            fields['location'] = 'SRID=4326;POINT(-16.7260 28.0902)'
+            fields['exact_location'] = None
+            second = Listing(**fields)
+            db.add(second)
+            await db.flush()
+            images = (await db.scalars(select(ListingImage).where(ListingImage.listing_id == source.id))).all()
+            for image in images:
+                db.add(ListingImage(listing_id=second.id, media_asset_id=image.media_asset_id,
+                                    sort_order=image.sort_order, is_cover=image.is_cover))
+            await db.commit()
+            second_id = str(second.id)
+        response = await client.post(f'/api/v1/payments/listings/{second_id}/top/checkout', headers=headers,
+                                     json={'days':21, 'amountCents':1})
+>       assert response.status_code == 200 and response.json()['amountCents'] == 2100
+E       assert (409 == 200)
+E        +  where 409 = <Response [409 Conflict]>.status_code
+
+tests\integration\test_monthly_top_purchase.py:109: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-17T18:27:32.396472+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "157177fd-a03e-4401-af96-07abf7830161", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 64.82}
+
+{"timestamp": "2026-10-17T18:27:32.396995+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:32.415758+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "278332e1-b7be-4cf9-a70d-2da1753e904a", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 8.57}
+
+{"timestamp": "2026-10-17T18:27:32.417320+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:32.507625+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "682d2170-ca33-424e-a7b6-e9cab8baa0fe", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 58.39}
+
+{"timestamp": "2026-10-17T18:27:32.509770+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:32.544977+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "9d99c0bd-51db-4177-b99c-e3dbf4cc5c52", "method": "POST", "path": "/api/v1/payments/listings/bf6ccb51-70e7-430e-bfea-d430d58d4dec/top/checkout", "status": 409, "duration_ms": 19.85}
+
+{"timestamp": "2026-10-17T18:27:32.545493+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/bf6ccb51-70e7-430e-bfea-d430d58d4dec/top/checkout \"HTTP/1.1 409 Conflict\""}
+
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/bf6ccb51-70e7-430e-bfea-d430d58d4dec/top/checkout "HTTP/1.1 409 Conflict"
+___________ test_bug001_async_failure_releases_retry_without_grant ____________
+
+client = <conftest.ListingFixtureClient object at 0x0000024114141640>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, [])
+
+    async def test_bug001_async_failure_releases_retry_without_grant(client,register_user,provider,finances):
+>       target, headers, remote, _, _ = await checkout_top(client,register_user,provider,finances,pay=False)
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:99: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <conftest.ListingFixtureClient object at 0x0000024114141640>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = False
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = <Response [409 Conflict]>.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-17T18:27:35.073621+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "5b1cb5ca-05f0-4983-b1da-78f5fe24f9d0", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 74.34}
+
+{"timestamp": "2026-10-17T18:27:35.074147+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:35.096823+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "80943269-6077-4a7e-ac77-270bd8b7ac5b", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 10.36}
+
+{"timestamp": "2026-10-17T18:27:35.098957+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:35.216573+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "09bce5e7-f486-4135-b8ed-300918060f9e", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 79.72}
+
+{"timestamp": "2026-10-17T18:27:35.218666+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:35.253016+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "3aaf34b8-554c-4e9d-9e2d-448cc70007aa", "method": "POST", "path": "/api/v1/payments/listings/441db901-ab38-4d46-98bc-07cd4d1cfc0e/top/checkout", "status": 409, "duration_ms": 32.85}
+
+{"timestamp": "2026-10-17T18:27:35.253538+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/441db901-ab38-4d46-98bc-07cd4d1cfc0e/top/checkout \"HTTP/1.1 409 Conflict\""}
+
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/441db901-ab38-4d46-98bc-07cd4d1cfc0e/top/checkout "HTTP/1.1 409 Conflict"
+_____ test_bug002_paid_listing_and_account_cannot_disappear_before_refund _____
+
+client = <conftest.ListingFixtureClient object at 0x000002411494E390>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, [])
+
+    async def test_bug002_paid_listing_and_account_cannot_disappear_before_refund(client,register_user,provider,finances):
+>       target, headers, _, _, order_id = await checkout_top(client,register_user,provider,finances)
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:110: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <conftest.ListingFixtureClient object at 0x000002411494E390>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = True
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = <Response [409 Conflict]>.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-17T18:27:35.886732+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "f14341c8-92e9-4412-beff-9f6b1aa0e08c", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 80.91}
+
+{"timestamp": "2026-10-17T18:27:35.887791+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:35.912789+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "688f5a4b-1719-4f30-95bd-1a5a4597e6d3", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 10.84}
+
+{"timestamp": "2026-10-17T18:27:35.914452+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:36.032520+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "ee56df81-76d0-4439-9fb0-219de3d10bf6", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 83.66}
+
+{"timestamp": "2026-10-17T18:27:36.035178+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:36.072265+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "2ab96b8e-9d9f-4e4e-a231-f1edaf236775", "method": "POST", "path": "/api/v1/payments/listings/6b369874-a585-4c99-8794-0cd98691f230/top/checkout", "status": 409, "duration_ms": 35.02}
+
+{"timestamp": "2026-10-17T18:27:36.072791+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/6b369874-a585-4c99-8794-0cd98691f230/top/checkout \"HTTP/1.1 409 Conflict\""}
+
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/6b369874-a585-4c99-8794-0cd98691f230/top/checkout "HTTP/1.1 409 Conflict"
+______________ test_bug003_open_checkout_blocks_account_deletion ______________
+
+client = <conftest.ListingFixtureClient object at 0x00000241148F6960>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, [])
+
+    async def test_bug003_open_checkout_blocks_account_deletion(client,register_user,provider,finances):
+>       target, headers, _, _, _ = await checkout_top(client,register_user,provider,finances,pay=False)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:128: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <conftest.ListingFixtureClient object at 0x00000241148F6960>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = False
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = <Response [409 Conflict]>.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-17T18:27:36.755630+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "981fea62-381a-463f-bc04-e4ac771acc6e", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 90.84}
+
+{"timestamp": "2026-10-17T18:27:36.756164+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:36.779123+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "98812e27-e788-4b03-a93b-2977599b82e0", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 10.39}
+
+{"timestamp": "2026-10-17T18:27:36.781358+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:36.905313+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "81411851-887c-42a2-9e7a-f4aa1e4d16d7", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 85.44}
+
+{"timestamp": "2026-10-17T18:27:36.907521+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:36.944653+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "2ffc0793-9515-4bd8-9eb8-3eabe64ce536", "method": "POST", "path": "/api/v1/payments/listings/ddf7b5c4-961c-4d93-9d1d-485c92fd15a8/top/checkout", "status": 409, "duration_ms": 35.65}
+
+{"timestamp": "2026-10-17T18:27:36.945180+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/ddf7b5c4-961c-4d93-9d1d-485c92fd15a8/top/checkout \"HTTP/1.1 409 Conflict\""}
+
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/ddf7b5c4-961c-4d93-9d1d-485c92fd15a8/top/checkout "HTTP/1.1 409 Conflict"
+_____ test_bug004_dispute_pause_won_restore_refund_and_duplicate_ordering _____
+
+client = <conftest.ListingFixtureClient object at 0x00000241148F3B90>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, [])
+
+    async def test_bug004_dispute_pause_won_restore_refund_and_duplicate_ordering(client,register_user,provider,finances):
+>       _target, _, remote, charge, order_id = await checkout_top(client,register_user,provider,finances)
+                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:135: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <conftest.ListingFixtureClient object at 0x00000241148F3B90>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = True
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = <Response [409 Conflict]>.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-17T18:27:37.609578+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "53d6943e-2ec3-4d74-b280-41f5d02d6f0b", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 72.22}
+
+{"timestamp": "2026-10-17T18:27:37.610633+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:37.632182+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "13c46655-e841-4932-abe4-d63e642f0bf2", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 11.0}
+
+{"timestamp": "2026-10-17T18:27:37.633764+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:37.747116+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "548c0e09-c223-4293-8b46-9d40747ae3c2", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 80.02}
+
+{"timestamp": "2026-10-17T18:27:37.749839+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:37.781397+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "de39d5c1-72ae-42f9-81ef-43977acb79da", "method": "POST", "path": "/api/v1/payments/listings/0abe6013-1e8d-47aa-84ac-7079ad9472ad/top/checkout", "status": 409, "duration_ms": 30.41}
+
+{"timestamp": "2026-10-17T18:27:37.781921+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/0abe6013-1e8d-47aa-84ac-7079ad9472ad/top/checkout \"HTTP/1.1 409 Conflict\""}
+
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/0abe6013-1e8d-47aa-84ac-7079ad9472ad/top/checkout "HTTP/1.1 409 Conflict"
+____ test_bug004_financial_event_before_checkout_never_grants_refunded_top ____
+
+client = <conftest.ListingFixtureClient object at 0x0000024114A8CE60>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, [])
+
+    async def test_bug004_financial_event_before_checkout_never_grants_refunded_top(client,register_user,provider,finances):
+>       _target, _, remote, charge, _ = await checkout_top(client,register_user,provider,finances,pay=False)
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:163: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <conftest.ListingFixtureClient object at 0x0000024114A8CE60>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = False
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = <Response [409 Conflict]>.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-17T18:27:38.426405+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "abffab0c-f487-4ea0-bdf1-560ed30705e5", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 76.58}
+
+{"timestamp": "2026-10-17T18:27:38.426928+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:38.447871+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "4605eaf0-2a1a-4421-83d4-873230fbeae6", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 9.77}
+
+{"timestamp": "2026-10-17T18:27:38.450407+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:38.571498+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "feeca5bd-6cbd-4de8-8536-3682e73b9d42", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 83.76}
+
+{"timestamp": "2026-10-17T18:27:38.573872+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:38.603864+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "45607a0a-c1bc-4042-b9de-e7ae3597f452", "method": "POST", "path": "/api/v1/payments/listings/ad52a1a3-cced-4f3f-bc93-20d181174fcb/top/checkout", "status": 409, "duration_ms": 29.02}
+
+{"timestamp": "2026-10-17T18:27:38.604384+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/ad52a1a3-cced-4f3f-bc93-20d181174fcb/top/checkout \"HTTP/1.1 409 Conflict\""}
+
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/ad52a1a3-cced-4f3f-bc93-20d181174fcb/top/checkout "HTTP/1.1 409 Conflict"
+___________ test_bug006_slow_stripe_does_not_hold_global_sales_lock ___________
+
+fut = <coroutine object Event.wait at 0x0000024114A9D9A0>, timeout = 5
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+..\..\..\..\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\asyncio\tasks.py:520: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <asyncio.locks.Event object at 0x0000024114514560 [unset]>
+
+    async def wait(self):
+        """Block until the internal flag is true.
+    
+        If the internal flag is true on entry, return True
+        immediately.  Otherwise, block until another coroutine calls
+        set() to set the flag to true, then return True.
+        """
+        if self._value:
+            return True
+    
+        fut = self._get_loop().create_future()
+        self._waiters.append(fut)
+        try:
+>           await fut
+E           asyncio.exceptions.CancelledError
+
+..\..\..\..\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\asyncio\locks.py:212: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+client = <conftest.ListingFixtureClient object at 0x000002411463EAE0>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+
+    async def test_bug006_slow_stripe_does_not_hold_global_sales_lock(client,register_user,provider):
+        first, headers = await listing(client,register_user,'slow-first@example.com')
+        other, other_headers = await listing(client,register_user,'slow-second@example.com')
+        original = payments.create_stripe_session
+        started, release = asyncio.Event(), asyncio.Event()
+    
+        async def slow(order,*args):
+            if str(order.target_id) == first:
+                started.set()
+                await release.wait()
+            return await original(order,*args)
+    
+        from unittest.mock import patch
+        with patch.object(payments,'create_stripe_session',slow):
+            waiting = asyncio.create_task(client.post(f'/api/v1/payments/listings/{first}/top/checkout',headers=headers,json={'days':30}))
+>           await asyncio.wait_for(started.wait(),5)
+
+tests\integration\test_payment_audit.py:205: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\..\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\asyncio\tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x0000024114B84340>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+..\..\..\..\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\asyncio\timeouts.py:115: TimeoutError
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-17T18:27:41.704452+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "268021aa-5a2c-4af7-9375-a7ca761d9dba", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 68.47}
+
+{"timestamp": "2026-10-17T18:27:41.704981+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:41.721158+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "4a584305-ceb2-4c00-aeec-0e152fedea5c", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 7.79}
+
+{"timestamp": "2026-10-17T18:27:41.722777+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:41.836178+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "3424ce4e-a936-4710-9a10-0c6539320a00", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 80.72}
+
+{"timestamp": "2026-10-17T18:27:41.837534+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:41.900342+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "15f2a354-c066-4aca-89c5-495b9b4892a8", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 61.16}
+
+{"timestamp": "2026-10-17T18:27:41.901253+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:41.917828+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "29f6c99b-aaaf-4a58-a50e-209f15600f3b", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 7.77}
+
+{"timestamp": "2026-10-17T18:27:41.919405+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:42.001781+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "461f23a5-6882-41ea-9ebe-10a5593d9fff", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 52.97}
+
+{"timestamp": "2026-10-17T18:27:42.003363+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:42.025482+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "b6a18b7c-d7a2-4cbd-bec9-de58c006c3aa", "method": "POST", "path": "/api/v1/payments/listings/cc42e6c5-8fe1-483d-9274-508323e6d8de/top/checkout", "status": 409, "duration_ms": 21.16}
+
+{"timestamp": "2026-10-17T18:27:42.025998+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/cc42e6c5-8fe1-483d-9274-508323e6d8de/top/checkout \"HTTP/1.1 409 Conflict\""}
+
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/cc42e6c5-8fe1-483d-9274-508323e6d8de/top/checkout "HTTP/1.1 409 Conflict"
+___________ test_bug006_commit_failure_recovers_same_reserved_order ___________
+
+client = <conftest.ListingFixtureClient object at 0x0000024113CD6C60>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002411493A570>
+
+    async def test_bug006_commit_failure_recovers_same_reserved_order(client,register_user,provider,monkeypatch):
+        target, headers = await listing(client,register_user,'commit-failure@example.com')
+        original = AsyncSession.commit
+        failed = False
+    
+        async def fail_finalize(db):
+            nonlocal failed
+            if not failed and any(isinstance(row,PaymentOrder) and row.status == 'pending' and row.stripe_session_id for row in db.dirty):
+                failed = True
+                raise RuntimeError('Simulated commit failure')
+            await original(db)
+    
+        monkeypatch.setattr(AsyncSession,'commit',fail_finalize)
+>       with pytest.raises(RuntimeError,match='Simulated commit failure'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE RuntimeError
+
+tests\integration\test_payment_audit.py:231: Failed
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-17T18:27:47.511558+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "04309589-815d-40bd-bdd4-017c5745079d", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 65.18}
+
+{"timestamp": "2026-10-17T18:27:47.512078+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:47.528859+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "fe34c2e3-1c4d-44dc-b1c3-4c95f74468d2", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 7.06}
+
+{"timestamp": "2026-10-17T18:27:47.530431+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:47.621085+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "1600992d-6d15-44a2-878b-120a5065ba7c", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 60.32}
+
+{"timestamp": "2026-10-17T18:27:47.623484+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:47.646269+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "96453ce1-f40f-43ea-a13c-929a651149ef", "method": "POST", "path": "/api/v1/payments/listings/e7144b0a-08e1-4613-b9ed-c8ee4ada94a0/top/checkout", "status": 409, "duration_ms": 21.9}
+
+{"timestamp": "2026-10-17T18:27:47.646801+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/e7144b0a-08e1-4613-b9ed-c8ee4ada94a0/top/checkout \"HTTP/1.1 409 Conflict\""}
+
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/e7144b0a-08e1-4613-b9ed-c8ee4ada94a0/top/checkout "HTTP/1.1 409 Conflict"
+___________ test_bug007_review_can_restore_once_with_operator_audit ___________
+
+client = <conftest.ListingFixtureClient object at 0x000002411434D040>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, [])
+
+    async def test_bug007_review_can_restore_once_with_operator_audit(client,register_user,provider,finances):
+>       target, _headers, remote, _, order_id = await checkout_top(client,register_user,provider,finances,pay=False)
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:240: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <conftest.ListingFixtureClient object at 0x000002411434D040>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = False
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = <Response [409 Conflict]>.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-17T18:27:48.188773+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "5e47b983-6ca7-422c-8101-8ec6a0be866f", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 88.28}
+
+{"timestamp": "2026-10-17T18:27:48.189827+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:48.215806+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "20003d75-daf6-4f08-835b-4caa0fae37da", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 11.44}
+
+{"timestamp": "2026-10-17T18:27:48.217925+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:48.328976+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "da023279-9b0a-4d48-ace8-78a2bedf37af", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 74.99}
+
+{"timestamp": "2026-10-17T18:27:48.331456+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:48.353876+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "31fe04ca-8395-4dac-99ed-271fd3eb564e", "method": "POST", "path": "/api/v1/payments/listings/fe69b209-6860-4523-bb1e-0743d284853e/top/checkout", "status": 409, "duration_ms": 22.72}
+
+{"timestamp": "2026-10-17T18:27:48.355235+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/fe69b209-6860-4523-bb1e-0743d284853e/top/checkout \"HTTP/1.1 409 Conflict\""}
+
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/fe69b209-6860-4523-bb1e-0743d284853e/top/checkout "HTTP/1.1 409 Conflict"
+_____ test_partial_refund_is_reviewed_and_remaining_balance_refunded_once _____
+
+client = <conftest.ListingFixtureClient object at 0x000002411497AF90>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, [])
+
+    async def test_partial_refund_is_reviewed_and_remaining_balance_refunded_once(client,register_user,provider,finances):
+>       _target, _, _, charge, order_id = await checkout_top(client,register_user,provider,finances)
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:261: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <conftest.ListingFixtureClient object at 0x000002411497AF90>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = True
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = <Response [409 Conflict]>.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-17T18:27:48.861116+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "dbd3c0d5-3dd0-4a34-a5f4-952611e65f6c", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 65.37}
+
+{"timestamp": "2026-10-17T18:27:48.861646+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:48.888555+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "eddb4e23-706c-47c3-b5c5-da3f22c1fe87", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 12.39}
+
+{"timestamp": "2026-10-17T18:27:48.891680+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:48.994927+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "2e116d8c-8991-45f7-8f73-d1da0534ce08", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 68.05}
+
+{"timestamp": "2026-10-17T18:27:48.997103+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:49.023730+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "0995c9b0-54fb-4046-80e4-b1a41633cfe5", "method": "POST", "path": "/api/v1/payments/listings/cef559ce-a1ce-4ba2-b400-3c784c53e86c/top/checkout", "status": 409, "duration_ms": 25.23}
+
+{"timestamp": "2026-10-17T18:27:49.024252+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/cef559ce-a1ce-4ba2-b400-3c784c53e86c/top/checkout \"HTTP/1.1 409 Conflict\""}
+
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/cef559ce-a1ce-4ba2-b400-3c784c53e86c/top/checkout "HTTP/1.1 409 Conflict"
+_____________ test_refund_commit_failure_reuses_provider_receipt ______________
+
+client = <conftest.ListingFixtureClient object at 0x0000024114C03CE0>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, [])
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000024114A8C0B0>
+
+    async def test_refund_commit_failure_reuses_provider_receipt(client,register_user,provider,finances,monkeypatch):
+>       _, _, _, _, order_id = await checkout_top(client,register_user,provider,finances)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:275: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <conftest.ListingFixtureClient object at 0x0000024114C03CE0>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = True
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = <Response [409 Conflict]>.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-17T18:27:49.598430+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "5b040c62-8f8c-4f39-938a-f51e6ce6acc9", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 67.27}
+
+{"timestamp": "2026-10-17T18:27:49.598958+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:49.614304+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "466d9d8c-5da0-4261-bb49-f00f9bec719e", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 7.16}
+
+{"timestamp": "2026-10-17T18:27:49.615912+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:49.709702+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "e5da07dd-e3d5-460d-8559-c5af79a456a2", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 61.94}
+
+{"timestamp": "2026-10-17T18:27:49.711288+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:49.732391+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "81869a62-00b0-4a58-b086-38aa43a71662", "method": "POST", "path": "/api/v1/payments/listings/8036808a-1750-455e-bedd-0d599ca40285/top/checkout", "status": 409, "duration_ms": 20.12}
+
+{"timestamp": "2026-10-17T18:27:49.732918+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/8036808a-1750-455e-bedd-0d599ca40285/top/checkout \"HTTP/1.1 409 Conflict\""}
+
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/8036808a-1750-455e-bedd-0d599ca40285/top/checkout "HTTP/1.1 409 Conflict"
+_____ test_pending_failed_refund_does_not_revoke_or_replay_after_restore ______
+
+client = <conftest.ListingFixtureClient object at 0x000002411497C410>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, [])
+
+    async def test_pending_failed_refund_does_not_revoke_or_replay_after_restore(client,register_user,provider,finances):
+>       _target, _, remote, charge, order_id = await checkout_top(client,register_user,provider,finances)
+                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:296: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <conftest.ListingFixtureClient object at 0x000002411497C410>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = True
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = <Response [409 Conflict]>.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-17T18:27:50.388695+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "813f276b-a2a3-4e93-8940-bc9ba0f78996", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 78.12}
+
+{"timestamp": "2026-10-17T18:27:50.389749+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:50.406963+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "00f0f953-ef08-4306-86a7-f09434a585d9", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 7.96}
+
+{"timestamp": "2026-10-17T18:27:50.409060+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:50.525243+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "021c966e-0425-4c95-a1b7-142382a341c9", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 78.03}
+
+{"timestamp": "2026-10-17T18:27:50.527360+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:50.558587+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "eae69776-0193-4929-ae1a-030e76feb31b", "method": "POST", "path": "/api/v1/payments/listings/865f4e22-c8b8-42c7-b534-7bd0738979bf/top/checkout", "status": 409, "duration_ms": 30.25}
+
+{"timestamp": "2026-10-17T18:27:50.559105+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/865f4e22-c8b8-42c7-b534-7bd0738979bf/top/checkout \"HTTP/1.1 409 Conflict\""}
+
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/865f4e22-c8b8-42c7-b534-7bd0738979bf/top/checkout "HTTP/1.1 409 Conflict"
+_ test_unknown_checkout_after_idempotency_window_requires_verified_reconciliation _
+
+client = <conftest.ListingFixtureClient object at 0x0000024114A99F40>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, [])
+
+    async def test_unknown_checkout_after_idempotency_window_requires_verified_reconciliation(client,register_user,provider,finances):
+>       target, headers, remote, _, order_id = await checkout_top(client,register_user,provider,finances,pay=False)
+                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:322: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <conftest.ListingFixtureClient object at 0x0000024114A99F40>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = False
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = <Response [409 Conflict]>.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-17T18:27:51.292147+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "224208d7-3f1e-402a-af8a-5872ce401b1b", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 81.7}
+
+{"timestamp": "2026-10-17T18:27:51.292695+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:51.318191+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "1d7ef34b-be36-497a-939b-0659813c1a63", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 12.51}
+
+{"timestamp": "2026-10-17T18:27:51.320307+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:51.439774+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "ed8ab1bf-1a3f-43ab-9187-833a8ab86b9b", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 81.73}
+
+{"timestamp": "2026-10-17T18:27:51.441370+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:51.465041+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "f961890b-961d-48e2-8136-96f08e88448b", "method": "POST", "path": "/api/v1/payments/listings/a8b14159-fd36-49f3-9f03-97fa54e3a4cc/top/checkout", "status": 409, "duration_ms": 22.25}
+
+{"timestamp": "2026-10-17T18:27:51.465041+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/a8b14159-fd36-49f3-9f03-97fa54e3a4cc/top/checkout \"HTTP/1.1 409 Conflict\""}
+
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/a8b14159-fd36-49f3-9f03-97fa54e3a4cc/top/checkout "HTTP/1.1 409 Conflict"
+_______ test_refund_of_ungranted_order_preserves_independent_admin_top ________
+
+client = <conftest.ListingFixtureClient object at 0x0000024114A919D0>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, [])
+
+    async def test_refund_of_ungranted_order_preserves_independent_admin_top(client,register_user,provider,finances):
+>       target, _, remote, _, order_id = await checkout_top(client,register_user,provider,finances,pay=False)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:341: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <conftest.ListingFixtureClient object at 0x0000024114A919D0>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = False
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = <Response [409 Conflict]>.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-17T18:27:52.002760+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "9d255bc7-76a8-45fb-94b9-84d9fdc1142f", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 58.38}
+
+{"timestamp": "2026-10-17T18:27:52.003292+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:52.020467+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "95930c74-78b0-4131-aa3d-f88891fd9525", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 7.55}
+
+{"timestamp": "2026-10-17T18:27:52.022095+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:52.106481+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "1a10ed25-d0f7-40ce-aa95-5fc263f91493", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 54.62}
+
+{"timestamp": "2026-10-17T18:27:52.108064+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:52.127773+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "d6b22b62-a38b-4e57-94aa-8ff4bd014134", "method": "POST", "path": "/api/v1/payments/listings/61d3358c-6e6c-4702-be78-a7f3f858e363/top/checkout", "status": 409, "duration_ms": 18.58}
+
+{"timestamp": "2026-10-17T18:27:52.127773+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/61d3358c-6e6c-4702-be78-a7f3f858e363/top/checkout \"HTTP/1.1 409 Conflict\""}
+
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/61d3358c-6e6c-4702-be78-a7f3f858e363/top/checkout "HTTP/1.1 409 Conflict"
+________ test_refund_of_renewal_preserves_original_top_period_and_rank ________
+
+client = <conftest.ListingFixtureClient object at 0x000002411449F8C0>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, [])
+
+    async def test_refund_of_renewal_preserves_original_top_period_and_rank(client,register_user,provider,finances):
+>       target, headers, _, _, first_id = await checkout_top(client,register_user,provider,finances)
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\integration\test_payment_audit.py:358: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <conftest.ListingFixtureClient object at 0x000002411449F8C0>
+register_user = <function register at 0x0000024110E88FE0>, provider = {}
+finances = ({}, {}, []), email = 'audit-top@example.com', pay = True
+
+    async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):
+        target, headers = await listing(client,register_user,email)
+        response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout',headers=headers,json={'days':30})
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"A valid Spanish postcode is required to determine the listing province"}
+E       assert 409 == 200
+E        +  where 409 = <Response [409 Conflict]>.status_code
+
+tests\integration\test_payment_audit.py:77: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-10-17T18:27:52.584975+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "667dd619-8cde-44a3-a8f4-969956eb687c", "method": "POST", "path": "/api/v1/auth/register", "status": 201, "duration_ms": 52.72}
+
+{"timestamp": "2026-10-17T18:27:52.585495+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/auth/register \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:52.599924+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "2765dc0d-72af-4e92-bc20-3078cbaaa3e5", "method": "GET", "path": "/api/v1/auth/me", "status": 200, "duration_ms": 7.12}
+
+{"timestamp": "2026-10-17T18:27:52.601478+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/api/v1/auth/me \"HTTP/1.1 200 OK\""}
+
+{"timestamp": "2026-10-17T18:27:52.683815+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "865d5255-fcaa-4580-af5a-33ac1f9d8e96", "method": "POST", "path": "/api/v1/listings", "status": 201, "duration_ms": 53.19}
+
+{"timestamp": "2026-10-17T18:27:52.685371+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/listings \"HTTP/1.1 201 Created\""}
+
+{"timestamp": "2026-10-17T18:27:52.706801+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "043a9cc5-f78d-43f1-9aac-bb5f08179c8d", "method": "POST", "path": "/api/v1/payments/listings/6b10f55f-fef5-4a1d-8278-798651a118d1/top/checkout", "status": 409, "duration_ms": 20.6}
+
+{"timestamp": "2026-10-17T18:27:52.707326+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/api/v1/payments/listings/6b10f55f-fef5-4a1d-8278-798651a118d1/top/checkout \"HTTP/1.1 409 Conflict\""}
+
+------------------------------ Captured log call ------------------------------
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/auth/register "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/api/v1/auth/me "HTTP/1.1 200 OK"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/listings "HTTP/1.1 201 Created"
+INFO     app.main:main.py:308 http_request
+INFO     httpx:_client.py:1740 HTTP Request: POST http://testserver/api/v1/payments/listings/6b10f55f-fef5-4a1d-8278-798651a118d1/top/checkout "HTTP/1.1 409 Conflict"
+___________ test_real_redis_failure_buffer_hands_off_to_postgresql ____________
+
+    async def test_real_redis_failure_buffer_hands_off_to_postgresql() -> None:
+        settings = get_settings()
+>       assert settings.redis_url
+E       AssertionError: assert ''
+E        +  where '' = Settings(app_env='test', app_name='112233-api', database_url='postgresql+asyncpg://audit:audit@127.0.0.1:55439/audit_n...nal_removal_check_enabled=True, external_removal_check_interval_seconds=21600, external_worker_stale_after_seconds=300).redis_url
+
+tests\integration\test_storage_failure_redis.py:21: AssertionError
+============================== warnings summary ===============================
+..\output\release-venv\Lib\site-packages\fastapi\testclient.py:1
+  C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/integration/test_external_removal.py::test_150_record_keyset_sweep_bounded_http_and_provider_circuit[active]
+tests/integration/test_external_removal.py::test_150_record_keyset_sweep_bounded_http_and_provider_circuit[blocked]
+tests/integration/test_external_removal.py::test_150_record_keyset_sweep_bounded_http_and_provider_circuit[temporary_error]
+  tests\integration\test_external_removal.py:270: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize("state", ["active", "blocked", "temporary_error"])
+
+tests/integration/test_listing_video_contract.py::test_video_range_responses_use_only_partial_storage_reads
+  C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\fastapi\routing.py:352: StarletteDeprecationWarning: 'HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE' is deprecated. Use 'HTTP_416_RANGE_NOT_SATISFIABLE' instead.
+    return await dependant.call(**values)
+
+tests/integration/test_schema_parity.py::test_migrated_postgresql_schema_matches_application_column_contract
+  C:\Users\HONOR\Documents\Codex\Ttest\backend\tests\integration\test_schema_parity.py:128: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "media_assets, users", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    return compare_metadata(context, Base.metadata)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/integration/test_monthly_top_purchase.py::test_monthly_top_payment_priority_renewal_and_expiry
+FAILED tests/integration/test_monthly_top_purchase.py::test_monthly_top_rejects_old_packages_and_unauthorized_purchase
+FAILED tests/integration/test_monthly_top_purchase.py::test_top_selected_listing_duration_and_server_price
+FAILED tests/integration/test_payment_audit.py::test_bug001_async_failure_releases_retry_without_grant
+FAILED tests/integration/test_payment_audit.py::test_bug002_paid_listing_and_account_cannot_disappear_before_refund
+FAILED tests/integration/test_payment_audit.py::test_bug003_open_checkout_blocks_account_deletion
+FAILED tests/integration/test_payment_audit.py::test_bug004_dispute_pause_won_restore_refund_and_duplicate_ordering
+FAILED tests/integration/test_payment_audit.py::test_bug004_financial_event_before_checkout_never_grants_refunded_top
+FAILED tests/integration/test_payment_audit.py::test_bug006_slow_stripe_does_not_hold_global_sales_lock
+FAILED tests/integration/test_payment_audit.py::test_bug006_commit_failure_recovers_same_reserved_order
+FAILED tests/integration/test_payment_audit.py::test_bug007_review_can_restore_once_with_operator_audit
+FAILED tests/integration/test_payment_audit.py::test_partial_refund_is_reviewed_and_remaining_balance_refunded_once
+FAILED tests/integration/test_payment_audit.py::test_refund_commit_failure_reuses_provider_receipt
+FAILED tests/integration/test_payment_audit.py::test_pending_failed_refund_does_not_revoke_or_replay_after_restore
+FAILED tests/integration/test_payment_audit.py::test_unknown_checkout_after_idempotency_window_requires_verified_reconciliation
+FAILED tests/integration/test_payment_audit.py::test_refund_of_ungranted_order_preserves_independent_admin_top
+FAILED tests/integration/test_payment_audit.py::test_refund_of_renewal_preserves_original_top_period_and_rank
+FAILED tests/integration/test_storage_failure_redis.py::test_real_redis_failure_buffer_hands_off_to_postgresql
+18 failed, 240 passed, 796 deselected, 6 warnings in 188.23s (0:03:08)

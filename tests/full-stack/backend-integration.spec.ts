@@ -18,7 +18,7 @@ const listingPayload = (title: string, tenantRequirement: 'any' | 'single-man' =
   title,
   city: 'Santa Cruz de Tenerife',
   area: 'Centro',
-  street: 'Private street',
+  street: 'Calle Prueba 1',
   postcode: '38001',
   approximateAddress: 'Centro · ubicación aproximada',
   rentalMode: 'long',
@@ -130,7 +130,7 @@ async function createBackendListing(unique: string, title: string, tenantRequire
     headers: { Authorization: `Bearer ${session.accessToken}` },
     data: { ...listingPayload(title, tenantRequirement), assetIds },
   })
-  expect(created.status()).toBe(201)
+  expect(created.status(), await created.text()).toBe(201)
   const listing = await created.json() as { id: string }
   await api.dispose()
   return { listingId: listing.id, accessToken: session.accessToken }
@@ -173,7 +173,7 @@ test('customer-priority fields persist through FastAPI, search uses them, and pr
     toilet: 'Aseo privado',
     bedType: 'double',
     accessible: true,
-    street: 'Private street',
+    street: 'Calle Prueba 1',
     postcode: '38001',
     exactLatitude: 28.464,
     exactLongitude: -16.2514,

@@ -1,3 +1,4 @@
+import { restoreMunicipalityMetadata } from './helpers/resolved-address'
 import { expect, test, type Page } from '@playwright/test'
 
 async function openPublishLocation(page: Page) {
@@ -37,7 +38,7 @@ test('a 5-digit postcode alone recenters the map and fills the location without 
 
   await page.getByLabel('Código postal').fill('38670')
 
-  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.locator('#publish-city')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Costa Adeje')
   await expect(page.getByLabel('Código postal')).toHaveValue('38670')
   await expect(page.locator('#publish-street')).toHaveValue('')
@@ -74,7 +75,7 @@ test('postcode-only result without a distinct locality replaces the stale draft 
 
   await page.getByLabel('Código postal').fill('38670')
 
-  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.locator('#publish-city')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).not.toHaveValue('Armeñime')
   await expect(page.getByLabel('Código postal')).toHaveValue('38670')
@@ -86,7 +87,7 @@ test('typed address cannot override an explicitly chosen municipality and resolv
   await openPublishLocation(page)
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
-  await page.getByLabel('Municipio').selectOption('Santa Cruz de Tenerife')
+  await restoreMunicipalityMetadata(page, 'Santa Cruz de Tenerife')
 
   const exact = { lat: 28.0718, lng: -16.7256 }
   await page.evaluate(({ exact }) => {
@@ -134,19 +135,19 @@ test('typed address cannot override an explicitly chosen municipality and resolv
   await page.locator('#publish-street').fill('Avenida Siam 3')
 
   await expect.poll(() => page.evaluate(() => (window as Window & { __addressOrPostcodeQueries?: string[] }).__addressOrPostcodeQueries ?? [])).toContain(
-    'Avenida Siam 3, Tenerife, Spain',
+    'Avenida Siam 3, Spain',
   )
   // A short street and house number may exist in several municipalities.
   // Do not silently override the owner's explicit municipality selection.
-  await expect(page.getByLabel('Municipio')).toHaveValue('Santa Cruz de Tenerife')
+  await expect(page.locator('#publish-city')).toHaveValue('Santa Cruz de Tenerife')
   await expect(page.locator('.listing-edit-location-pending')).toBeVisible()
 
   // After the owner corrects the municipality, geocoding may establish the
   // intended building without using the untouched draft postcode.
-  await page.getByLabel('Municipio').selectOption('Adeje')
+  await restoreMunicipalityMetadata(page, 'Adeje')
   await expect(page.locator('#publish-street')).toHaveValue('')
   await page.locator('#publish-street').fill('Avenida Siam 3')
-  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.locator('#publish-city')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Costa Adeje')
   await expect(page.getByLabel('Código postal')).toHaveValue('38670')
   await expect(page.locator('#publish-street')).toHaveValue('Avenida Siam 3')
@@ -160,7 +161,7 @@ test('typed address cannot override an explicitly chosen municipality and resolv
 
 test('resetting a draft also resets address touched constraints before the next lookup', async ({ page }) => {
   await openPublishLocation(page)
-  await page.getByLabel('Municipio').selectOption('Santa Cruz de Tenerife')
+  await restoreMunicipalityMetadata(page, 'Santa Cruz de Tenerife')
   await page.getByLabel('Zona o barrio').fill('Costa Adeje')
   await page.getByLabel('Código postal').fill('38660')
 
@@ -196,9 +197,9 @@ test('resetting a draft also resets address touched constraints before the next 
   await page.locator('#publish-street').fill('Avenida Siam 3')
 
   await expect.poll(() => page.evaluate(() => (window as Window & { __addressOrPostcodeQueries?: string[] }).__addressOrPostcodeQueries ?? [])).toContain(
-    'Avenida Siam 3, Tenerife, Spain',
+    'Avenida Siam 3, Spain',
   )
-  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.locator('#publish-city')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Costa Adeje')
   await expect(page.getByLabel('Código postal')).toHaveValue('38670')
 })

@@ -1,5 +1,14 @@
 import { expect, test, type Page } from '@playwright/test'
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/payments/listings/*/top/availability?*', route => {
+    const hours = Number(new URL(route.request().url()).searchParams.get('durationHours'))
+    expect([12, 24, 72]).toContain(hours)
+    return route.fulfill({ json: { municipalityCode: '28079', municipality: 'Madrid', capacity: 3,
+      available: true, availableSlots: 3, availableAt: null, serverNow: new Date().toISOString() } })
+  })
+})
+
 async function openHourlyOffers(page: Page, time: string) {
   await page.addInitScript(() => {
     localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
@@ -16,7 +25,7 @@ async function openHourlyOffers(page: Page, time: string) {
   await page.clock.install({ time: new Date(time) })
   await page.goto('/?hourly-check=1#/mis-anuncios')
   await page.getByTestId('owner-top-promote-button').first().click()
-  await page.getByRole('button', { name: /Поднять свое объявление в TOP/ }).click()
+  await page.getByRole('button', { name: /Поднять свое объявление в (?:TOP|ТОП)/ }).click()
   return page.getByRole('dialog')
 }
 
@@ -41,7 +50,7 @@ test('hourly promotion tiers do not expose legacy date or day-range controls acr
   await dialog.getByRole('button', { name: 'Продолжить', exact: true }).click()
   await expect(dialog).toContainText('1,70')
   expect(checkouts).toBe(0)
-  await dialog.getByRole('button', { name: 'Pagar con Stripe' }).click()
+  await dialog.getByRole('button', { name: 'Оплатить через Stripe' }).click()
   await expect(dialog.getByRole('alert')).toHaveText('Test checkout')
   expect(checkouts).toBe(1)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
@@ -55,7 +64,7 @@ test('going back preserves the chosen duration without creating Stripe checkout'
   await expect(dialog).toContainText('4,50')
   await dialog.getByRole('button', { name: 'Назад', exact: true }).click()
   await expect(choices.nth(2)).toHaveAttribute('aria-pressed', 'true')
-  await expect(dialog.getByRole('button', { name: 'Pagar con Stripe' })).toHaveCount(0)
+  await expect(dialog.getByRole('button', { name: 'Оплатить через Stripe' })).toHaveCount(0)
 })
 
 for (const timezoneId of ['UTC', 'America/Los_Angeles', 'Pacific/Kiritimati']) {

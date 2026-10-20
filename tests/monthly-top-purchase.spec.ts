@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test'
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/payments/listings/*/top/availability?*', route => {
+    const hours = Number(new URL(route.request().url()).searchParams.get('durationHours'))
+    expect([12, 24, 72]).toContain(hours)
+    return route.fulfill({ json: { municipalityCode: '28079', municipality: 'Madrid', capacity: 3,
+      available: true, availableSlots: 3, availableAt: null, serverNow: new Date().toISOString() } })
+  })
+})
+
 test('TOP preserves the chosen listing and charges only the explicitly selected hourly tier', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))

@@ -45,7 +45,7 @@ def listing_payload(*, title: str, latitude: float, longitude: float, bedrooms: 
         "title": title,
         "city": "Santa Cruz de Tenerife",
         "area": "Centro",
-        "street": "Private street",
+        "street": "Private street 1",
         "postcode": "38001",
         "approximateAddress": "Centro · ubicación aproximada",
         "rentalMode": "long",

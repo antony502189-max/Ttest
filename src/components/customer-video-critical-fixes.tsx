@@ -175,7 +175,7 @@ export function CustomerVideoCriticalFixes() {
 
     const setupPublicationLocation = () => {
       if (mockMode || pathname !== '/publicar') return
-      const city = document.querySelector<HTMLSelectElement>('#publish-city')
+      const city = document.querySelector<HTMLSelectElement>('select#publish-city')
       const area = document.querySelector<HTMLInputElement>('#publish-area')
       const street = document.querySelector<HTMLInputElement>('#publish-street')
       const postcode = document.querySelector<HTMLInputElement>('#publish-postcode')

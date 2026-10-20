@@ -17,12 +17,13 @@ async function finishOnboarding(page: Page) {
   await expect(page.getByTestId('open-location')).toBeVisible()
 }
 
+// An unscoped map visit must use España: Tenerife now explicitly selects province 38.
 test.describe('mobile history', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
   test('fresh map starts between Spain and Tenerife before any listing is opened', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
-    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    await page.goto('/#/buscar?q=España&vista=mapa')
     const map = page.getByTestId('google-map')
     await expect(map).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
     await expect(page.getByTestId('mobile-map-listing-preview')).toHaveCount(0)
@@ -65,7 +66,7 @@ test.describe('mobile history', () => {
 
   test('a new visit fits the 70 km cell containing the last explored point', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
-    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    await page.goto('/#/buscar?q=España&vista=mapa')
     const map = page.getByTestId('google-map')
     await expect(map).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
     await map.dispatchEvent('pointerdown')
@@ -79,7 +80,7 @@ test.describe('mobile history', () => {
       return record.center
     })).toEqual({ lat: 28.12, lng: -16.72 })
     await page.goto('/#/')
-    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    await page.goto('/#/buscar?q=España&vista=mapa')
     await expect(map).toHaveAttribute('data-map-center', await zoneCenterFor(page, { lat: 28.12, lng: -16.72 }))
     await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeGreaterThan(5)
     await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThan(9)
@@ -89,7 +90,7 @@ test.describe('mobile history', () => {
 
   test('after pan and zoom, reloading the same map URL recalls the 70 km zone instead of the previous close-up', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
-    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    await page.goto('/#/buscar?q=España&vista=mapa')
     const map = page.getByTestId('google-map')
     await expect(map).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
     await map.dispatchEvent('pointerdown')
@@ -107,7 +108,7 @@ test.describe('mobile history', () => {
 
   test('the latest area replaces the previous one even when leaving without viewing a listing', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
-    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    await page.goto('/#/buscar?q=España&vista=mapa')
     const map = page.getByTestId('google-map')
     await expect(map).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
     await map.dispatchEvent('pointerdown')
@@ -117,7 +118,7 @@ test.describe('mobile history', () => {
     })
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center)).toEqual({ lat: 27.99, lng: -15.59 })
     await page.goto('/#/')
-    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    await page.goto('/#/buscar?q=España&vista=mapa')
     await expect(map).toHaveAttribute('data-map-center', await zoneCenterFor(page, { lat: 27.99, lng: -15.59 }))
     await map.dispatchEvent('pointerdown')
     await page.evaluate(() => {
@@ -126,7 +127,7 @@ test.describe('mobile history', () => {
     })
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center)).toEqual({ lat: 28.43, lng: -16.56 })
     await page.goto('/#/favoritos')
-    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    await page.goto('/#/buscar?q=España&vista=mapa')
     await expect(map).toHaveAttribute('data-map-center', await zoneCenterFor(page, { lat: 28.43, lng: -16.56 }))
     await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThan(10)
     await expect(page.getByTestId('mobile-map-listing-preview')).toHaveCount(0)
@@ -134,7 +135,7 @@ test.describe('mobile history', () => {
 
   test('opening a map marker saves its location even without moving the map first', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
-    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    await page.goto('/#/buscar?q=España&vista=mapa')
     const marker = page.locator('.m2-listing-marker').first()
     await expect(marker).toBeAttached({ timeout: 20_000 })
     await marker.evaluate((element) => element.dispatchEvent(new MouseEvent('click', { bubbles: true })))
@@ -142,7 +143,7 @@ test.describe('mobile history', () => {
     const markerCenter = await page.getByTestId('google-map').getAttribute('data-map-center')
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center)).not.toBeNull()
     await page.goto('/#/')
-    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    await page.goto('/#/buscar?q=España&vista=mapa')
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center)
     await expect(page.getByTestId('google-map')).toHaveAttribute('data-map-center', await zoneCenterFor(page, saved))
     expect(markerCenter).not.toBeNull()
@@ -155,7 +156,7 @@ test.describe('mobile history', () => {
         center: { lat: 28.12, lng: -16.72 }, savedAt: Date.now(),
       }))
     })
-    await page.goto('/#/buscar?q=Tenerife&vista=mapa&mapLat=28.46360&mapLng=-16.25180&mapZoom=13.00')
+    await page.goto('/#/buscar?q=España&vista=mapa&mapLat=28.46360&mapLng=-16.25180&mapZoom=13.00')
     const map = page.getByTestId('google-map')
     await expect(map).toHaveAttribute('data-map-center', '28.463600,-16.251800')
     await expect(map).toHaveAttribute('data-map-zoom', '13')
@@ -173,7 +174,7 @@ test.describe('mobile history', () => {
         center: { lat: 999, lng: -16 }, savedAt: Date.now(),
       }))
     })
-    await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+    await page.goto('/#/buscar?q=España&vista=mapa')
     const map = page.getByTestId('google-map')
     await expect(map).toHaveAttribute('data-map-center', '32.450000,-11.200000')
     await expect(map).toHaveAttribute('data-map-zoom', '5.25')
@@ -278,14 +279,14 @@ test.describe('mobile history', () => {
 
 
 test('desktop first map shows broad Spain and Tenerife before prior browsing', async ({ page }) => {
-  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
+  await page.goto('/#/buscar?q=España&alquiler=long&vista=mapa')
   const map = page.locator('.google-map-canvas')
   await expect(map).toHaveAttribute('data-map-center', '32.450000,-11.200000')
   await expect(map).toHaveAttribute('data-map-zoom', '5.25')
 })
 
 test('desktop map saves a new area but reopens its selected 70 km zone', async ({ page }) => {
-  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
+  await page.goto('/#/buscar?q=España&alquiler=long&vista=mapa')
   const map = page.locator('.google-map-canvas')
   await expect(map).toHaveAttribute('data-map-zoom', '5.25')
   await map.dispatchEvent('wheel')
@@ -298,14 +299,14 @@ test('desktop map saves a new area but reopens its selected 70 km zone', async (
     return raw ? JSON.parse(raw).center : null
   })).toEqual({ lat: 28.12, lng: -16.72 })
   await page.goto('/#/')
-  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
+  await page.goto('/#/buscar?q=España&alquiler=long&vista=mapa')
   await expect(map).toHaveAttribute('data-map-center', await zoneCenterFor(page, { lat: 28.12, lng: -16.72 }))
   await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeGreaterThan(5)
   await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThan(11)
 })
 
 test('desktop also saves a touch-style pointer pan when leaving directly', async ({ page }) => {
-  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
+  await page.goto('/#/buscar?q=España&alquiler=long&vista=mapa')
   const map = page.locator('.google-map-canvas')
   await expect(map).toHaveAttribute('data-map-zoom', '5.25')
   await map.dispatchEvent('pointerdown')
@@ -315,7 +316,7 @@ test('desktop also saves a touch-style pointer pan when leaving directly', async
   })
   await page.goto('/#/')
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('112233:map-last-search-area:v2') ?? '{}').center)).toEqual({ lat: 39.47, lng: -0.37 })
-  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
+  await page.goto('/#/buscar?q=España&alquiler=long&vista=mapa')
   await expect(map).toHaveAttribute('data-map-center', await zoneCenterFor(page, { lat: 39.47, lng: -0.37 }))
   await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeLessThan(10)
 })
@@ -324,7 +325,7 @@ test('desktop remembered area fits on the current screen without altering filter
   await page.addInitScript(() => localStorage.setItem('112233:map-last-search-area:v2', JSON.stringify({
     center: { lat: 28.12, lng: -16.72 }, savedAt: Date.now(),
   })))
-  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
+  await page.goto('/#/buscar?q=España&alquiler=long&vista=mapa')
   const map = page.locator('.google-map-canvas')
   await expect(map).toHaveAttribute('data-map-center', await zoneCenterFor(page, { lat: 28.12, lng: -16.72 }))
   await expect.poll(async () => Number(await map.getAttribute('data-map-zoom'))).toBeGreaterThan(5)
@@ -346,14 +347,14 @@ test('desktop explicit bookmarked map camera wins over saved history', async ({ 
   await page.addInitScript(() => localStorage.setItem('112233:map-last-search-area:v2', JSON.stringify({
     center: { lat: 28.12, lng: -16.72 }, savedAt: Date.now(),
   })))
-  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa&mapLat=28.46360&mapLng=-16.25180&mapZoom=13.00')
+  await page.goto('/#/buscar?q=España&alquiler=long&vista=mapa&mapLat=28.46360&mapLng=-16.25180&mapZoom=13.00')
   const map = page.locator('.google-map-canvas')
   await expect(map).toHaveAttribute('data-map-center', '28.463600,-16.251800')
   await expect(map).toHaveAttribute('data-map-zoom', '13')
 })
 
 test('desktop results → detail → browser Back restores the result route', async ({ page }) => {
-  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
+  await page.goto('/#/buscar?q=España&alquiler=long')
   await expect(page.locator('.search-page')).toBeVisible()
   const result = page.locator('.property-card a[href*="habitacion/"]').first()
   await expect(result).toBeVisible()
@@ -387,7 +388,7 @@ test('search and map bookmarks survive reload', async ({ page }) => {
   await page.reload()
   await expect(page.getByTestId('mobile-results')).toBeVisible()
   await expect(page).toHaveURL(/q=Arona/)
-  await page.goto('/#/buscar?q=Tenerife&vista=mapa&mapLat=28.29160&mapLng=-16.62910&mapZoom=11.00')
+  await page.goto('/#/buscar?q=España&vista=mapa&mapLat=28.29160&mapLng=-16.62910&mapZoom=11.00')
   await expect(page.getByTestId('google-map')).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
   await page.reload()
   await expect(page.getByTestId('google-map')).toHaveAttribute('data-map-interaction', 'interactive', { timeout: 20_000 })
@@ -434,7 +435,7 @@ test('mobile 70 km return uses the full map canvas rather than the old reduced d
       center: { lat: 28.12, lng: -16.72 }, savedAt: Date.now(),
     }))
   })
-  await page.goto('/#/buscar?q=Tenerife&vista=mapa')
+  await page.goto('/#/buscar?q=España&vista=mapa')
   const map = page.getByTestId('google-map')
   await expect(map).toHaveAttribute('data-map-center', await zoneCenterFor(page, { lat: 28.12, lng: -16.72 }))
   const expectedZoom = await page.evaluate(async () => {

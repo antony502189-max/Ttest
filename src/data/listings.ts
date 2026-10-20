@@ -110,6 +110,8 @@ export const initialListings: Listing[] = Array.from({ length: 32 }, (_, index) 
     id: legacyIds[index] ?? `${place[1].toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-')}-${String(index + 1).padStart(2, '0')}`,
     title: titles[index % titles.length],
     city: place[0],
+    provinceCode: '38',
+    ...(index < 3 ? { street: 'Calle Prueba 1', postcode: place[0] === 'Arona' ? '38650' : '38678' } : {}),
     area: place[1],
     approximateAddress: `${['Zona centro', 'Cerca de la plaza', 'A 8 min de la costa', 'Junto a la parada principal'][index % 4]} · ubicación aproximada`,
     price,

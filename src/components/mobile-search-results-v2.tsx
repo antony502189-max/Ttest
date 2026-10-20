@@ -25,6 +25,7 @@ import { translateText, useI18n, type Language } from '@/contexts/i18n-context'
 import { defaultFilters } from '@/data/listings'
 import { getBedroomCount } from '@/lib/listings'
 import { communityName } from '@/lib/spain-communities'
+import { provinceName } from '@/lib/spain-provinces'
 import { bedTypeLabel } from '@/lib/bed-type-label'
 import { mobileFiltersForRentalMode } from '@/lib/mobile-filter-normalization'
 import { mobileResultBadges } from '@/lib/mobile-result-badges'
@@ -477,6 +478,8 @@ export function MobileSearchResults() {
     && ['españa', 'espana', 'spain', 'es'].includes((visibleGeography.query ?? '').trim().toLocaleLowerCase())
   const headingPlace = drawingAreaSelected
     ? { es: 'la zona seleccionada', en: 'the selected area', ru: 'выделенная зона' }[language]
+    : visibleGeography.provinceCode
+      ? provinceName(visibleGeography.provinceCode)
     : visibleGeography.autonomousCommunity
       ? communityName(visibleGeography.autonomousCommunity, language)
       : allSpain ? { es: 'España', en: 'Spain', ru: 'Испания' }[language]

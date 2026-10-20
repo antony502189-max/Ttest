@@ -1,3 +1,4 @@
+import { resolveProvince } from '@/lib/spain-provinces'
 import type { Coordinates, Listing } from '@/types'
 
 export const TENERIFE_CENTER = { lat: 28.2916, lng: -16.6291 } as const
@@ -79,10 +80,10 @@ export function isSupportedTenerifeQuery(value: string) {
 export function sanitizeTenerifeHistory(values: string[]) {
   const seen = new Set<string>()
   return values.flatMap((value) => {
-    const location = resolveTenerifeLocation(value)
-    if (!location || seen.has(location.normalizedValue)) return []
-    seen.add(location.normalizedValue)
-    return [location.normalizedValue]
+    const normalized = resolveProvince(value)?.es ?? resolveTenerifeLocation(value)?.normalizedValue
+    if (!normalized || seen.has(normalized)) return []
+    seen.add(normalized)
+    return [normalized]
   }).slice(0, 8)
 }
 

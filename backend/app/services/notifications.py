@@ -156,6 +156,7 @@ def _saved_search_payload(search: SavedSearch) -> ListingSearchRequest | None:
         amenities = [item for item in _saved_string_list(filters.get("amenities", [])) if item != "Aire acondicionado"]
         payload = {
             "query": search.query or None,
+            "provinceCode": getattr(search, "province_code", None),
             "rentalMode": search.rental_mode,
             "minPrice": _changed_filter(filters, "minPrice", _SAVED_SEARCH_DEFAULTS["minPrice"]),
             "maxPrice": (

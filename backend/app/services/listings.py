@@ -6,7 +6,8 @@ from typing import cast
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import delete, select
+from geoalchemy2 import Geometry
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
@@ -145,10 +146,14 @@ async def _sync_matching_owner_listing_locations(
     for sibling in siblings:
         if _private_address_group_key(sibling.street, sibling.postcode) != previous_group:
             continue
+        from .province_top import require_top_address_mutable
+        await require_top_address_mutable(session, sibling, listing.postcode)
         sibling.city = listing.city
         sibling.area = listing.area
         sibling.street = listing.street
         sibling.postcode = listing.postcode
+        sibling.province_code = listing.province_code
+        sibling.address_verified_at = listing.address_verified_at
         sibling.approximate_address = listing.approximate_address
         sibling.location = point(longitude, latitude)
         sibling.exact_location = (
@@ -521,6 +526,12 @@ async def create_listing(
         location=point(0, 0),
     )
     apply_write(listing, payload)
+    from .address_geography import verify_address
+    verified = await verify_address(payload.street, payload.postcode, payload.city,
+                                    latitude=payload.exactLatitude if payload.exactLatitude is not None else payload.latitude,
+                                    longitude=payload.exactLongitude if payload.exactLongitude is not None else payload.longitude)
+    listing.province_code = verified.province_code
+    listing.address_verified_at = now
     require_listing_price(listing)
     listing.status = initial_status
     listing.published_at = now if initial_status == "published" else None
@@ -567,8 +578,13 @@ async def update_listing(
     user: User,
     session: AsyncSession,
 ) -> OwnedListingResponse:
+    from .commercial_advertisements import lock_advertising_capacity
+    from .province_top import require_top_address_mutable
+    await lock_advertising_capacity(session)
     listing, owner = await _lock_mutable_listing(listing_id, session)
     admin = await ensure_owner_or_admin(listing, user, session)
+    if payload.postcode is not None:
+        await require_top_address_mutable(session, listing, payload.postcode)
     changes = payload.model_dump(exclude_unset=True)
     changes.pop("expiresAt", None)  # Retired field accepted only for old-client compatibility.
     asset_ids = changes.pop("assetIds", None)
@@ -601,6 +617,24 @@ async def update_listing(
 
     current_details = await session.get(ListingRoomDetails, listing.id)
     _validate_effective_patch_state(listing, current_details, changes)
+
+    address_fields = {"street", "postcode", "city", "latitude", "longitude", "exactLatitude", "exactLongitude"}
+    verifying_address = bool(address_fields & changes.keys()) or (
+        changes.get("status") in {"pending", "published"} and not listing.address_verified_at and not listing.is_external
+    )
+    if verifying_address:
+        from .address_geography import verify_address
+        effective_point = func.coalesce(Listing.exact_location, Listing.location)
+        coordinates = (await session.execute(select(
+            func.ST_Y(effective_point.cast(Geometry)), func.ST_X(effective_point.cast(Geometry)),
+        ).where(Listing.id == listing.id))).one()
+        lat = changes.get("exactLatitude", changes.get("latitude", coordinates[0]))
+        lng = changes.get("exactLongitude", changes.get("longitude", coordinates[1]))
+        verified = await verify_address(changes.get("street", listing.street), changes.get("postcode", listing.postcode),
+                                        changes.get("city", listing.city), latitude=lat, longitude=lng)
+        await require_top_address_mutable(session, listing, verified.postcode)
+        listing.province_code = verified.province_code
+        listing.address_verified_at = datetime.now(UTC)
 
     mapping = {
         "approximateAddress": "approximate_address",
@@ -711,6 +745,8 @@ async def update_listing(
         if listing.status == "published":
             await notify_saved_search_matches(session, listing)
         elif listing.status in {"hidden", "closed", "rejected"}:
+            from .payment_review import review_paid_top
+            await review_paid_top(session, listing_id=listing.id, reason="Owner withdrew listing; original TOP period retained for review.")
             await notify_favorited_listing_unavailable(session, listing, event_key=str(history.id))
     if asset_ids is not None:
         await _replace_listing_images_locked(listing, asset_ids, user, session, admin=admin)
@@ -723,6 +759,8 @@ async def update_listing(
 
 
 async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> OwnedListingResponse:
+    from .commercial_advertisements import lock_advertising_capacity
+    await lock_advertising_capacity(session)
     listing, owner = await _lock_mutable_listing(listing_id, session)
     await ensure_owner_or_admin(listing, user, session)
     require_listing_price(listing)
@@ -760,6 +798,9 @@ async def renew_listing(listing_id: UUID, user: User, session: AsyncSession) -> 
         )
     if listing.status == "published":
         await notify_saved_search_matches(session, listing)
+    elif previous_status == "published":
+        from .payment_review import review_paid_top
+        await review_paid_top(session, listing_id=listing.id, reason="Republication awaits moderation; original TOP period retained for review.")
     await touch_catalog(session)
     await session.commit()
     row = (await session.execute(owned_query().where(Listing.id == listing.id))).one()

@@ -5,6 +5,7 @@ import hashlib
 import os
 import random
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from io import BytesIO
 from uuid import UUID, uuid4
 
@@ -30,6 +31,42 @@ from app.db.session import SessionLocal, engine
 from app.main import app, rate_limiter
 from app.models import MediaAsset, User
 from app.storage import get_storage
+
+# External geocoding is mocked at the provider boundary for unrelated listing
+# tests. Direct geography regressions supply fixed authoritative responses and
+# bypass ListingFixtureClient, so forged input never creates its own evidence.
+ADDRESS_FIXTURES: dict[tuple[str, str, str], dict] = {}
+
+
+def seed_address_fixture(payload):
+    city = payload.get("city", "Adeje")
+    postcode = payload.get("postcode") or ("28013" if city == "Madrid" else "38670")
+    street = payload.get("street") or "Calle Prueba 1"
+    code = {"Madrid": "28079", "Getafe": "28065", "Barcelona": "08019"}.get(city, "38001")
+    ADDRESS_FIXTURES[(street, postcode, city)] = {
+        "id": "isolated-fixture-portal", "type": "portal", "countryCode": "011", "muniCode": code,
+        "provinceCode": postcode[:2], "postalCode": postcode, "muni": city, "poblacion": city,
+        "address": street + ", " + city,
+        "lat": payload.get("exactLatitude", payload.get("latitude", 28.12)),
+        "lng": payload.get("exactLongitude", payload.get("longitude", -16.73)),
+    }
+    return {**payload, "street": street, "postcode": postcode}
+
+
+@pytest.fixture(autouse=True)
+def geocoder_provider(monkeypatch):
+    from app.services import address_geography
+    ADDRESS_FIXTURES.clear()
+    seed_address_fixture({"city": "Adeje", "latitude": 28.12, "longitude": -16.73})
+    seed_address_fixture({"street": "Avenida V Centenario 1", "postcode": "38660", "city": "Adeje",
+                          "exactLatitude": 28.0674, "exactLongitude": -16.7268})
+    seed_address_fixture({"street": "Calle Mayor 1", "postcode": "28901", "city": "Getafe",
+                          "latitude": 40.3083, "longitude": -3.7327})
+
+    async def candidates(street, postcode, city):
+        row = ADDRESS_FIXTURES.get((street, postcode, city))
+        return [row] if row else []
+    monkeypatch.setattr(address_geography, "address_candidates", candidates)
 
 
 class ListingFixtureClient(AsyncClient):
@@ -69,6 +106,9 @@ class ListingFixtureClient(AsyncClient):
 
     async def request(self, method: str, url, **kwargs):
         payload = kwargs.get("json")
+        if method.upper() == "POST" and str(url) == "/api/v1/listings" and isinstance(payload, dict):
+            payload = seed_address_fixture(payload)
+            kwargs["json"] = payload
         if method.upper() == "POST" and str(url) == "/api/v1/listings" and isinstance(payload, dict) and len(payload.get("assetIds", [])) < 5:
             me = await super().request("GET", "/api/v1/auth/me", headers=kwargs.get("headers"))
             if me.status_code == 200:
@@ -140,6 +180,10 @@ async def register(client: AsyncClient, *, email: str, role: str = "tenant") -> 
         user = await session.get(User, body["user"]["id"])
         assert user is not None
         user.email_verified = True
+        user.municipality_code = "38001"
+        user.address_verified_at = datetime.now(UTC)
+        user.verified_address = {"street": "Calle Prueba 1", "postcode": "38670", "city": "Adeje",
+                                 "municipalityCode": "38001", "source": "isolated-test-fixture"}
         await session.commit()
     return body["accessToken"], body["user"]
 

@@ -61,6 +61,7 @@ class ListingPromotion(Base):
     """
 
     __tablename__ = "listing_promotions"
+    top_municipality_code: Mapped[str | None] = mapped_column(String(5), index=True)
 
     listing_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("listings.id", ondelete="CASCADE"), primary_key=True

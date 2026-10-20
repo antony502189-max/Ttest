@@ -1,0 +1,69 @@
+{
+  "create_postcode_08001": {
+    "accepted_by_schema_and_apply_write": true,
+    "stored_city": "Madrid",
+    "stored_postcode": "08001",
+    "derived_province": "08"
+  },
+  "create_postcode_EMPTY": {
+    "accepted_by_schema_and_apply_write": true,
+    "stored_city": "Madrid",
+    "stored_postcode": "",
+    "derived_province": null
+  },
+  "create_postcode_garbage": {
+    "accepted_by_schema_and_apply_write": true,
+    "stored_city": "Madrid",
+    "stored_postcode": "garbage",
+    "derived_province": null
+  },
+  "create_postcode_28000": {
+    "accepted_by_schema_and_apply_write": true,
+    "stored_city": "Madrid",
+    "stored_postcode": "28000",
+    "derived_province": "28"
+  },
+  "postcode_only_patch": {
+    "postcode": "08001"
+  },
+  "new_import_snapshot": {
+    "source_province": "Madrid",
+    "stored_city": "Madrid",
+    "stored_postcode": "",
+    "derived_province": null
+  },
+  "saved_alert_Madrid": {
+    "provinceCode": null,
+    "sql": "SELECT listings.id \nFROM listings \nWHERE (listings.city ILIKE %(city_1)s OR listings.area ILIKE %(area_1)s) AND listings.rental_mode = %(rental_mode_1)s",
+    "parameters": {
+      "city_1": "%Madrid%",
+      "area_1": "%Madrid%",
+      "rental_mode_1": "long"
+    }
+  },
+  "saved_alert_España": {
+    "provinceCode": null,
+    "sql": "SELECT listings.id \nFROM listings \nWHERE listings.rental_mode = %(rental_mode_1)s",
+    "parameters": {
+      "rental_mode_1": "long"
+    }
+  },
+  "saved_alert_Santa Cruz de Tenerife": {
+    "provinceCode": null,
+    "sql": "SELECT listings.id \nFROM listings \nWHERE (listings.city ILIKE %(city_1)s OR listings.area ILIKE %(area_1)s) AND listings.rental_mode = %(rental_mode_1)s",
+    "parameters": {
+      "city_1": "%Santa Cruz de Tenerife%",
+      "area_1": "%Santa Cruz de Tenerife%",
+      "rental_mode_1": "long"
+    }
+  },
+  "interactive_madrid_search": {
+    "sql": "SELECT listings.id \nFROM listings \nWHERE CASE WHEN (trim(listings.postcode) ~ %(trim_1)s) THEN substr(trim(listings.postcode), %(substr_1)s, %(substr_2)s) END = %(param_1)s",
+    "parameters": {
+      "trim_1": "^(0[1-9]|[1-4][0-9]|5[0-2])[0-9]{3}$",
+      "substr_1": 1,
+      "substr_2": 2,
+      "param_1": "28"
+    }
+  }
+}

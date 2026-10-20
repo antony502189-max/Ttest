@@ -1,8 +1,9 @@
 import { useEffect } from 'react'
 import { useI18n } from '@/contexts/i18n-context'
 import { googleMapsTestSdkEnabled, loadGoogleMapsOnDemand } from '@/lib/google-maps/on-demand'
-import { TENERIFE_BOUNDS, isInsideTenerife, normalizeTenerifeText } from '@/lib/tenerife'
-import { createRequestVersionGate } from '@/lib/google-maps/address'
+import { SPAIN_BOUNDS, isInsideSpain } from '@/lib/geolocation'
+import { normalizeTenerifeText } from '@/lib/tenerife'
+import { createRequestVersionGate, parseGoogleAddress, type ResolvedGoogleAddress } from '@/lib/google-maps/address'
 import type { Coordinates } from '@/types'
 import '@/publication-exact-address-map.css'
 
@@ -106,7 +107,7 @@ function parseAddressInput(rawStreet: string, fieldPostcode: string, fieldArea: 
 
 function resultMatchesQuery(result: google.maps.GeocoderResult, street: string, postcode: string, city: string, area: string, fullAddressWithArea: boolean) {
   const coordinates = resultCoordinates(result)
-  if (!coordinates || !isInsideTenerife(coordinates)) return false
+  if (!coordinates || !isInsideSpain(coordinates)) return false
 
   const resolvedPostcode = component(result, 'postal_code')
   const hasFullPostcode = /^\d{5}$/.test(postcode)
@@ -150,7 +151,7 @@ function resultMatchesPostcode(result: google.maps.GeocoderResult, postcode: str
   const coordinates = resultCoordinates(result)
   return Boolean(
     coordinates
-      && isInsideTenerife(coordinates)
+      && isInsideSpain(coordinates)
       && /^\d{5}$/.test(postcode)
       && component(result, 'postal_code') === postcode,
   )
@@ -216,10 +217,10 @@ export function PublishExactAddressSync() {
       })
     }
 
-    const dispatchAddressPoint = (coordinates: Coordinates, zoom: number, clearDetectedAddress = true) => {
+    const dispatchAddressPoint = (coordinates: Coordinates, zoom: number, clearDetectedAddress = true, address?: ResolvedGoogleAddress) => {
       clearLocationError()
       window.dispatchEvent(new CustomEvent('112233:publish-location-selected', {
-        detail: { coordinates, zoom, clearDetectedAddress },
+        detail: { coordinates, zoom, clearDetectedAddress, address },
       }))
     }
 
@@ -229,7 +230,7 @@ export function PublishExactAddressSync() {
       const geocoding = await google.maps.importLibrary('geocoding') as google.maps.GeocodingLibrary
       const response = await new geocoding.Geocoder().geocode({
         address: query,
-        bounds: TENERIFE_BOUNDS,
+        bounds: SPAIN_BOUNDS,
         componentRestrictions: { country: 'ES' },
       })
       return response.results
@@ -242,7 +243,6 @@ export function PublishExactAddressSync() {
       const citySelect = document.querySelector<HTMLSelectElement>('#publish-city')
       const rawStreet = (streetOverride || streetInput?.value || '').trim()
       const selectedCity = (citySelect?.value || '').trim()
-      if (!selectedCity) return
 
       const postcodeField = postcodeTouched || (!streetTouched && !rawStreet) ? postcodeInput?.value ?? '' : ''
       const areaField = areaTouched ? areaInput?.value ?? '' : ''
@@ -262,14 +262,14 @@ export function PublishExactAddressSync() {
       const queryCity = fullAddressWithArea ? '' : cityConstraint
       const queries = postcodeOnly
         ? uniqueQueries([
-            [postcode, cityConstraint, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
-            [postcode, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
+            [postcode, cityConstraint, 'Spain'].filter(Boolean).join(', '),
+            [postcode, 'Spain'].filter(Boolean).join(', '),
           ])
         : uniqueQueries([
-            [street, postcode, area, queryCity, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
-            [street, postcode, area, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
-            [street, postcode, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
-            [parsed.raw || street, 'Tenerife', 'Spain'].filter(Boolean).join(', '),
+            [street, postcode, area, queryCity, 'Spain'].filter(Boolean).join(', '),
+            [street, postcode, area, 'Spain'].filter(Boolean).join(', '),
+            [street, postcode, 'Spain'].filter(Boolean).join(', '),
+            [parsed.raw || street, 'Spain'].filter(Boolean).join(', '),
           ])
 
       try {
@@ -295,7 +295,7 @@ export function PublishExactAddressSync() {
           coordinates,
         } }))
         const zoom = hasBuildingNumber ? EXACT_ADDRESS_ZOOM : hasStreet ? STREET_ADDRESS_ZOOM : POSTCODE_AREA_ZOOM
-        dispatchAddressPoint(coordinates, zoom)
+        dispatchAddressPoint(coordinates, zoom, false, parseGoogleAddress(result.address_components, result.formatted_address, coordinates))
       } catch {
         if (!cancelled && gate.isCurrent(version) && showError && Date.now() >= suppressErrorsUntil) {
           window.dispatchEvent(new CustomEvent('112233:publish-location-error', { detail: { message: notFoundMessage } }))

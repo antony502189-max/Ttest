@@ -22,7 +22,7 @@ def listing_payload(title: str) -> dict:
         "title": title,
         "city": "Adeje",
         "area": "Centro",
-        "street": "Private street",
+        "street": "Private street 1",
         "postcode": "38670",
         "approximateAddress": "Adeje · ubicación aproximada",
         "rentalMode": "long",

@@ -35,6 +35,9 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["app*"]
 
+[tool.setuptools.package-data]
+app = ["data/*.json", "*.json", "*_LICENSE.txt"]
+
 [project.optional-dependencies]
 dev = [
   # Parse production Compose anchors in configuration boundary regressions.

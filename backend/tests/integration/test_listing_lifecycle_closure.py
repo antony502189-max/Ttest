@@ -25,7 +25,7 @@ def listing_payload(title: str, *, room_capacity: int = 4) -> dict:
         "title": title,
         "city": "Adeje",
         "area": "Costa Adeje",
-        "street": "Private lifecycle street",
+        "street": "Private lifecycle street 1",
         "postcode": "38660",
         "approximateAddress": "Costa Adeje · ubicación aproximada",
         "rentalMode": "long",

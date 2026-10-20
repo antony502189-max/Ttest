@@ -6,7 +6,7 @@ cd "$ROOT"
 
 # Backend lint, migrations, unit, PostgreSQL, and MinIO tests run in the
 # independent Production audit job. This job exercises the real HTTP stack.
-docker compose up -d postgres redis minio minio-init mailpit migrate backend mail-worker
+docker compose -f docker-compose.yml -f docker-compose.fullstack-test.yml up -d postgres redis minio minio-init mailpit migrate backend mail-worker
 docker compose --profile tools run --rm seed
 
 for attempt in {1..60}; do

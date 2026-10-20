@@ -1,0 +1,103 @@
+[
+  {
+    "case": "province-selector",
+    "width": 320,
+    "layout": {
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 320,
+        "height": 1067.359375,
+        "top": 0,
+        "right": 320,
+        "bottom": 1067.359375,
+        "left": 0
+      },
+      "overflow": "hidden auto",
+      "minHeight": "900px"
+    },
+    "document": {
+      "width": 320,
+      "height": 900,
+      "scrollWidth": 320,
+      "scrollHeight": 1067
+    },
+    "search": {
+      "x": 56.390625,
+      "y": 101.515625,
+      "width": 237.609375,
+      "height": 20.15625
+    }
+  },
+  {
+    "case": "province-selector",
+    "width": 768,
+    "layout": {
+      "rect": {
+        "x": 192,
+        "y": 0,
+        "width": 384,
+        "height": 900,
+        "top": 0,
+        "right": 576,
+        "bottom": 900,
+        "left": 192
+      },
+      "overflow": "visible",
+      "minHeight": "900px"
+    },
+    "document": {
+      "width": 768,
+      "height": 900,
+      "scrollWidth": 801,
+      "scrollHeight": 2256
+    },
+    "search": {
+      "x": 252.390625,
+      "y": 197.125,
+      "width": 293.609375,
+      "height": 19.1875
+    }
+  },
+  {
+    "case": "province-selector",
+    "width": 1280,
+    "layout": {
+      "rect": {
+        "x": 448,
+        "y": 0,
+        "width": 384,
+        "height": 900,
+        "top": 0,
+        "right": 832,
+        "bottom": 900,
+        "left": 448
+      },
+      "overflow": "visible",
+      "minHeight": "900px"
+    },
+    "document": {
+      "width": 1280,
+      "height": 900,
+      "scrollWidth": 1280,
+      "scrollHeight": 2382
+    },
+    "search": {
+      "x": 508.390625,
+      "y": 199.5,
+      "width": 293.609375,
+      "height": 19.1875
+    }
+  },
+  {
+    "case": "clock-plus-24h",
+    "timer": "00:00:04",
+    "soldOutMessage": "На данный момент все места TOP в этой провинции заняты.",
+    "continueDisabled": true
+  },
+  {
+    "case": "zero-revalidation",
+    "requests": 2,
+    "continueEnabled": true
+  }
+]

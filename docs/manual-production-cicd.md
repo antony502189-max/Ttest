@@ -2,6 +2,10 @@
 
 This is an opt-in CI/CD release path. Merging to main **never deploys**.
 GitHub Actions workflow: .github/workflows/manual-production-deploy.yml.
+
+The release preflight reads every page of changed PR files and check runs. It
+verifies the file count against PR metadata before deciding whether payment
+checks are required; incomplete API results refuse deployment.
 Production website: https://app.112233.es, VPS 169.58.147.65, host vmi3640228.
 
 After a successful PR merge, the repository owner clicks GitHub Actions >

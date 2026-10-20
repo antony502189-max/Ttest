@@ -17,6 +17,7 @@ from .catalog import touch_catalog
 from .commercial_advertisements import MAX_ACTIVE_HOMEPAGE_ADS, lock_advertising_capacity, occupied_slots
 from .homepage_purchase import eligible, one_month_after, slot_available
 from .notifications import create_notification
+from .province_top import top_availability
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +139,17 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session,
         monthly = getattr(order, "duration_months", None) == 1
         hours = getattr(order, "duration_hours", None)
         paid_duration = timedelta(hours=hours) if hours is not None else timedelta(days=order.days)
-        valid = await eligible(listing, session) if monthly else bool(listing and listing.status == "published" and not listing.is_external and listing.deleted_at is None)
+        valid = await eligible(listing, session)
+        if valid:
+            owner = await session.get(User, order.owner_user_id)
+            valid = bool(order.top_municipality_code and owner.address_verified_at
+                         and owner.municipality_code == order.top_municipality_code)
+        if valid:
+            try:
+                valid = (await top_availability(session, listing, days=order.days,
+                                                months=1 if monthly else None, hours=hours, exclude_order=order.id))["available"]
+            except HTTPException:
+                valid = False
         if valid:
             promotion = await session.scalar(select(ListingPromotion).where(
                 ListingPromotion.listing_id == listing.id,
@@ -148,6 +159,7 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session,
                 order.fulfillment_status = "review_required"
                 order.fulfillment_note = "Legacy permanent TOP requires manual reconciliation."
             elif promotion:
+                promotion.top_municipality_code = order.top_municipality_code
                 if not promotion.payment_managed and promotion.ends_at > service_start:
                     # Preserve an admin/legacy baseline as a separate read-only interval.
                     # New refund operations must never silently remove that baseline.
@@ -168,6 +180,7 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session,
                     daily_price_cents=None if monthly or hours is not None else order.amount_cents // order.days,
                     total_price_cents=order.amount_cents,
                     payment_managed=True,
+                    top_municipality_code=order.top_municipality_code,
                 ))
                 order.service_starts_at = service_start
                 order.service_ends_at = one_month_after(service_start) if monthly else service_start + paid_duration

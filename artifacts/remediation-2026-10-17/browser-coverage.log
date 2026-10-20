@@ -1,0 +1,40 @@
+
+Running 2 tests using 1 worker
+
+(node:29428) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 tests\audit-remediation.spec.ts:106:1 › unknown release, malformed time and transient failure never enable a purchase (3.5s)
+  x  2 tests\audit-remediation.spec.ts:129:1 › saved code-only provincial scope round-trips and legacy city scope stays a city (1.0m)
+
+
+  1) tests\audit-remediation.spec.ts:129:1 › saved code-only provincial scope round-trips and legacy city scope stays a city 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for locator('.saved-search-card').filter({ hasText: 'Habitaciones en Madrid' }).getByRole('link', { name: 'Ver resultados' })
+
+
+      141 |   })
+      142 |   await page.goto('/#/busquedas-guardadas', { waitUntil: 'domcontentloaded' })
+    > 143 |   await page.locator('.saved-search-card').filter({ hasText: 'Habitaciones en Madrid' }).getByRole('link', { name: 'Ver resultados' }).click()
+          |                                                                                                                                        ^
+      144 |   await expect(page).toHaveURL(/ubicacion=ciudad/)
+      145 |   expect(page.url()).not.toContain('provincia=')
+      146 | })
+        at C:\Users\HONOR\Documents\Codex\Ttest\output\remediation-frontend\tests\audit-remediation.spec.ts:143:136
+
+    Error Context: ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-saved-co-2569d-acy-city-scope-stays-a-city\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-saved-co-2569d-acy-city-scope-stays-a-city\trace.zip
+    Usage:
+
+        npx playwright show-trace ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-saved-co-2569d-acy-city-scope-stays-a-city\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    tests\audit-remediation.spec.ts:129:1 › saved code-only provincial scope round-trips and legacy city scope stays a city 
+  1 passed (1.1m)

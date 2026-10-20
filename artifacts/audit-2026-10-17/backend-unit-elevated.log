@@ -1,0 +1,109 @@
+........................................................................ [  9%]
+........................................................................ [ 18%]
+.............................................ss......................... [ 27%]
+..................................................s..................... [ 36%]
+........................................................................ [ 45%]
+........................................................................ [ 54%]
+........................................................................ [ 63%]
+...F..........................................................F......... [ 72%]
+........................................................................ [ 81%]
+.......................................................ssss............. [ 90%]
+........................................................................ [ 99%]
+...                                                                      [100%]
+================================== FAILURES ===================================
+__________ test_published_listing_edit_enforces_publish_restriction ___________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002157D177350>
+
+    @pytest.mark.asyncio
+    async def test_published_listing_edit_enforces_publish_restriction(monkeypatch: pytest.MonkeyPatch) -> None:
+        user = SimpleNamespace(id=uuid4())
+        listing = SimpleNamespace(
+            id=uuid4(),
+            owner_user_id=user.id,
+            deleted_at=None,
+            status="published",
+        )
+        session = SimpleNamespace()
+        monkeypatch.setattr(listings, "_lock_mutable_listing", AsyncMock(return_value=(listing, user)))
+        monkeypatch.setattr(listings, "ensure_owner_or_admin", AsyncMock(return_value=False))
+        enforce_publish = AsyncMock(side_effect=HTTPException(403, "Publishing restricted"))
+        monkeypatch.setattr(listings, "enforce_publish_access", enforce_publish)
+    
+        with pytest.raises(HTTPException) as exc:
+>           await listings.update_listing(
+                listing.id,
+                ListingPatch(title="Updated room"),
+                user,
+                session,
+            )
+
+tests\test_moderation_write_boundaries.py:28: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app\services\listings.py:574: in update_listing
+    await lock_advertising_capacity(session)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+session = namespace()
+
+    async def lock_advertising_capacity(session) -> None:
+        from sqlalchemy import text
+    
+>       await session.execute(text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+              ^^^^^^^^^^^^^^^
+                              {"lock_key": "commercial-advertising:homepage-bottom"})
+E       AttributeError: 'types.SimpleNamespace' object has no attribute 'execute'
+
+app\services\commercial_advertisements.py:22: AttributeError
+____________ test_financial_restoration_obeys_province_capacity[3] ____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002157BB2C200>
+peer_count = 3
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('peer_count', [2, 3])
+    async def test_financial_restoration_obeys_province_capacity(monkeypatch, peer_count):
+        from app.services import payment_finances
+        now = datetime.now(UTC)
+        listing = SimpleNamespace(id=uuid4(), postcode='28013')
+        promotion = SimpleNamespace(payment_managed=True, baseline_starts_at=None, baseline_ends_at=None,
+                                    starts_at=now - timedelta(days=1), ends_at=now - timedelta(seconds=1))
+        order = SimpleNamespace(kind='listing_top', id=uuid4(), target_id=listing.id, financial_status='normal',
+                                fulfillment_status='review_required', service_starts_at=now,
+                                service_ends_at=now + timedelta(days=10), paid_at=now, amount_cents=1000)
+    
+        class FinancialSession(Session):
+            async def get(self, model, key):
+                return listing if model is Listing else promotion
+    
+            async def scalars(self, statement):
+                entity = statement.column_descriptions[0]['expr']
+                rows = [order] if entity is PaymentOrder and order.fulfillment_status == 'fulfilled' else []
+                return SimpleNamespace(all=lambda: rows)
+    
+        session = FinancialSession(promotions=[(uuid4(), now - timedelta(days=1), now + timedelta(days=20))
+                                               for _ in range(peer_count)])
+        monkeypatch.setattr(payment_finances, 'touch_catalog', AsyncMock())
+        await payment_finances.change_service_finances(order, session)
+        assert order.fulfillment_status == ('fulfilled' if peer_count == 2 else 'review_required')
+>       assert (promotion.ends_at > now) == (peer_count == 2)
+E       assert (datetime.datetime(2026, 10, 17, 18, 24, 59, 199176, tzinfo=datetime.timezone.utc) > datetime.datetime(2026, 10, 17, 18, 24, 59, 198176, tzinfo=datetime.timezone.utc)) == (3 == 2)
+E        +  where datetime.datetime(2026, 10, 17, 18, 24, 59, 199176, tzinfo=datetime.timezone.utc) = namespace(payment_managed=True, baseline_starts_at=None, baseline_ends_at=None, starts_at=datetime.datetime(2026, 10, ...e.utc), ends_at=datetime.datetime(2026, 10, 17, 18, 24, 59, 199176, tzinfo=datetime.timezone.utc), total_price_cents=0).ends_at
+
+tests\test_province_top.py:142: AssertionError
+============================== warnings summary ===============================
+..\output\release-venv\Lib\site-packages\fastapi\testclient.py:1
+  C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_migration_governance.py::test_alembic_graph_is_one_complete_linear_chain
+tests/test_migration_governance.py::test_rollback_baseline_is_an_immutable_ancestor_of_head
+tests/test_migration_governance.py::test_released_post_baseline_migrations_are_immutable
+  C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\alembic\config.py:612: DeprecationWarning: No path_separator found in configuration; falling back to legacy splitting on spaces, commas, and colons for prepend_sys_path.  Consider adding path_separator=os to Alembic config.
+    util.warn_deprecated(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_moderation_write_boundaries.py::test_published_listing_edit_enforces_publish_restriction
+FAILED tests/test_province_top.py::test_financial_restoration_obeys_province_capacity[3]
+2 failed, 786 passed, 7 skipped, 259 deselected, 4 warnings in 13.70s

@@ -31,7 +31,7 @@ import {
 import { MediaImage } from '@/components/media-image'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
-import { buildListingSearchBody, getAutonomousCommunityCounts, type AutonomousCommunityCount } from '@/api/listings'
+import { buildListingSearchBody } from '@/api/listings'
 import { useFavoriteListings } from '@/hooks/use-favorite-listings'
 import { useRecentlyViewedListings } from '@/hooks/use-recently-viewed-listings'
 import { useAdminAccess } from '@/hooks/use-admin-access'
@@ -40,9 +40,11 @@ import { requestCurrentLocation, type GeolocationFailure } from '@/lib/geolocati
 import { mobileHomeSearchFilters } from '@/lib/mobile-home-filters'
 import { useHomepageHeroListing } from '@/hooks/use-homepage-hero-listing'
 import { selectMobileSearchListings } from '@/lib/mobile-search'
-import { filterListings, filtersFromParams, filtersToParams } from '@/lib/search'
+import { filtersFromParams, filtersToParams } from '@/lib/search'
 import { searchGeographyFromParams } from '@/lib/search-geography'
-import { SPANISH_COMMUNITIES, communityAtCoordinates, communityMapCamera, communityName, communitySuggestions, getCommunity } from '@/lib/spain-communities'
+import { communityMapCamera, communityName } from '@/lib/spain-communities'
+import { ProvinceLocationSearch } from '@/components/province-location-search'
+import { getProvince, provinceName, provinceMapCamera, resolveProvince } from '@/lib/spain-provinces'
 import { preloadAccountPages } from '@/lib/route-preload'
 import { useAppBack } from '@/hooks/use-app-back'
 import { FIRST_MAP_VIEWPORT, MAP_EXPLORATION_BOUNDS, isExplorableMapCenter, mapViewportFromParams, readLastMapViewport, rememberMapViewport, type MapViewport } from '@/lib/map-visit-history'
@@ -287,12 +289,12 @@ function OccupantSelector({ t }: { t: MobileCopy }) {
   </>
 }
 
-function HomeScreen({ t, mode, onMode, onLocation, onSearch, onSearchIntent, onPublish, selectedCommunity, language }: { t: MobileCopy; mode: SearchMode; onMode: (mode: Exclude<SearchMode, null>) => void; onLocation: () => void; onSearch: () => void; onSearchIntent: () => void; onPublish: () => void; selectedCommunity: string | null; language: AppLanguage }) {
+function HomeScreen({ t, mode, onMode, onLocation, onSearch, onSearchIntent, onPublish, selectedCommunity }: { t: MobileCopy; mode: SearchMode; onMode: (mode: Exclude<SearchMode, null>) => void; onLocation: () => void; onSearch: () => void; onSearchIntent: () => void; onPublish: () => void; selectedCommunity: string | null; language: AppLanguage }) {
   const heroListing = useHomepageHeroListing()
   const navigate = useNavigate()
   const [heroAdOpen, setHeroAdOpen] = useState(false)
   useEffect(() => { setHeroAdOpen(false) }, [heroListing?.id])
-  return <section className="m2-screen m2-home"><header className="m2-topbar"><Brand compact /></header><div className={cn('m2-hero', heroListing && 'm2-hero--promotion')} role="img" aria-label={heroListing?.title ?? t.heroAlt}>{heroListing ? <><MediaImage className="m2-hero__promotion-image" src={heroListing.images[0]} responsive sizes="100vw" alt="" loading="eager" fetchPriority="high" /><button type="button" className="m2-hero-ad__reveal" aria-label={`${t.heroAdView}: ${heroListing.title}`} aria-expanded={heroAdOpen} onClick={() => setHeroAdOpen(true)} />{!heroAdOpen ? <button type="button" className="m2-hero-ad__cta" aria-label={`${t.heroAdView}: ${heroListing.title}`} onClick={() => navigate(`/habitacion/${heroListing.id}`)}><span>{t.heroAdView}</span><ChevronRight aria-hidden="true" /></button> : null}{heroAdOpen ? <div className="m2-hero-ad__card"><span>112233.es</span><strong>{heroListing.title}</strong><small>{heroListing.area} · {heroListing.price} € / {heroListing.cadence}</small><button type="button" onClick={() => navigate(`/habitacion/${heroListing.id}`)}>{t.heroAdView}</button></div> : null}</> : null}</div><div className="m2-search-card"><div className="m2-mode-switch" role="group" aria-label={`${t.housingMode} / ${t.tourismMode}`}><button type="button" className={cn(mode === 'vivienda' && 'is-active')} onClick={() => onMode('vivienda')} aria-label={t.housingMode} aria-pressed={mode === 'vivienda'}><span className="m2-mode-icon m2-mode-icon--home"><Home /></span><span>{t.housingMode}</span></button><button type="button" className={cn(mode === 'turismo' && 'is-active')} onClick={() => onMode('turismo')} aria-label={t.tourismMode} aria-pressed={mode === 'turismo'}><span className="m2-mode-icon m2-mode-icon--tourism"><BriefcaseBusiness /></span><span>{t.tourismMode}</span></button></div><OccupantSelector t={t} /><button type="button" className="m2-select-row" onClick={onLocation}><span>{selectedCommunity ? communityName(selectedCommunity, language) : t.searchTenerife}</span><MapPin /></button><PrimaryButton onFocus={onSearchIntent} onPointerDown={onSearchIntent} onClick={onSearch} testId="open-location"><Search />{t.search}</PrimaryButton><button type="button" className="m2-outline" onClick={onPublish}>{t.publishAd}</button></div><Suspense fallback={null}><CommercialAdvertisementPlacement mobile /></Suspense></section>
+  return <section className="m2-screen m2-home"><header className="m2-topbar"><Brand compact /></header><div className={cn('m2-hero', heroListing && 'm2-hero--promotion')} role="img" aria-label={heroListing?.title ?? t.heroAlt}>{heroListing ? <><MediaImage className="m2-hero__promotion-image" src={heroListing.images[0]} responsive sizes="100vw" alt="" loading="eager" fetchPriority="high" /><button type="button" className="m2-hero-ad__reveal" aria-label={`${t.heroAdView}: ${heroListing.title}`} aria-expanded={heroAdOpen} onClick={() => setHeroAdOpen(true)} />{!heroAdOpen ? <button type="button" className="m2-hero-ad__cta" aria-label={`${t.heroAdView}: ${heroListing.title}`} onClick={() => navigate(`/habitacion/${heroListing.id}`)}><span>{t.heroAdView}</span><ChevronRight aria-hidden="true" /></button> : null}{heroAdOpen ? <div className="m2-hero-ad__card"><span>112233.es</span><strong>{heroListing.title}</strong><small>{heroListing.area} · {heroListing.price} € / {heroListing.cadence}</small><button type="button" onClick={() => navigate(`/habitacion/${heroListing.id}`)}>{t.heroAdView}</button></div> : null}</> : null}</div><div className="m2-search-card"><div className="m2-mode-switch" role="group" aria-label={`${t.housingMode} / ${t.tourismMode}`}><button type="button" className={cn(mode === 'vivienda' && 'is-active')} onClick={() => onMode('vivienda')} aria-label={t.housingMode} aria-pressed={mode === 'vivienda'}><span className="m2-mode-icon m2-mode-icon--home"><Home /></span><span>{t.housingMode}</span></button><button type="button" className={cn(mode === 'turismo' && 'is-active')} onClick={() => onMode('turismo')} aria-label={t.tourismMode} aria-pressed={mode === 'turismo'}><span className="m2-mode-icon m2-mode-icon--tourism"><BriefcaseBusiness /></span><span>{t.tourismMode}</span></button></div><OccupantSelector t={t} /><button type="button" className="m2-select-row" onClick={onLocation}><span>{selectedCommunity ? provinceName(selectedCommunity) : t.searchTenerife}</span><MapPin /></button><PrimaryButton onFocus={onSearchIntent} onPointerDown={onSearchIntent} onClick={onSearch} testId="open-location"><Search />{t.search}</PrimaryButton><button type="button" className="m2-outline" onClick={onPublish}>{t.publishAd}</button></div><Suspense fallback={null}><CommercialAdvertisementPlacement mobile /></Suspense></section>
 }
 
 function locationStatusMessage(t: MobileCopy, status: LocationStatus) {
@@ -317,85 +319,15 @@ function LocationScreen({ t, language, rentalMode, onBack, onMap, onNearby, onRe
   onRegionSelect: (id: string) => void
   nearbyStatus: LocationStatus
 }) {
-  const { allListings, discarded, filters } = useApp()
-  const [query, setQuery] = useState('')
-  const [expanded, setExpanded] = useState(false)
-  const [counts, setCounts] = useState<AutonomousCommunityCount[]>([])
-  const [countError, setCountError] = useState(false)
-  const currentFilters = useMemo(() => mobileHomeSearchFilters(filters, rentalMode), [filters, rentalMode])
-  useEffect(() => {
-    if (mockMode) {
-      const eligible = filterListings(allListings.filter((listing) => !discarded.has(listing.id)), rentalMode, currentFilters)
-      // Resolve each point only once. Re-running point-in-polygon for every
-      // community would make the inline suggestions noticeably slow on mobile.
-      const grouped = new globalThis.Map<string, { count: number; cities: Set<string> }>(
-        SPANISH_COMMUNITIES.map((region): [string, { count: number; cities: Set<string> }] =>
-          [region.id, { count: 0, cities: new Set<string>() }]),
-      )
-      for (const listing of eligible) {
-        if (!listing.coordinates) continue
-        const id = communityAtCoordinates(listing.coordinates.lat, listing.coordinates.lng)?.id
-        const aggregate = id ? grouped.get(id) : undefined
-        if (!aggregate) continue
-        aggregate.count += 1
-        if (listing.city) aggregate.cities.add(listing.city)
-      }
-      setCounts(SPANISH_COMMUNITIES.map((region) => ({
-        id: region.id, count: grouped.get(region.id)?.count ?? 0,
-        cities: [...(grouped.get(region.id)?.cities ?? [])],
-      })))
-      return
-    }
-    const controller = new AbortController()
-    setCountError(false)
-    setCounts([])
-    void getAutonomousCommunityCounts({
-      rentalMode, filters: currentFilters,
-      minPrice: currentFilters.minPrice, maxPrice: currentFilters.maxPrice,
-      query: 'España',
-    }, controller.signal).then((next) => {
-      if (!controller.signal.aborted) setCounts(next)
-    }).catch(() => { if (!controller.signal.aborted) setCountError(true) })
-    return () => controller.abort()
-  }, [allListings, discarded, currentFilters, rentalMode])
-  const cities = useMemo(() => Object.fromEntries(counts.map((entry) => [entry.id, entry.cities])), [counts])
-  const suggestions = useMemo(() => communitySuggestions(query, cities), [query, cities])
-  const selected = (id: string) => { setExpanded(false); onRegionSelect(id) }
-  const submit = (event: React.FormEvent) => {
-    event.preventDefault()
-    if (suggestions[0]) selected(suggestions[0].id)
-    else setExpanded(true)
-  }
   const statusMessage = locationStatusMessage(t, nearbyStatus)
-  const listingsWord = language === 'ru' ? 'объявлений' : language === 'en' ? 'listings' : 'anuncios'
   return <section className="m2-screen m2-location" data-testid="location-screen">
     <BackHeader title={t.locationTitle} onBack={onBack} backLabel={t.back} />
     <div className="m2-location__body">
-      <form className="m2-location-search" onSubmit={submit}>
-        <Search aria-hidden="true" />
-        <input value={query} onFocus={() => setExpanded(true)}
-          onChange={(event) => { setQuery(event.target.value); setExpanded(true) }}
-          type="search" placeholder={t.locationPlaceholder} aria-label={t.locationPlaceholder}
-          autoComplete="off" data-testid="community-search-input" />
-        {query ? <button type="button" className="m2-location-clear" onClick={() => { setQuery(''); setExpanded(true) }} aria-label={t.clear}><X /></button> : null}
-      </form>
-      {expanded ? <div className="m2-community-suggestions" data-testid="community-suggestions" aria-live="polite">
-        {suggestions.length ? suggestions.map((region) => {
-          const entry = counts.find((item) => item.id === region.id)
-          return <button type="button" className="m2-community-option" key={region.id}
-            onClick={() => selected(region.id)} data-testid={`community-option-${region.id}`}>
-            <span><strong>{region[language]}</strong>
-              <small>{({ es: 'Comunidad autónoma', en: 'Autonomous community', ru: 'Автономное сообщество' })[language]}</small>
-            </span>
-            <span className="m2-community-option__count">{countError ? '—' : entry ? entry.count.toLocaleString(language === 'ru' ? 'ru-RU' : 'es-ES') : '…'} {listingsWord}</span>
-            <ChevronRight />
-          </button>
-        }) : <p className="m2-community-empty">{({ es: 'No se encontró ninguna comunidad', en: 'No matching region', ru: 'Область не найдена' })[language]}</p>}
-      </div> : <><h2>{t.alsoYouCan}</h2>
-        <button type="button" className="m2-location-action" onClick={() => onMap('draw')} data-testid="draw-zone"><span><PenTool /></span><strong>{t.drawZone}</strong><ChevronRight /></button>
-        <button type="button" className="m2-location-action" onClick={() => onMap('search')} data-testid="search-map"><span><Map /></span><strong>{t.searchOnMap}</strong><ChevronRight /></button>
-        <button type="button" className="m2-location-action" onClick={onNearby} disabled={nearbyStatus === 'loading'} data-testid="search-nearby"><span><Crosshair /></span><strong>{t.searchNearby}</strong><ChevronRight /></button>
-      </>}
+      <ProvinceLocationSearch language={language} rentalMode={rentalMode} onSelect={onRegionSelect} />
+      <h2>{t.alsoYouCan}</h2>
+      <button type="button" className="m2-location-action" onClick={() => onMap('draw')} data-testid="draw-zone"><span><PenTool /></span><strong>{t.drawZone}</strong><ChevronRight /></button>
+      <button type="button" className="m2-location-action" onClick={() => onMap('search')} data-testid="search-map"><span><Map /></span><strong>{t.searchOnMap}</strong><ChevronRight /></button>
+      <button type="button" className="m2-location-action" onClick={onNearby} disabled={nearbyStatus === 'loading'} data-testid="search-nearby"><span><Crosshair /></span><strong>{t.searchNearby}</strong><ChevronRight /></button>
       {statusMessage ? <p className={cn('m2-location-feedback', !['loading', 'success'].includes(nearbyStatus) && 'is-error')} role={nearbyStatus === 'loading' ? 'status' : 'alert'}>{statusMessage}</p> : null}
     </div>
   </section>
@@ -694,7 +626,7 @@ function MapScreen({ mode, language, t, query, initialCenter, initialCamera, pol
   const mainDrawLabel = drawing ? t.cancelDrawing : polygon.length >= 3 ? t.redrawZone : t.drawZone
   const toggleDrawing = () => setDrawing((current) => !current)
   return <section className={cn('m2-map-screen', drawing && 'is-freehand-drawing', polygon.length >= 3 && 'has-drawn-zone')} data-testid={mapStatus === 'ready' ? `map-${mode}` : undefined}>
-    {mode === 'draw' ? <BackHeader title={t.mapDrawTitle} onBack={onBack} backLabel={t.back} /> : <><header className="m2-map-results-header"><button type="button" className="m2-icon-button" onClick={onBack} aria-label={t.back}><ArrowLeft /></button><div><strong>{communityName(new URLSearchParams(window.location.hash.split('?')[1] || '').get('comunidad'), language)}</strong><small>{query || t.visibleArea}</small></div><button type="button" className={cn('m2-save', saved && 'is-saved')} onClick={() => { if (!saved) onSave?.(); setSaved((value) => !value) }} aria-pressed={saved}>{saved ? <Check /> : <Bell />}{saved ? t.saved : t.save}</button></header><div className="m2-map-toolbar"><button type="button" onClick={onFilters}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={onList}><Menu />{t.list}</button></div></>}
+    {mode === 'draw' ? <BackHeader title={t.mapDrawTitle} onBack={onBack} backLabel={t.back} /> : <><header className="m2-map-results-header"><button type="button" className="m2-icon-button" onClick={onBack} aria-label={t.back}><ArrowLeft /></button><div><strong>{provinceName(new URLSearchParams(window.location.hash.split('?')[1] || '').get('provincia')) || communityName(new URLSearchParams(window.location.hash.split('?')[1] || '').get('comunidad'), language)}</strong><small>{query || t.visibleArea}</small></div><button type="button" className={cn('m2-save', saved && 'is-saved')} onClick={() => { if (!saved) onSave?.(); setSaved((value) => !value) }} aria-pressed={saved}>{saved ? <Check /> : <Bell />}{saved ? t.saved : t.save}</button></header><div className="m2-map-toolbar"><button type="button" onClick={onFilters}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={onList}><Menu />{t.list}</button></div></>}
     <GoogleMapCanvas t={t} mapRef={mapRef} query={query} initialCenter={initialCenter} initialCamera={initialCamera} onStatus={setMapStatus} onCameraChange={onCameraChange} />
     <Suspense fallback={null}>{serverQuery ? <MobileServerMapLayer mapRef={mapRef} mapReady={mapStatus === 'ready'} query={serverQuery} /> : <MobileMapListingsLayer mapRef={mapRef} mapReady={mapStatus === 'ready'} language={language} drawing={drawing} items={items} preserveCamera={preserveInitialCamera.current} onInitialFit={onCameraChange} />}</Suspense>
     <FreehandAreaLayer mapRef={mapRef} mapReady={mapStatus === 'ready'} active={drawing} setActive={setDrawing} polygon={polygon} onPolygonChange={onPolygonChange} t={t} />
@@ -831,7 +763,7 @@ function MenuScreen({
   const languageLabel = languages.find((item) => item.value === language)?.label ?? 'Español'
   const advertisingLabel = language === 'ru' ? 'Мои рекламные кампании' : language === 'en' ? 'My advertising campaigns' : 'Mis campañas publicitarias'
   const regionLabel = selectedCommunity
-    ? `España (${communityName(selectedCommunity, language)})`
+    ? `España (${provinceName(selectedCommunity)})`
     : 'España'
   const adminCopy = {
     es: { eyebrow: 'PANEL DE ADMINISTRACIÓN', description: 'Gestiona tus propiedades, reservas, clientes y ajustes avanzados.' },
@@ -1043,7 +975,9 @@ export function MobileAppV2() {
     && Math.abs(Number(cameraParams.get('lat'))) <= 85 && Math.abs(Number(cameraParams.get('lng'))) <= 180
   const chosenLocation = resolveTenerifeLocation(cameraParams.get('q') ?? '')
   const selectedRouteCommunity = cameraParams.get('comunidad')
-  const selectedRegionCamera = selectedRouteCommunity ? communityMapCamera(selectedRouteCommunity, window.innerWidth, window.innerHeight) : undefined
+  const selectedProvince = cameraParams.get('provincia') || (!selectedRouteCommunity && cameraParams.get('ubicacion') !== 'ciudad' ? resolveProvince(cameraParams.get('q') ?? '')?.id : undefined)
+  const selectedRegionCamera = selectedProvince ? provinceMapCamera(selectedProvince, window.innerWidth, window.innerHeight)
+    : selectedRouteCommunity ? communityMapCamera(selectedRouteCommunity, window.innerWidth, window.innerHeight) : undefined
   const namedLocation = chosenLocation?.type !== 'island' ? chosenLocation?.coordinates : undefined
   const hasActivePolygon = mapPolygon.length >= 3 || Boolean(cameraParams.get('poligono')?.trim())
   const mapCamera = explicitCamera ?? (hasNearbyCoordinates || hasActivePolygon ? undefined
@@ -1060,7 +994,7 @@ export function MobileAppV2() {
     if (listing.isExternal && listing.sourceUrl) { window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer'); return }
     navigate(`/habitacion/${listing.id}`)
   } })), [markRecent, navigate, recentlyViewedListings])
-  const savedSearchItems = useMemo<MobileCollectionItem[]>(() => savedSearches.map((search) => ({ id: search.id, title: search.query, meta: search.rentalMode === 'holiday' ? t.tourismMode : t.housingMode, onOpen: () => { restoreSavedSearch(search.id); navigate(`/buscar?q=${encodeURIComponent(search.query)}&alquiler=${search.rentalMode}`) } })), [navigate, restoreSavedSearch, savedSearches, t.housingMode, t.tourismMode])
+  const savedSearchItems = useMemo<MobileCollectionItem[]>(() => savedSearches.map((search) => ({ id: search.id, title: search.query, meta: search.rentalMode === 'holiday' ? t.tourismMode : t.housingMode, onOpen: () => { restoreSavedSearch(search.id); navigate(`/buscar?q=${encodeURIComponent(search.query)}&alquiler=${search.rentalMode}&${search.provinceCode ? `provincia=${search.provinceCode}` : 'ubicacion=ciudad'}`) } })), [navigate, restoreSavedSearch, savedSearches, t.housingMode, t.tourismMode])
   useEffect(() => {
     document.documentElement.classList.toggle('mobile-v2-active', shellActive)
     return () => document.documentElement.classList.remove('mobile-v2-active')
@@ -1123,8 +1057,8 @@ export function MobileAppV2() {
     const nextFilters = mobileHomeSearchFilters(filters, searchMode)
     setFilters(nextFilters)
     const params = filtersToParams(nextFilters)
-    params.set('q', query || (selectedCommunity ? getCommunity(selectedCommunity)?.es : undefined) || 'España')
-    if (selectedCommunity && !query) params.set('comunidad', selectedCommunity)
+    params.set('q', query || (selectedCommunity ? getProvince(selectedCommunity)?.es : undefined) || 'España')
+    if (selectedCommunity && !query) params.set('provincia', selectedCommunity)
     params.set('vista', 'mapa')
     params.set('alquiler', searchMode)
     if (mapPolygon.length >= 3) params.set('poligono', mapPolygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(';'))
@@ -1224,7 +1158,7 @@ export function MobileAppV2() {
     navigate(`/buscar?${params.toString()}`)
   }
   const chooseCommunity = (id: string) => {
-    const region = getCommunity(id)
+    const region = getProvince(id)
     if (!region) return
     const mode = homeMode === 'turismo' ? 'holiday' : 'long'
     const nextFilters = { ...mobileHomeSearchFilters(filters, mode), areas: [] }
@@ -1234,7 +1168,7 @@ export function MobileAppV2() {
     setFilters(nextFilters)
     const params = filtersToParams(nextFilters)
     params.set('q', region.es)
-    params.set('comunidad', id)
+    params.set('provincia', id)
     params.set('alquiler', mode)
     navigate(`/buscar?${params.toString()}`)
   }
@@ -1243,8 +1177,8 @@ export function MobileAppV2() {
     const nextFilters = mobileHomeSearchFilters(filters, mode)
     if (nextFilters !== filters) setFilters(nextFilters)
     const params = filtersToParams(nextFilters)
-    params.set('q', selectedCommunity ? getCommunity(selectedCommunity)?.es ?? 'España' : 'España')
-    if (selectedCommunity) params.set('comunidad', selectedCommunity)
+    params.set('q', selectedCommunity ? getProvince(selectedCommunity)?.es ?? 'España' : 'España')
+    if (selectedCommunity) params.set('provincia', selectedCommunity)
     params.set('alquiler', mode)
     navigate(`/buscar?${params.toString()}`)
   }

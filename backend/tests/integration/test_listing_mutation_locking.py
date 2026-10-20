@@ -25,7 +25,7 @@ def listing_payload(title: str) -> dict:
         "title": title,
         "city": "Santa Cruz de Tenerife",
         "area": "Centro",
-        "street": "Synthetic locking street",
+        "street": "Synthetic locking street 1",
         "postcode": "38001",
         "approximateAddress": "Centro · ubicación aproximada",
         "rentalMode": "long",

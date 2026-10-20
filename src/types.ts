@@ -112,6 +112,7 @@ export interface Listing {
   closedReason?: 'expired' | 'owner' | 'deleted' | 'account_deleted'
   promoted?: boolean
   promotionEndsAt?: string
+  provinceCode?: string
 }
 
 export type MappedListing = Listing & { coordinates: Coordinates }

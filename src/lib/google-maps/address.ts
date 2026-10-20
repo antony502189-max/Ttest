@@ -3,7 +3,7 @@ import type { Coordinates } from '@/types'
 export type GoogleAddressComponent = {
   long_name?: string
   short_name?: string
-  longText?: string
+  longText?: string | null
   types: string[]
 }
 

@@ -1,5 +1,9 @@
 # Spain autonomous-community search — implementation contract
 
+The province picker and provincial TOP rules now supersede the picker flow below.
+See [Province search and TOP capacity](province-search-and-top.md). Existing
+`comunidad` routes and their spatial filtering remain supported for compatibility.
+
 **As of 2026-10-11 (PR #321):** the product location picker covers the 17 Spanish autonomous communities. It is **not** a country → province → city drill-down. A city typed into the input is used to **suggest its autonomous community**; the resulting list is scoped to the whole selected community, not necessarily to the city itself.
 
 ## User journey

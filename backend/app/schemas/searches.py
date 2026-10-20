@@ -69,6 +69,7 @@ class PolygonPoint(BaseModel):
 
 
 class SavedSearchWrite(BaseModel):
+    provinceCode: str | None = Field(default=None, pattern=r"^(0[1-9]|[1-4][0-9]|5[0-2])$")
     name: str = Field(default="", max_length=120)
     query: str = Field(default="", max_length=240)
     rentalMode: str
@@ -90,6 +91,7 @@ class SavedSearchWrite(BaseModel):
 
 
 class SavedSearchPatch(BaseModel):
+    provinceCode: str | None = Field(default=None, pattern=r"^(0[1-9]|[1-4][0-9]|5[0-2])$")
     name: str | None = Field(default=None, max_length=120)
     query: str | None = Field(default=None, max_length=240)
     filters: dict | None = None
@@ -104,12 +106,13 @@ class SavedSearchPatch(BaseModel):
     @model_validator(mode="after")
     def reject_explicit_nulls(self):
         for field in self.model_fields_set:
-            if getattr(self, field) is None:
+            if field != "provinceCode" and getattr(self, field) is None:
                 raise ValueError(f"{field} cannot be null")
         return self
 
 
 class SavedSearchResponse(BaseModel):
+    provinceCode: str | None = None
     id: UUID
     name: str
     query: str

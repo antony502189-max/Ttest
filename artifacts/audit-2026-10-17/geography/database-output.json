@@ -1,0 +1,58 @@
+{
+  "database": "audit_geo_extra",
+  "GEO01_import": {
+    "action": "imported",
+    "id": "68d0cfb6-cc44-434f-84c5-d90db83b709a",
+    "stored_postcode": "",
+    "sql_province": null,
+    "source_snapshot_province": "Madrid"
+  },
+  "GEO01_search_all": {
+    "http": 200,
+    "total": 1,
+    "contains_import": true
+  },
+  "GEO01_search_madrid": {
+    "http": 200,
+    "total": 0,
+    "contains_import": false
+  },
+  "GEO01_province_count_madrid": {
+    "id": "28",
+    "count": 0
+  },
+  "GEO02_create": {
+    "id": "e714beff-9156-4a55-b355-a9c64ef0cc78",
+    "city": "Madrid",
+    "postcode": "08001",
+    "provinceCode": "08",
+    "latitude": 40.4168,
+    "longitude": -3.7038,
+    "status": "published",
+    "http": 201
+  },
+  "GEO02_top_availability": {
+    "provinceCode": "08",
+    "province": "Barcelona",
+    "capacity": 3,
+    "available": true,
+    "availableSlots": 3,
+    "availableAt": "2026-10-17T18:28:44.980197+00:00",
+    "serverNow": "2026-10-17T18:28:44.980197+00:00"
+  },
+  "GEO02_postcode_only_patch": {
+    "http": 200,
+    "city": "Madrid",
+    "postcode": "29001",
+    "provinceCode": "29",
+    "latitude": 40.4168,
+    "longitude": -3.7038
+  },
+  "GEO03_saved_province_alert": {
+    "save_http": 201,
+    "getafe_in_province_search": true,
+    "capital_in_province_search": true,
+    "getafe_triggered_alert": false,
+    "capital_triggered_control_alert": true
+  }
+}

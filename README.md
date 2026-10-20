@@ -37,9 +37,9 @@
 
 ### At a glance
 
-| 🗺️ 17 regions | 🏡 2 rental modes | 📍 Geographic search | 💳 Paid promotion |
+| 🗺️ 52 provinces | 🏡 2 rental modes | 📍 Geographic search | 💳 Paid promotion |
 | :---: | :---: | :---: | :---: |
-| Autonomous communities of Spain | Long-term and holiday stays | Google Maps + PostGIS | TOP, homepage, banners |
+| Provinces and autonomous cities of Spain | Long-term and holiday stays | Google Maps + PostGIS | TOP, homepage, banners |
 
 > [!IMPORTANT]
 > **GitHub `main` is not the live deployment.** The production application runs on a self-hosted Contabo VPS, not GitHub Pages. Confirm the live version using [`/build-info.json`](https://app.112233.es/build-info.json) and the server's `/srv/112233.es/current` symlink before any operational change.
@@ -67,24 +67,24 @@
 
 | Experience | What it delivers |
 | --- | --- |
-| **🗺️ Search across Spain** | All 17 autonomous communities, municipality suggestions (approximately 8,130 place names), and region-specific counts filtered by the active search criteria. |
+| **🗺️ Search across Spain** | All 52 provinces and autonomous cities, published-listing counts, and compatible autonomous-community links. |
 | **📍 Explore on Google Maps** | PostGIS-backed geographic filtering, bounded map markers/clusters, listing previews, and a remembered exploration zone across visits. |
 | **🏠 Choose the right rental mode** | Separate **Vivienda** and **Turismo** experiences. Long-term listings have an inclusive **€1,000/month** ceiling; holiday prices follow separate rules. |
 | **📸 Publish listings** | Owner publication, geocoded addresses, editable media galleries, images and video, moderation, and controlled visibility. |
 | **❤️ Personalize discovery** | Favorites, discarded items, saved searches, viewing history, account settings and notifications. |
-| **📢 Promote properties** | Paid TOP placement, a featured homepage property, and up to seven advertising-banner slots with approval flows. |
+| **📢 Promote properties** | Three TOP places per verified owner municipality, hourly promotion tariffs, a featured homepage property, and up to seven advertising-banner slots with approval flows. |
 | **⚙️ Operate at scale** | External listing adapters, background mail processing, an admin dashboard, and server-side listing search with 50-row keyset pagination. |
 
 <details>
 <summary><strong>More about location and map behavior</strong></summary>
 
 - The interface supports Spanish, Russian, and English region names.
-- Typing `Barcelona` ranks **Cataluña** first; `comunidad=09` is the canonical Catalonia filter.
-- `POST /api/v1/listings/regions/counts` uses the same visibility and active filters as the public listing feed.
+- Typing `Barcelona` selects the province with `provincia=08`; legacy `comunidad=09` links remain compatible.
+- `POST /api/v1/listings/provinces/counts` uses the same visibility and active filters as the public listing feed.
 - On a first mobile map visit, the default view covers mainland Spain and the Canary Islands. Later fresh visits restore the last explored virtual **70 km-radius** zone, adjusted to the screen. Bookmarked positions and in-app Back navigation follow their own priority rules.
 - The site includes mainland Spain, the Balearic Islands and the Canary Islands; it is **not** a Tenerife-only application.
 
-See [geographic search](docs/spain-regional-search.md) and [map navigation](docs/navigation-and-maps.md).
+See [province search and municipal TOP](docs/province-search-and-top.md), [regional compatibility](docs/spain-regional-search.md) and [map navigation](docs/navigation-and-maps.md).
 
 </details>
 

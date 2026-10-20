@@ -1,0 +1,15 @@
+
+Running 8 tests using 1 worker
+
+(node:10380) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 tests\admin-performance\listings.spec.ts:12:1 › first results use one bounded page and scrolling reaches the complete ordered dataset (8.1s)
+  ok 2 tests\admin-performance\listings.spec.ts:29:1 › search and rental filters find records beyond the first page without downloading the dataset (2.4s)
+  ok 3 tests\admin-performance\listings.spec.ts:45:1 › superseded searches and navigation do not apply stale pages or duplicate requests (3.6s)
+  ok 4 tests\admin-performance\listings.spec.ts:60:1 › failed initial and continuation pages retry the same cursor without losing records (2.7s)
+  ok 5 tests\admin-performance\listings.spec.ts:80:1 › moderation survives a filtered page reload and user context retains every associated listing (2.6s)
+  ok 6 tests\admin-performance\listings.spec.ts:102:1 › an in-flight continuation cannot resurrect a listing deleted during the request (2.4s)
+  ok 7 tests\admin-performance\listings.spec.ts:129:1 › a non-advancing server cursor shows the existing retry error instead of looping (1.9s)
+  ok 8 tests\admin-performance\listings.spec.ts:138:1 › an external abort signal preserves the API timeout budget (535ms)
+
+  8 passed (25.5s)

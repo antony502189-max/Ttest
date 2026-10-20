@@ -5,6 +5,7 @@ import { filterListings, filtersFromParams, pointInPolygon, sortListings } from 
 import { hasListingCoordinates } from '@/lib/listings'
 import { listingMatchesTenerifeLocation, resolveTenerifeLocation } from '@/lib/tenerife'
 import { getCommunity, listingInCommunity } from '@/lib/spain-communities'
+import { listingInProvince } from '@/lib/spain-provinces'
 import type { Filters, Listing, MapPolygonPoint, RentalMode } from '@/types'
 
 type MobileSearchInput = {
@@ -81,9 +82,10 @@ export function selectMobileSearchListings({
     rentalMode,
     effectiveFilters,
   ).filter((listing) => {
+    if (geography.provinceCode && !listingInProvince(listing, geography.provinceCode)) return false
     if (community && !region) return false
     if (region && !listingInCommunity(listing, region.id)) return false
-    if (!region && !countrySearch && (!location || !listingMatchesTenerifeLocation(listing, location))) return false
+    if (!geography.provinceCode && !region && !countrySearch && (!location || !listingMatchesTenerifeLocation(listing, location))) return false
     if (roomTypes.length && !roomTypes.includes(listing.roomType)) return false
     if (polygonApplied && polygon.length >= 3) {
       if (!hasListingCoordinates(listing) || !pointInPolygon(listing.coordinates, polygon)) return false

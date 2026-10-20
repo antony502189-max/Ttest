@@ -340,6 +340,7 @@ class ListingPatch(BaseModel):
 
 
 class ListingResponse(BaseModel):
+    provinceCode: str | None = None
     id: str
     ownerUserId: str
     owner: "ListingOwnerResponse"
@@ -455,6 +456,7 @@ class ListingSearchRequest(BaseModel):
 
     query: str | None = Field(default=None, max_length=240)
     autonomousCommunity: str | None = Field(default=None, pattern=r"^(0[1-9]|1[0-7])$")
+    provinceCode: str | None = Field(default=None, pattern=r"^(0[1-9]|[1-4][0-9]|5[0-2])$")
     city: str | None = Field(default=None, max_length=120)
     area: str | None = Field(default=None, max_length=120)
     rentalMode: str | None = None
@@ -606,6 +608,7 @@ class ListingSearchResponse(BaseModel):
 
 
 class ListingCardResponse(BaseModel):
+    provinceCode: str | None = None
     id: str
     title: str
     city: str

@@ -1,0 +1,250 @@
+
+Running 22 tests using 1 worker
+
+(node:15128) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 tests\province-top.spec.ts:4:3 › full province blocks payment and counts down without changing the dialog at 320px (21.8s)
+  ok  2 tests\province-top.spec.ts:4:3 › full province blocks payment and counts down without changing the dialog at 1280px (16.8s)
+  ok  3 tests\province-top.spec.ts:46:1 › province search keeps the existing location rows and separates both Canary provinces (1.6s)
+  ok  4 tests\province-top.spec.ts:64:1 › publication derives the province from the selected address without a manual city selector (2.6s)
+  ok  5 tests\spain-community-search.spec.ts:14:3 › mobile Spain province search › home location starts unselected and location page has no Tenerife banner (1.3s)
+  ok  6 tests\spain-community-search.spec.ts:29:3 › mobile Spain province search › typing Barcelona offers its province and opens provincial results (1.4s)
+  ok  7 tests\spain-community-search.spec.ts:48:3 › mobile Spain province search › Madrid and Canary Islands choose distinct spatial searches (1.7s)
+  ok  8 tests\spain-community-search.spec.ts:64:1 › Spanish autonomous communities have correct point-in-boundary assignments and 17 regions (892ms)
+  ok  9 tests\owner-promotion-flow.spec.ts:9:3 › promotion choices retain the site design and return without charging: ru at 320px (1.8s)
+  ok 10 tests\owner-promotion-flow.spec.ts:9:3 › promotion choices retain the site design and return without charging: en at 390px (1.7s)
+  ok 11 tests\owner-promotion-flow.spec.ts:9:3 › promotion choices retain the site design and return without charging: es at 1280px (1.8s)
+  ok 12 tests\owner-promotion-flow.spec.ts:38:1 › occupied homepage keeps the selected listing and prevents checkout (1.5s)
+  x  13 tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Madrid (12.3s)
+(node:33564) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  14 tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Las Palmas de Gran Canaria (12.1s)
+(node:28992) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  15 tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Palma (12.1s)
+(node:6264) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  16 tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Ceuta (12.4s)
+(node:30600) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  17 tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Melilla (12.1s)
+(node:12732) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 18 tests\audit-remediation.spec.ts:40:1 › explicit Madrid province outranks remembered Tenerife camera (1.3s)
+  ok 19 tests\audit-remediation.spec.ts:57:3 › approved location shell and map alternatives at 320 (1.2s)
+  ok 20 tests\audit-remediation.spec.ts:57:3 › approved location shell and map alternatives at 768 (1.8s)
+  x  21 tests\audit-remediation.spec.ts:57:3 › approved location shell and map alternatives at 1280 (1.7s)
+(node:32532) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 22 tests\audit-remediation.spec.ts:79:1 › countdown zero waits for authoritative response, survives reload and clock skew (3.1s)
+
+
+  1) tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Madrid ────
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator:  locator('#publish-city')
+    Expected: "Madrid"
+    Received: "Adeje"
+    Timeout:  10000ms
+
+    Call log:
+      - Expect "toHaveValue" with timeout 10000ms
+      - waiting for locator('#publish-city')
+        23 × locator resolved to <input readonly type="hidden" value="Adeje" id="publish-city"/>
+           - unexpected value "Adeje"
+
+
+      33 |     await page.locator('.publish-address-prediction').first().click()
+      34 |     await expect(page.locator('#publish-postcode')).toHaveValue(postcode)
+    > 35 |     await expect(page.locator('#publish-city')).toHaveValue(city)
+         |                                                 ^
+      36 |     await expect(page.getByLabel('Provincia', { exact: true })).toHaveValue(province)
+      37 |   })
+      38 | }
+        at C:\Users\HONOR\Documents\Codex\Ttest\output\remediation-frontend\tests\audit-remediation.spec.ts:35:49
+
+    Error Context: ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-real-typ-ff183-on-selection-accepts-Madrid\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-real-typ-ff183-on-selection-accepts-Madrid\trace.zip
+    Usage:
+
+        npx playwright show-trace ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-real-typ-ff183-on-selection-accepts-Madrid\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Las Palmas de Gran Canaria 
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator:  locator('#publish-city')
+    Expected: "Las Palmas de Gran Canaria"
+    Received: "Adeje"
+    Timeout:  10000ms
+
+    Call log:
+      - Expect "toHaveValue" with timeout 10000ms
+      - waiting for locator('#publish-city')
+        23 × locator resolved to <input readonly type="hidden" value="Adeje" id="publish-city"/>
+           - unexpected value "Adeje"
+
+
+      33 |     await page.locator('.publish-address-prediction').first().click()
+      34 |     await expect(page.locator('#publish-postcode')).toHaveValue(postcode)
+    > 35 |     await expect(page.locator('#publish-city')).toHaveValue(city)
+         |                                                 ^
+      36 |     await expect(page.getByLabel('Provincia', { exact: true })).toHaveValue(province)
+      37 |   })
+      38 | }
+        at C:\Users\HONOR\Documents\Codex\Ttest\output\remediation-frontend\tests\audit-remediation.spec.ts:35:49
+
+    Error Context: ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-real-typ-5a5f0--Las-Palmas-de-Gran-Canaria\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-real-typ-5a5f0--Las-Palmas-de-Gran-Canaria\trace.zip
+    Usage:
+
+        npx playwright show-trace ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-real-typ-5a5f0--Las-Palmas-de-Gran-Canaria\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Palma ─────
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator:  locator('#publish-city')
+    Expected: "Palma"
+    Received: "Adeje"
+    Timeout:  10000ms
+
+    Call log:
+      - Expect "toHaveValue" with timeout 10000ms
+      - waiting for locator('#publish-city')
+        23 × locator resolved to <input readonly type="hidden" value="Adeje" id="publish-city"/>
+           - unexpected value "Adeje"
+
+
+      33 |     await page.locator('.publish-address-prediction').first().click()
+      34 |     await expect(page.locator('#publish-postcode')).toHaveValue(postcode)
+    > 35 |     await expect(page.locator('#publish-city')).toHaveValue(city)
+         |                                                 ^
+      36 |     await expect(page.getByLabel('Provincia', { exact: true })).toHaveValue(province)
+      37 |   })
+      38 | }
+        at C:\Users\HONOR\Documents\Codex\Ttest\output\remediation-frontend\tests\audit-remediation.spec.ts:35:49
+
+    Error Context: ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-real-typ-38a65-ion-selection-accepts-Palma\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-real-typ-38a65-ion-selection-accepts-Palma\trace.zip
+    Usage:
+
+        npx playwright show-trace ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-real-typ-38a65-ion-selection-accepts-Palma\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Ceuta ─────
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator:  locator('#publish-city')
+    Expected: "Ceuta"
+    Received: "Adeje"
+    Timeout:  10000ms
+
+    Call log:
+      - Expect "toHaveValue" with timeout 10000ms
+      - waiting for locator('#publish-city')
+        23 × locator resolved to <input readonly type="hidden" value="Adeje" id="publish-city"/>
+           - unexpected value "Adeje"
+
+
+      33 |     await page.locator('.publish-address-prediction').first().click()
+      34 |     await expect(page.locator('#publish-postcode')).toHaveValue(postcode)
+    > 35 |     await expect(page.locator('#publish-city')).toHaveValue(city)
+         |                                                 ^
+      36 |     await expect(page.getByLabel('Provincia', { exact: true })).toHaveValue(province)
+      37 |   })
+      38 | }
+        at C:\Users\HONOR\Documents\Codex\Ttest\output\remediation-frontend\tests\audit-remediation.spec.ts:35:49
+
+    Error Context: ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-real-typ-69e7d-ion-selection-accepts-Ceuta\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-real-typ-69e7d-ion-selection-accepts-Ceuta\trace.zip
+    Usage:
+
+        npx playwright show-trace ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-real-typ-69e7d-ion-selection-accepts-Ceuta\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Melilla ───
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator:  locator('#publish-city')
+    Expected: "Melilla"
+    Received: "Adeje"
+    Timeout:  10000ms
+
+    Call log:
+      - Expect "toHaveValue" with timeout 10000ms
+      - waiting for locator('#publish-city')
+        23 × locator resolved to <input readonly type="hidden" value="Adeje" id="publish-city"/>
+           - unexpected value "Adeje"
+
+
+      33 |     await page.locator('.publish-address-prediction').first().click()
+      34 |     await expect(page.locator('#publish-postcode')).toHaveValue(postcode)
+    > 35 |     await expect(page.locator('#publish-city')).toHaveValue(city)
+         |                                                 ^
+      36 |     await expect(page.getByLabel('Provincia', { exact: true })).toHaveValue(province)
+      37 |   })
+      38 | }
+        at C:\Users\HONOR\Documents\Codex\Ttest\output\remediation-frontend\tests\audit-remediation.spec.ts:35:49
+
+    Error Context: ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-real-typ-d7708-n-selection-accepts-Melilla\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-real-typ-d7708-n-selection-accepts-Melilla\trace.zip
+    Usage:
+
+        npx playwright show-trace ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-real-typ-d7708-n-selection-accepts-Melilla\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) tests\audit-remediation.spec.ts:57:3 › approved location shell and map alternatives at 1280 ───
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 1024
+    Received:   672
+
+      70 |       await expect(dialog.getByText('Buscar en el mapa', { exact: true })).toBeVisible()
+      71 |       await expect(dialog.getByText('Buscar alrededor de ti', { exact: true })).toBeVisible()
+    > 72 |       expect((await dialog.boundingBox())!.width).toBeGreaterThan(width * .8)
+         |                                                   ^
+      73 |       expect(await dialog.locator('.location-catalog-list').evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe('rgb(32, 32, 32)')
+      74 |     }
+      75 |     await page.screenshot({ path: `remediation-results/location-${width}.png` })
+        at C:\Users\HONOR\Documents\Codex\Ttest\output\remediation-frontend\tests\audit-remediation.spec.ts:72:51
+
+    Error Context: ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-approved-3de5f-nd-map-alternatives-at-1280\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-approved-3de5f-nd-map-alternatives-at-1280\trace.zip
+    Usage:
+
+        npx playwright show-trace ..\..\artifacts\remediation-2026-10-17\browser-failures\remediation-suite-approved-3de5f-nd-map-alternatives-at-1280\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6 failed
+    tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Madrid ─────
+    tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Las Palmas de Gran Canaria 
+    tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Palma ──────
+    tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Ceuta ──────
+    tests\audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Melilla ────
+    tests\audit-remediation.spec.ts:57:3 › approved location shell and map alternatives at 1280 ────
+  16 passed (2.2m)

@@ -368,3 +368,11 @@ def test_report_response_preserves_historical_listing_and_owner_context() -> Non
     assert response.ownerUserId == owner_id
     assert response.ownerName == "Deleted owner name"
     assert response.targetUserId == owner_id
+
+
+@pytest.fixture(autouse=True)
+def payment_review_dependencies(monkeypatch):
+    # These unit tests isolate identity/notification behavior. Advisory locking
+    # and paid-service review are exercised by real PostgreSQL regressions.
+    monkeypatch.setattr("app.services.commercial_advertisements.lock_advertising_capacity", AsyncMock())
+    monkeypatch.setattr("app.services.payment_review.review_paid_top", AsyncMock())

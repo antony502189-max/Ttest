@@ -1,0 +1,16 @@
+[WebServer] (node:9828) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 7 tests using 1 worker
+
+(node:5372) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 tests\listing-promotion-priority.spec.ts:24:1 › client sort keeps the promoted tier ahead of newer and cheaper ordinary listings (4.4s)
+  ok 2 tests\listing-promotion-priority.spec.ts:39:3 › mobile TOP listing has a visible non-interactive thumb at upper-left: 320px (1.6s)
+  ok 3 tests\listing-promotion-priority.spec.ts:39:3 › mobile TOP listing has a visible non-interactive thumb at upper-left: 390px (1.6s)
+  ok 4 tests\listing-promotion-priority.spec.ts:65:1 › desktop TOP listing uses the same thumb without changing ordinary cards (1.6s)
+  ok 5 tests\listing-promotion-priority.spec.ts:78:1 › stable production guard keeps TOP above a newly inserted ordinary listing (658ms)
+  ok 6 tests\listing-promotion-priority.spec.ts:90:1 › mobile focus never lifts a normal listing above an active TOP (1.5s)
+  ok 7 tests\listing-promotion-priority.spec.ts:102:1 › local listing reload retains canonical province and legacy postcode scope (645ms)
+
+  7 passed (14.0s)

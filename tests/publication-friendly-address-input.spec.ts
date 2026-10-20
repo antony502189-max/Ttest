@@ -1,3 +1,4 @@
+import { restoreMunicipalityMetadata } from './helpers/resolved-address'
 import { expect, test, type Page } from '@playwright/test'
 
 async function openPublishLocation(page: Page) {
@@ -38,12 +39,12 @@ async function installCustomerAddressGeocoder(page: Page) {
 
 test('customer postal-style address auto-corrects province-as-municipality and fills the structured address', async ({ page }) => {
   await openPublishLocation(page)
-  await page.getByLabel('Municipio').selectOption('Santa Cruz de Tenerife')
+  await restoreMunicipalityMetadata(page, 'Santa Cruz de Tenerife')
   await installCustomerAddressGeocoder(page)
 
   await page.locator('#publish-street').fill('Calle José Espronceda 20. Armeñime Santa Cruz de Tenerife.')
 
-  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.locator('#publish-city')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
   await expect(page.locator('#publish-street')).toHaveValue('Calle José Espronceda 20')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
@@ -58,17 +59,17 @@ test('customer postal-style address auto-corrects province-as-municipality and f
 
 test('postcode embedded in a pasted full address is not mistaken for the building number', async ({ page }) => {
   await openPublishLocation(page)
-  await page.getByLabel('Municipio').selectOption('Santa Cruz de Tenerife')
+  await restoreMunicipalityMetadata(page, 'Santa Cruz de Tenerife')
   await installCustomerAddressGeocoder(page)
 
   await page.locator('#publish-street').fill('Calle José Espronceda 20, 38678 Armeñime, Santa Cruz de Tenerife')
 
   await expect(page.locator('#publish-street')).toHaveValue('Calle José Espronceda 20')
   await expect(page.getByLabel('Código postal')).toHaveValue('38678')
-  await expect(page.getByLabel('Municipio')).toHaveValue('Adeje')
+  await expect(page.locator('#publish-city')).toHaveValue('Adeje')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Armeñime')
   await expect.poll(() => page.evaluate(() => (window as Window & { __friendlyAddressQueries?: string[] }).__friendlyAddressQueries ?? [])).toContain(
-    'Calle José Espronceda 20, 38678, Armeñime, Tenerife, Spain',
+    'Calle José Espronceda 20, 38678, Armeñime, Spain',
   )
 })
 
@@ -104,11 +105,11 @@ test('pasted full address overrides fresh-draft postcode and area defaults', asy
 
   await page.locator('#publish-street').fill('Avenida Juan Carlos I 20, 38650 Los Cristianos, Arona')
 
-  await expect(page.getByLabel('Municipio')).toHaveValue('Arona')
+  await expect(page.locator('#publish-city')).toHaveValue('Arona')
   await expect(page.getByLabel('Zona o barrio')).toHaveValue('Los Cristianos')
   await expect(page.getByLabel('Código postal')).toHaveValue('38650')
   await expect(page.locator('#publish-street')).toHaveValue('Avenida Juan Carlos I 20')
   await expect.poll(() => page.evaluate(() => (window as Window & { __friendlyAddressQueries?: string[] }).__friendlyAddressQueries ?? [])).toContain(
-    'Avenida Juan Carlos I 20, 38650, Los Cristianos, Tenerife, Spain',
+    'Avenida Juan Carlos I 20, 38650, Los Cristianos, Spain',
   )
 })

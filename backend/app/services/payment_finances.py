@@ -120,12 +120,43 @@ async def change_service_finances(order, session):
     elif not normal:
         order.fulfillment_status = "review_required"
         order.fulfillment_note = "Financial payment state: " + order.financial_status
-    elif order.service_ends_at and order.fulfillment_status == "review_required":
+    elif order.service_ends_at and order.fulfillment_status == "review_required" and order.kind != "listing_top":
         order.fulfillment_status = "fulfilled"
         order.fulfillment_note = None
     if order.kind == "listing_top":
         promotion = await session.get(ListingPromotion,order.target_id)
-        if promotion and promotion.payment_managed:
+        if (promotion is None or promotion.payment_managed) and order.service_ends_at:
+            from ..models import Listing
+            from .homepage_purchase import eligible
+            from .payment_fulfillment import notify_payment
+            from .province_top import top_availability
+
+            now = datetime.now(UTC)
+            # A normal snapshot may restore a missing/shortened projection even
+            # when the order still says fulfilled. Labels are not capacity proof.
+            candidate = normal and order.service_ends_at > now and order.fulfillment_status in {"fulfilled", "review_required"}
+            if candidate:
+                listing = await session.get(Listing, order.target_id)
+                valid = await eligible(listing, session)
+                if valid:
+                    from ..models import User
+                    owner = await session.get(User, order.owner_user_id)
+                    valid = bool(order.top_municipality_code and owner.address_verified_at
+                                 and owner.municipality_code == order.top_municipality_code)
+                if valid:
+                    try:
+                        valid = (await top_availability(
+                            session, listing, starts_at=max(now, order.service_starts_at or now),
+                            ends_at=order.service_ends_at, exclude_order=order.id,
+                        ))["available"]
+                    except HTTPException:
+                        valid = False
+                order.fulfillment_status = "fulfilled" if valid else "review_required"
+                order.fulfillment_note = None if valid else "TOP eligibility or capacity unavailable; reconcile or refund."
+                if not valid:
+                    await notify_payment(session, order, "payment_review_required", "Tu pago necesita una revisión",
+                                         "No hemos podido restaurar el TOP. Contacta con soporte; no vuelvas a pagar.")
+            await session.flush()
             remaining = (await session.scalars(select(PaymentOrder).where(
                 PaymentOrder.kind == "listing_top",PaymentOrder.target_id == order.target_id,
                 PaymentOrder.status == "paid",PaymentOrder.fulfillment_status == "fulfilled",
@@ -133,15 +164,39 @@ async def change_service_finances(order, session):
             ))).all()
             starts = [row.service_starts_at for row in remaining if row.service_starts_at]
             ends = [row.service_ends_at for row in remaining]
-            if promotion.baseline_ends_at and promotion.baseline_ends_at > datetime.now(UTC):
+            if promotion and promotion.baseline_ends_at and promotion.baseline_ends_at > now:
                 starts.append(promotion.baseline_starts_at)
                 ends.append(promotion.baseline_ends_at)
             if ends:
-                promotion.starts_at, promotion.ends_at = min(starts),max(ends)
+                start, end = min(starts), max(ends)
+                expands = (promotion is None or promotion.starts_at > start
+                           or promotion.ends_at is not None and promotion.ends_at < end)
+                # Validate the entire aggregate, including gaps between renewals.
+                if expands and end > now:
+                    listing = await session.get(Listing, order.target_id)
+                    try:
+                        available = bool(listing) and (await top_availability(
+                            session, listing, starts_at=max(start, now), ends_at=end, exclude_order=order.id,
+                        ))["available"]
+                    except HTTPException:
+                        available = False
+                    if not available:
+                        for row in remaining:
+                            row.fulfillment_status = "review_required"
+                            row.fulfillment_note = "TOP aggregate capacity unavailable; reconcile or refund."
+                            await notify_payment(session, row, "payment_review_required", "Tu pago necesita una revisión",
+                                                 "No hemos podido restaurar el TOP. Contacta con soporte; no vuelvas a pagar.")
+                        await touch_catalog(session)
+                        return
+                if promotion is None:
+                    promotion = ListingPromotion(listing_id=order.target_id, payment_managed=True,
+                                                 top_municipality_code=order.top_municipality_code)
+                    session.add(promotion)
+                promotion.starts_at, promotion.ends_at = start, end
                 promotion.boosted_at = max(row.paid_at for row in remaining) if remaining else promotion.baseline_starts_at
-            else:
-                promotion.ends_at = datetime.now(UTC)
-            if not promotion.baseline_ends_at:
+            elif promotion:
+                promotion.ends_at = now
+            if promotion and not promotion.baseline_ends_at:
                 promotion.total_price_cents = sum(row.amount_cents for row in remaining)
     await touch_catalog(session)
 
@@ -261,7 +316,28 @@ async def resolve_payment(order_id, actor, reason, action, session):
         raise HTTPException(404, "Payment order not found")
     if action == "restore":
         if order.fulfillment_status == "fulfilled" and order.financial_status == "normal":
-            return {"resolved":True}
+            if order.kind == "listing_top":
+                if not order.service_starts_at or not order.service_ends_at:
+                    raise HTTPException(409, "Original TOP service history needs reconciliation before restoration")
+                projection = await session.get(ListingPromotion, order.target_id)
+                covered = bool(projection and projection.starts_at <= order.service_starts_at
+                               and (projection.ends_at is None or projection.ends_at >= order.service_ends_at))
+                await change_service_finances(order, session)
+                if not covered and order.fulfillment_status == "fulfilled":
+                    order.resolution_actor_id, order.resolution_reason, order.resolved_at = actor.id, reason, datetime.now(UTC)
+                    session.add(audit(actor.id, "payment.restored", "payment", order.id,
+                                      {"reason": reason, "originalPeriod": True, "projectionRepaired": True}))
+                await session.commit()
+                return {"resolved": order.fulfillment_status == "fulfilled"}
+            # Other products also need an actual matching entitlement.
+            if order.kind == "homepage_hero":
+                current = await session.get(HomepageHeroPromotion, 1)
+                if current and current.payment_order_id == order.id:
+                    return {"resolved": True}
+            elif order.kind == "advertisement":
+                current_ad = await session.get(CommercialAdvertisement, order.target_id)
+                if current_ad and current_ad.current_payment_order_id == order.id:
+                    return {"resolved": True}
         if order.financial_status not in {"normal", "refund_failed"}:
             raise HTTPException(409, "A refund or dispute must be settled before restoration")
         if order.status == "creating" and not order.stripe_session_id:
@@ -303,17 +379,19 @@ async def resolve_payment(order_id, actor, reason, action, session):
                 if not owner or owner.deleted_at or owner.blocked or not image or image.deleted_at:
                     raise HTTPException(409,"The campaign is not eligible for restoration")
             else:
-                promotion = await session.get(ListingPromotion,order.target_id)
-                if not promotion:
-                    session.add(ListingPromotion(listing_id=order.target_id,boosted_at=order.paid_at,
-                        starts_at=order.service_starts_at,ends_at=order.service_ends_at,payment_managed=True,
-                        total_price_cents=order.amount_cents))
+                from ..models import Listing
+                from .province_top import require_province_top_slot
+                listing = await session.get(Listing, order.target_id)
+                if not listing:
+                    raise HTTPException(409, "Listing not found")
+                if order.service_ends_at and order.service_ends_at > datetime.now(UTC):
+                    await require_province_top_slot(session, listing, ends_at=order.service_ends_at)
             order.fulfillment_status = "review_required"
             await change_service_finances(order,session)
             order.resolution_actor_id, order.resolution_reason, order.resolved_at = actor.id,reason,datetime.now(UTC)
             session.add(audit(actor.id,"payment.restored","payment",order.id,{"reason":reason,"originalPeriod":True}))
             await session.commit()
-            return {"resolved":True}
+            return {"resolved": order.fulfillment_status == "fulfilled"}
         await apply_stripe_session(remote, "checkout.session.completed", session, retry=True, actor=actor, reason=reason)
         return {"resolved":order.fulfillment_status == "fulfilled"}
     if order.financial_status == "refunded":

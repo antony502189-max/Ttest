@@ -1964,3 +1964,13 @@ h2 { font-size: clamp(1.35rem, 2vw, 1.8rem); line-height: 1.18; letter-spacing: 
     max-height: 70dvh;
   }
 }
+
+.location-province-list { max-height: 15rem; overflow-y: auto; flex-shrink: 1; }
+.location-catalog-list > .location-province-option { grid-template-columns: 1.25rem minmax(0, 1fr) auto 1rem; }
+.location-province-option .m2-community-option__count { margin-left: auto; color: var(--muted-foreground); }
+@media (min-width: 768px) {
+  .location-selector-dialog--provinces {
+    width: min(76rem, calc(100vw - 2rem)); max-width: 76rem !important;
+    height: min(52rem, calc(100dvh - 2rem));
+  }
+}
