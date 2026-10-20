@@ -445,6 +445,8 @@ export const localizationAuditCatalog: Record<string, { ru: string; en: string }
   'Los avisos de moderación incluyen el motivo, la fecha final —si existe— y esta dirección.': { ru: 'Уведомления модерации содержат причину, дату окончания, если она указана, и этот адрес.', en: 'Moderation notices include the reason, the end date if present, and this address.' },
   'Registro cronológico no editable.': { ru: 'Хронологический журнал без возможности редактирования.', en: 'Chronological record that cannot be edited.' },
   'Guardar nota': { ru: 'Сохранить заметку', en: 'Save note' },
+  'Ya existe un banner con esta imagen. Edita el anuncio existente.': { ru: 'Баннер с этим изображением уже существует. Отредактируйте существующее объявление.', en: 'A banner with this image already exists. Edit the existing advertisement.' },
+  'Esta imagen ya pertenece a un banner existente.': { ru: 'Это изображение уже используется в существующем баннере.', en: 'This image is already used by an existing banner.' },
   'Actualizar': { ru: 'Обновить', en: 'Refresh' },
   'Activos': { ru: 'Активные', en: 'Active' },
   'Eliminados': { ru: 'Удалённые', en: 'Deleted' },

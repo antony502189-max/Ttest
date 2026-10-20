@@ -393,6 +393,21 @@ async def test_duplicate_gallery_blocks_even_when_address_price_and_text_change(
     assert persisted == 1
 
 
+async def test_reuploaded_repeated_photos_cannot_bypass_gallery_identity(client, register_user):
+    first_token, _ = await register_user(client, email="gallery-original@example.com", role="host")
+    other_token, _ = await register_user(client, email="gallery-padded@example.com", role="host")
+    seeds = [141, 142, 143, 144, 145]
+    original = await upload_gallery(client, first_token, seeds)
+    padded = await upload_gallery(client, other_token, [*reversed(seeds), *([seeds[0]] * 5)])
+    first = await client.post("/api/v1/listings", headers=publication_headers(first_token),
+                              json=customer_listing(assetIds=original))
+    assert first.status_code == 201, first.text
+    duplicate = await client.post("/api/v1/listings", headers=publication_headers(other_token),
+                                  json=customer_listing(assetIds=padded, title="Otra habitación anunciada"))
+    assert duplicate.status_code == 409, duplicate.text
+    assert duplicate.json()["code"] == "DUPLICATE_LISTING_IMAGES"
+
+
 async def test_same_owner_duplicate_gallery_is_rejected_without_persisting_second_listing(client, register_user):
     token, user_body = await register_user(client, email="same-owner-duplicate@example.com", role="host")
     first_assets = await upload_gallery(client, token, [111, 112, 113])

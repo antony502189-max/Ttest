@@ -28,6 +28,20 @@ def test_identical_and_reordered_galleries_are_duplicates():
     assert galleries_are_duplicates(left, right)
 
 
+def test_reuploading_existing_photos_cannot_dilute_gallery_overlap():
+    original = [image(index) for index in range(5)]
+    repeated = [image(100 + index, checksum=original[0].checksum) for index in range(5)]
+    assert galleries_are_duplicates(original, [*reversed(original), *repeated])
+    assert galleries_are_duplicates([*original, *repeated], original)
+
+
+def test_repeated_single_photo_still_requires_exact_content_identity():
+    original = image(1)
+    repeats = [image(index, checksum=original.checksum) for index in range(5)]
+    assert galleries_are_duplicates([original], repeats)
+    assert not galleries_are_duplicates([original], [image(20, phash=original.perceptual_hash)])
+
+
 def test_four_shared_images_out_of_five_do_not_block_a_different_room():
     shared = [image(index) for index in range(4)]
     left = [*shared, image(10)]

@@ -242,6 +242,10 @@ def galleries_are_duplicates(left: list[ImageFingerprint], right: list[ImageFing
     property to reuse common kitchen/building photos when their room galleries
     are materially different.
     """
+    # Re-uploading one photograph under several asset IDs must not change a
+    # gallery's identity or dilute its overlap with an existing listing.
+    left = unique_photo_fingerprints(left)
+    right = unique_photo_fingerprints(right)
     if not left or not right:
         return False
     if len(left) == len(right) == 1:
@@ -252,6 +256,17 @@ def galleries_are_duplicates(left: list[ImageFingerprint], right: list[ImageFing
     if matches < 2:
         return False
     return (2 * matches) / (len(left) + len(right)) >= GALLERY_DICE_THRESHOLD
+
+
+def unique_photo_fingerprints(images: list[ImageFingerprint]) -> list[ImageFingerprint]:
+    seen: set[str | UUID] = set()
+    result: list[ImageFingerprint] = []
+    for image in images:
+        identity = image.checksum or image.asset_id
+        if identity not in seen:
+            seen.add(identity)
+            result.append(image)
+    return result
 
 
 def hash_galleries_are_duplicates(left: list[str], right: list[str]) -> bool:

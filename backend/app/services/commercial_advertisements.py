@@ -5,15 +5,53 @@ from datetime import UTC, datetime, timedelta
 from ipaddress import ip_address
 from typing import Protocol
 from urllib.parse import urlsplit, urlunsplit
+from uuid import UUID
 
 from fastapi import HTTPException
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..models import MediaAsset
 from ..models.commercial_advertisement import CommercialAdvertisement
 
 PACKAGE_DURATION_DAYS = 1
 PACKAGE_ID = "homepage_1d"
 PACKAGE_PRICE_CENTS = 3000
 MAX_ACTIVE_HOMEPAGE_ADS = 7
+
+
+async def assert_advertisement_image_is_unique(
+    session: AsyncSession,
+    asset: MediaAsset,
+    *,
+    exclude_id: UUID | None = None,
+) -> None:
+    """Check the indexed, server-generated photo mark under the capacity lock.
+
+    Upload normalization strips filenames/metadata before computing SHA-256.
+    Compare content rather than asset IDs, owner IDs, title or destination.
+    The 64-bit average hash alone is too ambiguous for single-image banners.
+    """
+    ad = CommercialAdvertisement
+    query = (
+        select(ad.id)
+        .join(MediaAsset, MediaAsset.id == ad.image_asset_id)
+        .where(
+            MediaAsset.deleted_at.is_(None),
+            MediaAsset.checksum == asset.checksum,
+            ad.status.in_(["pending_payment", "pending_review", "active", "rejected"]),
+            or_(ad.ends_at.is_(None), ad.ends_at > func.now()),
+        )
+        .limit(1)
+    )
+    if exclude_id is not None:
+        query = query.where(ad.id != exclude_id)
+    if await session.scalar(query) is not None:
+        raise HTTPException(409, detail={
+            "code": "DUPLICATE_ADVERTISEMENT_IMAGE",
+            "message": "Ya existe un banner con esta imagen. Edita el anuncio existente.",
+            "fieldErrors": {"imageAssetId": "Esta imagen ya pertenece a un banner existente."},
+        })
 
 
 async def lock_advertising_capacity(session) -> None:
