@@ -277,9 +277,7 @@ The repository uses a **manual GitHub Actions release, followed by automated VPS
 
 ### Infrastructure and safety
 
-**Primary deployment method: GitHub Actions with an explicit operator approval.** A pull-request merge into `main` **does not deploy** production. Developers can perform a normal release through the GitHub web interface without obtaining VPS root credentials.
-
-**[🚀 Deploy in five minutes — Russian operator guide](docs/deploy-quickstart-ru.md)** · [Run production workflow](https://github.com/antony502189-max/Ttest/actions/workflows/manual-production-deploy.yml) · [English CI/CD runbook](docs/manual-production-cicd.md)
+Developers can release through GitHub Actions without routine root SSH access. The following server flow is executed **after the manually approved workflow**:
 
 ```text
 Reviewed PR + passing required CI → merge to main
@@ -296,8 +294,6 @@ Immutable worktree → migrations → containers → smoke
                                        ↓
 Green deploy + matching /build-info.json + manual UI check
 ```
-
-The `production` GitHub Environment controls who may approve a release. To let the **same owner launch and approve**, configure **Required reviewers** with that account and **disable Prevent self-review**. With Prevent self-review enabled, another designated reviewer is mandatory. If reviewers are disabled, the second approval step disappears; the manual Run workflow confirmation is still required. **Neither mode deploys automatically on merge or push.**
 
 The VPS release engine `deploy/deploy-release.sh <exact-origin-main-sha>` remains the controlled implementation and manual fallback for an authorized operator. It checks stateful image compatibility, backup freshness, PostgreSQL backup, migrations, application health and public build SHA. Application rollback **does not** reverse financial events or destructive data migrations.
 
