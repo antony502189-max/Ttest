@@ -1,0 +1,622 @@
+Listing tests:
+  [chromium] › a11y.spec.ts:70:3 › axe sin impactos serious/critical: inicio
+  [chromium] › a11y.spec.ts:70:3 › axe sin impactos serious/critical: resultados
+  [chromium] › a11y.spec.ts:70:3 › axe sin impactos serious/critical: mapa
+  [chromium] › a11y.spec.ts:70:3 › axe sin impactos serious/critical: detalle
+  [chromium] › a11y.spec.ts:70:3 › axe sin impactos serious/critical: acceso
+  [chromium] › a11y.spec.ts:70:3 › axe sin impactos serious/critical: registro
+  [chromium] › a11y.spec.ts:70:3 › axe sin impactos serious/critical: recuperar
+  [chromium] › a11y.spec.ts:70:3 › axe sin impactos serious/critical: restablecer
+  [chromium] › a11y.spec.ts:70:3 › axe sin impactos serious/critical: favoritos
+  [chromium] › a11y.spec.ts:70:3 › axe sin impactos serious/critical: ayuda
+  [chromium] › a11y.spec.ts:70:3 › axe sin impactos serious/critical: guardadas
+  [chromium] › a11y.spec.ts:70:3 › axe sin impactos serious/critical: perfil
+  [chromium] › a11y.spec.ts:70:3 › axe sin impactos serious/critical: mis anuncios
+  [chromium] › a11y.spec.ts:70:3 › axe sin impactos serious/critical: publicar
+  [chromium] › a11y.spec.ts:70:3 › axe sin impactos serious/critical: administración
+  [chromium] › a11y.spec.ts:87:3 › axe móvil 390px sin impactos serious/critical: inicio
+  [chromium] › a11y.spec.ts:87:3 › axe móvil 390px sin impactos serious/critical: resultados
+  [chromium] › a11y.spec.ts:87:3 › axe móvil 390px sin impactos serious/critical: mapa
+  [chromium] › a11y.spec.ts:87:3 › axe móvil 390px sin impactos serious/critical: detalle
+  [chromium] › a11y.spec.ts:87:3 › axe móvil 390px sin impactos serious/critical: publicar
+  [chromium] › a11y.spec.ts:87:3 › axe móvil 390px sin impactos serious/critical: administración
+  [chromium] › a11y.spec.ts:97:1 › delta remaining contact controls support keyboard operation and axe while internal messaging stays removed
+  [chromium] › a11y.spec.ts:109:1 › delta fullscreen location flow has no serious or critical axe issues
+  [chromium] › a11y.spec.ts:118:1 › delta drawing announcement and controls have no serious or critical axe issues
+  [chromium] › a11y.spec.ts:134:1 › delta avatar uploader has no serious or critical axe issues
+  [chromium] › a11y.spec.ts:141:1 › delta image uploader has no serious or critical axe issues
+  [chromium] › a11y.spec.ts:148:1 › delta approximate location map and controls have no serious or critical axe issues
+  [chromium] › a11y.spec.ts:155:1 › delta account deletion confirmation has no serious or critical axe issues
+  [chromium] › acceptance-flows.spec.ts:90:1 › 01–03 rental mode, búsqueda por fecha y selección de varias zonas
+  [chromium] › acceptance-flows.spec.ts:112:1 › 04 every visible filter is wired to data and URL
+  [chromium] › acceptance-flows.spec.ts:203:1 › 05–08 filter count, individual chips, clear, URL reload and history navigation
+  [chromium] › acceptance-flows.spec.ts:231:1 › 09 sorting by date and both prices plus real disjoint pagination
+  [chromium] › acceptance-flows.spec.ts:326:1 › 10–13 map marker/card sync, marker preview, bounds and polygon filtering
+  [chromium] › acceptance-flows.spec.ts:417:1 › 14–15 favorites and complete saved-search restoration persist
+  [chromium] › acceptance-flows.spec.ts:442:1 › 16–18 listing gallery keyboard, contact, share and report mutate state
+  [chromium] › acceptance-flows.spec.ts:489:1 › 19–20 registration, login persistence, logout, recovery and reset flows
+  [chromium] › acceptance-flows.spec.ts:517:1 › 21–24 one-page publication validates, restores draft, creates and edits
+  [chromium] › acceptance-flows.spec.ts:562:1 › 25–26 hide/show, manual close/re-publish and delete listing all change shared data
+  [chromium] › acceptance-flows.spec.ts:594:1 › 27 admin status filter, approve/hide/reject, user blocking and CSV are stateful
+  [chromium] › acceptance-flows.spec.ts:628:1 › 28–29 mobile navigation and keyboard-only critical path
+  [chromium] › admin-layout-accessibility.spec.ts:13:1 › admin desktop stays readable and contained without global bottom navigation
+  [chromium] › admin-layout-accessibility.spec.ts:41:1 › admin mobile navigation remains readable and does not overflow the viewport
+  [chromium] › admin-layout-accessibility.spec.ts:66:1 › production admin listing actions wrap instead of widening the page
+  [chromium] › admin-listing-rental-mode.spec.ts:5:1 › admin rental mode labels distinguish long and short stays
+  [chromium] › admin-listing-rental-mode.spec.ts:12:1 › admin rental mode filter keeps only requested rental type
+  [chromium] › admin-listing-video-regressions.spec.ts:7:1 › customer-video admin listing search matches the visible search promise
+  [chromium] › admin-listing-video-regressions.spec.ts:18:1 › customer-video unpublished rows do not render misleading disabled promotion controls
+  [chromium] › admin-mobile-loading-and-menu-values.spec.ts:7:5 › mobile menu values never split across lines › Russian region and language values are one-line at 320px
+  [chromium] › admin-mobile-loading-and-menu-values.spec.ts:7:5 › mobile menu values never split across lines › Russian region and language values are one-line at 390px
+  [chromium] › admin-mobile-loading-and-menu-values.spec.ts:7:5 › mobile menu values never split across lines › Russian region and language values are one-line at 430px
+  [chromium] › admin-mobile-loading-and-menu-values.spec.ts:57:3 › production admin data loading is scoped by tab › users never wait for listings, reports, audit, homepage or admins
+  [chromium] › admin-mobile-loading-and-menu-values.spec.ts:64:3 › production admin data loading is scoped by tab › switching admin tabs fetches only that tab and its required dependencies
+  [chromium] › admin-mobile-loading-and-menu-values.spec.ts:77:3 › production admin data loading is scoped by tab › failed users fetch rejects quickly, supports retry, and the screen keeps an actionable error
+  [chromium] › admin-pagination.spec.ts:62:1 › admin user client switches to stable seek pagination after the first full page
+  [chromium] › admin-pagination.spec.ts:94:1 › admin report client switches to stable seek pagination after the first full page
+  [chromium] › admin-pagination.spec.ts:126:1 › admin row collection retains deleted users while legacy adapter excludes them
+  [chromium] › admin-russian-localization.spec.ts:4:1 › Russian admin listing actions do not leak Spanish labels
+  [chromium] › admin-russian-localization.spec.ts:29:1 › Russian admin dynamic listing state labels are localized
+  [chromium] › admin-timed-promotion-contract.spec.ts:10:1 › admin TOP scheduler exposes quick durations, calendar range and live day/price summary
+  [chromium] › admin-timed-promotion-contract.spec.ts:22:1 › admin sends a dated promotion window and backend stores a fixed daily price snapshot
+  [chromium] › admin-timed-promotion-contract.spec.ts:31:1 › same-day calendar start is clamped to now when timezone conversion moves midnight into the past
+  [chromium] › admin-timed-promotion-contract.spec.ts:37:1 › scheduled and expired promotions cannot retain public TOP priority
+  [chromium] › admin-timed-promotion-contract.spec.ts:46:1 › exclusive TOP end boundary is rendered as the selected inclusive Hasta calendar date
+  [chromium] › admin-timed-promotion-contract.spec.ts:55:1 › expired admin promotion records are history, not current promotion actions
+  [chromium] › admin-timed-promotion-contract.spec.ts:64:1 › expired homepage feature is not treated as the current removable placement
+  [chromium] › advertising-seven-slots.spec.ts:24:1 › seven banner positions are a grid with genuine sponsored links and bounded provider inventory
+  [chromium] › advertising-seven-slots.spec.ts:46:3 › empty mobile advertising positions match restored vertical reference at 320px
+  [chromium] › advertising-seven-slots.spec.ts:46:3 › empty mobile advertising positions match restored vertical reference at 390px
+  [chromium] › advertising-seven-slots.spec.ts:46:3 › empty mobile advertising positions match restored vertical reference at 480px
+  [chromium] › advertising-seven-slots.spec.ts:83:1 › advertising price is taken from server availability, not a hardcoded client amount
+  [chromium] › advertising-seven-slots.spec.ts:91:1 › no public price is invented when the pricing endpoint is unavailable
+  [chromium] › advertising-seven-slots.spec.ts:99:1 › desktop advertising uses two columns and keeps the original CTA
+  [chromium] › advertising-seven-slots.spec.ts:118:3 › 0 paid banners occupy exactly 0 of seven grid slots
+  [chromium] › advertising-seven-slots.spec.ts:118:3 › 1 paid banners occupy exactly 1 of seven grid slots
+  [chromium] › advertising-seven-slots.spec.ts:118:3 › 2 paid banners occupy exactly 2 of seven grid slots
+  [chromium] › advertising-seven-slots.spec.ts:118:3 › 3 paid banners occupy exactly 3 of seven grid slots
+  [chromium] › advertising-seven-slots.spec.ts:118:3 › 6 paid banners occupy exactly 6 of seven grid slots
+  [chromium] › advertising-seven-slots.spec.ts:118:3 › 7 paid banners occupy exactly 7 of seven grid slots
+  [chromium] › advertising-seven-slots.spec.ts:134:1 › full inventory prevents upload and offers a cancellable persisted alert
+  [chromium] › advertising-seven-slots.spec.ts:156:1 › vacancy detected while subscribing sends the user back to purchase
+  [chromium] › advertising-seven-slots.spec.ts:169:1 › checkout starts only after an explicit payment click and handles the last slot race
+  [chromium] › advertising-seven-slots.spec.ts:187:1 › saved push alert survives reload and can be cancelled
+  [chromium] › advertising-seven-slots.spec.ts:203:1 › Stripe cancellation return releases the reservation and allows a new attempt
+  [chromium] › advertising-seven-slots.spec.ts:217:1 › review-required paid order never offers another payment
+  [chromium] › advertising-seven-slots.spec.ts:226:1 › browser push permission denied keeps a truthful site-notification fallback
+  [chromium] › advertising-seven-slots.spec.ts:242:1 › sign-in for a vacancy alert returns to advertising instead of losing the intent
+  [chromium] › advertising-seven-slots.spec.ts:253:1 › campaign list shows a received payment under review instead of another pay link
+  [chromium] › advertising-seven-slots.spec.ts:263:1 › banner image recovers after a transient failure on the next availability refresh
+  [chromium] › apk-parity.spec.ts:23:3 › APK shell connected to the canonical web app › home refresh intentionally returns to onboarding
+  [chromium] › apk-parity.spec.ts:31:3 › APK shell connected to the canonical web app › onboarding legal links open the real privacy and terms routes
+  [chromium] › apk-parity.spec.ts:47:3 › APK shell connected to the canonical web app › location, search, back and reload use real URLs
+  [chromium] › apk-parity.spec.ts:63:3 › APK shell connected to the canonical web app › listing, account and publication actions open canonical routes
+  [chromium] › apk-parity.spec.ts:82:3 › APK shell connected to the canonical web app › bottom tabs are deep links and favorites display stored data
+  [chromium] › apk-parity.spec.ts:96:3 › APK shell connected to the canonical web app › map and drawing screens are reflected in the URL
+  [chromium] › apk-parity.spec.ts:106:3 › APK shell connected to the canonical web app › location actions keep nearby search connected
+  [chromium] › apk-parity.spec.ts:122:1 › desktop keeps the existing responsive route-based design
+  [chromium] › apk-regression-recovery.spec.ts:19:3 › PR43 regression recovery › location keeps the approved three actions and hides phone lookup
+  [chromium] › apk-regression-recovery.spec.ts:25:3 › PR43 regression recovery › nearby success stores coordinates and radius in the URL
+  [chromium] › apk-regression-recovery.spec.ts:36:3 › PR43 regression recovery › nearby works from Madrid, not only from Tenerife
+  [chromium] › apk-regression-recovery.spec.ts:47:3 › PR43 regression recovery › nearby rejects coordinates outside Spain without pretending success
+  [chromium] › apk-regression-recovery.spec.ts:56:3 › PR43 regression recovery › nearby handles denied permission
+  [chromium] › apk-regression-recovery.spec.ts:68:5 › PR43 regression recovery › nearby handles unavailable
+  [chromium] › apk-regression-recovery.spec.ts:68:5 › PR43 regression recovery › nearby handles timeout
+  [chromium] › apk-regression-recovery.spec.ts:89:3 › PR43 regression recovery › nearby handles an unavailable Geolocation API
+  [chromium] › apk-regression-recovery.spec.ts:98:3 › PR43 regression recovery › polygon exposes Search this area and survives map-list-reload
+  [chromium] › audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Madrid
+  [chromium] › audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Las Palmas de Gran Canaria
+  [chromium] › audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Palma
+  [chromium] › audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Ceuta
+  [chromium] › audit-remediation.spec.ts:19:3 › real typing and prediction selection accepts Melilla
+  [chromium] › audit-remediation.spec.ts:40:1 › explicit Madrid province outranks remembered Tenerife camera
+  [chromium] › audit-remediation.spec.ts:57:3 › approved location shell and map alternatives at 320
+  [chromium] › audit-remediation.spec.ts:57:3 › approved location shell and map alternatives at 768
+  [chromium] › audit-remediation.spec.ts:57:3 › approved location shell and map alternatives at 1280
+  [chromium] › audit-remediation.spec.ts:79:1 › countdown zero waits for authoritative response, survives reload and clock skew
+  [chromium] › audit-remediation.spec.ts:106:1 › unknown release, malformed time and transient failure never enable a purchase
+  [chromium] › audit-remediation.spec.ts:129:1 › saved code-only provincial scope round-trips and legacy city scope stays a city
+  [chromium] › back-navigation-arrows.spec.ts:6:1 › page and step back navigation uses the same ArrowLeft glyph
+  [chromium] › back-navigation-arrows.spec.ts:35:1 › canonical arrow appearance is global and applied after page-specific layout styles
+  [chromium] › client-mobile-polish.spec.ts:26:1 › tourism home card stays contained without the obsolete left nudge
+  [chromium] › client-mobile-polish.spec.ts:42:1 › filter rental-mode cards reuse the complete home copy and selection language
+  [chromium] › client-mobile-polish.spec.ts:75:1 › filter copy remains synchronized with the home labels for every language
+  [chromium] › client-mobile-polish.spec.ts:85:1 › publish arrow polish and cascade order stay locked
+  [chromium] › commercial-advertising-upload-regression.spec.ts:15:1 › ad image upload has its own Nginx multipart limit without widening generic API requests
+  [chromium] › commercial-advertising-upload-regression.spec.ts:25:1 › 300 KiB image upload succeeds via the commercial image endpoint
+  [chromium] › commercial-advertising-upload-regression.spec.ts:43:1 › upload error 413 from Nginx HTML is explained, not a generic API error
+  [chromium] › commercial-advertising-upload-regression.spec.ts:55:1 › file above backend 8 MiB limit is rejected locally before upload
+  [chromium] › commercial-advertising-upload-regression.spec.ts:69:1 › My campaigns does not flash the empty-state while the owner request is loading
+  [chromium] › commercial-advertising-upload-regression.spec.ts:85:1 › campaign list exposes retry after a failed load
+  [chromium] › commercial-advertising.spec.ts:23:1 › house advertisement is visible and signed-out CTA keeps the intended route
+  [chromium] › commercial-advertising.spec.ts:31:1 › mobile house advertisement scrolls above fixed navigation
+  [chromium] › commercial-advertising.spec.ts:50:1 › approved advertisement has a visible disclosure and safe sponsored link
+  [chromium] › commercial-advertising.spec.ts:69:1 › authenticated mobile advertising entry stays inside the existing menu row design
+  [chromium] › commercial-advertising.spec.ts:84:1 › campaign page back arrow returns directly to home in Russian on narrow mobile
+  [chromium] › commercial-advertising.spec.ts:108:1 › mobile campaign page bottom navigation spans the viewport and every tab routes
+  [chromium] › commercial-advertising.spec.ts:148:1 › direct advertising moderation deeplink keeps the normal site footer and mobile nav out of the admin shell
+  [chromium] › commercial-advertising.spec.ts:158:1 › advertising API failure leaves homepage usable
+  [chromium] › commercial-advertising.spec.ts:165:1 › advertiser previews, returns from Stripe and sees persisted review state
+  [chromium] › commercial-advertising.spec.ts:220:1 › admin approves a paid campaign and the homepage displays it
+  [chromium] › contact-anchor-navigation.spec.ts:9:1 › mobile Contactar opens, scrolls to and focuses the real contact panel
+  [chromium] › contact-anchor-navigation.spec.ts:28:1 › direct contact hash is also restored after a hard reload
+  [chromium] › customer-armenime-address.spec.ts:40:1 › Armeñime area focus uses the corrected real-world area center instead of the old east-shifted point
+  [chromium] › customer-armenime-address.spec.ts:53:1 › Calle José Espronceda 20 + 38678 moves from Armeñime area focus to the matched address point at zoom 18
+  [chromium] › customer-armenime-address.spec.ts:97:1 › C/ street abbreviation still matches the canonical Google Calle route
+  [chromium] › customer-armenime-address.spec.ts:129:1 › full pasted Espronceda address resolves even when the selected municipality is stale and postcode is initially empty
+  [chromium] › customer-equipment-compatibility.spec.ts:5:1 › CUSTOMER-PREDEPLOY generic equipment filters match structured positive values
+  [chromium] › customer-equipment-compatibility.spec.ts:18:1 › CUSTOMER-PREDEPLOY new equipment copy is localized in RU and EN
+  [chromium] › customer-feedback-publish.spec.ts:25:1 › CUSTOMER-FEEDBACK open-ended availability, Wi-Fi and monthly extra costs survive publication
+  [chromium] › customer-feedback-publish.spec.ts:86:1 › CUSTOMER-FEEDBACK search uses Wi-Fi terminology instead of fiber
+  [chromium] › customer-listing-photo-fit.spec.ts:9:1 › mobile listing hero fills one fixed frame for uploaded photos
+  [chromium] › customer-listing-photo-fit.spec.ts:52:1 › search result cards keep their existing cover crop
+  [chromium] › customer-map-mobile-polish.spec.ts:17:3 › customer publish-map polish › map is the only visible location control and touch double-tap places the marker
+  [chromium] › customer-map-mobile-polish.spec.ts:55:5 › customer publish-map polish › double-tap guidance follows en locale
+  [chromium] › customer-map-mobile-polish.spec.ts:55:5 › customer publish-map polish › double-tap guidance follows ru locale
+  [chromium] › customer-map-mobile-polish.spec.ts:69:3 › home rental cards stay inside their switch at 320px
+  [chromium] › customer-map-mobile-polish.spec.ts:69:3 › home rental cards stay inside their switch at 360px
+  [chromium] › customer-map-mobile-polish.spec.ts:69:3 › home rental cards stay inside their switch at 390px
+  [chromium] › customer-map-mobile-polish.spec.ts:69:3 › home rental cards stay inside their switch at 430px
+  [chromium] › customer-predeploy-clickability.spec.ts:21:1 › CUSTOMER-PREDEPLOY Calle autocomplete keeps the native field visible with an inline suggestion contract
+  [chromium] › customer-predeploy-clickability.spec.ts:41:1 › CUSTOMER-PREDEPLOY desktop listing card opens from non-interactive card surface
+  [chromium] › customer-predeploy-clickability.spec.ts:50:1 › CUSTOMER-PREDEPLOY mobile listing card opens from non-interactive card surface
+  [chromium] › customer-predeploy-clickability.spec.ts:59:1 › CUSTOMER-PREDEPLOY card controls stay independent from whole-card navigation
+  [chromium] › customer-priority-filters-location.spec.ts:19:1 › CUSTOMER-PRIORITY mobile filters follow the requested decision order and persist to URL
+  [chromium] › customer-priority-filters-location.spec.ts:48:1 › CUSTOMER-PRIORITY bathroom profile supports private toilet with shared shower
+  [chromium] › customer-priority-filters-location.spec.ts:60:1 › CUSTOMER-LOCATION map/geocoder resolves Tenerife municipality and locality and floor is in publication data
+  [chromium] › customer-priority-sync.spec.ts:9:1 › CUSTOMER-SYNC owner publication uses the saved coordinate everywhere
+  [chromium] › customer-priority-sync.spec.ts:18:1 › CUSTOMER-SYNC floor ordering uses structured floor instead of listing id
+  [chromium] › customer-priority-sync.spec.ts:31:1 › CUSTOMER-SYNC open-ended availability satisfies an optional requested move-out date
+  [chromium] › customer-priority-sync.spec.ts:46:1 › CUSTOMER-SYNC new filter and publication labels are localized
+  [chromium] › customer-qa.spec.ts:3:1 › mobile search filters are localized after customer filter simplification
+  [chromium] › customer-refresh-onboarding.spec.ts:15:1 › completed customer onboarding returns after a full browser refresh on mobile shell routes
+  [chromium] › customer-refresh-onboarding.spec.ts:29:1 › legacy done marker remains a deliberate test and migration bypass
+  [chromium] › customer-refresh-onboarding.spec.ts:37:1 › privacy onboarding step links to the readable Privacy Policy without horizontal overflow
+  [chromium] › customer-room-favorites-bed.spec.ts:10:1 › removed customer filters stay absent and legacy route values are canonicalized away
+  [chromium] › customer-room-favorites-bed.spec.ts:25:1 › favorites trash action enters selection mode and removes only selected cards
+  [chromium] › customer-room-favorites-bed.spec.ts:59:1 › favorites includes a deduplicated recently viewed history that can be cleared
+  [chromium] › customer-room-favorites-bed.spec.ts:94:1 › mobile favorites isolate photo framing from global img object-fit rules
+  [chromium] › customer-room-favorites-bed.spec.ts:108:1 › favorites selection mode is localized and functional in Russian on mobile
+  [chromium] › customer-video-critical-regressions.spec.ts:30:1 › customer video fix keeps owner routes behind authoritative hydration
+  [chromium] › customer-video-critical-regressions.spec.ts:49:1 › customer video fix keeps fresh location unresolved safely and validates it at the wizard model boundary
+  [chromium] › customer-video-critical-regressions.spec.ts:81:1 › customer video fix retries transient admin authorization without weakening the server route guard
+  [chromium] › customer-video-critical-regressions.spec.ts:91:1 › listing editing scopes autosaved drafts and never leaks them into a new publication
+  [chromium] › customer-video-critical-regressions.spec.ts:102:1 › customer video: listing edit prepares media first and commits fields plus image order atomically
+  [chromium] › customer-video-critical-regressions.spec.ts:130:1 › customer video: edit rejects a different municipality as area but keeps valid manual addresses allowed
+  [chromium] › customer-video-critical-regressions.spec.ts:150:1 › leaving a new publication does not make existing host listings disappear
+  [chromium] › customer-video-critical-regressions.spec.ts:167:1 › unfinished edit draft survives a create detour and edit CTA says save changes
+  [chromium] › customer-video-critical-regressions.spec.ts:201:1 › owned-listing empty state follows the selected UI language
+  [chromium] › customer-video-occupant-reset.spec.ts:26:1 › CUSTOMER-VIDEO pets narrows results, back preserves it, unrestricted resets the catalog and reload
+  [chromium] › delta-matrix.spec.ts:109:1 › USR-03..05 history, discarded listings and guest data stay in separate scopes
+  [chromium] › delta-matrix.spec.ts:150:1 › STORE-05 validator rejects incomplete listing payloads instead of accepting corrupted data
+  [chromium] › delta-matrix.spec.ts:160:1 › MEDIA-05..08 exact MIME, cleanup, quota feedback and missing-blob fallback work
+  [chromium] › delta-matrix.spec.ts:198:1 › MEDIA: large phone PNG is optimized before upload-size validation, and missing MIME is inferred
+  [chromium] › delta-matrix.spec.ts:222:1 › ROOM-01..04 MODE-01..03 holiday one-page values persist and all new filters affect results
+  [chromium] › delta-matrix.spec.ts:270:1 › LOC-01 selected zone coordinates persist, edit restores them and exact street stays private
+  [chromium] › delta-matrix.spec.ts:308:1 › PROFILE-02 publish defaults require a direct contact method and preview only exposes it
+  [chromium] › delta-matrix.spec.ts:331:1 › FILTER-02..06 new filters have chips, reset, reload and history navigation
+  [chromium] › delta-matrix.spec.ts:365:1 › MAP-04 visible-area state activates after movement and resets after search
+  [chromium] › delta-matrix.spec.ts:377:1 › MAP-05 Google Maps loader errors expose the accessible map fallback
+  [chromium] › delta-matrix.spec.ts:385:1 › WIZ-04 reset clears dirty state and short-height filter drawer remains usable
+  [chromium] › delta.spec.ts:69:1 › OWN-01..04 owner isolation and foreign edit/actions are blocked
+  [chromium] › delta.spec.ts:79:1 › OWN-05 new host has an empty cabinet while demo host keeps seed listings
+  [chromium] › delta.spec.ts:92:1 › USR-01..03 favorites, saved searches and history are user scoped
+  [chromium] › delta.spec.ts:106:1 › STORE-01..02 versioned payload survives mass deletion and migrates legacy v2
+  [chromium] › delta.spec.ts:125:1 › STORE-03..04 corrupted JSON falls back and quota errors are visible
+  [chromium] › delta.spec.ts:143:1 › MEDIA-01..03 IndexedDB photo refs survive draft, publish and reload
+  [chromium] › delta.spec.ts:185:1 › MEDIA-04 avatar upload/remove persists and profile cancel restores values
+  [chromium] › delta.spec.ts:215:1 › ROOM-01..04 and MODE-01..03 migrated room and rental models render consistently
+  [chromium] › delta.spec.ts:225:1 › CONTACT-01..06 confirmation gates direct channels and internal messaging stays unavailable
+  [chromium] › delta.spec.ts:242:1 › LIFE-01..04 listings stay published until the owner closes them
+  [chromium] › delta.spec.ts:275:1 › WIZ-01..03 dirty state warns only after edits and save clears it
+  [chromium] › delta.spec.ts:290:1 › FILTER-01 and MAP-01..03 new filters serialize and map preview shows restrictions
+  [chromium] › delta.spec.ts:303:1 › RESP-01..05 critical routes have no horizontal overflow at the required matrix
+  [chromium] › delta.spec.ts:352:1 › A11Y-01 listing detail stays accessible after internal messaging removal
+  [chromium] › direct-publish-production-contract.spec.ts:8:1 › production owner publication cannot fall back to a moderation queue
+  [chromium] › direct-publish-production-contract.spec.ts:14:1 › legacy live internal pending listings are repaired to published on deploy
+  [chromium] › e2e.spec.ts:47:1 › 01–03 inicio, navegación y dataset completo
+  [chromium] › e2e.spec.ts:59:1 › 04–07 filtros, chips, URL y restauración al recargar
+  [chromium] › e2e.spec.ts:71:1 › 08–10 ordenación, paginación y back/forward
+  [chromium] › e2e.spec.ts:85:1 › 11–15 Google Maps, кластер, выбор, границы и полигон
+  [chromium] › e2e.spec.ts:119:1 › 16–19 ficha: sin bloqueo, galería, favorito, descarte
+  [chromium] › e2e.spec.ts:135:1 › 20–22 login erróneo, demo y ruta protegida
+  [chromium] › e2e.spec.ts:144:1 › mock Google login creates a passwordless local session
+  [chromium] › e2e.spec.ts:155:1 › 23–26 registro y perfil persistente
+  [chromium] › e2e.spec.ts:172:1 › 27–29 publicación completa, CRUD y edición
+  [chromium] › e2e.spec.ts:182:1 › 30 admin, búsqueda, moderación y exportación CSV
+  [chromium] › e2e.spec.ts:194:1 › 31 responsive móvil sin desbordamiento y navegación inferior
+  [chromium] › external-availability.spec.ts:24:1 › detail and card adapters preserve unknown external availability and real supplied dates
+  [chromium] › external-availability.spec.ts:37:3 › external result with no source date shows availability to consult at 390px
+  [chromium] › external-availability.spec.ts:37:3 › external result with no source date shows availability to consult at 1440px
+  [chromium] › external-listing-links.spec.ts:29:1 › external mobile result uses the same lime source CTA treatment as requirement chips
+  [chromium] › external-listing-links.spec.ts:82:1 › internal listing similar cards do not render the long lime top rule
+  [chromium] › filter-layer-parity.spec.ts:91:1 › FILTER-LAYER local filter engine applies every public search filter with backend-compatible semantics
+  [chromium] › filter-layer-parity.spec.ts:149:1 › FILTER-LAYER holiday minimum-night filter treats unknown minimum as non-match like backend SQL
+  [chromium] › filter-layer-parity.spec.ts:155:1 › FILTER-LAYER open-ended move-out date remains a match
+  [chromium] › final-cleanup.spec.ts:84:1 › REMOTE-DELETE-01 rejected server deletion cannot erase local drafts or media first
+  [chromium] › final-cleanup.spec.ts:99:1 › MEDIA-09 orphan cleanup removes only unreferenced blobs
+  [chromium] › final-cleanup.spec.ts:112:1 › MEDIA-10 shared listing photo survives until its final reference is deleted
+  [chromium] › final-cleanup.spec.ts:129:1 › MEDIA-11 rotating a newly added listing photo removes the obsolete local blob
+  [chromium] › final-cleanup.spec.ts:161:1 › DRAFT-05 reset removes only draft media and preserves listing media
+  [chromium] › final-cleanup.spec.ts:181:1 › ACCOUNT-01 deletion clears owned local data, draft and unused media after reload
+  [chromium] › final-cleanup.spec.ts:223:1 › CONTACT-07 removed internal messaging stays unavailable after reload
+  [chromium] › final-cleanup.spec.ts:234:1 › CONTACT-08 disabled phone and WhatsApp are absent from the DOM
+  [chromium] › final-cleanup.spec.ts:248:1 › FILTER-07 legacy URLs migrate to one tenant requirement and distinct resident/capacity controls
+  [chromium] › final-cleanup.spec.ts:262:1 › LISTING-STATUS-01 owner status filter preserves canonical moderation values
+  [chromium] › final-cleanup.spec.ts:276:1 › LISTING-STATUS-02 mock public consumers exclude owner-only lifecycle states
+  [chromium] › final-cleanup.spec.ts:293:1 › MAP-06 selecting a card or marker preserves viewport and map instance
+  [chromium] › final-cleanup.spec.ts:316:1 › RESP-06 critical map and uploader targets remain reachable on a short mobile viewport
+  [chromium] › final-cleanup.spec.ts:334:1 › I18N-01 Russian and English versions switch and persist without changing routes
+  [chromium] › final-mobile-delta-evidence.spec.ts:33:1 › capture unmasked final mobile delta evidence
+  [chromium] › final-mobile-delta.spec.ts:14:1 › DELTA-MOBILE-01 home, occupant selector and location actions stay connected without changing the locked design
+  [chromium] › final-mobile-delta.spec.ts:32:1 › DELTA-MOBILE-02 list, filters, sorting, map, back and reload are URL-backed
+  [chromium] › final-mobile-delta.spec.ts:53:1 › DELTA-MOBILE-03 drawing and nearby search expose dedicated working map states
+  [chromium] › final-mobile-delta.spec.ts:71:1 › DELTA-MOBILE-04 location never exposes the removed phone lookup
+  [chromium] › final-mobile-delta.spec.ts:77:1 › DELTA-MOBILE-05 bottom tabs, favorites and protected account actions are real routes
+  [chromium] › final-mobile-delta.spec.ts:94:1 › DELTA-MOBILE-06 ES, EN and RU persist and never introduce horizontal overflow
+  [chromium] › final-mobile-delta.spec.ts:118:1 › DELTA-RESPONSIVE-01 critical routes have no horizontal overflow across the supported matrix
+  [chromium] › final-mobile-delta.spec.ts:134:1 › DELTA-DIAGNOSTICS-01 critical mobile routes emit no application errors or failed first-party requests
+  [chromium] › google-address-parser.spec.ts:3:1 › Google address parsing retains only reliable structured fields
+  [chromium] › google-address-parser.spec.ts:24:1 › Google postal_town is preserved as area when municipality is separate
+  [chromium] › google-address-parser.spec.ts:46:1 › partial Google results and stale request versions cannot erase newer state
+  [chromium] › google-address-parser.spec.ts:62:1 › Tenerife boundary validation rejects an outside place before it can be applied
+  [chromium] › google-maps-final-acceptance.spec.ts:24:1 › selected Advanced Marker has priority, opens the sheet, and programmatic selection stays clean
+  [chromium] › google-maps-final-acceptance.spec.ts:38:1 › manual pan exposes Search this area while a result refit does not
+  [chromium] › google-maps-final-acceptance.spec.ts:51:1 › map/list, multiple canonical zones, and polygon restore from URL and reload
+  [chromium] › google-maps-final-acceptance.spec.ts:69:1 › official district hierarchy selects a stable ID and restores it from URL
+  [chromium] › google-maps-final-acceptance.spec.ts:86:1 › map auth errors keep a usable fallback
+  [chromium] › hard-delete-ui.spec.ts:16:1 › local owner delete is available without the retired email allowlist
+  [chromium] › hard-delete-ui.spec.ts:21:1 › owner delete is hidden for imported listings
+  [chromium] › hard-delete-ui.spec.ts:34:1 › the authenticated notification center is reachable without adding a fifth mobile tab
+  [chromium] › home-first-page-video-regression.spec.ts:11:3 › mobile home rental cards stay equal, outlined and inside viewport at 343x800
+  [chromium] › home-first-page-video-regression.spec.ts:11:3 › mobile home rental cards stay equal, outlined and inside viewport at 360x800
+  [chromium] › home-first-page-video-regression.spec.ts:11:3 › mobile home rental cards stay equal, outlined and inside viewport at 390x844
+  [chromium] › home-first-page-video-regression.spec.ts:11:3 › mobile home rental cards stay equal, outlined and inside viewport at 412x915
+  [chromium] › home-pr154-restoration.spec.ts:9:1 › mobile home restores the PR #154 DOM, ignores removed persisted filters, and stays light-only
+  [chromium] › home-reference-controls.spec.ts:12:3 › restored home reference controls › renders the large rental cards and reference occupant artwork
+  [chromium] › home-reference-controls.spec.ts:79:3 › restored home reference controls › mobile two people keeps the friends-compatible capacity-only filter
+  [chromium] › home-reference-controls.spec.ts:99:3 › restored home reference controls › landscape keeps both reference cards above the fixed navigation
+  [chromium] › home-reference-controls.spec.ts:114:3 › restored home reference controls › mobile occupant sheet follows the active application language
+  [chromium] › home-reference-controls.spec.ts:136:3 › desktop reference occupant semantics › two people means room capacity two without a couple-only requirement
+  [chromium] › home-reference-controls.spec.ts:150:3 › desktop reference occupant semantics › with children filters child-friendly listings without forcing a couple
+  [chromium] › home-reference-controls.spec.ts:164:3 › desktop reference occupant semantics › expanded occupant copy is localized in Russian
+  [chromium] › home-reference-controls.spec.ts:179:5 › desktop reference occupant semantics › home occupancy controls are fully localized in en
+  [chromium] › home-reference-controls.spec.ts:179:5 › desktop reference occupant semantics › home occupancy controls are fully localized in ru
+  [chromium] › home-reference-controls.spec.ts:192:3 › desktop reference occupant semantics › legacy v1 couple and family selections migrate to visible reference choices
+  [chromium] › homepage-hero-promotion-contract.spec.ts:8:1 › homepage hero promotion has an independent timed admin contract
+  [chromium] › homepage-hero-promotion-contract.spec.ts:18:1 › homepage falls back unless an active promoted listing is returned
+  [chromium] › homepage-hero-promotion-contract.spec.ts:33:1 › backend public hero endpoint is time bounded and uses visible listings
+  [chromium] › homepage-purchase.spec.ts:10:1 › homepage purchase selects an owned listing and opens Stripe only after explicit payment
+  [chromium] › homepage-purchase.spec.ts:46:1 › banner monthly total is visible before payment
+  [chromium] › i18n-language-regression.spec.ts:24:1 › room-first translation dictionary covers dynamic facts
+  [chromium] › i18n-language-regression.spec.ts:68:3 › publish room details stay localized in ru
+  [chromium] › i18n-language-regression.spec.ts:68:3 › publish room details stay localized in en
+  [chromium] › i18n-language-regression.spec.ts:92:3 › home application copy stays localized in ru
+  [chromium] › i18n-language-regression.spec.ts:92:3 › home application copy stays localized in en
+  [chromium] › i18n-language-regression.spec.ts:104:1 › Spanish cards use correct singular residente grammar
+  [chromium] › i18n-language-regression.spec.ts:117:1 › Russian search does not leak known Spanish room-first labels
+  [chromium] › i18n-language-regression.spec.ts:125:1 › English search does not leak known Spanish room-first labels
+  [chromium] › i18n-language-regression.spec.ts:133:1 › publish requirement options follow the one-page editor locale
+  [chromium] › i18n-language-regression.spec.ts:141:1 › English listing contact flow does not reuse Spanish dynamic copy
+  [chromium] › i18n-language-regression.spec.ts:153:1 › English mobile results localize data-backed room labels
+  [chromium] › i18n-language-regression.spec.ts:165:1 › Russian mobile results localize data-backed room labels
+  [chromium] › i18n-language-regression.spec.ts:177:1 › the canonical locale catalog has no missing locale values
+  [chromium] › i18n-language-regression.spec.ts:181:1 › bed type API values have one complete customer-facing label per locale
+  [chromium] › i18n-language-regression.spec.ts:203:1 › desktop language switching replaces application UI without translating listing content
+  [chromium] › i18n-language-regression.spec.ts:231:1 › mobile filters isolate locale copy and preserve the persisted bunk value
+  [chromium] › listing-card-hierarchy.spec.ts:17:1 › every supported listing-card variant has the approved restrictions-price-details ordering rule
+  [chromium] › listing-card-hierarchy.spec.ts:28:1 › all mobile result cards render restrictions above price and details
+  [chromium] › listing-card-hierarchy.spec.ts:58:1 › desktop full cards render restrictions first, price second and description afterwards
+  [chromium] › listing-condition-pills.spec.ts:12:3 › existing Normas y convivencia appears exactly once between Descripción and Habitación y plazas at 320px
+  [chromium] › listing-condition-pills.spec.ts:12:3 › existing Normas y convivencia appears exactly once between Descripción and Habitación y plazas at 390px
+  [chromium] › listing-condition-pills.spec.ts:12:3 › existing Normas y convivencia appears exactly once between Descripción and Habitación y plazas at 768px
+  [chromium] › listing-condition-pills.spec.ts:31:3 › living-condition pills stay rounded, spaced and within their card at 320px
+  [chromium] › listing-condition-pills.spec.ts:31:3 › living-condition pills stay rounded, spaced and within their card at 390px
+  [chromium] › listing-condition-pills.spec.ts:31:3 › living-condition pills stay rounded, spaced and within their card at 540px
+  [chromium] › listing-condition-pills.spec.ts:31:3 › living-condition pills stay rounded, spaced and within their card at 768px
+  [chromium] › listing-condition-pills.spec.ts:103:1 › condition labels have icon and tone parity with the supplied mobile reference
+  [chromium] › listing-content-safety.spec.ts:5:1 › listing link detector catches direct and obfuscated destinations
+  [chromium] › listing-content-safety.spec.ts:46:1 › listing link detector leaves normal property prose alone
+  [chromium] › listing-content-safety.spec.ts:58:1 › create and edit forms enforce the same link-free public text policy
+  [chromium] › listing-create-edit-parity.spec.ts:13:1 › creation and editing use the same nine-section long-form shell
+  [chromium] › listing-create-edit-parity.spec.ts:48:1 › create and edit keep separate persistence and mutation paths
+  [chromium] › listing-create-edit-parity.spec.ts:97:1 › legacy or global edit drafts are migrated without leaking into a new listing
+  [chromium] › listing-delete-access.spec.ts:13:1 › ordinary owner can delete their own listing without an email allowlist
+  [chromium] › listing-delete-access.spec.ts:33:1 › mock admin can delete a listing from administration without the retired allowlist
+  [chromium] › listing-delete-access.spec.ts:48:1 › production owner/admin delete surfaces use server authorization rather than client email gates
+  [chromium] › listing-edit-comfort.spec.ts:30:1 › listing editing is one long scroll form instead of a paged wizard
+  [chromium] › listing-edit-comfort.spec.ts:50:1 › editing with video restores server photos when a stale local draft image is missing
+  [chromium] › listing-edit-comfort.spec.ts:76:1 › photo reorder arrows move photos earlier and later in the order on mobile
+  [chromium] › listing-edit-comfort.spec.ts:127:1 › press-and-drag moves a photo to a new position and updates the cover order
+  [chromium] › listing-edit-comfort.spec.ts:173:1 › create and edit forms share touch-capable press-and-drag photo ordering
+  [chromium] › listing-edit-comfort.spec.ts:211:1 › dragging a photo near viewport edges auto-scrolls down and up
+  [chromium] › listing-edit-comfort.spec.ts:243:1 › photo reorder arrows keep ordering semantics in the desktop grid
+  [chromium] › listing-edit-comfort.spec.ts:262:1 › owner can scroll down, edit distant sections and save without wizard navigation
+  [chromium] › listing-edit-comfort.spec.ts:296:1 › photo rotate control turns a selected photo 90 degrees in place on mobile
+  [chromium] › listing-edit-comfort.spec.ts:343:1 › four rapid photo rotations collapse to 360 degrees without re-encoding
+  [chromium] › listing-edit-comfort.spec.ts:373:1 › new publication uses the same one-page long form as editing
+  [chromium] › listing-edit-comfort.spec.ts:399:1 › create form drags a unique photo through duplicate URLs without React warnings
+  [chromium] › listing-edit-comfort.spec.ts:447:3 › touch photo ordering › mobile scroll gesture stays available before hold, then long press reorders photos
+  [chromium] › listing-edit-media-lifecycle.spec.ts:3:1 › scoped edit draft media survives orphan cleanup while real orphans are removed
+  [chromium] › listing-equipment-details.spec.ts:24:1 › EQUIP-01..08 landlord equipment fields persist, render and remain editable
+  [chromium] › listing-equipment-details.spec.ts:89:1 › EQUIP-09 legacy balcony and washing-machine amenities map into structured controls
+  [chromium] › listing-location-video-parity.spec.ts:21:1 › listing location follows the customer street-map interaction without exposing an exact address
+  [chromium] › listing-location-video-parity.spec.ts:37:1 › listing map opens a true full-screen zoomable Google roadmap with a back control
+  [chromium] › listing-location-video-parity.spec.ts:87:1 › customer Android recording viewport keeps the portaled map edge-to-edge
+  [chromium] › listing-location-video-parity.spec.ts:129:1 › preview keeps Android Google tile rows contiguous and outside responsive image resets
+  [chromium] › listing-location-video-parity.spec.ts:173:3 › customer reference WhatsApp consent pill fits at 320px
+  [chromium] › listing-location-video-parity.spec.ts:173:3 › customer reference WhatsApp consent pill fits at 360px
+  [chromium] › listing-location-video-parity.spec.ts:173:3 › customer reference WhatsApp consent pill fits at 390px
+  [chromium] › listing-location-video-parity.spec.ts:173:3 › customer reference WhatsApp consent pill fits at 468px
+  [chromium] › listing-location-video-parity.spec.ts:223:1 › no WhatsApp logo appears for a listing without a WhatsApp contact
+  [chromium] › listing-location-video-parity.spec.ts:235:1 › mobile WhatsApp-only listing keeps the floating confirmation highlighted like the lime action bar
+  [chromium] › listing-location-video-parity.spec.ts:270:1 › mobile listing with no contact action does not paint an orphan fixed white shell
+  [chromium] › listing-location-video-parity.spec.ts:297:1 › customer location controls are fully localized in English and Russian
+  [chromium] › listing-promotion-priority.spec.ts:24:1 › client sort keeps the promoted tier ahead of newer and cheaper ordinary listings
+  [chromium] › listing-promotion-priority.spec.ts:39:3 › mobile TOP listing has a visible non-interactive thumb at upper-left: 320px
+  [chromium] › listing-promotion-priority.spec.ts:39:3 › mobile TOP listing has a visible non-interactive thumb at upper-left: 390px
+  [chromium] › listing-promotion-priority.spec.ts:65:1 › desktop TOP listing uses the same thumb without changing ordinary cards
+  [chromium] › listing-promotion-priority.spec.ts:78:1 › stable production guard keeps TOP above a newly inserted ordinary listing
+  [chromium] › listing-promotion-priority.spec.ts:90:1 › mobile focus never lifts a normal listing above an active TOP
+  [chromium] › listing-promotion-priority.spec.ts:102:1 › local listing reload retains canonical province and legacy postcode scope
+  [chromium] › listing-promotion.spec.ts:28:1 › shared map marker renders promoted listings with a thumbs-up beside the price
+  [chromium] › listing-promotion.spec.ts:42:1 › same-address cluster keeps the promoted sign when at least one grouped listing is TOP
+  [chromium] › listing-promotion.spec.ts:60:1 › grouped marker can gain and lose TOP state without recreation
+  [chromium] › listing-promotion.spec.ts:88:1 › shared map marker leaves ordinary listings without promoted state
+  [chromium] › listing-promotion.spec.ts:97:1 › shared marker state switches promotion at runtime without recreation
+  [chromium] › listing-promotion.spec.ts:112:1 › promotion stylesheet replaces the old red treatment with the thumbs-up treatment
+  [chromium] › listing-promotion.spec.ts:123:1 › desktop map keeps promoted marker high-priority but visually neutral with thumbs-up
+  [chromium] › listing-promotion.spec.ts:142:1 › mobile map uses normal lime promoted marker with thumbs-up at every supported width
+  [chromium] › localization-consistency.spec.ts:23:1 › critical JSX copy has translations and the complete catalog has locale parity
+  [chromium] › localization-consistency.spec.ts:54:1 › API copy and canonical campaign values render in each language
+  [chromium] › localization-consistency.spec.ts:97:1 › campaigns, dates, navigation and footer switch without stale copy or translated advertiser content
+  [chromium] › localization-consistency.spec.ts:118:1 › already-visible server errors and field errors follow the selected language
+  [chromium] › localization-consistency.spec.ts:133:1 › publication labels, media helpers and validation stay localized when switching a mounted form
+  [chromium] › localization-consistency.spec.ts:147:1 › a map error keeps its meaning while its displayed language changes
+  [chromium] › localization-consistency.spec.ts:163:1 › mobile language settings update the existing menu and navigation through every locale
+  [chromium] › map-marker-overlap.spec.ts:8:1 › coincident map listings keep the same truthful geographic position
+  [chromium] › map-marker-overlap.spec.ts:18:1 › single marker keeps its real public map position
+  [chromium] › map-marker-overlap.spec.ts:23:1 › large coincident groups stay on one point for clustering
+  [chromium] › map-marker-overlap.spec.ts:31:1 › only a cluster whose listings share the exact real point is expanded into listing choices
+  [chromium] › map-marker-overlap.spec.ts:43:1 › four listings at one address remain on one truthful point and are all selectable candidates
+  [chromium] › map-marker-overlap.spec.ts:61:1 › twenty rooms at one address are all available to the carousel
+  [chromium] › map-responsive-parity.spec.ts:25:1 › results map keeps the current mobile shell and desktop split geometry across the responsive matrix
+  [chromium] › master-task-visual.spec.ts:30:1 › master approved home design and responsive matrix
+  [chromium] › master-task-visual.spec.ts:41:1 › master current mobile list, map, drawing and location states
+  [chromium] › master-task-visual.spec.ts:65:1 › master desktop municipality selection and split map states
+  [chromium] › master-task.spec.ts:13:1 › P0 current mobile home preserves the locked APK hierarchy and links all four tabs
+  [chromium] › master-task.spec.ts:35:1 › P1 desktop multiple municipalities stay synchronized with URL, filters and reload
+  [chromium] › master-task.spec.ts:52:1 › P1 municipality list remains usable when detailed GeoJSON cannot load
+  [chromium] › master-task.spec.ts:64:1 › P0 mobile and desktop maps retain their intended separate implementations
+  [chromium] › master-task.spec.ts:85:1 › P1 core routes have no horizontal overflow or unexpected console errors across the responsive matrix
+  [chromium] › media-upload-recovery.spec.ts:6:1 › photo selection waits for processing and falls back to authenticated uploads if local storage fails
+  [chromium] › media-upload-recovery.spec.ts:22:1 › temporary owner-uploaded photos use bearer authorization and cannot leak to public image srcsets
+  [chromium] › media-upload-recovery.spec.ts:31:1 › create/edit remove temporary uploaded photos but preserve original published assets
+  [chromium] › media-upload-recovery.spec.ts:39:1 › rotating a temporary uploaded image reads owner-protected bytes only from the configured API origin
+  [chromium] › media-upload-recovery.spec.ts:45:1 › video picker preserves server error details and the existing 100 MB/60s contract
+  [chromium] › mobile-drawn-zone-search.spec.ts:15:1 › drawn-zone search opens the filtered listing results instead of staying on the map
+  [chromium] › mobile-filter-draft-state.spec.ts:25:1 › closing filters discards draft changes instead of silently changing results
+  [chromium] › mobile-filter-draft-state.spec.ts:43:1 › apply commits the draft to URL, results and reload
+  [chromium] › mobile-filter-draft-state.spec.ts:62:1 › clear is a draft action until View listings is pressed
+  [chromium] › mobile-filter-home-capacity.spec.ts:5:1 › two-person capacity survives price filter, apply and reload
+  [chromium] › mobile-filter-mode-price-bidirectional.spec.ts:5:1 › Tourism nightly price never becomes a Long Stay monthly constraint
+  [chromium] › mobile-filter-price-area-audit.spec.ts:21:1 › price range normalizes inverted bounds and survives reload
+  [chromium] › mobile-filter-price-area-audit.spec.ts:45:1 › long-stay price never leaks into Tourism when cadence changes
+  [chromium] › mobile-filter-room-type-migration.spec.ts:5:1 › desktop canonical room type remains effective on mobile and migrates cleanly
+  [chromium] › mobile-filter-type-combo-audit.spec.ts:22:1 › each housing type filters correctly and multiple types use OR semantics
+  [chromium] › mobile-filter-type-combo-audit.spec.ts:52:1 › price and housing type combine with AND semantics
+  [chromium] › mobile-filter-video-regression.spec.ts:26:1 › video regression: rapid occupant changes end with a real unrestricted search
+  [chromium] › mobile-filter-video-regression.spec.ts:44:1 › same visible man filter gives the same non-empty result on repeated searches
+  [chromium] › mobile-filter-video-regression.spec.ts:73:1 › one person is capacity-only and includes one-person listings with gender restrictions
+  [chromium] › mobile-filter-video-regression.spec.ts:102:1 › home search clears hidden result-only filters instead of leaking them invisibly
+  [chromium] › mobile-filters-exhaustive.spec.ts:5:1 › removed room-size and room-count controls stay absent while bunk bed remains selectable
+  [chromium] › mobile-freehand-map.spec.ts:14:1 › map stays interactive until the drawing button is pressed
+  [chromium] › mobile-hidden-home-work.spec.ts:5:1 › direct mobile search does not initialize the hidden home hero or ads
+  [chromium] › mobile-home-search-reset.spec.ts:25:1 › unrestricted home search restores the full mode catalog after stale advanced filters
+  [chromium] › mobile-location-map.spec.ts:23:1 › onboarding returns after refresh and language names are never machine-translated
+  [chromium] › mobile-location-map.spec.ts:38:1 › country onboarding supports all Spain and location picker has no fixed regional banner
+  [chromium] › mobile-location-map.spec.ts:53:1 › housing modes start inactive and occupant selector keeps one compatible primary choice
+  [chromium] › mobile-location-map.spec.ts:82:1 › location screen preserves map shortcuts and a city selects its autonomous community
+  [chromium] › mobile-location-map.spec.ts:101:1 › current location opens the map and keeps the user coordinates even when no nearby listing is required
+  [chromium] › mobile-location-map.spec.ts:115:1 › map current-location control centers the map and renders the user marker
+  [chromium] › mobile-location-map.spec.ts:126:1 › draw and search map interfaces expose the connected listing layer without a result-count redesign
+  [chromium] › mobile-location-map.spec.ts:144:1 › menu keeps deleted sections absent and settings rows work without restarting registration
+  [chromium] › mobile-location-map.spec.ts:164:1 › login opened from an app tab uses the canonical account route
+  [chromium] › mobile-location-map.spec.ts:178:3 › main, location, modal and map do not overflow at 320px
+  [chromium] › mobile-location-map.spec.ts:178:3 › main, location, modal and map do not overflow at 360px
+  [chromium] › mobile-location-map.spec.ts:178:3 › main, location, modal and map do not overflow at 390px
+  [chromium] › mobile-location-map.spec.ts:178:3 › main, location, modal and map do not overflow at 430px
+  [chromium] › mobile-map-ideal.spec.ts:25:1 › map is freely zoomable before explicit drawing activation
+  [chromium] › mobile-map-ideal.spec.ts:44:1 › published listings are visible on the map and open from a bottom card
+  [chromium] › mobile-map-ideal.spec.ts:85:1 › listing requirements are visually prominent in results
+  [chromium] › mobile-map-overlap-regression.spec.ts:13:1 › mobile map keeps coincident listings at one truthful position for clustering
+  [chromium] › mobile-map-overlap-regression.spec.ts:44:3 › right-side next-card preview is larger and forward chevron faces left at 320px
+  [chromium] › mobile-map-overlap-regression.spec.ts:44:3 › right-side next-card preview is larger and forward chevron faces left at 390px
+  [chromium] › mobile-map-overlap-regression.spec.ts:44:3 › right-side next-card preview is larger and forward chevron faces left at 480px
+  [chromium] › mobile-map-overlap-regression.spec.ts:134:1 › both production and mock right-hand carousel controls render genuine left arrows
+  [chromium] › mobile-map-overlap-regression.spec.ts:157:1 › same-address cluster opens one full-card carousel without moving coordinates
+  [chromium] › mobile-map-overlap-regression.spec.ts:174:1 › same-address carousel is not capped at four listings
+  [chromium] › mobile-map-overlap-regression.spec.ts:184:1 › same-address carousel preserves the external source link contract on each full card
+  [chromium] › mobile-map-overlap-regression.spec.ts:192:1 › mobile same-address carousel exposes whole neighboring cards and glides between roles
+  [chromium] › mobile-map-overlap-regression.spec.ts:215:1 › desktop same-address carousel also moves complete listing cards, not image thumbnails
+  [chromium] › mobile-menu-reference-and-drawing.spec.ts:29:3 › guest menu has large spaced actions and no admin at 320px
+  [chromium] › mobile-menu-reference-and-drawing.spec.ts:29:3 › guest menu has large spaced actions and no admin at 390px
+  [chromium] › mobile-menu-reference-and-drawing.spec.ts:29:3 › guest menu has large spaced actions and no admin at 430px
+  [chromium] › mobile-menu-reference-and-drawing.spec.ts:64:1 › tenant sees account first and profile actions, never administration card
+  [chromium] › mobile-menu-reference-and-drawing.spec.ts:75:1 › administrator receives the blue admin card above their profile and can open it
+  [chromium] › mobile-menu-reference-and-drawing.spec.ts:97:1 › draw-zone button visibly latches on while drawing and releases on cancel
+  [chromium] › mobile-publication-gate.spec.ts:37:1 › publication gate has no duplicate top notice or close icon and opens existing auth
+  [chromium] › mobile-publication-gate.spec.ts:55:1 › publication entry in menu opens the same clean gate
+  [chromium] › mobile-publication-gate.spec.ts:69:1 › mobile listings action is translated in Spanish, English and Russian
+  [chromium] › mobile-publication-gate.spec.ts:89:1 › authenticated mobile menu separates listing management from profile editing
+  [chromium] › mobile-publication-gate.spec.ts:111:1 › route transition removes stale admin immediately and never flashes the full-screen loader while listings load
+  [chromium] › mobile-publication-gate.spec.ts:138:1 › publish transition from admin never flashes the full-screen loader
+  [chromium] › mobile-publication-gate.spec.ts:162:1 › owner routes preload on intent without a second owner API request
+  [chromium] › mobile-publish-layout.spec.ts:50:3 › mobile publish header and location controls stay inside 320px viewport
+  [chromium] › mobile-publish-layout.spec.ts:50:3 › mobile publish header and location controls stay inside 360px viewport
+  [chromium] › mobile-publish-layout.spec.ts:50:3 › mobile publish header and location controls stay inside 375px viewport
+  [chromium] › mobile-publish-layout.spec.ts:50:3 › mobile publish header and location controls stay inside 390px viewport
+  [chromium] › mobile-publish-layout.spec.ts:50:3 › mobile publish header and location controls stay inside 430px viewport
+  [chromium] › mobile-route-chunks.spec.ts:9:1 › mobile home does not load search results or publication gate modules until needed
+  [chromium] › mobile-route-chunks.spec.ts:26:1 › mobile list route loads search results
+  [chromium] › mobile-route-chunks.spec.ts:37:1 › mobile map route does not load list search results
+  [chromium] › mobile-route-chunks.spec.ts:48:1 › mobile publication gate loads only for its query route
+  [chromium] › mobile-search-locale-filter-parity.spec.ts:14:1 › same actual conditions produce two badges in Spanish, Russian and English
+  [chromium] › mobile-search-locale-filter-parity.spec.ts:24:1 › legacy abbreviated capacity strings and repeated translations never create a third pill
+  [chromium] › mobile-search-locale-filter-parity.spec.ts:35:1 › search geography and all filter values depend on URL, never the display locale
+  [chromium] › mobile-search-locale-filter-parity.spec.ts:51:1 › advanced filters survive the URL serializer and are sent to production API
+  [chromium] › mobile-search-locale-filter-parity.spec.ts:83:1 › explicit multiple room types override stale single type to prevent API 422
+  [chromium] › mobile-search-locale-filter-parity.spec.ts:100:5 › locale-specific mobile results render identical listing sets for the same region › identical ids, count and badges in all languages for /#/buscar?q=España&alquiler=long
+  [chromium] › mobile-search-locale-filter-parity.spec.ts:100:5 › locale-specific mobile results render identical listing sets for the same region › identical ids, count and badges in all languages for /#/buscar?q=Canarias&comunidad=05&alquiler=long
+  [chromium] › mobile-search-locale-filter-parity.spec.ts:126:1 › Clear removes hidden filters but keeps chosen community and rental mode
+  [chromium] › mobile-search-results.spec.ts:37:1 › Vivienda and Turismo are the only rental-mode controls and filter real listings
+  [chromium] › mobile-search-results.spec.ts:70:1 › price and housing type filters change the listing set
+  [chromium] › mobile-search-results.spec.ts:103:1 › sorting, photo carousel and favorites work without a delete-like guest affordance
+  [chromium] › mobile-search-results.spec.ts:140:1 › contact opens the public listing contact area and map returns to Google Maps
+  [chromium] › mobile-search-results.spec.ts:152:1 › results, sorting and filters fit every supported mobile width
+  [chromium] › mobile-site-feedback.spec.ts:28:1 › mobile move-out date is retained, persisted in URL and does not overflow
+  [chromium] › mobile-site-feedback.spec.ts:47:1 › mobile home keeps the original compact layout without extra pets or smoking controls
+  [chromium] › mobile-site-feedback.spec.ts:55:1 › mobile Appearance row is removed and the app remains permanently light-only
+  [chromium] › mobile-site-feedback.spec.ts:77:1 › authenticated mobile account stays light even when the OS prefers dark
+  [chromium] › mobile-site-feedback.spec.ts:110:1 › Spanish unknown listing facts are informational rather than CTA-like badges
+  [chromium] › mobile-site-feedback.spec.ts:127:1 › mobile filters remain within 320px viewport
+  [chromium] › monthly-top-purchase.spec.ts:12:1 › TOP preserves the chosen listing and charges only the explicitly selected hourly tier
+  [chromium] › navigation-history.spec.ts:24:3 › mobile history › fresh map starts between Spain and Tenerife before any listing is opened
+  [chromium] › navigation-history.spec.ts:39:3 › mobile history › mobile pinch camera cannot jump to the Arctic or poison map history
+  [chromium] › navigation-history.spec.ts:67:3 › mobile history › a new visit fits the 70 km cell containing the last explored point
+  [chromium] › navigation-history.spec.ts:91:3 › mobile history › after pan and zoom, reloading the same map URL recalls the 70 km zone instead of the previous close-up
+  [chromium] › navigation-history.spec.ts:109:3 › mobile history › the latest area replaces the previous one even when leaving without viewing a listing
+  [chromium] › navigation-history.spec.ts:136:3 › mobile history › opening a map marker saves its location even without moving the map first
+  [chromium] › navigation-history.spec.ts:152:3 › mobile history › explicit map deep link wins over remembered viewport and a new city search wins over history
+  [chromium] › navigation-history.spec.ts:170:3 › mobile history › corrupt map history cannot displace the safe first-visit overview
+  [chromium] › navigation-history.spec.ts:183:3 › mobile history › Home → results → map → detail unwinds one visible screen at a time
+  [chromium] › navigation-history.spec.ts:223:3 › mobile history › results scroll and filters survive detail Back, including the UI arrow
+  [chromium] › navigation-history.spec.ts:244:3 › mobile history › menu → my listings → edit uses the actual history; direct detail has a fallback
+  [chromium] › navigation-history.spec.ts:281:1 › desktop first map shows broad Spain and Tenerife before prior browsing
+  [chromium] › navigation-history.spec.ts:288:1 › desktop map saves a new area but reopens its selected 70 km zone
+  [chromium] › navigation-history.spec.ts:308:1 › desktop also saves a touch-style pointer pan when leaving directly
+  [chromium] › navigation-history.spec.ts:324:1 › desktop remembered area fits on the current screen without altering filters
+  [chromium] › navigation-history.spec.ts:336:1 › desktop explicit named area wins over prior map history
+  [chromium] › navigation-history.spec.ts:346:1 › desktop explicit bookmarked map camera wins over saved history
+  [chromium] › navigation-history.spec.ts:356:1 › desktop results → detail → browser Back restores the result route
+  [chromium] › navigation-history.spec.ts:369:1 › detail → related detail → Back restores the first detail
+  [chromium] › navigation-history.spec.ts:383:1 › search and map bookmarks survive reload
+  [chromium] › navigation-history.spec.ts:398:1 › 70 km recall fits the selected zone circle edge-to-edge without an extra margin
+  [chromium] › navigation-history.spec.ts:430:1 › mobile 70 km return uses the full map canvas rather than the old reduced dimensions
+  [chromium] › navigation-history.spec.ts:448:1 › 70 km virtual hexagonal zones cover Tenerife, Gran Canaria and mainland Spain with no gaps
+  [chromium] › navigation-history.spec.ts:485:1 › legacy saved exact point migrates to a virtual 70 km zone and preserves the same local record
+  [chromium] › navigation-performance.spec.ts:3:1 › mobile Home and list defer map implementation until map is opened
+  [chromium] › notification-badge-sync.spec.ts:3:1 › notification header badge refreshes immediately after notification state changes
+  [chromium] › notification-badge-sync.spec.ts:32:1 › notification center renders system notification copy in Russian
+  [chromium] › notification-badge-sync.spec.ts:71:1 › notification actions never point customers at unavailable listing detail
+  [chromium] › owner-card-top-refinement.spec.ts:16:5 › owner edit label stays inside its button › all locales at 320px
+  [chromium] › owner-card-top-refinement.spec.ts:16:5 › owner edit label stays inside its button › all locales at 360px
+  [chromium] › owner-card-top-refinement.spec.ts:16:5 › owner edit label stays inside its button › all locales at 390px
+  [chromium] › owner-card-top-refinement.spec.ts:16:5 › owner edit label stays inside its button › all locales at 430px
+  [chromium] › owner-card-top-refinement.spec.ts:16:5 › owner edit label stays inside its button › all locales at 468px
+  [chromium] › owner-card-top-refinement.spec.ts:50:5 › classic owner cards with focused TOP controls › vertical right-side actions and readable TOP state at 320px
+  [chromium] › owner-card-top-refinement.spec.ts:50:5 › classic owner cards with focused TOP controls › vertical right-side actions and readable TOP state at 390px
+  [chromium] › owner-card-top-refinement.spec.ts:50:5 › classic owner cards with focused TOP controls › vertical right-side actions and readable TOP state at 430px
+  [chromium] › owner-card-top-refinement.spec.ts:50:5 › classic owner cards with focused TOP controls › vertical right-side actions and readable TOP state at 768px
+  [chromium] › owner-card-top-refinement.spec.ts:50:5 › classic owner cards with focused TOP controls › vertical right-side actions and readable TOP state at 1280px
+  [chromium] › owner-card-top-refinement.spec.ts:105:3 › classic owner cards with focused TOP controls › active TOP uses reference green palette and smile/rocket in CTA
+  [chromium] › owner-card-top-refinement.spec.ts:148:3 › classic owner cards with focused TOP controls › existing edit, delete confirm, More menu and TOP selection still work
+  [chromium] › owner-listing-edit-flow.spec.ts:10:1 › mobile owner can open, edit and save a listing even with tenant product role
+  [chromium] › owner-listing-edit-flow.spec.ts:40:1 › a user still cannot edit a listing owned by another account
+  [chromium] › owner-promotion-flow.spec.ts:9:3 › promotion choices retain the site design and return without charging: ru at 320px
+  [chromium] › owner-promotion-flow.spec.ts:9:3 › promotion choices retain the site design and return without charging: en at 390px
+  [chromium] › owner-promotion-flow.spec.ts:9:3 › promotion choices retain the site design and return without charging: es at 1280px
+  [chromium] › owner-promotion-flow.spec.ts:38:1 › occupied homepage keeps the selected listing and prevents checkout
+  [chromium] › owner-rental-type.spec.ts:3:1 › owner cards show the existing rental labels without adding them to public cards
+  [chromium] › owner-rental-type.spec.ts:56:1 › mobile owner card shows delete directly below edit
+  [chromium] › owner-rental-type.spec.ts:84:1 › owner card shows the real active TOP end date from listing data
+  [chromium] › payment-audit.spec.ts:6:1 › admin refund requires a reason, confirmation and clears the review queue
+  [chromium] › payment-audit.spec.ts:27:1 › failed asynchronous payment stops confirmation and allows a new purchase
+  [chromium] › phase2-release-publication-lifecycle.spec.ts:53:1 › authenticated creation retains address autocomplete and exact map sync with lazily loaded enhancers
+  [chromium] › phase2-release-publication-lifecycle.spec.ts:60:1 › authenticated edit retains address autocomplete and exact map sync with lazily loaded enhancers
+  [chromium] › phase2-release-publication-lifecycle.spec.ts:72:1 › unauthenticated publication remains protected and does not mount the private address form
+  [chromium] › promotion-calendar.spec.ts:32:1 › hourly promotion tiers do not expose legacy date or day-range controls across DST
+  [chromium] › promotion-calendar.spec.ts:59:1 › going back preserves the chosen duration without creating Stripe checkout
+  [chromium] › promotion-calendar.spec.ts:73:5 › hourly packages in UTC › 12, 24 and 72-hour choices are date independent
+  [chromium] › promotion-calendar.spec.ts:73:5 › hourly packages in America/Los_Angeles › 12, 24 and 72-hour choices are date independent
+  [chromium] › promotion-calendar.spec.ts:73:5 › hourly packages in Pacific/Kiritimati › 12, 24 and 72-hour choices are date independent
+  [chromium] › province-top.spec.ts:4:3 › full province blocks payment and counts down without changing the dialog at 320px
+  [chromium] › province-top.spec.ts:4:3 › full province blocks payment and counts down without changing the dialog at 1280px
+  [chromium] › province-top.spec.ts:46:1 › province search keeps the existing location rows and separates both Canary provinces
+  [chromium] › province-top.spec.ts:64:1 › publication derives the province from the selected address without a manual city selector
+  [chromium] › publication-address-or-postcode.spec.ts:11:1 › a 5-digit postcode alone recenters the map and fills the location without requiring a street
+  [chromium] › publication-address-or-postcode.spec.ts:53:1 › postcode-only result without a distinct locality replaces the stale draft area
+  [chromium] › publication-address-or-postcode.spec.ts:85:1 › typed address cannot override an explicitly chosen municipality and resolves after correcting it
+  [chromium] › publication-address-or-postcode.spec.ts:161:1 › resetting a draft also resets address touched constraints before the next lookup
+  [chromium] › publication-area-centering.spec.ts:19:1 › municipality selection uses the municipality geometry center instead of the legacy town pin
+  [chromium] › publication-area-centering.spec.ts:36:1 › known barrio input recenters the publication map inside the selected municipality
+  [chromium] › publication-area-centering.spec.ts:52:1 › free-form barrio input falls back to Google geocoding and recenters when the point belongs to the municipality
+  [chromium] › publication-exact-address-map.spec.ts:92:1 › typing street, building number and postcode moves the owner marker to the exact building at street zoom
+  [chromium] › publication-exact-address-map.spec.ts:110:1 › customer address Calle José Espronceda 20 in Armeñime resolves without stale municipality context and recenters to the matched rooftop
+  [chromium] › publication-exact-address-map.spec.ts:141:1 › nearby Google correction with a different house number is rejected instead of moving to the wrong building
+  [chromium] › publication-exact-address-map.spec.ts:161:1 › same house number and postcode on a different Google route is rejected
+  [chromium] › publication-exact-address-map.spec.ts:186:1 › explicitly chosen municipality rejects the right house number on a street in another municipality
+  [chromium] › publication-exact-address-map.spec.ts:207:1 › house number is taken from the final numeric token rather than a number inside the street name
+  [chromium] › publication-exact-address-map.spec.ts:223:1 › street plus postcode without a building number recenters at street zoom instead of pretending rooftop precision
+  [chromium] › publication-exact-address-map.spec.ts:239:1 › placing the marker with empty address fields reverse-geocodes and fills the structured address
+  [chromium] › publication-exact-address-map.spec.ts:276:1 › manual marker controls cancel an in-flight exact-address lookup
+  [chromium] › publication-exact-address-map.spec.ts:315:1 › customer video regression: editing only the street re-geocodes stale saved coordinates and refreshes address fields
+  [chromium] › publication-exact-address-map.spec.ts:367:1 › customer video regression: clearing a street never geocodes the stale saved postcode or overwrites the area
+  [chromium] › publication-exact-address-map.spec.ts:418:1 › customer video regression: saving an already resolved address does not geocode it again on blur or move the marker
+  [chromium] › publication-exact-address-map.spec.ts:480:1 › publication map matches the one-page editor map size on a customer mobile viewport
+  [chromium] › publication-friendly-address-input.spec.ts:39:1 › customer postal-style address auto-corrects province-as-municipality and fills the structured address
+  [chromium] › publication-friendly-address-input.spec.ts:59:1 › postcode embedded in a pasted full address is not mistaken for the building number
+  [chromium] › publication-friendly-address-input.spec.ts:75:1 › pasted full address overrides fresh-draft postcode and area defaults
+  [chromium] › publication-location-sync.spec.ts:22:1 › publication map ignores a late reverse-geocode response after a controlled coordinate update
+  [chromium] › publication-location-sync.spec.ts:46:1 › manual municipality change clears stale address data and moves the map to the municipality polygon center at a distant zoom
+  [chromium] › publication-location-sync.spec.ts:66:1 › municipality without a hard-coded center still recenters from bundled Tenerife geometry
+  [chromium] › publication-location-sync.spec.ts:84:1 › municipality focus clears a previously detected street shown under the map
+  [chromium] › publication-location-sync.spec.ts:102:1 › address selection recenters the exact publication point at exact-building zoom
+  [chromium] › publication-location-sync.spec.ts:132:1 › map pan leaves publication location and address unchanged
+  [chromium] › publication-location-sync.spec.ts:144:1 › resolved map address updates structured fields while retaining fields absent from Google
+  [chromium] › publication-location-sync.spec.ts:161:1 › publication location uses the editor-style map contract while retaining exact sync behavior
+  [chromium] › publication-location-sync.spec.ts:172:1 › reverse geocoding without a real street never overwrites a manually entered street
+  [chromium] › publication-location-sync.spec.ts:196:1 › editing a confirmed address blocks publication until the map point is confirmed again
+  [chromium] › publication-location-sync.spec.ts:221:1 › reverse-geocoding from an old marker cannot overwrite a newly typed street
+  [chromium] › publish-language-draft-migration.spec.ts:3:1 › localized legacy publication values hydrate back to canonical domain values
+  [chromium] › publish-language-values.spec.ts:13:1 › Russian publication keeps canonical room values and preserves them when switching to Spanish
+  [chromium] › publish-route-lazy-load.spec.ts:5:1 › publication address enhancements load only when entering a publication route
+  [chromium] › publish-smart-address-autocomplete.spec.ts:32:1 › publish address autocomplete uses the native field and resilient Google prediction fallbacks
+  [chromium] › publish-smart-address-autocomplete.spec.ts:45:1 › native prediction dropdown is visible, touch-friendly and does not depend on Google widget shadow DOM
+  [chromium] › publish-smart-address-autocomplete.spec.ts:53:1 › Calle José Espronceda 20 shows a suggestion inline and selecting it fixes municipality, postcode and exact map point
+  [chromium] › publish-smart-address-autocomplete.spec.ts:97:1 › keyboard can choose an address prediction without opening a fullscreen mobile widget
+  [chromium] › publish-smart-address-autocomplete.spec.ts:126:1 › customer video: leading list prefix does not reject a valid Avenida V Centenario building and postal town replaces stale area
+  [chromium] › publish-smart-address-autocomplete.spec.ts:169:1 › rejected address suggestion never overwrites the visible street while structured fields stay unchanged
+  [chromium] › publish-smart-address-autocomplete.spec.ts:204:1 › customer video: edit autocomplete searches the current area first for an ambiguous street
+  [chromium] › removed-messaging-surface.spec.ts:7:1 › removed messaging surface has no mobile tab, route or listing entry point
+  [chromium] › removed-messaging-surface.spec.ts:30:1 › desktop navigation exposes no messaging destination
+  [chromium] › screenshot-locked-contract.spec.ts:17:1 › LOCK-OVERLAY derives at most two truthful image restrictions and omits empty overlays
+  [chromium] › screenshot-locked-contract.spec.ts:57:1 › LOCK-CARD exposes image, price, title and body navigation without nesting controls
+  [chromium] › screenshot-locked-contract.spec.ts:89:1 › LOCK-COMMENTS supports honest user-scoped create, edit, delete and account cleanup
+  [chromium] › screenshot-locked-evidence.spec.ts:5:1 › capture the current screenshot-locked live matrix
+  [chromium] › spain-community-search.spec.ts:14:3 › mobile Spain province search › home location starts unselected and location page has no Tenerife banner
+  [chromium] › spain-community-search.spec.ts:29:3 › mobile Spain province search › typing Barcelona offers its province and opens provincial results
+  [chromium] › spain-community-search.spec.ts:48:3 › mobile Spain province search › Madrid and Canary Islands choose distinct spatial searches
+  [chromium] › spain-community-search.spec.ts:64:1 › Spanish autonomous communities have correct point-in-boundary assignments and 17 regions
+  [chromium] › spain-wide-search.spec.ts:5:1 › home search accepts a mainland municipality with the selected occupant profile
+  [chromium] › spain-wide-search.spec.ts:15:1 › results search accepts a village and clears stale Tenerife area filters
+  [chromium] › spain-wide-search.spec.ts:24:1 › mobile results name the actual mainland search location
+  [chromium] › tourism-price-controls.spec.ts:20:1 › both desktop filter panels share valid Tourism control values without changing the unrestricted sentinel
+  [chromium] › tourism-price-controls.spec.ts:42:1 › unrestricted Tourism renders valid price controls without serializing a hidden maximum
+  [chromium] › tourism-price-controls.spec.ts:59:1 › Long Stay high price does not become an invalid or hidden Tourism restriction
+  [chromium] › tourism-price-controls.spec.ts:80:1 › explicit Tourism price changes serialize, and clearing restores the unrestricted sentinel
+  [chromium] › true-target-parity.spec.ts:5:1 › capture and gate the mandatory current Idealista-derived target states
+  [chromium] › v4-exact-design-evidence.spec.ts:145:1 › capture V4 golden-indexed live evidence
+  [chromium] › visual-evidence.spec.ts:13:1 › responsive final evidence at the required viewport matrix
+  [chromium] › visual-parity.spec.ts:24:1 › current mobile home, results, location and map visual states
+  [chromium] › visual-parity.spec.ts:45:1 › current mobile menu, auth and Russian visual states
+  [chromium] › visual-parity.spec.ts:106:1 › existing desktop results, listing and publication designs stay visually locked
+  [chromium] › visual-snapshot-integrity.spec.ts:12:1 › approved visual snapshots do not hide page content before capture
+  [chromium] › white-theme-copy.spec.ts:10:3 › appearance row is absent and the app stays light-only in es
+  [chromium] › white-theme-copy.spec.ts:10:3 › appearance row is absent and the app stays light-only in en
+  [chromium] › white-theme-copy.spec.ts:10:3 › appearance row is absent and the app stays light-only in ru
+  [chromium] › white-theme.spec.ts:21:1 › desktop home and footer use the customer-requested white presentation
+  [chromium] › white-theme.spec.ts:33:1 › mobile home shell uses white surfaces without changing its structure
+  [chromium] › white-theme.spec.ts:46:1 › mobile search results and filter panels stay light
+  [chromium] › white-theme.spec.ts:58:1 › current authentication route stays structured, centered and overflow-free in the light theme
+Total: 620 tests in 123 files

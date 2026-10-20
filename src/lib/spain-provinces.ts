@@ -1,5 +1,5 @@
-import names from '@/data/spain-provinces.json'
-import bounds from '@/data/spain-province-bounds.json'
+import names from '@/data/spain-provinces.json' with { type: 'json' }
+import bounds from '@/data/spain-province-bounds.json' with { type: 'json' }
 import type { Listing } from '@/types'
 
 // INE province codes: https://www.ine.es/daco/daco42/codmun/cod_provincia.htm

@@ -6,8 +6,8 @@ async function seedStickyPromotion(page: Page) {
   const seeded = await page.evaluate(() => {
     const stored = JSON.parse(localStorage.getItem('112233:listings:v3')!)
     const published = stored.data.filter((item: { status: string; rentalMode: string }) => item.status === 'Publicado' && item.rentalMode === 'long')
-    const promoted = { ...published[0], promoted: true, publishedAt: '2025-01-01', price: 999, monthlyPrice: 999 }
-    const ordinary = { ...published[1], promoted: false, publishedAt: '2099-01-01', price: 1, monthlyPrice: 1 }
+    const promoted = { ...published[0], provinceCode: '38', promoted: true, publishedAt: '2025-01-01', price: 999, monthlyPrice: 999 }
+    const ordinary = { ...published[1], provinceCode: '38', promoted: false, publishedAt: '2099-01-01', price: 1, monthlyPrice: 1 }
     return {
       promotedId: promoted.id,
       ordinaryId: ordinary.id,
@@ -96,4 +96,18 @@ test('mobile focus never lifts a normal listing above an active TOP', async ({ p
   await expect(cards).toHaveCount(2)
   await expect(cards.first()).toHaveAttribute('data-listing-id', promotedId)
   await expect(cards.nth(1)).toHaveAttribute('data-listing-id', ordinaryId)
+})
+
+
+test('local listing reload retains canonical province and legacy postcode scope', async ({ page }) => {
+  await page.goto('/')
+  const result = await page.evaluate(async () => {
+    const { normalizeListing } = await import('/src/lib/listings.ts')
+    const { listingInProvince } = await import('/src/lib/spain-provinces.ts')
+    const stored = JSON.parse(localStorage.getItem('112233:listings:v3')!).data[0]
+    const canonical = normalizeListing({ ...stored, provinceCode: '28', postcode: undefined })!
+    const legacy = normalizeListing({ ...stored, provinceCode: undefined, postcode: '38001' })!
+    return { canonical: listingInProvince(canonical, '28'), legacy: listingInProvince(legacy, '38') }
+  })
+  expect(result).toEqual({ canonical: true, legacy: true })
 })

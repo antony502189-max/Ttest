@@ -150,6 +150,8 @@ export function normalizeListing(value: unknown): Listing | null {
     id: value.id,
     title: value.title,
     city: legacy.city ?? 'Tenerife',
+    provinceCode: typeof legacy.provinceCode === 'string' ? legacy.provinceCode : undefined,
+    postcode: typeof legacy.postcode === 'string' ? legacy.postcode : undefined,
     area: legacy.area ?? 'Tenerife',
     approximateAddress: legacy.approximateAddress ?? `${legacy.area ?? 'Tenerife'} · ubicación aproximada`,
     price: rentalMode === 'holiday' ? nightlyPrice ?? price : monthlyPrice ?? price,

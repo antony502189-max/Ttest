@@ -47,10 +47,10 @@ jobs:
           pr_number="$(jq -er --arg sha "$GITHUB_SHA" '[.[] | select(.merge_commit_sha == $sha and .merged_at != null and .base.ref == "main") | .number] | first // empty' <<<"$merged_prs")"
           pr_head="$(jq -er --arg sha "$GITHUB_SHA" '[.[] | select(.merge_commit_sha == $sha and .merged_at != null and .base.ref == "main") | .head.sha] | first // empty' <<<"$merged_prs")"
           echo "Merged PR #$pr_number; tested head $pr_head"
-          files="$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$pr_number/files?per_page=100")"
-          test "$(jq 'length' <<<"$files")" -lt 100 || { echo "PR file list exceeded safe pagination limit"; exit 65; }
-          checks="$(gh api "/repos/$GITHUB_REPOSITORY/commits/$pr_head/check-runs?per_page=100")"
-          test "$(jq '.total_count' <<<"$checks")" -le 100 || { echo "Check runs exceeded safe pagination limit"; exit 65; }
+          files="$(gh api --paginate --slurp "/repos/$GITHUB_REPOSITORY/pulls/$pr_number/files?per_page=100" | jq 'add')"
+          expected_files="$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$pr_number" --jq '.changed_files')"
+          test "$(jq 'length' <<<"$files")" -eq "$expected_files" || { echo "Incomplete PR file list; refusing deployment"; exit 65; }
+          checks="$(gh api --paginate --slurp "/repos/$GITHUB_REPOSITORY/commits/$pr_head/check-runs?per_page=100" | jq '{check_runs: [.[].check_runs[]]}')"
           required=(snapshot security-static safeguards full-audit backend-production frontend-static validate)
           if jq -e 'any(.[]; (.filename | startswith("src/") or startswith("backend/") or startswith("tests/") or . == ".github/workflows/payment-audit.yml"))' <<<"$files" >/dev/null; then
             required+=(backend-payments frontend-payments)

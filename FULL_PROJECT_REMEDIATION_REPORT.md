@@ -51,7 +51,7 @@ Private address доступен только через `/users/me/address`, н
 
 ## Миграция и backfill
 
-Добавлена **expand-only** миграция `0064_verified_geography`: nullable поля пользователя, listing, saved search и муниципальные snapshots order/promotion; индексы canonical geography. Выпущенные миграции не изменены. Downgrade сохраняет расширенные данные для совместимости старых binaries.
+Добавлена **expand-only** миграция `0065_verified_geography` (до интеграции с main — `0064_verified_geography`): nullable поля пользователя, listing, saved search и муниципальные snapshots order/promotion; индексы canonical geography. Выпущенные миграции не изменены. Downgrade сохраняет расширенные данные для совместимости старых binaries.
 
 **Production migration/backfill не запускались.** Перед включением новой продажи TOP оператору необходимо:
 

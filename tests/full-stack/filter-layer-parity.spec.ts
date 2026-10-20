@@ -39,7 +39,7 @@ function baseListing(title: string, city: string, area: string) {
     title,
     city,
     area,
-    street: 'Private audit street',
+    street: 'Calle Prueba 1',
     postcode: '38001',
     approximateAddress: `${area} · ubicación aproximada`,
     rentalMode: 'long',
@@ -100,7 +100,7 @@ async function createListing(api: APIRequestContext, token: string, payload: Rec
     headers: { Authorization: `Bearer ${token}` },
     data: { ...payload, assetIds },
   })
-  expect(response.status()).toBe(201)
+  expect(response.status(), await response.text()).toBe(201)
   return (await response.json() as { id: string }).id
 }
 
@@ -214,7 +214,7 @@ test('FILTER-LAYER desktop URL state serializes every active customer server-bac
 test('FILTER-LAYER FastAPI + PostgreSQL predicates include matches and reject non-matches for every server filter', async ({ page }) => {
   test.setTimeout(120_000)
   const unique = `${Date.now()}-${test.info().project.name}`
-  const city = `Filter Audit ${unique}`
+  const city = 'Santa Cruz de Tenerife'
   const area = `Audit Area ${unique}`
   const token = await verifiedHost(unique)
   const api = await playwrightRequest.newContext({
@@ -229,7 +229,7 @@ test('FILTER-LAYER FastAPI + PostgreSQL predicates include matches and reject no
     rentalMode: 'holiday', monthlyPrice: null, nightlyPrice: 80, minimumStayMonths: 0, minimumNights: 3,
   })
 
-  const isolation = { query: city, rentalMode: 'long' }
+  const isolation = { query: area, rentalMode: 'long' }
   const checks: Array<{ name: string; match: Record<string, unknown>; miss: Record<string, unknown> }> = [
     { name: 'min price', match: { minPrice: 700 }, miss: { minPrice: 726 } },
     { name: 'max price', match: { maxPrice: 800 }, miss: { maxPrice: 724 } },
@@ -281,13 +281,13 @@ test('FILTER-LAYER FastAPI + PostgreSQL predicates include matches and reject no
 
   for (const item of checks) await expectFilter(api, primaryId, isolation, item.match, item.miss, item.name)
 
-  expect(await searchIds(api, { query: city, rentalMode: 'holiday', maxMinimumNights: 3 })).toContain(holidayId)
-  expect(await searchIds(api, { query: city, rentalMode: 'holiday', maxMinimumNights: 2 })).not.toContain(holidayId)
-  expect(await searchIds(api, { query: city, rentalMode: 'long', publishedWithinDays: 1 })).toContain(primaryId)
+  expect(await searchIds(api, { query: area, rentalMode: 'holiday', maxMinimumNights: 3 })).toContain(holidayId)
+  expect(await searchIds(api, { query: area, rentalMode: 'holiday', maxMinimumNights: 2 })).not.toContain(holidayId)
+  expect(await searchIds(api, { query: area, rentalMode: 'long', publishedWithinDays: 1 })).toContain(primaryId)
 
-  const ascending = await searchIds(api, { query: city, rentalMode: 'long', sort: 'price_asc' })
+  const ascending = await searchIds(api, { query: area, rentalMode: 'long', sort: 'price_asc' })
   expect(ascending.indexOf(primaryId)).toBeLessThan(ascending.indexOf(secondaryId))
-  const descending = await searchIds(api, { query: city, rentalMode: 'long', sort: 'price_desc' })
+  const descending = await searchIds(api, { query: area, rentalMode: 'long', sort: 'price_desc' })
   expect(descending.indexOf(secondaryId)).toBeLessThan(descending.indexOf(primaryId))
 
   const mine = await api.get(`${API_PREFIX}/listings/mine`)
@@ -296,10 +296,10 @@ test('FILTER-LAYER FastAPI + PostgreSQL predicates include matches and reject no
   expect(owned).toMatchObject({
     floor: 'top', toilet: 'Aseo privado', bedType: 'double', bathroomCount: 2,
     homeSizeM2: 90, currentRoomResidents: 1, accessible: true,
-    street: 'Private audit street', postcode: '38001', exactLatitude: 28.464, exactLongitude: -16.2514,
+    street: 'Calle Prueba 1', postcode: '38001', exactLatitude: 28.464, exactLongitude: -16.2514,
   })
 
-  const publicResult = await api.post(`${API_PREFIX}/listings/search`, { data: { query: city, rentalMode: 'long', floor: 'top', limit: 100, offset: 0 } })
+  const publicResult = await api.post(`${API_PREFIX}/listings/search`, { data: { query: area, rentalMode: 'long', floor: 'top', limit: 100, offset: 0 } })
   const publicListing = (await publicResult.json() as { items: Array<Record<string, unknown>> }).items.find((item) => item.id === primaryId)
   expect(publicListing).toBeTruthy()
   expect(publicListing).not.toHaveProperty('street')

@@ -1,0 +1,21 @@
+[WebServer] (node:32448) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 10 tests using 1 worker
+
+(node:15260) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 [desktop-chromium] › tests\full-stack\backend-integration.spec.ts:139:1 › frontend renders a listing created through the real FastAPI backend (5.2s)
+  ok  2 [desktop-chromium] › tests\full-stack\backend-integration.spec.ts:152:1 › customer-priority fields persist through FastAPI, search uses them, and private location stays owner-only (684ms)
+  ok  3 [desktop-chromium] › tests\full-stack\backend-integration.spec.ts:211:1 › unrestricted search does not send a strict tenant requirement to the API (2.1s)
+  ok  4 [desktop-chromium] › tests\full-stack\backend-integration.spec.ts:436:1 › an open catalog refreshes after its version changes on focus (2.0s)
+  ok  5 [desktop-chromium] › tests\full-stack\filter-layer-parity.spec.ts:214:1 › FILTER-LAYER FastAPI + PostgreSQL predicates include matches and reject non-matches for every server filter (6.0s)
+(node:7592) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  6 [mobile-chromium] › tests\full-stack\backend-integration.spec.ts:139:1 › frontend renders a listing created through the real FastAPI backend (2.0s)
+  ok  7 [mobile-chromium] › tests\full-stack\backend-integration.spec.ts:152:1 › customer-priority fields persist through FastAPI, search uses them, and private location stays owner-only (605ms)
+  ok  8 [mobile-chromium] › tests\full-stack\backend-integration.spec.ts:211:1 › unrestricted search does not send a strict tenant requirement to the API (2.1s)
+  ok  9 [mobile-chromium] › tests\full-stack\backend-integration.spec.ts:436:1 › an open catalog refreshes after its version changes on focus (2.0s)
+  ok 10 [mobile-chromium] › tests\full-stack\filter-layer-parity.spec.ts:214:1 › FILTER-LAYER FastAPI + PostgreSQL predicates include matches and reject non-matches for every server filter (4.8s)
+
+  10 passed (30.3s)
