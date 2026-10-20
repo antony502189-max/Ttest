@@ -183,6 +183,25 @@
 .favorite-button.is-saved { color: var(--error); }
 .image-counter { position: absolute; right: .75rem; bottom: .7rem; padding: .22rem .5rem; border-radius: var(--radius-sm); background: rgb(20 25 20 / .78); color: white; font-size: .7rem; font-weight: 650; }
 .listing-status { position: absolute; top: .75rem; left: .75rem; padding: .28rem .55rem; border-radius: var(--radius-sm); background: var(--brand); color: var(--ink); font-size: .68rem; font-weight: 750; }
+.property-card__promoted {
+  position: absolute;
+  z-index: 6;
+  top: .65rem;
+  left: .7rem;
+  width: 3.25rem;
+  height: 3.25rem;
+  display: grid;
+  place-items: center;
+  font-size: 2.7rem;
+  line-height: 1;
+  border: 0;
+  background: transparent;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / .55));
+}
+.listing-status--below-top { top: 4.25rem; }
+
 .property-card__content { min-width: 0; display: flex; flex-direction: column; padding: 1.1rem 1.2rem; }
 .card-topline { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; }
 .card-topline > span { color: var(--ink-muted); font-size: .75rem; text-align: right; }

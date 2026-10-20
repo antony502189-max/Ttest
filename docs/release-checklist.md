@@ -14,7 +14,7 @@ Use this checklist for any change affecting the running site. **A merged PR, a g
 
 ## Before deploying
 
-- [ ] Record the **exact 40-character `origin/main` SHA** and confirm PR merged.
+- [ ] Record the **exact 40-character `origin/main` SHA** and confirm PR merged; a merge alone is not a deployment.
 - [ ] Confirm VPS hostname `vmi3640228`, IP `169.58.147.65`, `APP_DOMAIN=app.112233.es`; do not deploy to an old server.
 - [ ] Confirm target has no ongoing deploy/rollback/backup/restore; shared `flock` free.
 - [ ] Confirm `/srv/112233.es/current` is present and corresponds to a known clean worktree.
@@ -23,9 +23,15 @@ Use this checklist for any change affecting the running site. **A merged PR, a g
 - [ ] If new data-service images are involved, **stop** ordinary deploy and use separate reviewed data-service migration procedure.
 - [ ] Arrange a maintenance window if external worker or application writes must stop; communicate downtime appropriately.
 
-## Deploy
+## Deploy — normal GitHub Actions route
 
-Run only the controlled `deploy/deploy-release.sh <origin-main-sha>` from a correctly prepared immutable release worktree. The script owns writer quiescence, DB backup, MinIO freshness gate, Alembic, Docker compose startup, smoke check and automatic app rollback. Do not manually retry migrations while this process is running. Preserve operator log and metadata for incident response.
+- [ ] Open [Production deployment (manual approval)](https://github.com/antony502189-max/Ttest/actions/workflows/manual-production-deploy.yml); select `main`, tick explicit production confirmation and choose **Run workflow**.
+- [ ] **Confirm exact main commit and passing PR CI** completes successfully. The selected SHA is the **latest** `main` SHA and has approved merged-PR check evidence.
+- [ ] If the deployment is waiting for review, use **Review deployments → Approve and deploy** on `production`. Self-approval needs **Prevent self-review disabled** and the operator listed among Required reviewers. Alternatively use a second authorized approver.
+- [ ] **Do not modify `main` while the release is running** and do not run another deploy or backup concurrently. The VPS verifies that approved SHA still equals `origin/main`.
+- [ ] **Deploy manually approved release to VPS** completes green. The restricted VPS runner invokes the established release engine: MinIO freshness gate, PostgreSQL backup, Alembic, Docker startup, smoke test and safe application rollback where supported. Preserve logs and metadata for incident response; don't retry migrations manually.
+
+Only a separately authorized operator should use `deploy/deploy-release.sh <exact-origin-main-sha>` as a **manual SSH fallback**, from a prepared immutable release worktree. See [GitHub Actions quickstart](deploy-quickstart-ru.md) and [deployment runbook](deployment.md).
 
 ## Post-deploy acceptance
 
@@ -46,4 +52,4 @@ Run only the controlled `deploy/deploy-release.sh <origin-main-sha>` from a corr
 4. Use `rollback-release.sh` only under the documented change plan; it cannot undo destructive business data changes.
 5. Keep database, media, backups and Traefik volumes intact.
 
-After a stable deploy, add the exact SHA, date, operator-approved checks and any deviations to your private release tracking system (no secrets in public documentation). [Deployment](deployment.md) · [Production operations](production-operations.md).
+After a stable deploy, add the exact SHA, date, operator-approved checks and any deviations to your private release tracking system (no secrets in public documentation). [Actions quickstart](deploy-quickstart-ru.md) · [Deployment](deployment.md) · [Production operations](production-operations.md).

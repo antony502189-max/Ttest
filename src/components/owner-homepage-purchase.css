@@ -10,3 +10,43 @@
   .owner-listings-page .owner-homepage-cta .owner-top-cta__copy p { display: block; }
   .owner-homepage-cta .owner-top-cta__button { margin-left: auto; }
 }
+
+/* Three fixed, one-off hourly promotion packages for TOP and the homepage hero. */
+.owner-promotion-duration-options {
+  display: grid;
+  gap: .65rem;
+  width: 100%;
+}
+.owner-promotion-duration-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+  min-height: 54px;
+  padding: .7rem 1rem;
+  border: 1px solid #d9dfcc;
+  border-radius: .7rem;
+  background: #fff;
+  color: #263321;
+  cursor: pointer;
+  text-align: left;
+  font-size: .95rem;
+}
+.owner-promotion-duration-option.is-selected {
+  border: 2px solid #788f18;
+  background: #f7ffd9;
+}
+.owner-promotion-duration-option strong {
+  white-space: nowrap;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+.owner-promotion-duration-option:focus-visible {
+  outline: 3px solid #788f18;
+  outline-offset: 2px;
+}
+.owner-promotion-duration-note {
+  margin: .35rem 0;
+  font-size: .875rem;
+  line-height: 1.45;
+}

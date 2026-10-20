@@ -3,8 +3,8 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = "0064_verified_geography"
-down_revision = "0063_financial_inbox_receipts"
+revision = "0065_verified_geography"
+down_revision = "0064_hourly_promotion_orders"
 branch_labels = None
 depends_on = None
 

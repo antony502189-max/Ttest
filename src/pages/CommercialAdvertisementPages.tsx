@@ -91,7 +91,7 @@ export function AdvertisementCheckoutPage() {
   const paymentReturn = searchParams.get('payment') === 'return'
   const paymentCancelled = searchParams.get('payment') === 'cancelled'
   const [ad, setAd] = useState<AdvertisementDetail | null>(null)
-  const [quote, setQuote] = useState<{ days: number; amountCents: number; currency: string } | null>(null)
+  const [quote, setQuote] = useState<{ days: number; months?: number; amountCents: number; currency: string } | null>(null)
   useEffect(() => {
     if (!id) { setQuote(null); return }
     let active = true
@@ -167,7 +167,7 @@ export function AdvertisementCheckoutPage() {
     {error ? <p role="alert" className="ad-flow__error">{t(error)}</p> : null}
     {ad ? <section className="ad-flow__panel">
       <div className="ad-flow__preview"><CommercialAdvertisementImage path={ad.imageUrl} title={ad.title} /><div><small>{t('Publicidad')}</small><h2 data-i18n-exempt>{ad.title}</h2><p data-i18n-exempt>{ad.description}</p></div></div>
-      {ad.status === 'pending_payment' && quote ? <p className="ad-flow__price">{new Intl.NumberFormat(locale, { style: 'currency', currency: quote.currency }).format(quote.amountCents / 100)} · {t(`${quote.days} días`)}</p> : null}
+      {ad.status === 'pending_payment' && quote ? <p className="ad-flow__price">{new Intl.NumberFormat(locale, { style: 'currency', currency: quote.currency }).format(quote.amountCents / 100)} · {t('1 mes')}</p> : null}
       <p>{t('El plazo empieza cuando se aprueba tu campaña.')}</p>
       {cancelled ? <p role="status">{t('Pago cancelado. El espacio reservado se ha liberado.')}</p> : null}
       {failed ? <p role="status">{t('Pago fallido. Puedes volver a intentarlo.')}</p> : null}

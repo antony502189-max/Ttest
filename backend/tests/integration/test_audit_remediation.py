@@ -37,7 +37,7 @@ async def target(client, register_user, email, postcode='28013'):
 
 
 async def checkout(client, listing_id, headers):
-    return await client.post(f'/api/v1/payments/listings/{listing_id}/top/checkout', headers=headers, json={'days': 30})
+    return await client.post(f'/api/v1/payments/listings/{listing_id}/top/checkout', headers=headers, json={'durationHours': 72})
 
 
 async def purchase(client, provider, listing_id, headers, *, intent=None):
@@ -243,7 +243,7 @@ async def test_admin_shortening_rejected_and_historical_shortening_cannot_overbo
     intent, charge, dispute = 'pi_' + uuid4().hex, 'ch_' + uuid4().hex, 'du_' + uuid4().hex
     remote = await purchase(client, provider, listing_id, headers, intent=intent)
     finances[0]['payment_intents/' + intent] = {'id': intent, 'metadata': {'order_id': remote['client_reference_id']}}
-    finances[0]['charges/' + charge] = {'id': charge, 'payment_intent': intent, 'amount': 3000,
+    finances[0]['charges/' + charge] = {'id': charge, 'payment_intent': intent, 'amount': 450,
                                           'amount_refunded': 0, 'disputed': False, 'currency': 'eur', 'livemode': False}
     finances[0]['disputes/' + dispute] = {'id': dispute, 'charge': charge, 'status': 'won'}
     admin = await admin_headers(client, register_user)
@@ -271,7 +271,7 @@ async def test_admin_shortening_rejected_and_historical_shortening_cannot_overbo
     async with SessionLocal() as db:
         order = await db.get(PaymentOrder, UUID(remote['client_reference_id']))
         assert order.fulfillment_status == 'review_required'
-        assert order.service_ends_at > datetime.now(UTC) + timedelta(days=29)
+        assert order.service_ends_at > datetime.now(UTC) + timedelta(hours=71)
     # Duplicate/out-of-order normal snapshots cannot turn review into a fourth grant.
     assert (await audit_helpers.financial_event(client, 'charge.dispute.closed', {'id': dispute, 'charge': charge})).status_code == 200
     async with SessionLocal() as db:
@@ -384,3 +384,26 @@ async def test_moderation_of_active_paid_top_enters_review_and_retains_reserved_
         assert promotion.top_municipality_code == '28079'
     queue = await client.get('/api/v1/payments/admin/review-required', headers=admin)
     assert queue.status_code == 200 and remote['client_reference_id'] in str(queue.json())
+
+
+@pytest.mark.parametrize(('hours', 'cents'), [(12, 99), (24, 170), (72, 450)])
+async def test_hourly_availability_checkout_and_fulfillment_agree(client, register_user, provider, hours, cents):
+    listing_id, headers = await target(client, register_user, f'hourly-municipal-{hours}@example.com')
+    route = f'/api/v1/payments/listings/{listing_id}/top'
+    available = await client.get(route + '/availability', params={'durationHours': hours}, headers=headers)
+    assert available.status_code == 200, available.text
+    assert available.json()['available'] is True
+    invalid = await client.get(route + '/availability', params={'durationHours': 48}, headers=headers)
+    assert invalid.status_code == 422
+    result = await client.post(route + '/checkout', json={'durationHours': hours}, headers=headers)
+    assert result.status_code == 200 and result.json()['amountCents'] == cents, result.text
+    remote = provider[result.json()['url'].rsplit('/', 1)[-1]]
+    remote.update(status='complete', payment_status='paid')
+    assert (await lifecycle.webhook(client, remote)).status_code == 200
+    async with SessionLocal() as db:
+        order = await db.get(PaymentOrder, UUID(remote['client_reference_id']))
+        promotion = await db.get(ListingPromotion, UUID(listing_id))
+        assert order.fulfillment_status == 'fulfilled'
+        assert order.duration_hours == hours
+        assert order.top_municipality_code == promotion.top_municipality_code == '28079'
+        assert order.service_ends_at - order.service_starts_at == timedelta(hours=hours)

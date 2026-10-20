@@ -58,8 +58,8 @@ import { MediaStorageError, removeMedia, saveMediaFile } from "@/lib/media-stora
 import { api } from "@/api/client";
 import type { DemoUser } from "@/types";
 import { OwnerHomepagePurchase } from "@/components/owner-homepage-purchase";
-import { PromotionPeriod, promotionDate, addPromotionDays, promotionDays } from "@/components/promotion-period";
 import { ProvinceTopAvailability, useProvinceTopAvailability } from "@/components/province-top-availability";
+import { TOP_PROMOTION_OFFERS, formatPromotionPrice, promotionDurationLabel, type PromotionHours } from "@/lib/promotion-offers";
 
 type TopPaymentStatus = { orderStatus: string | null; fulfillmentStatus: string | null; endsAt: string | null };
 
@@ -478,44 +478,40 @@ export function ProfilePage() {
   );
 }
 
-/** Fixed vector asset for both TOP states; no platform-dependent emoji artwork. */
+/** Two reference-matched rocket illustrations; rendered according to persisted TOP state. */
 function OwnerTopRocket({ active }: { active: boolean }) {
   return (
     <svg
       className={`owner-top-rocket ${active ? "is-launched" : "is-grounded"}`}
       data-top-rocket-active={active ? "true" : "false"}
-      viewBox="0 0 48 48"
-      fill="none"
+      viewBox="0 0 100 100"
       aria-hidden="true"
       focusable="false"
     >
-      <path d="M15 31 9 39l1-8-5 1 9-13 8 2" fill={active ? "#b8efd0" : "#ffe9ed"} stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" />
-      <path d="M27 29 31 40l-7-4-5 8-2-13" fill={active ? "#88d8a6" : "#ffe9ed"} stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" />
-      <path d="M17 31c-1-7 2-15 10-22 5-4 10-6 16-6 1 8-2 15-7 21-6 7-13 10-19 7Z" fill={active ? "#e8fff3" : "#fff3f5"} stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" />
-      <path d="M30 7 40 17" stroke="currentColor" strokeWidth="2.3" />
-      <circle cx="30" cy="18" r="4" fill={active ? "#68c7e4" : "#ffced8"} stroke="currentColor" strokeWidth="2.2" />
-      <path d="m17 31-7 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-      {active ? (
-        <>
-          <path d="M11 34c-5 1-7 6-8 11 5-1 10-3 12-8l-4-3Z" fill="#ffbf39" stroke="#ce7223" strokeWidth="1.5" strokeLinejoin="round" />
-          <path d="m12 38-4 4" stroke="#ff6a21" strokeWidth="2" strokeLinecap="round" />
-        </>
-      ) : null}
+      <image
+        href={active ? "/top-rocket-active.svg" : "/top-rocket-idle.svg"}
+        x="0"
+        y="0"
+        width="100"
+        height="100"
+        preserveAspectRatio="xMidYMid meet"
+      />
     </svg>
   );
 }
 
 function formatOwnerPromotionEnd(value: string, locale: string, language: string) {
-  const inclusiveEnd = new Date(value);
-  if (Number.isNaN(inclusiveEnd.getTime())) return "";
-  if (inclusiveEnd.getHours() === 0 && inclusiveEnd.getMinutes() === 0 && inclusiveEnd.getSeconds() === 0) {
-    inclusiveEnd.setDate(inclusiveEnd.getDate() - 1);
-  }
+  const endsAt = new Date(value);
+  if (Number.isNaN(endsAt.getTime())) return "";
+  // Hourly paid entitlements can expire at any time, including midnight.
+  // Display their actual exclusive deadline instead of rounding to an earlier day.
   const formatted = new Intl.DateTimeFormat(locale, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  }).format(inclusiveEnd);
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(endsAt);
   return language === "ru" ? `${formatted} г.` : formatted;
 }
 
@@ -529,11 +525,9 @@ export function MyListingsPage() {
   const [promotionStep, setPromotionStep] = useState<"choose" | "duration" | "payment">("choose");
   const [homepageCandidateId, setHomepageCandidateId] = useState("");
   const [topCandidateId, setTopCandidateId] = useState("");
-  const [topStartDate, setTopStartDate] = useState(() => promotionDate());
-  const [topEndDate, setTopEndDate] = useState(() => addPromotionDays(promotionDate(), 10));
-  const topDays = promotionDays(topStartDate, topEndDate);
-  const validTopDays = Number.isInteger(topDays) && topDays >= 10 && topDays <= 365;
-  const provinceTop = useProvinceTopAvailability(topCandidateId, topDays, topDialogOpen && promotionStep !== "choose");
+  const [topDurationHours, setTopDurationHours] = useState<PromotionHours>(12);
+  const selectedTopOffer = TOP_PROMOTION_OFFERS.find((offer) => offer.durationHours === topDurationHours)!;
+  const provinceTop = useProvinceTopAvailability(topCandidateId, topDurationHours, topDialogOpen && promotionStep !== "choose");
   const [topPaymentStatus, setTopPaymentStatus] = useState<TopPaymentStatus | null>(null);
   const [topPaymentBusy, setTopPaymentBusy] = useState(false);
   const [topPaymentError, setTopPaymentError] = useState("");
@@ -584,21 +578,18 @@ export function MyListingsPage() {
       : undefined;
     if (!promotable.length) return;
     setTopCandidateId(candidate?.id ?? "");
-    const currentEnd = candidate?.promotionEndsAt ? new Date(candidate.promotionEndsAt) : null;
-    const startDate = promotionDate(currentEnd && currentEnd.getTime() > Date.now() ? currentEnd : new Date());
-    setTopStartDate(startDate);
-    setTopEndDate(addPromotionDays(startDate, 10));
+    setTopDurationHours(12);
     setPromotionStep("choose");
     setTopPaymentError("");
     setTopDialogOpen(true);
   };
   const payForTop = async () => {
-    if (!topCandidateId || !validTopDays || !provinceTop.canBuy) return;
+    if (!topCandidateId || !provinceTop.canBuy) return;
     setTopPaymentBusy(true);
     setTopPaymentError("");
     try {
       const checkout = await api<{ url: string }>(`/payments/listings/${topCandidateId}/top/checkout`, {
-        method: "POST", body: JSON.stringify({ days: Number(topDays) }),
+        method: "POST", body: JSON.stringify({ durationHours: topDurationHours }),
       });
       window.location.assign(checkout.url);
     } catch (error) {
@@ -858,7 +849,7 @@ export function MyListingsPage() {
           </div>
           {promotionStep === "choose" ? <div className="owner-top-dialog__list" data-testid="owner-promotion-choices">
             <button type="button" className="owner-top-dialog__option owner-promotion-choice" onClick={() => { setTopDialogOpen(false); setHomepageCandidateId(topCandidateId); }} disabled={!promotable.find((listing) => listing.id === topCandidateId)?.images.length}>
-              <span className="owner-promotion-choice__icon"><Home aria-hidden="true" /></span><span><strong>{t("Destacar en portada")}</strong><small>{t("Su foto aparecerá en la portada con un enlace al anuncio.")}</small></span>
+              <span className="owner-promotion-choice__icon"><Home aria-hidden="true" /></span><span><strong>{t("Banner Premium Principal")}</strong><small>{t("Su foto aparecerá en la portada con un enlace al anuncio.")}</small></span>
             </button>
             <button type="button" className="owner-top-dialog__option owner-promotion-choice" onClick={() => setPromotionStep("duration")}>
               <span className="owner-promotion-choice__icon"><Rocket aria-hidden="true" /></span><span><strong>{t("Sube tu anuncio a TOP")}</strong><small>{t("Haz que tu anuncio destaque y aparezca antes que los demás.")}</small></span>
@@ -866,14 +857,23 @@ export function MyListingsPage() {
           </div> : <div className={`owner-top-dialog__next ${promotionStep === "duration" ? "owner-top-dialog__next--period" : ""}`} data-testid="owner-top-next-step">
             <ProvinceTopAvailability state={provinceTop} />
             {promotionStep === "duration" ? <>
-              <PromotionPeriod start={topStartDate} end={topEndDate} onChange={setTopEndDate} />
-              <Button type="button" disabled={!validTopDays || !provinceTop.canBuy} onClick={() => setPromotionStep("payment")}>{t("Continuar")}</Button>
+              <div className="owner-promotion-duration-options" role="group" aria-label={t("Duración de TOP")}>
+                {TOP_PROMOTION_OFFERS.map((offer) => <button type="button" key={offer.durationHours}
+                  className={`owner-promotion-duration-option ${topDurationHours === offer.durationHours ? "is-selected" : ""}`}
+                  aria-pressed={topDurationHours === offer.durationHours}
+                  onClick={() => setTopDurationHours(offer.durationHours)}>
+                  <span>{promotionDurationLabel(offer.durationHours, language)}</span>
+                  <strong>{formatPromotionPrice(offer.amountCents, locale)}</strong>
+                </button>)}
+              </div>
+              <p className="owner-promotion-duration-note">{t("El plazo empieza cuando se confirma el pago. Si ya tienes TOP, se añaden las horas al plazo actual.")}</p>
+              <Button type="button" disabled={!provinceTop.canBuy} onClick={() => setPromotionStep("payment")}>{t("Continuar")}</Button>
               <Button type="button" variant="outline" onClick={() => setPromotionStep("choose")}>{t("Volver")}</Button>
             </> : <>
-              <strong>{t("1 € al día · mínimo 10 días")}{validTopDays ? ` · ${t(`${topDays} días`)} · ${new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }).format(Number(topDays))}` : ''}</strong>
-              <span>{t("El plazo empieza cuando se confirma el pago. Si ya tienes TOP, se añaden los días al plazo actual.")}</span>
+              <strong>{promotionDurationLabel(topDurationHours, language)} · {formatPromotionPrice(selectedTopOffer.amountCents, locale)}</strong>
+              <span>{t("El plazo empieza cuando se confirma el pago. Si ya tienes TOP, se añaden las horas al plazo actual.")}</span>
               {topPaymentError ? <span role="alert">{t(topPaymentError)}</span> : null}
-              <Button type="button" disabled={topPaymentBusy || !topCandidateId || !validTopDays || !provinceTop.canBuy} onClick={() => { void payForTop() }}>{topPaymentBusy ? t("Cargando…") : t("Pagar con Stripe")}</Button>
+              <Button type="button" disabled={topPaymentBusy || !topCandidateId || !provinceTop.canBuy} onClick={() => { void payForTop() }}>{topPaymentBusy ? t("Cargando…") : t("Pagar con Stripe")}</Button>
               <Button type="button" variant="outline" disabled={topPaymentBusy} onClick={() => setPromotionStep("duration")}>{t("Volver")}</Button>
               <Button type="button" variant="outline" disabled={topPaymentBusy || !topCandidateId} onClick={() => { void cancelTopPayment() }}>{t("Cancelar pago")}</Button>
             </>}

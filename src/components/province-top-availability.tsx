@@ -5,7 +5,7 @@ import { useI18n } from '@/contexts/i18n-context'
 
 type Availability = { municipality: string; available: boolean; availableSlots: number; availableAt: string | null; serverNow: string }
 
-export function useProvinceTopAvailability(listingId: string, days: number, enabled: boolean) {
+export function useProvinceTopAvailability(listingId: string, durationHours: number, enabled: boolean) {
   const [availability, setAvailability] = useState<Availability | null>(null)
   const [error, setError] = useState('')
   const [remaining, setRemaining] = useState<number | null>(null)
@@ -13,7 +13,7 @@ export function useProvinceTopAvailability(listingId: string, days: number, enab
   const refresh = useCallback(() => setRevision((value) => value + 1), [])
   useEffect(() => {
     setAvailability(null); setError(''); setRemaining(null)
-    if (!enabled || !listingId || !Number.isInteger(days) || days < 10 || days > 365) return
+    if (!enabled || !listingId || ![12, 24, 72].includes(durationHours)) return
     const controller = new AbortController()
     let deadline: number | null = null
     let refreshing = false
@@ -21,7 +21,7 @@ export function useProvinceTopAvailability(listingId: string, days: number, enab
       if (refreshing) return
       refreshing = true
       try {
-        const result = await api<Availability>(`/payments/listings/${listingId}/top/availability?days=${days}`, { signal: controller.signal })
+        const result = await api<Availability>(`/payments/listings/${listingId}/top/availability?durationHours=${durationHours}`, { signal: controller.signal })
         if (controller.signal.aborted) return
         const delta = result.availableAt ? Date.parse(result.availableAt) - Date.parse(result.serverNow) : NaN
         deadline = Number.isFinite(delta) ? performance.now() + Math.max(0, delta) : null
@@ -39,7 +39,7 @@ export function useProvinceTopAvailability(listingId: string, days: number, enab
       if (!seconds) { deadline = null; void load() }
     }, 1000)
     return () => { controller.abort(); window.clearInterval(poll); window.clearInterval(tick) }
-  }, [days, enabled, listingId, revision])
+  }, [durationHours, enabled, listingId, revision])
   return { availability, error, remaining, refresh, canBuy: Boolean(availability?.available) && !error }
 }
 

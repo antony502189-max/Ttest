@@ -42,19 +42,22 @@ Every financial expansion/revival checks the complete interval, even when an ord
 was already labelled fulfilled.
 
 Legacy admin PUT/DELETE cannot overwrite a live paid/pending entitlement. Restore
-checks the real projection and retains its original paid period. Daily/monthly
+checks the real projection and retains its original paid period. Hourly and legacy daily/monthly
 fulfillment repeat full eligibility. Moderation/withdrawal or a published listing
 returning to pending sends active paid TOP to review and keeps its reserved
 interval/history; refund/restoration uses audited payment resolution.
 
-`/payments/listings/{id}/top/availability?days=10` returns `municipalityCode`,
+`/payments/listings/{id}/top/availability?durationHours=12` returns `municipalityCode`,
 `municipality`, capacity, earliest start and server time. The existing dialog uses
 monotonic server-relative `HH:MM:SS`, polls every15s and rechecks at zero. Zero,
 unknown release time and provider errors cannot authorize payment.
 
 ## Migration and rollout
 
-Apply expand-only migration `0064_verified_geography`. Start with:
+Apply `alembic upgrade head` through `0065_verified_geography`, following the existing
+`0064_hourly_promotion_orders` migration in a single linear chain. TOP purchases
+use server-owned tariffs: 12 hours for €0.99, 24 hours for €1.70, and 72 hours for €4.50.
+Legacy day/month orders retain their purchased periods. Start with:
 
 ```text
 python -m app.commands.backfill_geography --expected-database DATABASE_NAME

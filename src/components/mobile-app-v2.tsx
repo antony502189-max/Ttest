@@ -47,7 +47,7 @@ import { ProvinceLocationSearch } from '@/components/province-location-search'
 import { getProvince, provinceName, provinceMapCamera, resolveProvince } from '@/lib/spain-provinces'
 import { preloadAccountPages } from '@/lib/route-preload'
 import { useAppBack } from '@/hooks/use-app-back'
-import { FIRST_MAP_VIEWPORT, mapViewportFromParams, readLastMapViewport, rememberMapViewport, type MapViewport } from '@/lib/map-visit-history'
+import { FIRST_MAP_VIEWPORT, MAP_EXPLORATION_BOUNDS, isExplorableMapCenter, mapViewportFromParams, readLastMapViewport, rememberMapViewport, type MapViewport } from '@/lib/map-visit-history'
 import { resolveTenerifeLocation } from '@/lib/tenerife'
 import type { Listing } from '@/types'
 
@@ -350,13 +350,19 @@ function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onSta
         if (cancelled || !containerRef.current) return
         const mapId = googleMapsConfig.mapId
         const { initialCenter: center, initialCamera: camera } = startingView.current
-        const map = new GoogleMap(containerRef.current, { center: camera ?? center ?? FIRST_MAP_VIEWPORT, zoom: camera?.zoom ?? (center ? 14 : FIRST_MAP_VIEWPORT.zoom), mapId: mapId || undefined, styles: mapId ? undefined : darkMapStyles, disableDefaultUI: true, gestureHandling: 'greedy', clickableIcons: false, backgroundColor: '#142536', minZoom: 2, maxZoom: 19 })
-        const startingCenter = camera ?? center ?? FIRST_MAP_VIEWPORT
+        const requestedCenter = camera ?? center ?? FIRST_MAP_VIEWPORT
+        const startingCenter = isExplorableMapCenter(requestedCenter) ? requestedCenter : FIRST_MAP_VIEWPORT
+        const startingZoom = startingCenter === FIRST_MAP_VIEWPORT ? FIRST_MAP_VIEWPORT.zoom : camera?.zoom ?? (center ? 14 : FIRST_MAP_VIEWPORT.zoom)
+        // Mobile pinch gestures on some Android WebViews can send the camera
+        // thousands of kilometres away. Restrict actual Google Maps movement
+        // before recording any map position or requesting out-of-area markers.
+        const map = new GoogleMap(containerRef.current, { center: startingCenter, zoom: startingZoom, mapId: mapId || undefined, styles: mapId ? undefined : darkMapStyles, disableDefaultUI: true, gestureHandling: 'greedy', clickableIcons: false, backgroundColor: '#142536', minZoom: 2, maxZoom: 19, restriction: { latLngBounds: MAP_EXPLORATION_BOUNDS, strictBounds: true } })
         // Apply the camera to the map instance as well as its UI metadata.
         // The lightweight test Maps SDK does not honor constructor options.
         map.setCenter({ lat: startingCenter.lat, lng: startingCenter.lng })
-        map.setZoom(camera?.zoom ?? (center ? 14 : FIRST_MAP_VIEWPORT.zoom))
+        map.setZoom(startingZoom)
         mapRef.current = map
+        let lastValidCamera: MapCamera = { lat: startingCenter.lat, lng: startingCenter.lng, zoom: startingZoom }
         let userHasExploredMap = false
         const persistExploredCamera = () => {
           if (!userHasExploredMap) return
@@ -384,7 +390,7 @@ function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onSta
           document.removeEventListener('visibilitychange', onVisibilityChange)
           persistExploredCamera()
         }
-        if (camera) {
+        if (camera && isExplorableMapCenter(camera)) {
           map.getDiv().dataset.mapCenter = `${camera.lat.toFixed(6)},${camera.lng.toFixed(6)}`
           map.getDiv().dataset.mapZoom = String(camera.zoom)
           cameraChange.current(camera)
@@ -394,6 +400,15 @@ function GoogleMapCanvas({ t, mapRef, query, initialCenter, initialCamera, onSta
           const point = map.getCenter()
           const zoom = map.getZoom()
           if (!point || zoom === undefined) return
+          const candidate = { lat: point.lat(), lng: point.lng(), zoom }
+          if (!isExplorableMapCenter(candidate) || !Number.isFinite(zoom) || zoom < 2 || zoom > 19) {
+            // Defensive recovery if the SDK/WebView emits a spurious map
+            // camera despite the Google Maps restriction.
+            map.setCenter({ lat: lastValidCamera.lat, lng: lastValidCamera.lng })
+            map.setZoom(lastValidCamera.zoom)
+            return
+          }
+          lastValidCamera = candidate
           map.getDiv().dataset.mapCenter = `${point.lat().toFixed(6)},${point.lng().toFixed(6)}`
           map.getDiv().dataset.mapZoom = String(zoom)
           cameraChange.current({ lat: point.lat(), lng: point.lng(), zoom }, userHasExploredMap)

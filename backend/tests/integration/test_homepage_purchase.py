@@ -28,15 +28,15 @@ async def test_single_slot_race_fulfillment_and_expiry(client, register_user, pr
     first, owner = await listing(client, register_user, 'homepage-first@example.com')
     second, other = await listing(client, register_user, 'homepage-second@example.com')
     results = await asyncio.gather(
-        client.post(f'/api/v1/payments/listings/{first}/homepage/checkout', headers=owner),
-        client.post(f'/api/v1/payments/listings/{second}/homepage/checkout', headers=other),
+        client.post(f'/api/v1/payments/listings/{first}/homepage/checkout', headers=owner, json={'durationHours':12}),
+        client.post(f'/api/v1/payments/listings/{second}/homepage/checkout', headers=other, json={'durationHours':12}),
     )
     assert sorted(result.status_code for result in results) == [200, 409]
     index = next(i for i, result in enumerate(results) if result.status_code == 200)
     winner, headers = [(first, owner), (second, other)][index]
     result = results[index]
-    assert result.json()['amountCents'] == 6000 and len(provider) == 1
-    repeat = await client.post(f'/api/v1/payments/listings/{winner}/homepage/checkout', headers=headers)
+    assert result.json()['amountCents'] == 495 and len(provider) == 1
+    repeat = await client.post(f'/api/v1/payments/listings/{winner}/homepage/checkout', headers=headers, json={'durationHours':12})
     assert repeat.json()['url'] == result.json()['url']
     remote = provider[result.json()['url'].rsplit('/', 1)[-1]]
     remote.update(status='complete', payment_status='paid')
@@ -46,7 +46,7 @@ async def test_single_slot_race_fulfillment_and_expiry(client, register_user, pr
     assert public.json()['id'] == winner
     async with SessionLocal() as db:
         hero = await db.get(HomepageHeroPromotion, 1)
-        assert hero.ends_at == one_month_after(hero.starts_at)
+        assert hero.ends_at == hero.starts_at + timedelta(hours=12)
         starts, ends = hero.starts_at, hero.ends_at
     admin = await admin_headers(client, register_user)
     denied = await client.delete('/api/v1/admin/homepage-hero', headers=admin)
@@ -62,13 +62,30 @@ async def test_single_slot_race_fulfillment_and_expiry(client, register_user, pr
 
 async def test_cancel_releases_homepage_reservation(client, register_user, provider):
     target, headers = await listing(client, register_user, 'homepage-cancel@example.com')
-    response = await client.post(f'/api/v1/payments/listings/{target}/homepage/checkout', headers=headers)
+    response = await client.post(f'/api/v1/payments/listings/{target}/homepage/checkout', headers=headers, json={'durationHours':24})
     assert response.status_code == 200
     assert not (await client.get('/api/v1/payments/homepage/quote', headers=headers)).json()['available']
     cancelled = await client.post(f'/api/v1/payments/listings/{target}/homepage/checkout/cancel', headers=headers)
     assert cancelled.json()['cancelled']
     assert (await client.get('/api/v1/payments/homepage/quote', headers=headers)).json()['available']
     assert (await client.get('/api/v1/listings/homepage-hero')).json() is None
+
+
+
+@pytest.mark.parametrize("hours,cents", [(12, 495), (24, 850), (72, 2250)])
+async def test_featured_homepage_hourly_prices_and_invalid_legacy_request(client, register_user, provider, hours, cents):
+    target, headers = await listing(client, register_user, f"homepage-{hours}@example.com")
+    url = f"/api/v1/payments/listings/{target}/homepage/checkout"
+    invalid = await client.post(url, headers=headers, json={"days": 30})
+    assert invalid.status_code == 422
+    response = await client.post(url, headers=headers, json={"durationHours": hours, "amountCents": 1})
+    assert response.status_code == 200 and response.json()["amountCents"] == cents, response.text
+    remote = provider[response.json()["url"].rsplit("/", 1)[-1]]
+    remote.update(status="complete", payment_status="paid")
+    assert (await webhook(client, remote)).status_code == 200
+    async with SessionLocal() as db:
+        hero = await db.get(HomepageHeroPromotion, 1)
+        assert hero.ends_at - hero.starts_at == timedelta(hours=hours)
 
 
 async def test_monthly_banner_quote_and_approved_duration(client, register_user, provider):

@@ -1,38 +1,73 @@
 # Homepage advertising
 
-The homepage has a horizontally scrolling advertising carousel at the bottom.
-Published banners appear first in API order, followed by one “Tu anuncio podría
-estar aquí” slide in the selected language while fewer than seven banners exist.
-Thus 0/1/2/6/7 banners produce 1/2/3/7/7 slides. There is no vacancy slide when all
-seven banners are published. The mobile layout shows the edge of the next card
-and supports native touch scrolling with the active card centered. Slides advance smoothly
-every five seconds while visible, pausing during hover, focus or touch interaction.
-There is no pause button; reduced-motion preferences disable autoplay.
-Pricing is shown at the final checkout step, after creating and previewing an ad;
-the homepage and editor do not advertise a price.
-The carousel uses the existing fonts, white cards, magenta links and lime purchase buttons. Each new `homepage_1d`
-campaign costs **€1 per day**, with a selectable duration of **10–365 days**. Duration starts at administrator approval.
-Existing `test_homepage_30d` purchases retain their paid duration and price.
-The paid number of days is recorded on the order and campaign; approval uses that duration.
+The homepage shows a seven-position advertising grid (restored from the
+historical layout in commit `66fca55f16ce`). Paid, published banners appear
+in their normal API order and the remaining places display a neutral
+megaphone placeholder labeled “Espacio publicitario” in the selected
+language. On mobile, all seven positions form a vertical stack, matching
+the previously approved reference instead of the later horizontal carousel.
+On larger screens the places form a two-column grid.
 
-In **Mis anuncios**, the TOP action on an individual listing opens a choice
-between homepage placement and TOP. The two page-level promotion cards are hidden.
-Both services keep that listing selected. TOP asks for duration before showing
-its total; homepage placement shows its price on the final confirmation dialog.
-Neither opening the choice nor moving between steps creates a payment session.
-TOP duration is selected with an end-date calendar and 10/14/21/30-day presets.
-The displayed start date is fixed because service starts after payment (or extends
-an existing TOP period). The supported duration remains 10–365 days; calendar
-arithmetic uses date-only UTC values so daylight-saving changes do not alter the
-number of paid days. Checkout still submits the duration, not a scheduled start.
+The original call to action remains below the advertising slots, with the
+heading “Tu anuncio podría estar aquí”, description, and full-width lime
+“Publicar publicidad” button on mobile. When capacity is exhausted,
+the existing availability/waitlist functionality replaces the purchase
+call to action. Placeholders do not count as paid inventory; slot capacity
+is still enforced by the backend and provider-confirmed reservations.
 
-The existing homepage photo slot can also be purchased from **Mis anuncios** for
-**€60 for one calendar month**. It shows the selected published listing's photo
-and a direct link, in the existing homepage layout. Checkout reserves the single
-slot; concurrent purchases and administrator replacement of a purchased slot
-are blocked. It starts on confirmed payment and ends at the same UTC time on the
-next month's corresponding day (clamped to the last day for shorter months).
-There is no recurring subscription. A new purchase is possible after expiry.
+The homepage advertising header displays **€30.00 / month** (localized for
+Spanish, Russian and English) next to the megaphone label, using the public
+`GET /advertisements/availability` quote rather than a hardcoded frontend
+price. This endpoint reads the same `PACKAGE_PRICE_CENTS` as Stripe Checkout,
+and reports `monthlyPriceCents=3000`, `months=1`, `currency=EUR`.
+If the public quote fails, the header omits the price instead of making one up.
+
+The grid preserves its fonts, pale placeholder cards, sponsored links and
+lime purchase button. **New homepage-bottom advertising banners cost €30 for
+exactly one calendar month**, starting on administrator approval; users cannot
+choose a shorter or longer duration. The backend still stores a 30-day order
+compatibility field, but the actual purchased calendar month ends on the
+corresponding day of the next month (clamped when needed). This is a
+one-time purchase, not a recurring subscription.
+
+The historical package identifier `homepage_1d` is retained to preserve
+existing data and API compatibility; it does **not** offer one-day purchases.
+Legacy `test_homepage_30d` entitlements retain their original paid terms.
+
+In **Mis anuncios**, the TOP action on each eligible owned listing offers two
+independent paid products. The buyer selects a fixed period and sees the
+price before explicitly confirming Stripe Checkout:
+
+| Purchased period | Listing TOP | Single homepage featured listing |
+| --- | ---: | ---: |
+| **12 hours** | **€0.99** | **€4.95** |
+| **24 hours** | **€1.70** | **€8.50** |
+| **72 hours (3 days)** | **€4.50** | **€22.50** |
+
+The homepage featured listing is the **single large main photo / booking
+hero slot**, not one of the seven commercial advertising banners. Its tariff
+is exactly five times the corresponding TOP tier. These are **one-time
+purchases**, not subscriptions. No other time selections are accepted by the
+new checkout API; the server computes the Stripe amount using a fixed
+integer-cent tariff table and persists `duration_hours` on new orders.
+
+TOP brings the selected property ahead of ordinary listings in search and
+map results for exactly the purchased number of UTC hours. An additional
+TOP purchase extends the existing unexpired TOP end time by the purchased
+hours, without truncating the old paid period.
+
+The single featured-listing slot becomes active only on verified payment,
+shows the selected listing photo and direct link, and expires exactly
+12, 24 or 72 hours from confirmed payment. Concurrent purchases and manual
+administrator replacement of a paid slot remain blocked. Buy again only
+after capacity becomes free.
+
+**Historical protection:** `payment_orders.duration_hours` is nullable;
+NULL denotes an existing order under the old days/calendar-month tariff.
+Previous purchased durations, prices and fulfillment remain intact.
+Migration `0064_hourly_promotion_orders` is additive and does not rewrite
+earlier paid orders. The seven commercial advertising banners retain their
+independent **€30 per calendar month** price and approval workflow.
 
 Apply migration `0060_homepage_purchases` before deploying the new backend.
 It adds the homepage order kind and nullable banner duration while preserving
@@ -45,15 +80,16 @@ media delivery, moderation and campaign management paths remain in use.
 
 ## Payments and seven-slot capacity
 
-`GET /payments/advertisements/{id}/quote?days=21` returns the owner’s price and availability
-without reserving a place. The explicit payment click calls the existing Stripe
-Checkout endpoint. A shared PostgreSQL transaction advisory lock serializes
-checkout, moderation, editing, cancellation and webhook state changes.
-
-The banner Checkout body is `{ "days": 21 }`; totals are computed on the server.
-Changing an existing open payment's duration requires cancelling that payment
-first. Homepage endpoints are `/payments/homepage/quote` and
-`/payments/listings/{id}/homepage/checkout`, `/status`, and `/checkout/cancel`.
+`GET /payments/advertisements/{id}/quote` returns one month, €30 and current
+capacity without reserving a place. The explicit payment click calls Stripe
+Checkout; the browser sends `{ "days": 30 }` for legacy API compatibility.
+Other values of `days` are rejected by the API (HTTP 422), and the price
+is always calculated by the backend. Existing open sessions must be cancelled
+before creating another order. A shared PostgreSQL transaction advisory lock
+serializes checkout, moderation, editing, cancellation and webhook state
+changes. Homepage featured-listing endpoints are
+`/payments/homepage/quote` and `/payments/listings/{id}/homepage/checkout`,
+`/status`, and `/checkout/cancel`.
 
 Active unexpired campaigns, paid review submissions, and pending Stripe orders
 reserve capacity. Pending orders count once per campaign. New purchases are

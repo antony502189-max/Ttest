@@ -55,12 +55,20 @@ git -C /srv/112233.es/repo worktree add --detach /srv/112233.es/releases/<sha> <
 
 ## Deploy and verify
 
-After a green PR is merged, fetch local main, use its full SHA, and run on the VPS:
+**Standard operator path:** reviewed PR → green CI → merge to `main` → **[GitHub Actions: Production deployment](https://github.com/antony502189-max/Ttest/actions/workflows/manual-production-deploy.yml)** → **Run workflow (main + confirmation checkbox)** → verify-release green → **Review deployments / Approve and deploy** if required → deploy green → compare VPS SHA and public `build-info.json`. The workflow starts the release through the root-owned forced-command runner; no interactive VPS SSH session is required for a normal developer release.
+
+When Required reviewers includes the launching operator and **Prevent self-review** is disabled, that operator can approve their **own** deployment. The GitHub Environment is named `production` and should only allow `main`. No release occurs automatically after merging or pushing code. Do not change `main` or launch a second production operation while a release is in progress: the runner rechecks exact `origin/main` and the shared lock. See [Russian quickstart](deploy-quickstart-ru.md), [manual GitHub Actions CI/CD details](manual-production-cicd.md) and [release checklist](release-checklist.md).
+
+**SSH manual fallback (authorized server operator only):** after CI passes and a PR is merged, prepare the exact `origin/main` immutable worktree, then run:
 
 ```bash
-/srv/112233.es/releases/<sha>/deploy/deploy-release.sh <40-character-main-sha>
-/srv/112233.es/current/deploy/smoke-production.sh
+ROOT=/srv/112233.es
+SHA=<FULL_40_CHARACTER_MAIN_SHA>
+ROOT="$ROOT" bash "$ROOT/releases/$SHA/deploy/deploy-release.sh" "$SHA"
+ROOT="$ROOT" bash "$ROOT/current/deploy/smoke-production.sh"
 ```
+
+In that example `SHA` must be replaced with the real full reviewed commit identifier; do not run it for an in-progress workflow or stale `main`. A credential-free developer does **not** need the fallback for ordinary PR delivery.
 
 The deploy script accepts only the exact current `origin/main` SHA. For an existing installation it first verifies that the digest-pinned PostgreSQL, Redis and MinIO images are identical to the active release. A stateful image change is refused before writers stop and requires a separate controlled data-service migration and recovery plan. The normal release then enters a bounded maintenance window by stopping all write-producing application services, starts PostgreSQL/MinIO from the **previous** release definition, creates encrypted authenticated backups, and only then starts dependencies from the new release and applies migrations. Existing persistent volumes without a known `current` release fail closed. The script builds/starts application services and requires backend readiness. It records the previous/new SHA, backup runtime SHA, migration revisions and image IDs under `/srv/112233.es/releases/`; deployment metadata and failure logs are created under a restrictive process umask. It never deletes volumes, releases or backups; older code must be selected through `rollback-release.sh`, not the normal deploy path.
 

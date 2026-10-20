@@ -36,14 +36,15 @@ def next_available(windows, start, end):
     return None
 
 
-async def top_availability(session, listing, *, days=10, starts_at=None, ends_at=None, exclude_order=None, months=None):
+async def top_availability(session, listing, *, days=10, starts_at=None, ends_at=None, exclude_order=None, months=None, hours=None):
     now = datetime.now(UTC)
     owner = await session.get(User, listing.owner_user_id, populate_existing=True)
     code = owner.municipality_code if owner and owner.address_verified_at else None
     if code not in MUNICIPALITIES:
         raise HTTPException(409, "Verify the owner's address in the profile before buying TOP")
     start = starts_at or now
-    end = ends_at or start + timedelta(days=days)
+    duration = timedelta(hours=hours) if hours is not None else timedelta(days=days)
+    end = ends_at or start + duration
     if ends_at is None:
         current = await session.get(ListingPromotion, listing.id)
         extension_start = max(start, current.ends_at) if current and current.ends_at else start
@@ -51,7 +52,7 @@ async def top_availability(session, listing, *, days=10, starts_at=None, ends_at
             from .homepage_purchase import one_month_after
             end = one_month_after(extension_start)
         else:
-            end = extension_start + timedelta(days=days)
+            end = extension_start + duration
     # Freeze the municipality at reservation/grant time. A missing legacy
     # association is never guessed from the property's postcode.
     unknown_promotion = await session.scalar(select(ListingPromotion.listing_id).where(

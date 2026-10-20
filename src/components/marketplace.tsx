@@ -540,9 +540,10 @@ export function PropertyCard({
           {imageIndex + 1}/{cardImages.length}
         </span>
         <FavoriteButton listing={listing} />
+        {listing.promoted ? <span className="property-card__promoted" role="img" aria-label="Anuncio TOP" data-testid="listing-top-thumb">👍</span> : null}
         {imageIndex === 0 ? <CriticalRestrictionOverlay listing={listing} /> : null}
         {listing.advertiserType === "Profesional" ? (
-          <span className="listing-status">Profesional</span>
+          <span className={cn("listing-status", listing.promoted && "listing-status--below-top")}>Profesional</span>
         ) : null}
       </div>
       <div className="property-card__content">

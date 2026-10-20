@@ -151,3 +151,21 @@ async def test_financial_restoration_obeys_province_capacity(monkeypatch, peer_c
     await payment_finances.change_service_finances(order, session)
     assert order.fulfillment_status == ('fulfilled' if peer_count == 2 else 'review_required')
     assert (promotion.ends_at > now + timedelta(seconds=1)) == (peer_count == 2)
+
+
+@pytest.mark.asyncio
+async def test_hourly_capacity_uses_exact_duration_and_renewal_window():
+    start = datetime.now(UTC) + timedelta(hours=1)
+    listing = SimpleNamespace(id=uuid4(), owner_user_id=uuid4())
+    peers = [(uuid4(), start + timedelta(hours=18), start + timedelta(hours=48)) for _ in range(3)]
+    short = await top_availability(Session(promotions=peers), listing, starts_at=start, hours=12)
+    long = await top_availability(Session(promotions=peers), listing, starts_at=start, hours=24)
+    assert short['available'] is True
+    assert long['available'] is False
+    # Renewing an existing six-hour entitlement extends the complete interval to 18h.
+    own = SimpleNamespace(ends_at=start + timedelta(hours=6))
+    adjacent = await top_availability(Session(promotions=peers, own=own), listing, starts_at=start, hours=12)
+    assert adjacent['available'] is True
+    own.ends_at += timedelta(seconds=1)
+    overlap = await top_availability(Session(promotions=peers, own=own), listing, starts_at=start, hours=12)
+    assert overlap['available'] is False

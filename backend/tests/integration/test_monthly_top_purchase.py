@@ -19,9 +19,9 @@ pytestmark = pytest.mark.integration
 
 async def purchase(client, provider, target, headers):
     response = await client.post(f'/api/v1/payments/listings/{target}/top/checkout', headers=headers,
-                                 json={'days': 30, 'amountCents': 1, 'currency': 'usd'})
+                                 json={'durationHours': 24, 'amountCents': 1, 'currency': 'usd'})
     assert response.status_code == 200, response.text
-    assert response.json()['amountCents'] == 3000
+    assert response.json()['amountCents'] == 170
     return response, provider[response.json()['url'].rsplit('/', 1)[-1]]
 
 
@@ -45,10 +45,10 @@ async def test_monthly_top_payment_priority_renewal_and_expiry(client, register_
         promotion = await db.get(ListingPromotion, UUID(target))
         original_end = promotion.ends_at
         original_boost = promotion.boosted_at
-        assert original_end == promotion.starts_at + timedelta(days=30)
+        assert original_end == promotion.starts_at + timedelta(hours=24)
         order = await db.scalar(select(PaymentOrder).where(PaymentOrder.target_id == UUID(target)))
-        assert order.duration_months is None and order.days == 30 and order.status == 'paid' and order.fulfillment_status == 'fulfilled'
-        assert promotion.daily_price_cents == 100
+        assert order.duration_months is None and order.duration_hours == 24 and order.days == 1 and order.status == 'paid' and order.fulfillment_status == 'fulfilled'
+        assert promotion.daily_price_cents is None
     for sort in ['newest', 'oldest', 'price_asc', 'price_desc']:
         result = await client.post('/api/v1/listings/search', json={'rentalMode':'long','sort':sort})
         assert result.status_code == 200, result.text
@@ -60,9 +60,9 @@ async def test_monthly_top_payment_priority_renewal_and_expiry(client, register_
     assert status.json()['fulfillmentStatus'] == 'fulfilled'
     async with SessionLocal() as db:
         promotion = await db.get(ListingPromotion, UUID(target))
-        assert promotion.ends_at == original_end + timedelta(days=30)
+        assert promotion.ends_at == original_end + timedelta(hours=24)
         assert promotion.boosted_at > original_boost
-        assert promotion.total_price_cents == 6000
+        assert promotion.total_price_cents == 340
         promotion.ends_at = datetime.now(UTC) - timedelta(seconds=1)
         await db.commit()
     result = await client.post('/api/v1/listings/search', json={'rentalMode':'long'})
@@ -74,9 +74,10 @@ async def test_monthly_top_rejects_old_packages_and_unauthorized_purchase(client
     target, headers = await listing(client, register_user, 'monthly-owner@example.com')
     _, stranger = await listing(client, register_user, 'monthly-stranger@example.com')
     route = f'/api/v1/payments/listings/{target}/top/checkout'
-    for days in [1, 7, 9, 366, 30.5, '30', True]:
-        assert (await client.post(route, headers=headers, json={'days':days})).status_code == 422
-    assert (await client.post(route, headers=stranger, json={'days':30})).status_code == 404
+    for hours in [1, 48, 73, '12', True]:
+        assert (await client.post(route, headers=headers, json={'durationHours':hours})).status_code == 422
+    assert (await client.post(route, headers=headers, json={'days':30})).status_code == 422
+    assert (await client.post(route, headers=stranger, json={'durationHours':24})).status_code == 404
     assert not provider
     await purchase(client, provider, target, headers)
     cancelled = await client.post(route + '/cancel', headers=headers)
@@ -105,12 +106,12 @@ async def test_top_selected_listing_duration_and_server_price(client, register_u
         await db.commit()
         second_id = str(second.id)
     response = await client.post(f'/api/v1/payments/listings/{second_id}/top/checkout', headers=headers,
-                                 json={'days':21, 'amountCents':1})
-    assert response.status_code == 200 and response.json()['amountCents'] == 2100
+                                 json={'durationHours':72, 'amountCents':1})
+    assert response.status_code == 200 and response.json()['amountCents'] == 450
     remote = provider[response.json()['url'].rsplit('/', 1)[-1]]
     remote.update(status='complete', payment_status='paid')
     assert (await webhook(client, remote)).status_code == 200
     async with SessionLocal() as db:
         assert await db.get(ListingPromotion, UUID(first)) is None
         promotion = await db.get(ListingPromotion, UUID(second_id))
-        assert promotion.ends_at - promotion.starts_at == timedelta(days=21)
+        assert promotion.ends_at - promotion.starts_at == timedelta(hours=72)

@@ -42,6 +42,29 @@ curl -fsS http://localhost:8000/health/ready
 
 Check applied Alembic revision (current source head: `0056_external_scope_checkpoint`), PostGIS extension, DB connection pool and private Redis/MinIO services. Backend regional filter is a `ST_Intersects` predicate over listed points; it is not a city text search. For slow nationwide counts, measure `EXPLAIN (ANALYZE, BUFFERS)` against representative **non-production** or approved read-only data and inspect relevant GiST/index plans before rewriting the API.
 
+## GitHub Actions release troubleshooting
+
+The normal release path is [Actions → Production deployment (manual approval)](https://github.com/antony502189-max/Ttest/actions/workflows/manual-production-deploy.yml). Use the [Russian operator quickstart](deploy-quickstart-ru.md).
+
+| Symptom | Check and safe response |
+| --- | --- |
+| Workflow does not deploy on PR merge | **Expected.** Releases only start with manual `Run workflow` and the confirmation checkbox. |
+| **Confirm exact main commit and passing PR CI** fails | Check that the workflow was launched from `main` and all required checks passed on the PR head that produced the current merge. Direct pushes, missing CI or a changed `main` SHA are deliberately rejected. |
+| **Waiting for review** | Use **Review deployments → production → Approve and deploy**. If you must approve your own run, the GitHub `production` Environment needs Required reviewers with your user and **Prevent self-review unchecked**. |
+| Approval complete but **Deploy manually approved release to VPS** fails | Inspect the redacted job logs. Missing `PRODUCTION_SSH_PRIVATE_KEY` or `PRODUCTION_SSH_KNOWN_HOSTS`, host-key pin mismatch, failed restricted SSH authentication, backup/lock gating or a changed SHA each require distinct remediation. Never disable strict host-key checking or paste private key values into issues. |
+| GitHub job disconnects or times out | The systemd-managed VPS release **may still be running**. Do not start a second workflow before checking the VPS release unit, lock, `*.deploy-info` and active `current`. |
+| Green workflow but feature seems unchanged | Check full GitHub SHA against `/srv/112233.es/current` and `https://app.112233.es/build-info.json`, then reload the browser and verify the intended flow. CI success is not proof of user-facing functionality. |
+
+Authorized VPS operator diagnostics for the affected SHA:
+
+```bash
+systemctl status 112233-release-<FULL_SHA> --no-pager
+journalctl -u 112233-release-<FULL_SHA> --no-pager -n 100
+readlink -f /srv/112233.es/current
+```
+
+Do not type angle-bracket placeholders literally; replace `<FULL_SHA>` with the exact 40-character SHA. Inspect logs for sensitive material before sharing.
+
 ## Production: deployment hangs or fails
 
 **Do not run a second deploy until the first is confirmed finished.** On VPS `169.58.147.65`:
