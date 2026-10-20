@@ -42,7 +42,7 @@ def test_paginated_manual_release_gate(tmp_path, scenario, allowed):
 args = sys.argv[1:]
 data = json.load(open(os.environ['RELEASE_FIXTURES']))
 endpoint = next(arg for arg in args if arg.startswith('/repos/'))
-if endpoint.endswith('/pulls'):
+if endpoint.split('?', 1)[0].endswith('/pulls'):
     print(json.dumps(data['pulls']))
 elif '/files?' in endpoint or '/check-runs?' in endpoint:
     assert '--paginate' in args and '--slurp' in args
@@ -56,4 +56,7 @@ else:
            "GITHUB_REPOSITORY": "antony502189-max/Ttest", "GITHUB_SHA": sha,
            "RELEASE_FIXTURES": str(fixture)}
     result = subprocess.run(["bash", "-c", script], env=env, capture_output=True, text=True, check=False)
-    assert (result.returncode == 0) is allowed, result.stdout + result.stderr
+    assert result.returncode == (0 if allowed else 65), result.stdout + result.stderr
+    if not allowed:
+        expected = "Incomplete PR file list" if scenario == "incomplete_files" else "Unsafe to deploy: required check"
+        assert expected in result.stdout + result.stderr
