@@ -15,6 +15,10 @@
   &nbsp; · &nbsp;
   <a href="#quick-start"><strong>⚡ Run locally</strong></a>
   &nbsp; · &nbsp;
+  <a href="#release-from-github-actions"><strong>🚀 Deploy via GitHub</strong></a>
+  &nbsp; · &nbsp;
+  <a href="docs/deploy-quickstart-ru.md"><strong>🇷🇺 Инструкция по деплою</strong></a>
+  &nbsp; · &nbsp;
   <a href="docs/index.md"><strong>📖 Documentation</strong></a>
 </p>
 
@@ -39,6 +43,19 @@
 
 > [!IMPORTANT]
 > **GitHub `main` is not the live deployment.** The production application runs on a self-hosted Contabo VPS, not GitHub Pages. Confirm the live version using [`/build-info.json`](https://app.112233.es/build-info.json) and the server's `/srv/112233.es/current` symlink before any operational change.
+
+### New developer / release operator — start here
+
+| Goal | Read / do |
+| --- | --- |
+| **Understand the project** | [Architecture](docs/architecture.md) → [API](docs/api.md) → [Documentation index](docs/index.md) |
+| **Run the project locally** | [Quick start](#quick-start) → [Local development](docs/local-development.md) → [Testing](docs/testing.md) |
+| **Submit changes** | Work in a feature branch → open a PR → wait for required CI → merge to `main`. Follow [Contributing](docs/contributing.md). |
+| **Deploy to the real website** | Follow **[GitHub Actions deployment — short Russian guide](docs/deploy-quickstart-ru.md)**. An authorized operator launches the workflow and explicitly confirms production. No routine SSH access is needed. |
+| **Diagnose a release** | [Release checklist](docs/release-checklist.md) → [Troubleshooting](docs/troubleshooting.md) → [Production operations](docs/production-operations.md) |
+
+> [!CAUTION]
+> **Do not push straight to `main` when preparing a production release.** The production workflow verifies that the target SHA belongs to a merged PR with passing required checks. A direct `main` commit may be rejected by that gate. Use a PR and merge it instead. Updating `main` during an already running release can also invalidate that release's SHA approval.
 
 ### Explore the project
 
@@ -230,6 +247,8 @@ The complete infrastructure-backed local audit is `bash scripts/final-audit-loca
 
 GitHub Actions covers production configuration, source snapshots, backend and frontend checks, mobile Playwright shards, publication/auth regressions and a dedicated [payment audit workflow](.github/workflows/payment-audit.yml).
 
+GitHub Pages UI preview is **not** the production deployment target. A Pages setup failure should be diagnosed separately from the VPS release workflow; required CI gates must still be passing before a release.
+
 > [!NOTE]
 > Green CI proves only that its configured checks passed for the tested revision. It is **not** a production smoke test, comprehensive security assessment, or payment compliance certification.
 
@@ -239,9 +258,26 @@ GitHub Actions covers production configuration, source snapshots, backend and fr
 
 ## Production operations
 
-**Primary deployment method: GitHub Actions with an explicit operator approval.** A pull-request merge into `main` **does not deploy** production. Developers can perform a normal release through the GitHub web interface without obtaining VPS root credentials.
+### Release from GitHub Actions
 
-**[🚀 Deploy in five minutes — Russian operator guide](docs/deploy-quickstart-ru.md)** · [Run production workflow](https://github.com/antony502189-max/Ttest/actions/workflows/manual-production-deploy.yml) · [English CI/CD runbook](docs/manual-production-cicd.md)
+The repository uses a **manual GitHub Actions release, followed by automated VPS deployment**. No production release is triggered by `push`, PR creation or merging alone.
+
+1. **Merge a reviewed PR with passing CI into `main`**. Do not bypass the PR-based release evidence.
+2. Open **[Production deployment (manual approval)](https://github.com/antony502189-max/Ttest/actions/workflows/manual-production-deploy.yml)** under GitHub Actions.
+3. Click **Run workflow**, choose `main`, tick **I approve deployment of the current main to app.112233.es**, and start the workflow.
+4. Wait for **Confirm exact main commit and passing PR CI** to succeed.
+5. If the workflow says **Waiting for review**, open **Review deployments → production → Approve and deploy**.
+6. Wait for **Deploy manually approved release to VPS** to succeed; compare the target SHA with [public build-info.json](https://app.112233.es/build-info.json) and test the changed functionality in a real browser.
+
+**Self-approval:** In **Settings → Environments → production**, choose **Required reviewers** with the deploying operator listed and **disable Prevent self-review**. When Prevent self-review is enabled, a different designated reviewer must approve. Disabling Required reviewers removes the second click, but the initial manual Run workflow confirmation remains mandatory.
+
+**Important:** a GitHub Actions green check, `main`, and the actually deployed VPS release are three separate things. Do not start another workflow, change `main`, or run manual backup/rollback while a deployment is active. The VPS runner requires an exact currently approved `main` SHA and uses a shared operation lock.
+
+**[Полная инструкция на русском (пошагово)](docs/deploy-quickstart-ru.md)** · [English setup / key rotation](docs/manual-production-cicd.md) · [Release checklist](docs/release-checklist.md)
+
+### Infrastructure and safety
+
+Developers can release through GitHub Actions without routine root SSH access. The following server flow is executed **after the manually approved workflow**:
 
 ```text
 Reviewed PR + passing required CI → merge to main
@@ -258,8 +294,6 @@ Immutable worktree → migrations → containers → smoke
                                        ↓
 Green deploy + matching /build-info.json + manual UI check
 ```
-
-The `production` GitHub Environment controls who may approve a release. To let the **same owner launch and approve**, configure **Required reviewers** with that account and **disable Prevent self-review**. With Prevent self-review enabled, another designated reviewer is mandatory. If reviewers are disabled, the second approval step disappears; the manual Run workflow confirmation is still required. **Neither mode deploys automatically on merge or push.**
 
 The VPS release engine `deploy/deploy-release.sh <exact-origin-main-sha>` remains the controlled implementation and manual fallback for an authorized operator. It checks stateful image compatibility, backup freshness, PostgreSQL backup, migrations, application health and public build SHA. Application rollback **does not** reverse financial events or destructive data migrations.
 
