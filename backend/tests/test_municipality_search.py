@@ -8,7 +8,12 @@ from app.models import Listing
 from app.repositories.listings import apply_search_filters
 from app.schemas.listings import ListingSearchRequest
 from app.services.notifications import _saved_search_payload
-from app.spain_municipalities import MUNICIPALITIES, municipality_aliases, normalized_municipality
+from app.spain_municipalities import (
+    MUNICIPALITIES,
+    municipality_aliases,
+    normalized_municipality,
+    unique_municipality_aliases,
+)
 
 
 def test_catalogue_covers_all_municipalities_and_both_canary_provinces():
@@ -50,3 +55,10 @@ def test_accents_and_ine_article_aliases_match_imported_city_names():
     assert normalized_municipality('Güímar') == normalized_municipality('Guimar')
     assert normalized_municipality('Guía de Isora') == normalized_municipality('Guia de Isora')
     assert 'La Laguna' in municipality_aliases('San Cristóbal de La Laguna')
+
+
+def test_missing_province_fallback_uses_only_globally_unambiguous_names():
+    assert 'adeje' in unique_municipality_aliases('38001')
+    assert MUNICIPALITIES['12033'] == MUNICIPALITIES['17030'] == 'Cabanes'
+    assert 'cabanes' not in unique_municipality_aliases('12033')
+    assert 'cabanes' not in unique_municipality_aliases('17030')

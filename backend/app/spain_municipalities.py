@@ -22,3 +22,14 @@ def municipality_aliases(name):
 
 def normalized_municipality(value):
     return ''.join(char for char in unicodedata.normalize('NFD', value.lower()) if not unicodedata.combining(char)).strip()
+
+
+_alias_owners: dict[str, set[str]] = {}
+for _code, _name in MUNICIPALITIES.items():
+    for _alias in municipality_aliases(_name):
+        _alias_owners.setdefault(normalized_municipality(_alias), set()).add(_code)
+
+
+def unique_municipality_aliases(code):
+    return [normalized_municipality(alias) for alias in municipality_aliases(MUNICIPALITIES[code])
+            if len(_alias_owners[normalized_municipality(alias)]) == 1]

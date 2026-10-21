@@ -83,7 +83,7 @@ export function selectMobileSearchListings({
     rentalMode,
     effectiveFilters,
   ).filter((listing) => {
-    if (geography.provinceCode && !listingInProvince(listing, geography.provinceCode)) return false
+    if (geography.provinceCode && !geography.municipalityCode && !listingInProvince(listing, geography.provinceCode)) return false
     if (geography.municipalityCode && !listingInMunicipality(listing, geography.municipalityCode)) return false
     if (community && !region) return false
     if (region && !listingInCommunity(listing, region.id)) return false

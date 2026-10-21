@@ -46,7 +46,7 @@ export function ProvinceLocationSearch({ language, rentalMode, onSelect, desktop
   return <>
     <form className={desktop ? "location-selector-search" : "m2-location-search"} onSubmit={(event) => { event.preventDefault(); event.stopPropagation(); const place = suggestions[active < 0 ? 0 : active]; if (place) select(place.id) }}>
       <Search aria-hidden="true" /><input type="search" value={query} onFocus={() => setFocused(true)} onChange={(event) => { setQuery(event.target.value); setActive(-1) }} placeholder={copy.placeholder} aria-label={copy.placeholder} autoComplete="off"
-        aria-controls={listId}
+        aria-controls={desktop || focused ? listId : undefined}
         onKeyDown={(event) => {
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault()

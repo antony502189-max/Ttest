@@ -341,17 +341,24 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
     # Autonomous-community queries are spatial; never use the display name
     # as a literal city/area substring (Cataluña must include Barcelona).
     if payload.municipalityCode:
-        from ..spain_municipalities import MUNICIPALITIES, municipality_aliases, normalized_municipality
+        from ..spain_municipalities import (
+            MUNICIPALITIES,
+            municipality_aliases,
+            normalized_municipality,
+            unique_municipality_aliases,
+        )
         from ..spain_provinces import province_code_expression
         name = MUNICIPALITIES.get(payload.municipalityCode)
         if name is None:
             query = query.where(false())
         else:
-            query = query.where(
-                province_code_expression() == payload.municipalityCode[:2],
-                func.trim(func.translate(func.lower(Listing.city), 'áéíóúüñ', 'aeiouun')).in_(
-                    [normalized_municipality(alias) for alias in municipality_aliases(name)]),
-            )
+            province = province_code_expression()
+            city = func.trim(func.translate(func.lower(Listing.city), 'áéíóúüñ', 'aeiouun'))
+            query = query.where(or_(
+                and_(province == payload.municipalityCode[:2], city.in_(
+                    [normalized_municipality(alias) for alias in municipality_aliases(name)])),
+                and_(province.is_(None), city.in_(unique_municipality_aliases(payload.municipalityCode))),
+            ))
     elif payload.provinceCode:
         from ..spain_provinces import province_code_expression
         query = query.where(province_code_expression() == payload.provinceCode)

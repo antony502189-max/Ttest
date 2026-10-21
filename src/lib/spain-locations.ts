@@ -23,6 +23,12 @@ const byId = new Map(places.map((place) => [place.id, place]))
 const aliases = new Map(places.map((place) => [place.id, (place.type === 'municipality'
   ? municipalityAliases(catalog.municipalities[place.id as keyof typeof catalog.municipalities])
   : [place.label, ...(place.id === '38' ? ['Tenerife'] : place.id === '07' ? ['Baleares'] : [])]).map(normalizePlace)]))
+const aliasOwners = new Map<string, Set<string>>()
+for (const place of municipalities) for (const name of aliases.get(place.id)!) {
+  const owners = aliasOwners.get(name) ?? new Set<string>()
+  owners.add(place.id)
+  aliasOwners.set(name, owners)
+}
 export const getSearchPlace = (id: string) => byId.get(id)
 export function resolveMunicipality(query: string, provinceCode?: string) {
   const term = normalizePlace(query)
@@ -60,6 +66,7 @@ export function listingInMunicipality(listing: Listing, id: string) {
   const place = byId.get(id)
   if (place?.type !== 'municipality') return false
   const province = listing.provinceCode ?? listing.postcode?.slice(0, 2)
-  return (!province || province === place.provinceCode) && aliases.get(id)!.includes(normalizePlace(listing.city))
+  const city = normalizePlace(listing.city)
+  return aliases.get(id)!.includes(city) && (province ? province === place.provinceCode : aliasOwners.get(city)?.size === 1)
 }
 export const placeProvinceName = (place: SearchPlace) => getProvince(place.provinceCode)?.es ?? ''

@@ -11,6 +11,9 @@ ranking; it does not train an ML model or request GPS permission.
 
 The server validates municipality/province consistency and applies both the
 province and exact normalized city aliases to cards, map requests and counts.
+Legacy listings without a province remain searchable only when their city alias
+identifies one municipality in the national catalogue; ambiguous names never
+match another province through this fallback.
 Municipality suggestions do not display province-wide listing counts. Saved
 searches keep the municipality code in existing filter metadata and preserve it
 in restored links and notifications. No database migration is required.

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 import catalog from '../src/data/spain-municipalities.json' with { type: 'json' }
+import AxeBuilder from '@axe-core/playwright'
+import { expectProvinceLocationVisual } from './helpers/province-location-visual'
 
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
@@ -98,4 +100,29 @@ test('saved city searches retain their code when city and province have the same
   await expect(result).toHaveAttribute('href', /municipio=38038/)
   await result.click()
   await expect(page).toHaveURL(/municipio=38038/)
+})
+
+test('location accessibility and layout work before and after suggestions open', async ({ page }) => {
+  await page.goto('/#/?panel=ubicacion')
+  await expectProvinceLocationVisual(page)
+  const closed = await new AxeBuilder({ page }).include('.m2-location').analyze()
+  expect(closed.violations.filter((item) => item.impact === 'serious' || item.impact === 'critical')).toEqual([])
+  await page.getByRole('searchbox').fill('Adeje')
+  const opened = await new AxeBuilder({ page }).include('.m2-location').analyze()
+  expect(opened.violations.filter((item) => item.impact === 'serious' || item.impact === 'critical')).toEqual([])
+})
+
+test('legacy listings with a unique city name remain searchable without province metadata', async ({ page }) => {
+  await page.goto('/')
+  await page.evaluate(() => {
+    const stored = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{}')
+    const source = stored.data.find((listing: { rentalMode: string }) => listing.rentalMode === 'long')
+    if (!source) throw new Error('Missing initial mock listing')
+    localStorage.setItem('112233:listings:v3', JSON.stringify({ version: 3, data: [{
+      ...source, id: 'legacy-adeje-no-province', city: 'Adeje', area: 'Adeje', postcode: '', provinceCode: undefined,
+    }] }))
+  })
+  await page.goto('/#/buscar?q=Adeje&alquiler=long')
+  await page.reload()
+  await expect(page.locator('[data-listing-id="legacy-adeje-no-province"]')).toBeVisible()
 })
