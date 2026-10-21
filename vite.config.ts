@@ -66,7 +66,7 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: { entries: ['index.html'] },
     server: {
       watch: {
-        ignored: ['**/artifacts/**', '**/test-results/**', '**/output/**', '**/.venv/**', '**/backend/**'],
+        ignored: ['**/artifacts/**', '**/test-results/**', '**/output/**', '**/var/**', '**/.venv/**', '**/.audit-venv/**', '**/.smoke-venv/**', '**/backend/**'],
       },
     },
     resolve: {
