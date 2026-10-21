@@ -306,7 +306,7 @@ export function LocationSelector({
   onLocationSelect?: (query: string, placeId?: string) => void;
 }) {
   const { allListings, rentalMode, mapPolygon, clearMapPolygon } = useApp();
-  const { language } = useI18n();
+  const { language, t } = useI18n();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(selected);
@@ -325,7 +325,7 @@ export function LocationSelector({
           variant="ghost"
           size="sm"
           className="location-selector-trigger"
-          aria-label={`Abrir selección de ubicación. ${currentQuery || "Tenerife"}`}
+          aria-label={`${t(`Abrir selección de ubicación. ${currentQuery || t("Municipio, barrio o zona de Tenerife")}`)}. ${t("Zonas")}${selected.length ? ` (${selected.length})` : ""}`}
         >
           <MapPin className="location-trigger-mobile-icon" aria-hidden="true" />
           <span className="location-trigger-mobile-copy">{currentQuery || "Municipio, barrio o zona de Tenerife"}</span>
@@ -561,7 +561,7 @@ export function PropertyCard({
         ) : null}
       </div>
       <div className="property-card__content">
-        <ListingDestination listing={listing} className="property-card__body-link" ariaLabel={`Abrir ${listing.title}`} onOpen={() => markRecentlyViewed(listing.id)}>
+        <ListingDestination listing={listing} className="property-card__body-link" onOpen={() => markRecentlyViewed(listing.id)}>
           <h3 data-i18n-exempt>{listing.title}</h3>
           <div className="card-topline">
             <PriceBlock listing={listing} />

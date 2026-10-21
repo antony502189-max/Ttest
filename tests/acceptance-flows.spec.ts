@@ -460,7 +460,7 @@ test("16–18 listing gallery keyboard, contact, share and report mutate state",
       },
     });
   });
-  await page.getByRole("button", { name: /compartir/i }).click();
+  await page.getByRole("button", { name: "Compartir", exact: true }).click();
   expect(
     await page.evaluate(
       () => (window as typeof window & { shared?: boolean }).shared,

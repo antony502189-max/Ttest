@@ -107,6 +107,7 @@ const translations: Record<string, Translation> = {
   'No se pudieron cargar las denuncias relacionadas.': { ru: 'Не удалось загрузить связанные жалобы.', en: 'Could not load related reports.' },
   'Saltar al contenido': { ru: 'Перейти к содержимому', en: 'Skip to content' },
   'inicio': { ru: 'главная', en: 'home' },
+  '11·22·33.es — inicio': { ru: '11·22·33.es — главная', en: '11·22·33.es — home' },
   '112233.es — inicio': { ru: '112233.es — главная', en: '112233.es — home' },
   'Idioma': { ru: 'Язык', en: 'Language' },
   'Seleccionar idioma': { ru: 'Выбрать язык', en: 'Select language' },

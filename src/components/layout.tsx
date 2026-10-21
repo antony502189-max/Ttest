@@ -29,7 +29,7 @@ function DelayedRouteFallback() {
 }
 
 export function Logo({ compact = false }: { compact?: boolean }) {
-  return <Link to="/" className="brand-logo" aria-label="112233.es — inicio"><span aria-hidden="true">11<span>·</span>22<span>·</span>33</span>{compact ? null : <small>.es</small>}</Link>
+  return <Link to="/" className="brand-logo" aria-label="11·22·33.es — inicio"><span aria-hidden="true">11<span>·</span>22<span>·</span>33</span>{compact ? null : <small aria-hidden="true">.es</small>}</Link>
 }
 
 const languageOptions: { value: Language; code: string; label: string }[] = [
@@ -39,9 +39,9 @@ const languageOptions: { value: Language; code: string; label: string }[] = [
 ]
 
 export function LanguageSwitcher() {
-  const { language, setLanguage } = useI18n()
+  const { language, setLanguage, t } = useI18n()
   const current = languageOptions.find((option) => option.value === language) ?? languageOptions[0]
-  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="language-switcher" aria-label="Seleccionar idioma"><Globe2 data-icon="inline-start" /><span>{current.code}</span><ChevronDown aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start" className="language-menu"><DropdownMenuLabel>Idioma</DropdownMenuLabel><DropdownMenuRadioGroup value={language} onValueChange={(value) => setLanguage(value as Language)}>{languageOptions.map((option) => <DropdownMenuRadioItem key={option.value} value={option.value}><span className="language-code">{option.code}</span>{option.label}</DropdownMenuRadioItem>)}</DropdownMenuRadioGroup></DropdownMenuContent></DropdownMenu>
+  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="language-switcher" aria-label={`${t("Seleccionar idioma")} · ${current.code}`}><Globe2 data-icon="inline-start" /><span>{current.code}</span><ChevronDown aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start" className="language-menu"><DropdownMenuLabel>Idioma</DropdownMenuLabel><DropdownMenuRadioGroup value={language} onValueChange={(value) => setLanguage(value as Language)}>{languageOptions.map((option) => <DropdownMenuRadioItem key={option.value} value={option.value}><span className="language-code">{option.code}</span>{option.label}</DropdownMenuRadioItem>)}</DropdownMenuRadioGroup></DropdownMenuContent></DropdownMenu>
 }
 
 function NotificationLink({ mobile = false }: { mobile?: boolean }) {

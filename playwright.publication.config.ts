@@ -4,7 +4,7 @@ const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH
 
 export default defineConfig({
   testDir: './tests',
-  testMatch: 'listing-publication-errors.spec.ts',
+  testMatch: ['listing-publication-errors.spec.ts', 'location-counts-api.spec.ts'],
   timeout: 60_000,
   expect: { timeout: 7_000 },
   fullyParallel: false,

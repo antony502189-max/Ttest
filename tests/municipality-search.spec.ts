@@ -50,6 +50,29 @@ test('Adeje search excludes other municipalities and remembers the last selectio
   await expect(page.getByTestId('municipality-option-38004')).toBeAttached()
 })
 
+test('municipality suggestions show their own published listing totals, including zero', async ({ page }) => {
+  await page.goto('/')
+  await page.evaluate(() => {
+    const stored = JSON.parse(localStorage.getItem('112233:listings:v3') ?? '{}')
+    const source = stored.data.find((listing: { rentalMode: string; status: string }) => listing.rentalMode === 'long' && listing.status === 'Publicado')
+    if (!source) throw new Error('Missing published mock listing')
+    const listing = { ...source, city: 'Arafo', area: 'Arafo', postcode: '38550', provinceCode: '38', expiresAt: '2099-01-01T00:00:00Z' }
+    localStorage.setItem('112233:listings:v3', JSON.stringify({ version: 3, data: [
+      { ...listing, id: 'count-arafo-1' }, { ...listing, id: 'count-arafo-2' },
+      { ...listing, id: 'count-hidden', status: 'Oculto' },
+      { ...listing, id: 'count-arona', city: 'Arona', postcode: '38640' },
+    ] }))
+  })
+  await page.goto('/#/?panel=ubicacion')
+  await page.reload()
+  await page.getByRole('searchbox').fill('Ar')
+  await expect(page.getByTestId('municipality-option-38004').locator('.m2-community-option__count')).toHaveText('2 anuncios')
+  await expect(page.getByTestId('municipality-option-38006').locator('.m2-community-option__count')).toHaveText('1 anuncio')
+  await expect(page.getByTestId('municipality-option-38005').locator('.m2-community-option__count')).toHaveText('0 anuncios')
+  await page.screenshot({ path: 'output/municipality-search/listing-counts-mobile.png' })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+})
+
 test('all 31 Tenerife municipalities are searchable and official article forms resolve', async ({ page }) => {
   await page.goto('/#/?panel=ubicacion')
   const ids = ['Adeje', 'Arafo', 'Arico', 'Arona', 'Buenavista del Norte', 'Candelaria', 'El Rosario',

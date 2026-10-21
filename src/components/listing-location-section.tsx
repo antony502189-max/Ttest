@@ -201,7 +201,7 @@ export function ListingLocationSection({ listing }: { listing: Listing }) {
       {actions}
       <div className="listing-location-preview">
         <div className="listing-location-preview__map" aria-hidden="true"><ListingLocationMap coordinates={coordinates} /></div>
-        <button type="button" className="listing-location-preview__open" onClick={() => setOpen(true)} aria-label={t.openMapAria}>
+        <button type="button" className="listing-location-preview__open" onClick={() => setOpen(true)} aria-label={`${t.openMap} · ${t.openMapAria}`}>
           <Expand aria-hidden="true" /><span>{t.openMap}</span>
         </button>
       </div>

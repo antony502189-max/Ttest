@@ -126,7 +126,7 @@ test('16–19 ficha: sin bloqueo, galería, favorito, descarte', async ({ page }
   await expect(page.getByRole('dialog')).toBeVisible()
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: /^guardar$/i }).click()
-  await expect(page.getByRole('button', { name: /guardado/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Guardado', exact: true })).toBeVisible()
   await page.getByRole('button', { name: /más acciones del anuncio/i }).click()
   await page.getByRole('menuitem', { name: /descartar/i }).click()
   await expect(page).toHaveURL(/buscar/)

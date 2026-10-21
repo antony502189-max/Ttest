@@ -68,19 +68,43 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/provinces/counts")
+@router.post("/locations/counts")
 async def province_counts(payload: ListingSearchRequest, session: AsyncSession = Depends(get_session),
                           user: User | None = Depends(optional_user)):
     await enforce_listing_view_access(user, session)
     from ...repositories.listings import apply_search_filters
+    from ...spain_municipalities import (
+        CITY_ACCENTS,
+        CITY_BASE_LETTERS,
+        MUNICIPALITIES,
+        municipality_aliases,
+        normalized_municipality,
+        unique_municipality_aliases,
+    )
     from ...spain_provinces import PROVINCE_CODES, province_code_expression
     code = province_code_expression()
+    city = func.trim(func.translate(func.lower(Listing.city), CITY_ACCENTS, CITY_BASE_LETTERS))
     filtered = apply_search_filters(visible_query(), payload.model_copy(update={
         "query": None, "provinceCode": None, "municipalityCode": None, "autonomousCommunity": None,
-    })).with_only_columns(code.label("province"), Listing.id, maintain_column_froms=True).subquery()
-    result = await session.execute(select(filtered.c.province, func.count()).where(
-        filtered.c.province.is_not(None)).group_by(filtered.c.province))
-    counts = {row[0]: row[1] for row in result.all()}
-    return {"items": [{"id": key, "count": counts.get(key, 0)} for key in PROVINCE_CODES]}
+    })).with_only_columns(code.label("province"), city.label("city"), Listing.id,
+                         maintain_column_froms=True).subquery()
+    result = await session.execute(select(filtered.c.province, filtered.c.city, func.count())
+                                   .group_by(filtered.c.province, filtered.c.city))
+    counts: dict[str, int] = {}
+    city_counts: dict[tuple[str | None, str], int] = {}
+    for province, city_name, count in result.all():
+        if province is not None:
+            counts[province] = counts.get(province, 0) + count
+        city_counts[(province, city_name)] = count
+    municipalities = []
+    for key, name in MUNICIPALITIES.items():
+        count = sum(city_counts.get((key[:2], alias), 0)
+                    for alias in {normalized_municipality(value) for value in municipality_aliases(name)})
+        count += sum(city_counts.get((None, alias), 0) for alias in set(unique_municipality_aliases(key)))
+        if count:
+            municipalities.append({"id": key, "count": count})
+    return {"items": [{"id": key, "count": counts.get(key, 0)} for key in PROVINCE_CODES],
+            "municipalities": municipalities}
 
 IDEMPOTENCY_CONTACT_FIELDS = {
     "contactName": "name",
