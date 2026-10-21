@@ -8,6 +8,7 @@ import { useI18n, type Language } from '@/contexts/i18n-context'
 import { filtersToParams } from '@/lib/search'
 import { filtersForRentalMode } from '@/lib/price-filter-controls'
 import { resolveTenerifeLocation } from '@/lib/tenerife'
+import { getSearchPlace } from '@/lib/spain-locations'
 import {
   applyListingAccessProfile,
   hasListingAccessSelection,
@@ -79,6 +80,7 @@ export function HomeMandatorySearch() {
   const navigate = useNavigate()
   const [profile, setProfile] = useState<ListingAccessProfile>(readListingAccessProfile)
   const [error, setError] = useState('')
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string>()
   const canSearch = useMemo(() => hasListingAccessSelection(profile), [profile])
   const occupantOptions = useMemo<OccupantOption[]>(
     () => occupantCopy[language].map((option) => ({ ...option, iconSrc: occupantIcons[option.value] })),
@@ -120,6 +122,8 @@ export function HomeMandatorySearch() {
       nextFilters,
       new URLSearchParams({ q: normalized, alquiler: rentalMode }),
     )
+    const place = selectedPlaceId ? getSearchPlace(selectedPlaceId) : undefined
+    if (place && place.label === requestedQuery) { params.set('provincia', place.provinceCode); if (place.type === 'municipality') params.set('municipio', place.id) }
     navigate(`/buscar?${params.toString()}`)
   }
 
@@ -165,7 +169,7 @@ export function HomeMandatorySearch() {
     </fieldset>
 
     <div className="mandatory-home-search__location">
-      <SearchLocationInput home value={query} onChange={(value) => { setQuery(value); setError('') }} />
+      <SearchLocationInput home value={query} onChange={(value, placeId) => { setSelectedPlaceId(placeId); setQuery(value); setError('') }} />
     </div>
 
     {error ? <p className="mandatory-home-search__error" role="alert">{t(error)}</p> : null}

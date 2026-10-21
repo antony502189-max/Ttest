@@ -7,7 +7,7 @@ export async function expectProvinceLocationVisual(page: Page) {
   await expect(screen).toBeVisible()
   await expect(screen.locator('.m2-location-region')).toHaveCount(0)
   const search = screen.getByRole('searchbox')
-  await expect(search).toHaveAttribute('placeholder', 'Buscar provincia')
+  await expect(search).toHaveAttribute('placeholder', 'Buscar provincia o municipio')
   await expect(screen.locator('.m2-location-action')).toHaveCount(3)
   const geometry = await screen.evaluate(element => {
     const header = element.querySelector('header')!

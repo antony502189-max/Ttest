@@ -160,6 +160,7 @@ export function SavedSearchesPage() {
                     q: item.query,
                     alquiler: item.rentalMode,
                     ...(item.provinceCode ? { provincia: item.provinceCode } : { ubicacion: "ciudad" }),
+                    ...(item.municipalityCode ? { municipio: item.municipalityCode } : {}),
                   }),
                 );
                 return (

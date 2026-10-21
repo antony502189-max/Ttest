@@ -286,10 +286,12 @@ export function MockAppProvider({ children, context }: { children: ReactNode; co
 
   const saveCurrentSearch = useCallback(() => updateScope(setSavedSearchScopes, (current) => {
     const searches = current ?? []
-    const provinceCode = searchGeographyFromParams(new URLSearchParams(window.location.hash.split('?')[1] ?? '')).provinceCode ?? null
-    const duplicate = searches.some((item) => (item.provinceCode ?? null) === provinceCode && item.query === query && item.rentalMode === rentalMode && JSON.stringify(item.filters) === JSON.stringify(filters) && JSON.stringify(item.polygon) === JSON.stringify(mapPolygon))
+    const geography = searchGeographyFromParams(new URLSearchParams(window.location.hash.split('?')[1] ?? ''))
+    const provinceCode = geography.provinceCode ?? null
+    const municipalityCode = geography.municipalityCode ?? null
+    const duplicate = searches.some((item) => (item.municipalityCode ?? null) === municipalityCode && (item.provinceCode ?? null) === provinceCode && item.query === query && item.rentalMode === rentalMode && JSON.stringify(item.filters) === JSON.stringify(filters) && JSON.stringify(item.polygon) === JSON.stringify(mapPolygon))
     if (duplicate) { toast.info('Esta búsqueda ya está guardada'); return searches }
-    const saved = { id: `search-${Date.now()}`, query, provinceCode, rentalMode, filters: { ...filters }, alerts: true, createdAt: new Date().toISOString(), polygon: mapPolygon }
+    const saved = { id: `search-${Date.now()}`, query, provinceCode, municipalityCode, rentalMode, filters: { ...filters }, alerts: true, createdAt: new Date().toISOString(), polygon: mapPolygon }
     toast.success('Búsqueda guardada. Te avisaremos de nuevos anuncios.')
     return [saved, ...searches]
   }), [filters, mapPolygon, query, rentalMode, updateScope])

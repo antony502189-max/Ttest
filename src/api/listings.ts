@@ -335,6 +335,7 @@ export type ListingSearchInput = {
   query?: string
   autonomousCommunity?: string
   provinceCode?: string
+  municipalityCode?: string
   roomTypes?: Listing['roomType'][]
   bounds?: { north: number; south: number; east: number; west: number }
   polygon?: Array<{ latitude: number; longitude: number }>

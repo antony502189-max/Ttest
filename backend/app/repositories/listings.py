@@ -22,7 +22,7 @@ from geoalchemy2.functions import (
     ST_MakePoint,
     ST_SetSRID,
 )
-from sqlalchemy import Float, Select, and_, case, cast, func, or_, select, update
+from sqlalchemy import Float, Select, and_, case, cast, false, func, or_, select, update
 from sqlalchemy.dialects.postgresql import aggregate_order_by, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -340,7 +340,28 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
     bedrooms = bedroom_count_expression()
     # Autonomous-community queries are spatial; never use the display name
     # as a literal city/area substring (Cataluña must include Barcelona).
-    if payload.provinceCode:
+    if payload.municipalityCode:
+        from ..spain_municipalities import (
+            CITY_ACCENTS,
+            CITY_BASE_LETTERS,
+            MUNICIPALITIES,
+            municipality_aliases,
+            normalized_municipality,
+            unique_municipality_aliases,
+        )
+        from ..spain_provinces import province_code_expression
+        name = MUNICIPALITIES.get(payload.municipalityCode)
+        if name is None:
+            query = query.where(false())
+        else:
+            province = province_code_expression()
+            city = func.trim(func.translate(func.lower(Listing.city), CITY_ACCENTS, CITY_BASE_LETTERS))
+            query = query.where(or_(
+                and_(province == payload.municipalityCode[:2], city.in_(
+                    [normalized_municipality(alias) for alias in municipality_aliases(name)])),
+                and_(province.is_(None), city.in_(unique_municipality_aliases(payload.municipalityCode))),
+            ))
+    elif payload.provinceCode:
         from ..spain_provinces import province_code_expression
         query = query.where(province_code_expression() == payload.provinceCode)
     elif payload.autonomousCommunity:

@@ -1,6 +1,23 @@
 # Property province search and owner municipality TOP
 
 Search uses `provincia=28` for Madrid and `provincia=38` for Santa Cruz de Tenerife.
+Municipality selection adds its five-digit INE code, for example
+`q=Adeje&provincia=38&municipio=38001` or `q=Arafo&provincia=38&municipio=38004`.
+Suggestions cover all 8,132 municipalities, appear from the first letter, and
+narrow by name/word prefix without requiring accents. Official trailing articles
+and bilingual names are accepted. Exact names rank first, then recent selections
+and matching places in the last selected province. This is local deterministic
+ranking; it does not train an ML model or request GPS permission.
+
+The server validates municipality/province consistency and applies both the
+province and exact normalized city aliases to cards, map requests and counts.
+Legacy listings without a province remain searchable only when their city alias
+identifies one municipality in the national catalogue; ambiguous names never
+match another province through this fallback.
+Municipality suggestions do not display province-wide listing counts. Saved
+searches keep the municipality code in existing filter metadata and preserve it
+in restored links and notifications. No database migration is required.
+`scripts/build-municipality-catalog.py` updates both frontend/backend catalogues.
 Existing `comunidad` deep links remain compatible. The catalogue covers 50 provinces
 and two autonomous cities using INE province codes. Saved searches persist the
 explicit province; legacy city searches keep their city interpretation.

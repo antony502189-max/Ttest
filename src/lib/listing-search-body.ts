@@ -11,7 +11,7 @@ export function buildListingSearchBody(input: ListingSearchInput): Record<string
     ...(minPrice !== defaultFilters.minPrice ? { minPrice } : {}),
     ...(maxPrice !== defaultFilters.maxPrice ? { maxPrice } : {}),
     query: input.query ?? 'España',
-    provinceCode: input.provinceCode ?? (!input.autonomousCommunity && !bounds && !polygon?.length && !input.center ? resolveProvince(input.query ?? '')?.id : undefined),
+    provinceCode: input.provinceCode ?? (!input.municipalityCode && !input.autonomousCommunity && !bounds && !polygon?.length && !input.center ? resolveProvince(input.query ?? '')?.id : undefined),
     roomTypes: input.roomTypes ?? [],
     center: input.center,
     radiusKm: input.radiusKm,
