@@ -157,6 +157,7 @@ def _saved_search_payload(search: SavedSearch) -> ListingSearchRequest | None:
         payload = {
             "query": search.query or None,
             "provinceCode": getattr(search, "province_code", None),
+            "municipalityCode": filters.get("municipalityCode"),
             "rentalMode": search.rental_mode,
             "minPrice": _changed_filter(filters, "minPrice", _SAVED_SEARCH_DEFAULTS["minPrice"]),
             "maxPrice": (

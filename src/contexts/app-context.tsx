@@ -25,6 +25,7 @@ export interface SavedSearch {
   id: string
   query: string
   provinceCode?: string | null
+  municipalityCode?: string | null
   rentalMode: RentalMode
   filters: Filters
   alerts: boolean
@@ -500,7 +501,7 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
       query: search.query,
       provinceCode: search.provinceCode ?? null,
       rentalMode: search.rentalMode,
-      filters: search.filters as unknown as Record<string, unknown>,
+      filters: { ...search.filters, municipalityCode: search.municipalityCode ?? null } as unknown as Record<string, unknown>,
       polygon: search.polygon,
       alertsEnabled: search.alerts,
     }))
@@ -514,8 +515,9 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
         [currentUserId]: remoteSearches.map((search) => ({
           id: search.id,
           query: search.query,
-      provinceCode: search.provinceCode ?? null,
+          provinceCode: search.provinceCode ?? null,
           rentalMode: search.rentalMode,
+          municipalityCode: typeof search.filters.municipalityCode === 'string' ? search.filters.municipalityCode : null,
           filters: normalizeFilters({ ...defaultFilters, ...search.filters }),
           alerts: search.alertsEnabled,
           createdAt: search.createdAt,
@@ -595,12 +597,14 @@ function RemoteAppProvider({ children }: { children: ReactNode }) {
   const saveCurrentSearch = useCallback(() => updateScope(setSavedSearchScopes, (current) => {
     const searches = current ?? []
     const params = new URLSearchParams(window.location.hash.split('?')[1] ?? '')
-    const provinceCode = searchGeographyFromParams(params).provinceCode ?? null
-    const duplicate = searches.some((item) => (item.provinceCode ?? null) === provinceCode && item.query === query && item.rentalMode === rentalMode && JSON.stringify(item.filters) === JSON.stringify(filters) && JSON.stringify(item.polygon) === JSON.stringify(mapPolygon))
+    const geography = searchGeographyFromParams(params)
+    const provinceCode = geography.provinceCode ?? null
+    const municipalityCode = geography.municipalityCode ?? null
+    const duplicate = searches.some((item) => (item.municipalityCode ?? null) === municipalityCode && (item.provinceCode ?? null) === provinceCode && item.query === query && item.rentalMode === rentalMode && JSON.stringify(item.filters) === JSON.stringify(filters) && JSON.stringify(item.polygon) === JSON.stringify(mapPolygon))
     if (duplicate) { toast.info('Esta búsqueda ya está guardada'); return searches }
-    const optimistic = { id: `search-${Date.now()}`, query, provinceCode, rentalMode, filters: { ...filters }, alerts: true, createdAt: new Date().toISOString(), polygon: mapPolygon }
+    const optimistic = { id: `search-${Date.now()}`, query, provinceCode, municipalityCode, rentalMode, filters: { ...filters }, alerts: true, createdAt: new Date().toISOString(), polygon: mapPolygon }
     if (currentUserId) {
-      void createSavedSearch({ name: query, query, provinceCode, rentalMode, filters: filters as unknown as Record<string, unknown>, polygon: mapPolygon, alertsEnabled: true }).then((saved) => {
+      void createSavedSearch({ name: query, query, provinceCode, rentalMode, filters: { ...filters, municipalityCode } as unknown as Record<string, unknown>, polygon: mapPolygon, alertsEnabled: true }).then((saved) => {
         updateScope(setSavedSearchScopes, (latest) => (latest ?? []).map((item) => item.id === optimistic.id ? { ...item, id: saved.id, createdAt: saved.createdAt } : item))
       }).catch(() => {
         updateScope(setSavedSearchScopes, (latest) => (latest ?? []).filter((item) => item.id !== optimistic.id))

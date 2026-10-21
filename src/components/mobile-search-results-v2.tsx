@@ -478,6 +478,7 @@ export function MobileSearchResults() {
     && ['españa', 'espana', 'spain', 'es'].includes((visibleGeography.query ?? '').trim().toLocaleLowerCase())
   const headingPlace = drawingAreaSelected
     ? { es: 'la zona seleccionada', en: 'the selected area', ru: 'выделенная зона' }[language]
+    : visibleGeography.municipalityCode ? visibleGeography.query ?? ''
     : visibleGeography.provinceCode
       ? provinceName(visibleGeography.provinceCode)
     : visibleGeography.autonomousCommunity

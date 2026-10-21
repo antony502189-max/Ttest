@@ -6,6 +6,7 @@ import { hasListingCoordinates } from '@/lib/listings'
 import { listingMatchesTenerifeLocation, resolveTenerifeLocation } from '@/lib/tenerife'
 import { getCommunity, listingInCommunity } from '@/lib/spain-communities'
 import { listingInProvince } from '@/lib/spain-provinces'
+import { listingInMunicipality } from '@/lib/spain-locations'
 import type { Filters, Listing, MapPolygonPoint, RentalMode } from '@/types'
 
 type MobileSearchInput = {
@@ -83,6 +84,7 @@ export function selectMobileSearchListings({
     effectiveFilters,
   ).filter((listing) => {
     if (geography.provinceCode && !listingInProvince(listing, geography.provinceCode)) return false
+    if (geography.municipalityCode && !listingInMunicipality(listing, geography.municipalityCode)) return false
     if (community && !region) return false
     if (region && !listingInCommunity(listing, region.id)) return false
     if (!geography.provinceCode && !region && !countrySearch && (!location || !listingMatchesTenerifeLocation(listing, location))) return false

@@ -32,4 +32,6 @@ output = {"source": "https://www.ine.es/daco/daco42/codmun/26codmun.xlsx", "asOf
 target = Path(__file__).resolve().parents[1] / 'backend/app/data/spain-municipalities.json'
 target.parent.mkdir(exist_ok=True)
 target.write_text(json.dumps(output, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+frontend_target = Path(__file__).resolve().parents[1] / 'src/data/spain-municipalities.json'
+frontend_target.write_text(json.dumps(output, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 print(f"Built {len(items)} municipalities")

@@ -44,6 +44,7 @@ import { filtersFromParams, filtersToParams } from '@/lib/search'
 import { searchGeographyFromParams } from '@/lib/search-geography'
 import { communityMapCamera, communityName } from '@/lib/spain-communities'
 import { ProvinceLocationSearch } from '@/components/province-location-search'
+import { getSearchPlace } from '@/lib/spain-locations'
 import { getProvince, provinceName, provinceMapCamera, resolveProvince } from '@/lib/spain-provinces'
 import { preloadAccountPages } from '@/lib/route-preload'
 import { useAppBack } from '@/hooks/use-app-back'
@@ -976,7 +977,7 @@ export function MobileAppV2() {
   const chosenLocation = resolveTenerifeLocation(cameraParams.get('q') ?? '')
   const selectedRouteCommunity = cameraParams.get('comunidad')
   const selectedProvince = cameraParams.get('provincia') || (!selectedRouteCommunity && cameraParams.get('ubicacion') !== 'ciudad' ? resolveProvince(cameraParams.get('q') ?? '')?.id : undefined)
-  const selectedRegionCamera = selectedProvince ? provinceMapCamera(selectedProvince, window.innerWidth, window.innerHeight)
+  const selectedRegionCamera = selectedProvince && !cameraParams.has('municipio') ? provinceMapCamera(selectedProvince, window.innerWidth, window.innerHeight)
     : selectedRouteCommunity ? communityMapCamera(selectedRouteCommunity, window.innerWidth, window.innerHeight) : undefined
   const namedLocation = chosenLocation?.type !== 'island' ? chosenLocation?.coordinates : undefined
   const hasActivePolygon = mapPolygon.length >= 3 || Boolean(cameraParams.get('poligono')?.trim())
@@ -994,7 +995,7 @@ export function MobileAppV2() {
     if (listing.isExternal && listing.sourceUrl) { window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer'); return }
     navigate(`/habitacion/${listing.id}`)
   } })), [markRecent, navigate, recentlyViewedListings])
-  const savedSearchItems = useMemo<MobileCollectionItem[]>(() => savedSearches.map((search) => ({ id: search.id, title: search.query, meta: search.rentalMode === 'holiday' ? t.tourismMode : t.housingMode, onOpen: () => { restoreSavedSearch(search.id); navigate(`/buscar?q=${encodeURIComponent(search.query)}&alquiler=${search.rentalMode}&${search.provinceCode ? `provincia=${search.provinceCode}` : 'ubicacion=ciudad'}`) } })), [navigate, restoreSavedSearch, savedSearches, t.housingMode, t.tourismMode])
+  const savedSearchItems = useMemo<MobileCollectionItem[]>(() => savedSearches.map((search) => ({ id: search.id, title: search.query, meta: search.rentalMode === 'holiday' ? t.tourismMode : t.housingMode, onOpen: () => { restoreSavedSearch(search.id); navigate(`/buscar?q=${encodeURIComponent(search.query)}&alquiler=${search.rentalMode}&${search.provinceCode ? `provincia=${search.provinceCode}` : 'ubicacion=ciudad'}${search.municipalityCode ? `&municipio=${search.municipalityCode}` : ''}`) } })), [navigate, restoreSavedSearch, savedSearches, t.housingMode, t.tourismMode])
   useEffect(() => {
     document.documentElement.classList.toggle('mobile-v2-active', shellActive)
     return () => document.documentElement.classList.remove('mobile-v2-active')
@@ -1158,17 +1159,18 @@ export function MobileAppV2() {
     navigate(`/buscar?${params.toString()}`)
   }
   const chooseCommunity = (id: string) => {
-    const region = getProvince(id)
+    const region = getSearchPlace(id)
     if (!region) return
     const mode = homeMode === 'turismo' ? 'holiday' : 'long'
     const nextFilters = { ...mobileHomeSearchFilters(filters, mode), areas: [] }
-    setSelectedCommunity(id)
+    setSelectedCommunity(region.type === 'province' ? id : null)
     setMapPolygon([])
-    setQuery(region.es)
+    setQuery(region.label)
     setFilters(nextFilters)
     const params = filtersToParams(nextFilters)
-    params.set('q', region.es)
-    params.set('provincia', id)
+    params.set('q', region.label)
+    params.set('provincia', region.provinceCode)
+    if (region.type === 'municipality') params.set('municipio', id)
     params.set('alquiler', mode)
     navigate(`/buscar?${params.toString()}`)
   }

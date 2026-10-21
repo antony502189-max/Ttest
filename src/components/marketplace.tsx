@@ -1,4 +1,4 @@
-import { provinceSuggestions } from '@/lib/spain-provinces'
+import { getSearchPlace, locationSuggestions, rememberPlace } from '@/lib/spain-locations'
 import { ProvinceLocationSearch } from '@/components/province-location-search'
 import {
   lazy,
@@ -185,7 +185,7 @@ export function RentalTypeSwitch({
 }
 
 export function SearchLocationInput({ value, onChange, error, home = false }: {
-  value: string; onChange: (value: string) => void; error?: string; home?: boolean;
+  value: string; onChange: (value: string, placeId?: string) => void; error?: string; home?: boolean;
 }) {
   const id = useId();
   const listId = useId();
@@ -199,7 +199,7 @@ export function SearchLocationInput({ value, onChange, error, home = false }: {
     <div className="search-location-row">
       <MapPin className="search-location-row__icon" aria-hidden="true" />
       <Input id={id} list={listId} value={value} onChange={(event) => onChange(event.target.value)} placeholder={label} aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined} />
-      <datalist id={listId}>{provinceSuggestions('').map((province) => <option key={province.id} value={province.es} />)}</datalist>
+      <datalist id={listId}>{locationSuggestions(value).map((place) => <option key={place.id} value={place.label}>{place.type === 'municipality' ? place.provinceCode : ''}</option>)}</datalist>
       <LocationSelector selected={filters.areas} currentQuery={value} onLocationSelect={onChange}
         onApply={(selected) => {
           const nextFilters = { ...filters, areas: selected };
@@ -207,7 +207,7 @@ export function SearchLocationInput({ value, onChange, error, home = false }: {
           setFilters(nextFilters); onChange(nextQuery);
           if (!home) {
             const params = filtersToParams(nextFilters, new URLSearchParams(location.search));
-            params.set('q', nextQuery); params.delete('provincia'); params.delete('comunidad'); params.delete('pagina');
+            params.set('q', nextQuery); params.delete('provincia'); params.delete('municipio'); params.delete('comunidad'); params.delete('pagina');
             navigate(`/buscar?${params.toString()}`);
           }
         }} />
@@ -222,6 +222,7 @@ export function SearchBar({ compact = false, home = false }: { compact?: boolean
   const { language, t } = useI18n();
   const navigate = useNavigate();
   const [locationError, setLocationError] = useState("");
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string>();
   const tenantOptions = language === "ru"
     ? [
         ["Cualquiera", "Для кого: любой"], ["single-man", "Для кого: только мужчина"],
@@ -257,6 +258,8 @@ export function SearchBar({ compact = false, home = false }: { compact?: boolean
       nextFilters,
       new URLSearchParams({ q: normalized, alquiler: rentalMode }),
     );
+    const place = selectedPlaceId ? getSearchPlace(selectedPlaceId) : undefined;
+    if (place && place.label === requestedQuery) { params.set('provincia', place.provinceCode); if (place.type === 'municipality') params.set('municipio', place.id); }
     navigate(`/buscar?${params.toString()}`);
   };
   return (
@@ -266,7 +269,7 @@ export function SearchBar({ compact = false, home = false }: { compact?: boolean
       role="search"
     >
       {home ? <FieldGroup className="home-tenant-field"><Field><UsersRound className="home-search-field__icon" aria-hidden="true" /><FieldLabel htmlFor="home-tenant-requirement">¿Quién vivirá?</FieldLabel><select id="home-tenant-requirement" aria-label={t("Para quién")} value={filters.tenantRequirement} onChange={(event) => setFilters({ ...filters, tenantRequirement: event.target.value as Filters["tenantRequirement"] })}>{tenantOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field></FieldGroup> : null}
-      <SearchLocationInput home={home} value={query} error={locationError} onChange={(value) => { setQuery(value); if (locationError) setLocationError(""); }} />
+      <SearchLocationInput home={home} value={query} error={locationError} onChange={(value, placeId) => { setSelectedPlaceId(placeId); setQuery(value); if (locationError) setLocationError(""); }} />
       {compact || home ? null : (
         <div className="search-date">
           <label htmlFor="move-date">Entrada</label>
@@ -300,7 +303,7 @@ export function LocationSelector({
   selected: string[];
   onApply: (selectedAreas: string[]) => void;
   currentQuery?: string;
-  onLocationSelect?: (query: string) => void;
+  onLocationSelect?: (query: string, placeId?: string) => void;
 }) {
   const { allListings, rentalMode, mapPolygon, clearMapPolygon } = useApp();
   const { language } = useI18n();
@@ -335,14 +338,14 @@ export function LocationSelector({
           {showZoneList ? <Button type="button" variant="ghost" size="icon" onClick={() => setShowZoneList(false)} aria-label="Volver a las opciones de ubicación"><ArrowLeft /></Button> : <DialogClose asChild><Button type="button" variant="ghost" size="icon" aria-label="Volver"><ArrowLeft /></Button></DialogClose>}
           <div>
             <DialogTitle>{showZoneList ? "Seleccionar zonas" : "¿Dónde buscas?"}</DialogTitle>
-            <DialogDescription>{showZoneList ? "Explora municipios, distritos y barrios con límites oficiales disponibles." : "Busca en España por provincia."}</DialogDescription>
+            <DialogDescription>{showZoneList ? "Explora municipios, distritos y barrios con límites oficiales disponibles." : "Busca en España por provincia o municipio."}</DialogDescription>
           </div>
         </DialogHeader>
         <div className={cn("location-dialog-primary", showZoneList && "is-hidden")}>
           <div className="location-market-row"><span>Buscar en</span><strong>España</strong></div>
           <ProvinceLocationSearch desktop language={language} rentalMode={rentalMode} onSelect={(code) => {
-            const province = provinceSuggestions('').find((item) => item.id === code);
-            if (province) onLocationSelect?.(province.es);
+            const place = getSearchPlace(code);
+            if (place) { rememberPlace(code); onLocationSelect?.(place.label, code); }
             setOpen(false);
           }} />
           <div className="location-action-list" aria-label="También puedes">

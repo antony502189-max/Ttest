@@ -40,6 +40,7 @@ import {
 import { filtersForRentalMode } from "@/lib/price-filter-controls";
 import { searchGeographyFromParams } from "@/lib/search-geography";
 import { listingInProvince, provinceName } from "@/lib/spain-provinces";
+import { getSearchPlace, listingInMunicipality } from '@/lib/spain-locations';
 import {
   EmptyState,
   ErrorState,
@@ -255,6 +256,8 @@ export function SearchPage() {
         zoneHierarchy,
       ).filter((listing) => !invalidLocation && (searchInput.polygon || searchInput.bounds || searchInput.center
         ? true
+        : searchInput.municipalityCode
+          ? listingInMunicipality(listing, searchInput.municipalityCode)
         : searchInput.provinceCode
           ? listingInProvince(listing, searchInput.provinceCode)
         : communityId
@@ -373,7 +376,7 @@ export function SearchPage() {
     next.delete('cursor');
     setParams(next);
   };
-  const selectLocation = (nextQuery: string) => {
+  const selectLocation = (nextQuery: string, placeId?: string) => {
     const nextLocation = resolveTenerifeLocation(nextQuery);
     const selectedQuery = nextLocation?.normalizedValue ?? nextQuery.trim();
     if (!selectedQuery) return;
@@ -387,6 +390,12 @@ export function SearchPage() {
     next.set('q', selectedQuery);
     next.delete('comunidad');
     next.delete('provincia');
+    next.delete('municipio');
+    const place = placeId ? getSearchPlace(placeId) : undefined;
+    if (place) {
+      next.set('provincia', place.provinceCode);
+      if (place.type === 'municipality') next.set('municipio', place.id);
+    }
     next.delete('poligono');
     boundKeys.forEach((key) => next.delete(key));
     next.delete('pagina');
@@ -406,6 +415,7 @@ export function SearchPage() {
       if (selectedAreas.length) {
         next.delete('comunidad');
     next.delete('provincia');
+        next.delete('municipio');
         next.delete('poligono');
         boundKeys.forEach((key) => next.delete(key));
       }
@@ -673,7 +683,7 @@ export function SearchPage() {
           <header className="results-head idealista-results-head">
             <div>
               <h1 id="results-title">
-                {t(`${resultCount} ${resultCount === 1 ? "habitación" : "habitaciones"} en ${searchInput.provinceCode ? provinceName(searchInput.provinceCode) : communityId ? communityName(communityId) : query || "España"}`)}
+                {t(`${resultCount} ${resultCount === 1 ? "habitación" : "habitaciones"} en ${searchInput.municipalityCode ? query : searchInput.provinceCode ? provinceName(searchInput.provinceCode) : communityId ? communityName(communityId) : query || "España"}`)}
               </h1>
               <p>
                 <CalendarDays aria-hidden="true" />

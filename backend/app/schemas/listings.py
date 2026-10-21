@@ -457,6 +457,7 @@ class ListingSearchRequest(BaseModel):
     query: str | None = Field(default=None, max_length=240)
     autonomousCommunity: str | None = Field(default=None, pattern=r"^(0[1-9]|1[0-7])$")
     provinceCode: str | None = Field(default=None, pattern=r"^(0[1-9]|[1-4][0-9]|5[0-2])$")
+    municipalityCode: str | None = Field(default=None, pattern=r"^[0-9]{5}$")
     city: str | None = Field(default=None, max_length=120)
     area: str | None = Field(default=None, max_length=120)
     rentalMode: str | None = None
@@ -520,6 +521,12 @@ class ListingSearchRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_filters(self):
+        if self.municipalityCode:
+            from ..spain_municipalities import MUNICIPALITIES
+            if self.municipalityCode not in MUNICIPALITIES:
+                raise ValueError('municipalityCode is not an INE municipality')
+            if self.provinceCode and self.provinceCode != self.municipalityCode[:2]:
+                raise ValueError('municipalityCode does not belong to provinceCode')
         bounds = (self.minLatitude, self.maxLatitude, self.minLongitude, self.maxLongitude)
         if any(value is not None for value in bounds) and any(value is None for value in bounds):
             raise ValueError("all bounding-box coordinates are required")

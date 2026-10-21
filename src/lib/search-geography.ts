@@ -1,10 +1,11 @@
 import { resolveProvince } from '@/lib/spain-provinces'
+import { getSearchPlace, resolveMunicipality } from '@/lib/spain-locations'
 import type { ListingSearchInput } from '@/api/listings'
 
 // The URL represents an explicitly applied map search, not merely the last
 // camera position remembered for the next visit.
 type SearchGeography = Pick<ListingSearchInput,
-  'query' | 'autonomousCommunity' | 'provinceCode' | 'bounds' | 'polygon' | 'center' | 'radiusKm'
+  'query' | 'autonomousCommunity' | 'provinceCode' | 'municipalityCode' | 'bounds' | 'polygon' | 'center' | 'radiusKm'
 >
 
 function validCoordinate(value: string, limit: number): number | null {
@@ -58,9 +59,15 @@ export function searchGeographyFromParams(params: URLSearchParams): SearchGeogra
     }
   }
 
+  const query = params.get('q')?.trim() || 'España'
+  const explicitMunicipality = getSearchPlace(params.get('municipio') ?? '')
+  const municipality = explicitMunicipality?.type === 'municipality' ? explicitMunicipality
+    : !params.has('comunidad') && (!resolveProvince(query) || params.get('ubicacion') === 'ciudad')
+      ? resolveMunicipality(query, params.get('provincia') || undefined) : undefined
   return {
-    query: params.get('q')?.trim() || 'España',
-    provinceCode: params.get('provincia') || (!params.has('comunidad') && params.get('ubicacion') !== 'ciudad' ? resolveProvince(params.get('q') ?? '')?.id : undefined),
+    query: municipality?.label ?? query,
+    municipalityCode: municipality?.id,
+    provinceCode: municipality?.provinceCode ?? (params.get('provincia') || (!params.has('comunidad') && params.get('ubicacion') !== 'ciudad' ? resolveProvince(query)?.id : undefined)),
     autonomousCommunity: params.get('comunidad') || undefined,
   }
 }

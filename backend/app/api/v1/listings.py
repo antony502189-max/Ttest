@@ -75,7 +75,7 @@ async def province_counts(payload: ListingSearchRequest, session: AsyncSession =
     from ...spain_provinces import PROVINCE_CODES, province_code_expression
     code = province_code_expression()
     filtered = apply_search_filters(visible_query(), payload.model_copy(update={
-        "query": None, "provinceCode": None, "autonomousCommunity": None,
+        "query": None, "provinceCode": None, "municipalityCode": None, "autonomousCommunity": None,
     })).with_only_columns(code.label("province"), Listing.id, maintain_column_froms=True).subquery()
     result = await session.execute(select(filtered.c.province, func.count()).where(
         filtered.c.province.is_not(None)).group_by(filtered.c.province))
