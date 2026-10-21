@@ -22,7 +22,7 @@ from geoalchemy2.functions import (
     ST_MakePoint,
     ST_SetSRID,
 )
-from sqlalchemy import Float, Select, and_, case, cast, func, or_, select, update
+from sqlalchemy import Float, Select, and_, case, cast, false, func, or_, select, update
 from sqlalchemy.dialects.postgresql import aggregate_order_by, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -345,7 +345,7 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
         from ..spain_provinces import province_code_expression
         name = MUNICIPALITIES.get(payload.municipalityCode)
         if name is None:
-            query = query.where(False)
+            query = query.where(false())
         else:
             query = query.where(
                 province_code_expression() == payload.municipalityCode[:2],
