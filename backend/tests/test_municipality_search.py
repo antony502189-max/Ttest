@@ -9,6 +9,8 @@ from app.repositories.listings import apply_search_filters
 from app.schemas.listings import ListingSearchRequest
 from app.services.notifications import _saved_search_payload
 from app.spain_municipalities import (
+    CITY_ACCENTS,
+    CITY_BASE_LETTERS,
     MUNICIPALITIES,
     municipality_aliases,
     normalized_municipality,
@@ -55,6 +57,9 @@ def test_accents_and_ine_article_aliases_match_imported_city_names():
     assert normalized_municipality('Güímar') == normalized_municipality('Guimar')
     assert normalized_municipality('Guía de Isora') == normalized_municipality('Guia de Isora')
     assert 'La Laguna' in municipality_aliases('San Cristóbal de La Laguna')
+    sql_translation = str.maketrans(CITY_ACCENTS, CITY_BASE_LETTERS)
+    for name in MUNICIPALITIES.values():
+        assert name.lower().translate(sql_translation).strip() == normalized_municipality(name)
 
 
 def test_missing_province_fallback_uses_only_globally_unambiguous_names():

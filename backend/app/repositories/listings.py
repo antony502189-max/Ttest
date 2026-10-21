@@ -342,6 +342,8 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
     # as a literal city/area substring (Cataluña must include Barcelona).
     if payload.municipalityCode:
         from ..spain_municipalities import (
+            CITY_ACCENTS,
+            CITY_BASE_LETTERS,
             MUNICIPALITIES,
             municipality_aliases,
             normalized_municipality,
@@ -353,7 +355,7 @@ def apply_search_filters(query: Select, payload: ListingSearchRequest) -> Select
             query = query.where(false())
         else:
             province = province_code_expression()
-            city = func.trim(func.translate(func.lower(Listing.city), 'áéíóúüñ', 'aeiouun'))
+            city = func.trim(func.translate(func.lower(Listing.city), CITY_ACCENTS, CITY_BASE_LETTERS))
             query = query.where(or_(
                 and_(province == payload.municipalityCode[:2], city.in_(
                     [normalized_municipality(alias) for alias in municipality_aliases(name)])),

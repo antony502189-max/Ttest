@@ -24,6 +24,13 @@ def normalized_municipality(value):
     return ''.join(char for char in unicodedata.normalize('NFD', value.lower()) if not unicodedata.combining(char)).strip()
 
 
+# Match the browser's NFD folding, including Catalan/Basque/Galician names.
+CITY_ACCENTS = ''.join(chr(code) for code in range(0xC0, 0x250)
+                       if chr(code).islower() and normalized_municipality(chr(code)) in 'abcdefghijklmnopqrstuvwxyz'
+                       and normalized_municipality(chr(code)) != chr(code))
+CITY_BASE_LETTERS = ''.join(normalized_municipality(char) for char in CITY_ACCENTS)
+
+
 _alias_owners: dict[str, set[str]] = {}
 for _code, _name in MUNICIPALITIES.items():
     for _alias in municipality_aliases(_name):
