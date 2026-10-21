@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.dialects import postgresql
@@ -5,9 +7,8 @@ from sqlalchemy.dialects import postgresql
 from app.models import Listing
 from app.repositories.listings import apply_search_filters
 from app.schemas.listings import ListingSearchRequest
-from app.spain_municipalities import MUNICIPALITIES, municipality_aliases, normalized_municipality
 from app.services.notifications import _saved_search_payload
-from types import SimpleNamespace
+from app.spain_municipalities import MUNICIPALITIES, municipality_aliases, normalized_municipality
 
 
 def test_catalogue_covers_all_municipalities_and_both_canary_provinces():
