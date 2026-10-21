@@ -61,17 +61,20 @@ export default defineConfig(({ mode }) => {
   return {
     base: process.env.VITE_BASE_PATH || '/',
     plugins: [isolateMockDataFromProduction(mockMode), react(), tailwindcss()],
+    // Audit artifacts contain HTML fixtures and copied applications. Only the
+    // application entry point belongs in dependency discovery.
+    optimizeDeps: { entries: ['index.html'] },
     server: {
       watch: {
-        ignored: ['**/artifacts/**', '**/test-results/**'],
+        ignored: ['**/artifacts/**', '**/test-results/**', '**/output/**', '**/.venv/**', '**/backend/**'],
       },
     },
     resolve: {
       alias: {
-        'shadcn/tailwind.css': path.resolve(__dirname, './src/styles/shadcn-tailwind.css'),
-        '@/components/marketplace': path.resolve(__dirname, './src/components/marketplace-localized.tsx'),
-        '@/contexts/mock-app-provider': path.resolve(__dirname, mockProviderModule),
-        '@': path.resolve(__dirname, './src'),
+        'shadcn/tailwind.css': path.resolve(import.meta.dirname, './src/styles/shadcn-tailwind.css'),
+        '@/components/marketplace': path.resolve(import.meta.dirname, './src/components/marketplace-localized.tsx'),
+        '@/contexts/mock-app-provider': path.resolve(import.meta.dirname, mockProviderModule),
+        '@': path.resolve(import.meta.dirname, './src'),
       },
     },
   }

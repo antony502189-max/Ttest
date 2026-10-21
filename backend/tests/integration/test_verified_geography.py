@@ -109,6 +109,11 @@ async def test_import_without_postcode_participates_in_all_province_surfaces(cli
         assert listing_id not in str(other.json())
     counts = await client.post("/api/v1/listings/provinces/counts", json={})
     assert next(row for row in counts.json()["items"] if row["id"] == "28")["count"] == 1
+    locations = await client.post("/api/v1/listings/locations/counts", json={"rentalMode": "long"})
+    assert locations.status_code == 200, locations.text
+    assert locations.json()["municipalities"] == [{"id": "28079", "count": 1}]
+    holiday_locations = await client.post("/api/v1/listings/locations/counts", json={"rentalMode": "holiday"})
+    assert holiday_locations.json()["municipalities"] == []
     async with SessionLocal() as db:
         await upsert(db, item, scope_key="province:Madrid")
         assert (await db.get(Listing, UUID(listing_id))).province_code == "28"

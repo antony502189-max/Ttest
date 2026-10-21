@@ -6,7 +6,7 @@ import { buildListingSearchBody } from '@/api/listings'
 import { mobileHomeSearchFilters } from '@/lib/mobile-home-filters'
 import { filterListings } from '@/lib/search'
 import { listingInProvince, provinceSuggestions } from '@/lib/spain-provinces'
-import { locationSuggestions, rememberPlace, recentPlaces, placeProvinceName } from '@/lib/spain-locations'
+import { listingInMunicipality, locationSuggestions, rememberPlace, recentPlaces, placeProvinceName } from '@/lib/spain-locations'
 import type { Language } from '@/contexts/i18n-context'
 
 export function ProvinceLocationSearch({ language, rentalMode, onSelect, desktop = false }: {
@@ -27,19 +27,32 @@ export function ProvinceLocationSearch({ language, rentalMode, onSelect, desktop
     ru: { placeholder: 'Поиск провинции или муниципалитета', province: 'Провинция', municipality: 'Муниципалитет', empty: 'Место не найдено', listings: 'объявлений' },
     en: { placeholder: 'Search province or municipality', province: 'Province', municipality: 'Municipality', empty: 'No matching location', listings: 'listings' },
   }[language]
+  const countLabel = (count: number | undefined) => {
+    if (count === undefined) return `${error ? '—' : '…'} ${copy.listings}`
+    const category = new Intl.PluralRules(language).select(count)
+    const noun = language === 'ru'
+      ? category === 'one' ? 'объявление' : category === 'few' ? 'объявления' : copy.listings
+      : category === 'one' ? language === 'es' ? 'anuncio' : 'listing' : copy.listings
+    return `${new Intl.NumberFormat(language).format(count)} ${noun}`
+  }
   useEffect(() => {
+    if (import.meta.env.VITE_ENABLE_MOCK_MODE !== '1') return
     const currentFilters = mobileHomeSearchFilters(filters, rentalMode)
-    if (import.meta.env.VITE_ENABLE_MOCK_MODE === '1') {
-      const eligible = filterListings(allListings.filter((listing) => !discarded.has(listing.id)), rentalMode, currentFilters)
-      setCounts(Object.fromEntries(provinceSuggestions('').map((province) => [province.id, eligible.filter((listing) => listingInProvince(listing, province.id)).length])))
-      return
-    }
+    const eligible = filterListings(allListings.filter((listing) => !discarded.has(listing.id)), rentalMode, currentFilters)
+    setCounts(Object.fromEntries([
+      ...provinceSuggestions('').map((province) => [province.id, eligible.filter((listing) => listingInProvince(listing, province.id)).length]),
+      ...suggestions.filter((place) => place.type === 'municipality').map((place) => [place.id, eligible.filter((listing) => listingInMunicipality(listing, place.id)).length]),
+    ]))
+  }, [allListings, discarded, filters, rentalMode, suggestions])
+  useEffect(() => {
+    if (import.meta.env.VITE_ENABLE_MOCK_MODE === '1') return
+    const currentFilters = mobileHomeSearchFilters(filters, rentalMode)
     const controller = new AbortController()
     setCounts(null); setError(false)
-    void api<{ items: Array<{ id: string; count: number }> }>('/listings/provinces/counts', {
+    void api<{ items: Array<{ id: string; count: number }>; municipalities: Array<{ id: string; count: number }> }>('/listings/locations/counts', {
       method: 'POST', signal: controller.signal,
       body: JSON.stringify(buildListingSearchBody({ rentalMode, filters: currentFilters, minPrice: currentFilters.minPrice, maxPrice: currentFilters.maxPrice, query: 'España' })),
-    }).then(({ items }) => { if (!controller.signal.aborted) setCounts(Object.fromEntries(items.map((entry) => [entry.id, entry.count]))) })
+    }).then(({ items, municipalities }) => { if (!controller.signal.aborted) setCounts(Object.fromEntries([...items, ...municipalities].map((entry) => [entry.id, entry.count]))) })
       .catch(() => { if (!controller.signal.aborted) setError(true) })
     return () => controller.abort()
   }, [allListings, discarded, filters, rentalMode])
@@ -62,7 +75,7 @@ export function ProvinceLocationSearch({ language, rentalMode, onSelect, desktop
       {suggestions.length ? suggestions.map((province) => <button type="button" id={`${listId}-${province.id}`} className={desktop ? "location-province-option" : "m2-community-option"} key={province.id} onClick={() => select(province.id)} data-testid={`${province.type}-option-${province.id}`} style={suggestions[active]?.id === province.id ? { outline: '2px solid currentColor', outlineOffset: '-2px' } : undefined}>
         {desktop ? <MapPin aria-hidden="true" /> : null}
         <span><strong>{province.label}</strong><small>{province.type === 'province' ? copy.province : `${copy.municipality} · ${placeProvinceName(province)}`}</small></span>
-        <span className="m2-community-option__count">{province.type === 'province' ? `${error ? '—' : counts ? counts[province.id] ?? 0 : '…'} ${copy.listings}` : ''}</span><ChevronRight />
+        <span className="m2-community-option__count">{countLabel(error || !counts ? undefined : counts[province.id] ?? 0)}</span><ChevronRight />
       </button>) : <p className="m2-community-empty">{copy.empty}</p>}
     </div>}
   </>
