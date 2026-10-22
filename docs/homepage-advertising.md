@@ -34,6 +34,35 @@ The historical package identifier `homepage_1d` is retained to preserve
 existing data and API compatibility; it does **not** offer one-day purchases.
 Legacy `test_homepage_30d` entitlements retain their original paid terms.
 
+## Administrator publication and rejection
+
+Apply migration `0066_complimentary_ads` before deploying this behavior.
+The moderation screen offers **Publicar banner sin coste**, opening the banner
+editor in administrator mode. `POST /admin/advertisements` requires the normal
+server-side administrator allowlist and full account access. It publishes a
+banner immediately for one calendar month with `payment_status=waived`, without
+creating a payment order or Stripe session. Complimentary banners consume the
+same seven-slot capacity and use the same image validation as paid banners.
+Ordinary advertisement creation still requires payment; client fields and URL
+parameters cannot grant the exemption. Editing a live complimentary campaign
+retains its expiry and sends it through moderation.
+
+**Rechazar y eliminar** permanently deletes a pending-review banner row in the
+same transaction that creates its owner's `advertisement_deleted` notification.
+The notification includes the banner title and moderation note and is displayed
+in Spanish, Russian or English. Unreferenced images are marked for the existing
+storage deletion worker. The banner disappears from both campaign lists and
+releases its slot. Confirmed payment records remain available for refunds in
+the administrator payment review queue; rejection does not initiate a refund.
+Repeated rejection or access to the removed banner returns 404.
+
+Validation for this change: 17 advertising unit tests, 14 advertising API tests,
+13 browser tests, TypeScript checking and the production build passed. API tests
+used an isolated PostgreSQL database with the real advertising, payment and
+authentication tables; unrelated geography columns were inert because PostGIS
+was unavailable locally. The `0066` constraint migration was also applied and
+verified separately on that database.
+
 In **Mis anuncios**, the TOP action on each eligible owned listing offers two
 independent paid products. The buyer selects a fixed period and sees the
 price before explicitly confirming Stripe Checkout:

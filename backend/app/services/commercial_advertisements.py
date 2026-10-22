@@ -77,9 +77,9 @@ async def occupied_slots(session, *, exclude_id=None) -> int:
         PaymentOrder.status.in_(["creating", "pending"]),
     ).exists()
     query = select(func.count(ad.id)).where(ad.placement == "homepage_bottom", or_(
-        and_(ad.status == "active", ad.payment_status == "paid",
+        and_(ad.status == "active", ad.payment_status.in_(["paid", "waived"]),
              or_(ad.ends_at.is_(None), ad.ends_at > func.now())),
-        and_(ad.status.in_(["pending_review", "rejected"]), ad.payment_status == "paid",
+        and_(ad.status.in_(["pending_review", "rejected"]), ad.payment_status.in_(["paid", "waived"]),
              or_(ad.ends_at.is_(None), ad.ends_at > func.now())),
         pending_payment,
     ))
@@ -180,8 +180,8 @@ payment_service: AdvertisementPaymentService = FakeAdvertisementPaymentService()
 
 
 def approve(ad: CommercialAdvertisement, starts_at: datetime | None, ends_at: datetime | None) -> None:
-    if ad.status != "pending_review" or ad.payment_status != "paid":
-        raise HTTPException(409, "Paid pending-review advertisement required")
+    if ad.status != "pending_review" or ad.payment_status not in {"paid", "waived"}:
+        raise HTTPException(409, "Paid or complimentary pending-review advertisement required")
     now = datetime.now(UTC)
     start = starts_at or ad.starts_at or now
     duration = getattr(ad, "duration_days", None) or (30 if ad.package_id == "test_homepage_30d" else PACKAGE_DURATION_DAYS)

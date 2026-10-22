@@ -20,6 +20,74 @@ async function expectDecodedImage(locator: import('@playwright/test').Locator) {
   })).toBe(true)
 }
 
+test('admin creates a complimentary banner directly from moderation without checkout', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('112233:session:v1', JSON.stringify('admin-demo')))
+  let ad: Record<string, unknown> | null = null
+  let checkouts = 0
+  await page.route('**/api/v1/payments/advertisements/**', route => { checkouts++; return route.abort() })
+  await page.route('**/api/v1/admin/advertisements', route => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: [] })
+    ad = { ...route.request().postDataJSON(), id: adId, ownerUserId: 'admin-demo',
+      imageUrl: `/api/v1/media/${assetId}`, status: 'active', paymentStatus: 'waived',
+      placement: 'homepage_bottom', createdAt: new Date().toISOString(),
+      startsAt: '2026-10-22T10:00:00Z', endsAt: '2026-11-22T10:00:00Z', moderationNote: null }
+    return route.fulfill({ status: 201, json: ad })
+  })
+  await page.route('**/api/v1/advertisements/uploads', route => route.fulfill({ status: 201, json: { id: assetId } }))
+  await page.route('**/api/v1/advertisements/mine', route => route.fulfill({ json: ad ? [ad] : [] }))
+  await page.route(`**/api/v1/media/${assetId}**`, route => route.fulfill({ body: png, contentType: 'image/png' }))
+  await page.goto('/#/admin/publicidad')
+  await page.getByRole('link', { name: 'Publicar banner sin coste' }).click()
+  await page.locator('input[type=file]').setInputFiles({ name: 'banner.png', mimeType: 'image/png', buffer: png })
+  await page.getByLabel('Título').fill('Free admin banner')
+  await page.getByLabel('Descripción').fill('A community banner published by the administrator.')
+  await page.getByLabel('Enlace web').fill('https://example.org/')
+  await page.getByRole('button', { name: 'Vista previa' }).click()
+  await page.getByRole('button', { name: 'Publicar banner sin coste' }).click()
+  await expect(page).toHaveURL(/#\/mis-campanas$/)
+  await expect(page.getByText('Activa · Sin coste')).toBeVisible()
+  expect(checkouts).toBe(0)
+})
+
+test('rejecting a banner removes it from the moderation list after a 204 response', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('112233:session:v1', JSON.stringify('admin-demo')))
+  let deleted = false
+  await page.route('**/api/v1/admin/advertisements**', route => {
+    if (route.request().method() === 'POST') {
+      expect(new URL(route.request().url()).pathname).toBe(`/api/v1/admin/advertisements/${adId}/reject`)
+      expect(route.request().postDataJSON()).toEqual({ note: 'Unsuitable content' })
+      deleted = true
+      return route.fulfill({ status: 204 })
+    }
+    return route.fulfill({ json: deleted ? [] : [{ id: adId, ownerUserId: 'host-demo', ownerEmail: 'advertiser@example.org',
+      title: 'Rejected banner', description: 'A banner awaiting moderation.', imageAssetId: assetId,
+      imageUrl: `/api/v1/media/${assetId}`, destinationType: 'website', destination: 'https://example.org/',
+      status: 'pending_review', paymentStatus: 'paid', createdAt: new Date().toISOString(), startsAt: null, endsAt: null }] })
+  })
+  await page.route(`**/api/v1/media/${assetId}**`, route => route.fulfill({ body: png, contentType: 'image/png' }))
+  await page.goto('/#/admin/publicidad')
+  await page.getByLabel('Nota de moderación').fill('Unsuitable content')
+  await page.getByRole('button', { name: 'Rechazar y eliminar' }).click()
+  await expect(page.getByRole('heading', { name: 'Rejected banner' })).toHaveCount(0)
+  await expect(page.getByText('No hay campañas en este estado.')).toBeVisible()
+})
+
+test('owner sees the deletion notification in Russian with the banner title and reason', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
+    localStorage.setItem('112233:language:v1', 'ru')
+  })
+  await page.route('**/api/v1/notifications', route => route.fulfill({ json: { unreadCount: 1, items: [{
+    id: 'deleted-banner-notification', type: 'advertisement_deleted', entityListingId: null,
+    title: 'Tu banner se ha eliminado', body: 'Tu banner no ha sido aprobado y se ha eliminado.\n\nTest banner\nПричина отказа',
+    createdAt: '2026-10-22T10:00:00Z', readAt: null,
+  }] } }))
+  await page.goto('/#/notificaciones')
+  await expect(page.getByRole('heading', { name: 'Ваш баннер удалён' })).toBeVisible()
+  await expect(page.getByText(/Ваш баннер отклонён при модерации и удалён/)).toBeVisible()
+  await expect(page.getByText(/Test banner/)).toContainText('Причина отказа')
+})
+
 test('house advertisement is visible and signed-out CTA keeps the intended route', async ({ page }) => {
   await page.route('**/api/v1/advertisements/homepage', (route) => route.fulfill({ json: [] }))
   await page.goto('/#/')

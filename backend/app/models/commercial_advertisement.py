@@ -12,7 +12,7 @@ class CommercialAdvertisement(Base):
     __tablename__ = "commercial_advertisements"
     __table_args__ = (
         CheckConstraint("status IN ('pending_payment','pending_review','active','rejected','cancelled')", name="ck_commercial_ad_status"),
-        CheckConstraint("payment_status IN ('unpaid','pending','paid','failed','refunded')", name="ck_commercial_ad_payment"),
+        CheckConstraint("payment_status IN ('unpaid','pending','paid','failed','refunded','waived')", name="ck_commercial_ad_payment"),
         CheckConstraint("destination_type IN ('website','phone','whatsapp','email')", name="ck_commercial_ad_destination"),
         Index("ix_commercial_ad_homepage", "placement", "status", "payment_status", "admin_priority"),
     )

@@ -8,7 +8,7 @@ from PIL import Image
 from sqlalchemy import select
 
 from app.db.session import SessionLocal
-from app.models import User
+from app.models import MediaAsset, Notification, User
 from app.models.commercial_advertisement import CommercialAdvertisement
 from app.models.moderation import AdminAccess
 from app.services.commercial_advertisements import normalize_destination
@@ -178,15 +178,89 @@ async def test_payment_moderation_public_visibility_and_media(client, register_u
     assert edited.json()["endsAt"] is not None
     assert (await client.get("/api/v1/advertisements/homepage")).json() == []
     rejected = await client.post(f"/api/v1/admin/advertisements/{ad_id}/reject", headers=admin, json={"note": "Needs changes"})
-    assert rejected.status_code == 200 and rejected.json()["status"] == "rejected"
+    assert rejected.status_code == 204
     assert (await client.get("/api/v1/advertisements/homepage")).json() == []
+    assert (await client.get("/api/v1/advertisements/mine", headers=owner_headers)).json() == []
+    assert (await client.get(f"/api/v1/advertisements/{ad_id}", headers=owner_headers)).status_code == 404
+    assert (await client.post(f"/api/v1/admin/advertisements/{ad_id}/reject", headers=admin, json={})).status_code == 404
     resubmitted = await client.patch(f"/api/v1/advertisements/{ad_id}", headers=owner_headers,
                                      json={**payload, "title": "A safer local service"})
-    assert resubmitted.status_code == 200 and resubmitted.json()["status"] == "pending_review"
-    assert (await client.post(f"/api/v1/admin/advertisements/{ad_id}/approve", headers=admin, json={})).status_code == 200
-    assert len((await client.get("/api/v1/advertisements/homepage")).json()) == 1
-    assert (await client.post(f"/api/v1/admin/advertisements/{ad_id}/deactivate", headers=admin)).status_code == 200
-    assert (await client.get("/api/v1/advertisements/homepage")).json() == []
+    assert resubmitted.status_code == 404
+    async with SessionLocal() as session:
+        assert await session.get(CommercialAdvertisement, ad_id) is None
+        asset = await session.get(MediaAsset, payload["imageAssetId"])
+        assert asset.deleted_at is not None
+        notifications = (await session.scalars(select(Notification).where(Notification.type == "advertisement_deleted"))).all()
+        assert len(notifications) == 1
+        assert str(notifications[0].recipient_user_id) == ad["ownerUserId"]
+        assert "Needs changes" in notifications[0].body
+
+
+async def test_admin_publishes_without_payment_and_normal_user_cannot(client, register_user):
+    from app.models.payment_order import PaymentOrder
+    from app.services.homepage_purchase import one_month_after
+
+    ad, payload, owner_headers, _ = await create_ad(client, register_user)
+    denied = await client.post("/api/v1/admin/advertisements", headers=owner_headers, json=payload)
+    assert denied.status_code == 403
+    # Extra client flags cannot waive an ordinary advertiser's payment.
+    forged = await client.patch(f"/api/v1/advertisements/{ad['id']}", headers=owner_headers,
+                                json={**payload, "paymentStatus": "waived", "status": "active", "complimentary": True})
+    assert forged.status_code == 200
+    assert forged.json()["status"] == "pending_payment" and forged.json()["paymentStatus"] == "unpaid"
+    admin = await admin_headers(client, register_user)
+    uploaded = await client.post("/api/v1/advertisements/uploads", headers=admin,
+                                files={"file": ("admin.png", image_file("admin-free"), "image/png")})
+    assert uploaded.status_code == 201
+    response = await client.post("/api/v1/admin/advertisements", headers=admin,
+                                 json={**payload, "imageAssetId": uploaded.json()["id"]})
+    assert response.status_code == 201, response.text
+    free = response.json()
+    assert free["status"] == "active" and free["paymentStatus"] == "waived"
+    assert datetime.fromisoformat(free["endsAt"]) == one_month_after(datetime.fromisoformat(free["startsAt"]))
+    assert free["paymentOrderId"] is None
+    public = (await client.get("/api/v1/advertisements/homepage")).json()
+    assert [row["id"] for row in public] == [free["id"]]
+    assert (await client.get(free["imageUrl"])).status_code == 200
+    assert (await client.get("/api/v1/advertisements/availability")).json()["available"] == 6
+    assert (await client.post(f"/api/v1/payments/advertisements/{free['id']}/checkout", headers=admin)).status_code == 409
+    async with SessionLocal() as session:
+        assert list((await session.scalars(select(PaymentOrder))).all()) == []
+    edited = await client.patch(f"/api/v1/advertisements/{free['id']}", headers=admin,
+                                json={**payload, "imageAssetId": free["imageAssetId"], "title": "Updated free banner"})
+    assert edited.status_code == 200 and edited.json()["status"] == "pending_review"
+    approved = await client.post(f"/api/v1/admin/advertisements/{free['id']}/approve", headers=admin, json={})
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["endsAt"] == free["endsAt"]
+
+
+async def test_rejection_keeps_paid_order_for_refund_but_removes_banner(client, register_user):
+    from app.models.payment_order import PaymentOrder
+
+    ad, _, owner_headers, _ = await create_ad(client, register_user)
+    admin = await admin_headers(client, register_user)
+    async with SessionLocal() as session:
+        stored = await session.get(CommercialAdvertisement, ad["id"])
+        order = PaymentOrder(owner_user_id=stored.owner_user_id, kind="advertisement", target_id=stored.id,
+                             days=30, duration_months=1, amount_cents=3000, status="paid",
+                             paid_at=datetime.now(UTC), fulfillment_status="fulfilled", financial_status="normal")
+        session.add(order)
+        await session.flush()
+        stored.current_payment_order_id = order.id
+        stored.status, stored.payment_status = "pending_review", "paid"
+        order_id = order.id
+        await session.commit()
+    assert (await client.get("/api/v1/advertisements/availability")).json()["available"] == 6
+    response = await client.post(f"/api/v1/admin/advertisements/{ad['id']}/reject", headers=admin, json={"note": "Not suitable"})
+    assert response.status_code == 204, response.text
+    assert (await client.get("/api/v1/advertisements/availability")).json()["available"] == 7
+    assert (await client.get("/api/v1/advertisements/mine", headers=owner_headers)).json() == []
+    async with SessionLocal() as session:
+        assert await session.get(CommercialAdvertisement, ad["id"]) is None
+        order = await session.get(PaymentOrder, order_id)
+        assert order.status == "paid" and order.fulfillment_status == "review_required"
+    reviews = (await client.get("/api/v1/payments/admin/review-required", headers=admin)).json()
+    assert any(row["id"] == str(order_id) for row in reviews)
 
 
 async def test_expired_campaign_requires_new_test_checkout(client, register_user):
@@ -308,6 +382,8 @@ async def test_homepage_returns_seven_and_rejects_eighth_overlapping_campaign(cl
 
     blocked = await client.post(f"/api/v1/admin/advertisements/{ad_id}/approve", headers=admin, json={})
     assert blocked.status_code == 409
+    free_blocked = await client.post("/api/v1/admin/advertisements", headers=admin, json=payload)
+    assert free_blocked.status_code == 409
 
     async with SessionLocal() as session:
         one = await session.scalar(

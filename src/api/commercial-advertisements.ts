@@ -42,6 +42,7 @@ export const getHomepageAdvertisements = () => api<PublicAdvertisement[]>('/adve
 export const getMyAdvertisements = () => api<AdvertisementDetail[]>('/advertisements/mine')
 export const getAdvertisement = (id: string) => api<AdvertisementDetail>(`/advertisements/${id}`)
 export const createAdvertisement = (body: AdvertisementWrite) => api<AdvertisementDetail>('/advertisements', { method: 'POST', body: JSON.stringify(body) })
+export const createAdminAdvertisement = (body: AdvertisementWrite) => api<AdvertisementDetail>('/admin/advertisements', { method: 'POST', body: JSON.stringify(body) })
 export const updateAdvertisement = (id: string, body: AdvertisementWrite) => api<AdvertisementDetail>(`/advertisements/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
 export const cancelAdvertisement = (id: string) => api<void>(`/advertisements/${id}`, { method: 'DELETE' })
 export const createAdCheckout = (id: string) => api<{ url: string; amountCents: number; currency: string }>(`/payments/advertisements/${id}/checkout`, { method: 'POST', body: JSON.stringify({ days: 30 }) })
@@ -57,7 +58,7 @@ export const getAdminAdvertisements = (status?: string) => api<AdminAdvertisemen
 export type PaymentReview = { id: string; kind: string; targetId: string; amountCents: number; paidAt: string | null; note: string; status?: string; financialStatus?: string; stripeSessionId?: string | null }
 export const getPaymentReviews = () => api<PaymentReview[]>('/payments/admin/review-required')
 export const resolvePayment = (id: string, action: 'refund' | 'restore' | 'reconcile', reason: string, stripeSessionId?: string) => api<{ resolved: boolean; financialStatus?: string }>(`/payments/admin/orders/${id}/resolve`, { method: 'POST', body: JSON.stringify({ action, reason, stripeSessionId }) })
-export const moderateAdvertisement = (id: string, action: 'approve' | 'reject' | 'deactivate', note?: string) => api<AdvertisementDetail>(`/admin/advertisements/${id}/${action}`, { method: 'POST', body: JSON.stringify({ note: note || null }) })
+export const moderateAdvertisement = (id: string, action: 'approve' | 'reject' | 'deactivate', note?: string) => api<AdvertisementDetail | void>(`/admin/advertisements/${id}/${action}`, { method: 'POST', body: JSON.stringify({ note: note || null }) })
 
 export async function uploadAdvertisementImage(file: File) {
   const body = new FormData()
