@@ -28,6 +28,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
+import { MobileBottomNavigation, type MobileTab } from '@/components/mobile-bottom-navigation'
 import { MediaImage } from '@/components/media-image'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
@@ -54,7 +55,6 @@ import type { Listing } from '@/types'
 
 type OnboardingStep = 'language' | 'country' | 'privacy' | 'auth' | 'done'
 type OnboardingOrigin = 'startup' | 'language-settings' | 'region-settings' | 'region-location' | 'account'
-type MobileTab = 'home' | 'searches' | 'favorites' | 'menu'
 type AppLanguage = Language
 type SearchMode = 'vivienda' | 'turismo' | null
 type AppPage = 'tabs' | 'location' | 'map'
@@ -848,17 +848,6 @@ function MenuScreen({
   )
 }
 
-function getNavItems(t: MobileCopy): Array<{ tab: MobileTab; label: string; icon: typeof Home }> {
-  return [{ tab: 'home', label: t.home, icon: Home }, { tab: 'searches', label: t.searches, icon: Bell }, { tab: 'favorites', label: t.favorites, icon: Heart }, { tab: 'menu', label: t.menu, icon: Menu }]
-}
-
-const tabRoutes: Record<MobileTab, string> = {
-  home: '/',
-  searches: '/busquedas-guardadas',
-  favorites: '/favoritos',
-  menu: '/menu',
-}
-
 function tabFromPath(pathname: string): MobileTab {
   if (pathname === '/busquedas-guardadas') return 'searches'
   if (pathname === '/favoritos') return 'favorites'
@@ -919,7 +908,6 @@ export function MobileAppV2() {
   const shellActive = mobileViewport && ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/menu'].includes(location.pathname)
   const t: MobileCopy = copy[language]
   const adminAllowed = useAdminAccess()
-  const navItems = getNavItems(t)
   const mapFilterParams = new URLSearchParams(location.search)
   mapFilterParams.delete('mapLat')
   mapFilterParams.delete('mapLng')
@@ -1190,5 +1178,5 @@ export function MobileAppV2() {
   if (step !== 'done') return <div className="m2-app notranslate" translate="no"><Onboarding step={step} origin={origin} language={language} setLanguage={setLanguage} onStep={setStep} onCountryContinue={handleCountryContinue} onLanguageContinue={handleLanguageContinue} onAuthBack={authBack} onDone={finishAuth} /></div>
   if (page === 'location') return <div className="m2-app notranslate" translate="no"><LocationScreen t={t} language={language} rentalMode={homeMode === 'turismo' ? 'holiday' : 'long'} onBack={backToHome} onMap={openMap} onNearby={() => { void openNearby() }} onRegionSelect={chooseCommunity} nearbyStatus={nearbyStatus} /></div>
   if (page === 'map') return <div className="m2-app notranslate" translate="no"><MapScreen key={mapQuery} mode={mapMode} language={language} t={t} query={mapQuery} initialCenter={nearbyCameraCenter ?? mapCenter} initialCamera={mapCamera} polygon={mapPolygon} items={mapItems} serverQuery={serverMapQuery} onPolygonChange={commitMobilePolygon} onCameraChange={commitMapCamera} onBack={backFromMap} onSave={() => { setQuery(mapQuery || 'Tenerife'); saveCurrentSearch() }} onList={() => navigateFromMap('list')} onFilters={() => navigateFromMap('filters')} onSearchArea={searchThisMapArea} /></div>
-  return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' && location.pathname !== '/buscar' ? <HomeScreen t={t} mode={homeMode} onMode={setHomeMode} onLocation={() => navigate('/?panel=ubicacion')} onSearch={runHomeSearch} onSearchIntent={preloadMobileSearchResults} onPublish={openPublication} selectedCommunity={selectedCommunity} language={language} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={savedSearchItems} /> : null}{tab === 'favorites' ? <FavoritesCollectionScreen items={favoriteItems} recentItems={recentItems} onRemove={toggleFavorite} onClearRecent={clearRecentHistory} onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} language={language} t={t} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onProperties={openProperties} onAdvertising={() => navigate('/mis-campanas')} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} onPublish={openPublication} onAdmin={() => navigate('/admin')} adminAllowed={adminAllowed} authenticated={Boolean(currentUser)} language={language} t={t} currentUserName={currentUser?.name} selectedCommunity={selectedCommunity} /> : null}</main><nav className="m2-bottom-nav" aria-label={t.mainNavigation}>{navItems.map(({ tab: itemTab, label, icon: Icon }) => <button key={itemTab} type="button" className={cn(tab === itemTab && 'is-active')} aria-current={tab === itemTab ? 'page' : undefined} onClick={() => navigate(tabRoutes[itemTab])}><Icon /><span>{label}</span></button>)}</nav></div>
+  return <div className="m2-app notranslate" translate="no"><main className="m2-main">{tab === 'home' && location.pathname !== '/buscar' ? <HomeScreen t={t} mode={homeMode} onMode={setHomeMode} onLocation={() => navigate('/?panel=ubicacion')} onSearch={runHomeSearch} onSearchIntent={preloadMobileSearchResults} onPublish={openPublication} selectedCommunity={selectedCommunity} language={language} /> : null}{tab === 'searches' ? <EmptyScreen kind="searches" onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} t={t} items={savedSearchItems} /> : null}{tab === 'favorites' ? <FavoritesCollectionScreen items={favoriteItems} recentItems={recentItems} onRemove={toggleFavorite} onClearRecent={clearRecentHistory} onLogin={openAccount} onExplore={() => navigate('/buscar?q=Tenerife')} authenticated={Boolean(currentUser)} language={language} t={t} /> : null}{tab === 'menu' ? <MenuScreen onLogin={openAccount} onProperties={openProperties} onAdvertising={() => navigate('/mis-campanas')} onLanguage={openLanguageSettings} onRegion={() => openRegionSettings('menu')} onPublish={openPublication} onAdmin={() => navigate('/admin')} adminAllowed={adminAllowed} authenticated={Boolean(currentUser)} language={language} t={t} currentUserName={currentUser?.name} selectedCommunity={selectedCommunity} /> : null}</main><MobileBottomNavigation activeTab={tab} /></div>
 }

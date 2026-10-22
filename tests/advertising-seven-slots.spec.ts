@@ -94,6 +94,16 @@ for (const width of [320, 390, 480]) {
     await expect(slots).toHaveCount(7)
     await expect(slots.first()).toContainText('Рекламное место')
     await expect(slots.nth(6)).toContainText('Рекламное место')
+    for (const slot of await slots.all()) {
+      const centers = await slot.evaluate(element => {
+        const card = element.getBoundingClientRect()
+        return Array.from(element.children).map(child => {
+          const bounds = child.getBoundingClientRect()
+          return Math.abs(bounds.y + bounds.height / 2 - (card.y + card.height / 2))
+        })
+      })
+      for (const offset of centers) expect(offset).toBeLessThanOrEqual(1)
+    }
     await expect(block.getByRole('heading', { name: 'Здесь могла быть ваша реклама' })).toBeVisible()
     await expect(block.getByText('Расскажите о своём бизнесе пользователям 112233.es.')).toBeVisible()
     const cta = block.getByRole('link', { name: 'Разместить рекламу' })

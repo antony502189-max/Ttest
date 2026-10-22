@@ -166,7 +166,7 @@
   .commercial-ad__monthly-price { font-size: clamp(1rem, 5.4vw, 1.5rem); letter-spacing: -.035em; }
   .commercial-ad__slots { grid-template-columns: 1fr; gap: 1.25rem; }
   .commercial-ad__slot { grid-template-columns: clamp(72px, 27%, 112px) minmax(0, 1fr); gap: 1rem; padding: 1rem; align-items: start; }
-  .commercial-ad__slot--empty { min-height: 128px; }
+  .commercial-ad__slot--empty { min-height: 128px; align-items: center; }
   .commercial-ad__house { grid-template-columns: 1fr; gap: .85rem; }
   .commercial-ad__cta { width: 100%; min-height: 56px; background: #e5fb5f; }
 }
