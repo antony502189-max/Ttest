@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { useApp } from '@/contexts/app-context'
 import { useI18n, type Language } from '@/contexts/i18n-context'
 import { preloadListingCreatePage } from '@/lib/route-preload'
+import { MobileBottomNavigation } from '@/components/mobile-bottom-navigation'
 
 const MOBILE_VIEWPORT = '(max-width: 767px), (max-height: 480px) and (max-width: 900px)'
 const MOBILE_SHELL_ROUTES = ['/', '/buscar', '/favoritos', '/busquedas-guardadas', '/menu']
@@ -93,7 +94,8 @@ export function AppLayout() {
   const mobilePublicationGateActive = mobileViewport && new URLSearchParams(search).get('gate') === 'publicar'
   const adminRoute = pathname === '/admin' || pathname.startsWith('/admin/')
   const hideFooter = pathname === '/buscar' || adminRoute || pathname === '/publicar' || pathname === '/menu' || pathname.includes('/editar') || ['/registro', '/acceso', '/recuperar-contrasena', '/restablecer-contrasena'].includes(pathname)
-  const hideBottomNavigation = adminRoute || mobileShellActive
+  const campaignNavigationActive = mobileViewport && pathname === '/mis-campanas'
+  const hideBottomNavigation = adminRoute || mobileShellActive || campaignNavigationActive
   useEffect(() => {
     const media = window.matchMedia(MOBILE_VIEWPORT)
     const update = () => setMobileViewport(media.matches)
@@ -104,5 +106,5 @@ export function AppLayout() {
     if (mobileSearchListRoute) setMobileSearchResultsRequested(true)
   }, [mobileSearchListRoute])
 
-  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}><Suspense fallback={null}>{mobileShellActive ? <MobileAppV2 /> : null}</Suspense><Suspense fallback={null}>{mobilePublicationGateActive ? <MobilePublicationGate /> : null}</Suspense><Suspense fallback={null}>{mobileSearchResultsActive ? <MobileSearchResults /> : null}</Suspense>{mobileShellActive ? null : <Suspense key={pathname} fallback={<DelayedRouteFallback />}>{(pathname === '/publicar' || pathname.includes('/editar')) ? <PublishRouteEnhancers /> : null}<Outlet /></Suspense>}</main>{hideFooter ? null : <Footer />}{hideBottomNavigation ? null : <BottomNavigation />}<Toaster position="top-center" richColors closeButton containerAriaLabel={t('Notificaciones')} toastOptions={{ classNames: { toast: 'cn-toast' }, closeButtonAriaLabel: t('Cerrar notificación') }} /></>
+  return <><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Saltar al contenido</a><Header /><MobileHeader />{storageError ? <div className="storage-error-banner" role="alert"><span>{storageError}</span><Button variant="ghost" size="sm" onClick={clearStorageError}>Cerrar</Button></div> : null}<main id="main-content" tabIndex={-1}><Suspense fallback={null}>{mobileShellActive ? <MobileAppV2 /> : null}</Suspense><Suspense fallback={null}>{mobilePublicationGateActive ? <MobilePublicationGate /> : null}</Suspense><Suspense fallback={null}>{mobileSearchResultsActive ? <MobileSearchResults /> : null}</Suspense>{mobileShellActive ? null : <Suspense key={pathname} fallback={<DelayedRouteFallback />}>{(pathname === '/publicar' || pathname.includes('/editar')) ? <PublishRouteEnhancers /> : null}<Outlet /></Suspense>}</main>{hideFooter ? null : <Footer />}{campaignNavigationActive ? <MobileBottomNavigation activeTab="menu" fullWidth /> : null}{hideBottomNavigation ? null : <BottomNavigation />}<Toaster position="top-center" richColors closeButton containerAriaLabel={t('Notificaciones')} toastOptions={{ classNames: { toast: 'cn-toast' }, closeButtonAriaLabel: t('Cerrar notificación') }} /></>
 }

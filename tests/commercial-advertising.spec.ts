@@ -175,18 +175,39 @@ test('campaign page back arrow returns directly to home in Russian on narrow mob
 
 test('mobile campaign page bottom navigation spans the viewport and every tab routes', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.addInitScript(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
+  await page.addInitScript(() => {
+    localStorage.setItem('112233:session:v1', JSON.stringify('host-demo'))
+    localStorage.setItem('112233:language:v1', 'ru')
+  })
   await page.route('**/api/v1/advertisements/mine', (route) => route.fulfill({ json: [] }))
 
   await page.goto('/#/mis-campanas')
-  const nav = page.locator('.bottom-nav')
+  const nav = page.locator('.m2-bottom-nav')
   await expect(nav).toBeVisible()
-  const items = nav.locator('.bottom-nav__item')
+  const items = nav.locator('button')
   await expect(items).toHaveCount(4)
+  await expect(items).toHaveText(['Главная', 'Поиски', 'Избранное', 'Меню'])
+  await expect(items.nth(3)).toHaveAttribute('aria-current', 'page')
+
+  const appearance = () => nav.evaluate(element => {
+    const style = getComputedStyle(element)
+    return { height: style.height, background: style.backgroundColor, border: style.borderTop,
+      items: Array.from(element.querySelectorAll('button')).map(button => {
+        const itemStyle = getComputedStyle(button)
+        return { font: itemStyle.font, color: itemStyle.color, gap: itemStyle.gap, icon: getComputedStyle(button.querySelector('svg')!).width }
+      }) }
+  })
+  const campaignAppearance = await appearance()
+  await page.goto('/#/menu')
+  await expect(nav).toBeVisible()
+  expect(await appearance()).toEqual(campaignAppearance)
+  await page.goto('/#/mis-campanas')
+  await expect(nav).toBeVisible()
+  await page.screenshot({ path: 'output/advertising/campaign-navigation-mobile-390.png' })
 
   const geometry = await nav.evaluate((element) => {
     const bounds = element.getBoundingClientRect()
-    const itemBounds = Array.from(element.querySelectorAll<HTMLElement>('.bottom-nav__item')).map((item) => item.getBoundingClientRect())
+    const itemBounds = Array.from(element.querySelectorAll<HTMLElement>('button')).map((item) => item.getBoundingClientRect())
     return {
       left: bounds.left,
       right: bounds.right,
@@ -202,13 +223,13 @@ test('mobile campaign page bottom navigation spans the viewport and every tab ro
   expect(Math.abs(geometry.lastRight - geometry.viewportWidth)).toBeLessThanOrEqual(1)
   for (const width of geometry.itemWidths) expect(width).toBeGreaterThanOrEqual(geometry.viewportWidth / 4 - 1)
 
-  const destinations = [/#\/$/, /#\/favoritos$/, /#\/buscar$/, /#\/perfil$/]
+  const destinations = [/#\/$/, /#\/busquedas-guardadas$/, /#\/favoritos$/, /#\/menu$/]
   for (let index = 0; index < destinations.length; index += 1) {
     if (index > 0) {
       await page.goto('/#/mis-campanas')
-      await expect(page.locator('.bottom-nav')).toBeVisible()
+      await expect(page.locator('.m2-bottom-nav')).toBeVisible()
     }
-    await page.locator('.bottom-nav__item').nth(index).click()
+    await page.locator('.m2-bottom-nav button').nth(index).click()
     await expect(page).toHaveURL(destinations[index])
   }
 })
