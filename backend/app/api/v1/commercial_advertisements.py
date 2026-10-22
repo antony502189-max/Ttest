@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 def eligible():
     now = func.now()
     return and_(
-        Ad.placement == "homepage_bottom", Ad.status == "active", Ad.payment_status.in_(["paid", "waived"]),
+        Ad.placement == "homepage_bottom", Ad.status == "active", Ad.payment_status == "paid",
         or_(Ad.starts_at.is_(None), Ad.starts_at <= now),
         or_(Ad.ends_at.is_(None), Ad.ends_at > now),
     )
@@ -65,7 +65,7 @@ def detail(ad: Ad) -> AdvertisementDetail:
         id=ad.id, ownerUserId=ad.owner_user_id, title=ad.title, description=ad.description,
         imageAssetId=ad.image_asset_id, imageUrl=image_url(ad.image_asset_id),
         destinationType=cast(DestinationType, ad.destination_type), destination=ad.destination, status=visible_status,
-        paymentStatus=ad.payment_status, packageId=ad.package_id, placement=ad.placement,
+        paymentStatus="waived" if ad.payment_waived and ad.payment_status == "paid" else ad.payment_status, packageId=ad.package_id, placement=ad.placement,
         createdAt=ad.created_at, startsAt=ad.starts_at, endsAt=ad.ends_at,
         moderationNote=ad.moderation_note,
         paymentOrderId=ad.current_payment_order_id,
@@ -205,7 +205,8 @@ async def persist_advertisement(payload: AdvertisementWrite, user: User, session
     if complimentary:
         from ...services.homepage_purchase import one_month_after
         now = datetime.now(UTC)
-        ad.payment_status = "waived"
+        ad.payment_status = "paid"
+        ad.payment_waived = True
         ad.status = "active"
         ad.starts_at, ad.ends_at = now, one_month_after(now)
         ad.approved_at = now
@@ -257,7 +258,7 @@ async def edit_advertisement(
     changed = any((ad.title != payload.title, ad.description != payload.description,
                    ad.image_asset_id != payload.imageAssetId, ad.destination_type != payload.destinationType,
                    ad.destination != payload.destination))
-    expired = ad.payment_status in {"paid", "waived"} and ad.ends_at is not None and ad.ends_at <= datetime.now(UTC)
+    expired = ad.payment_status == "paid" and ad.ends_at is not None and ad.ends_at <= datetime.now(UTC)
     if changed or expired:
         pending = await session.scalar(select(PaymentOrder.id).where(
             PaymentOrder.target_id == ad.id, PaymentOrder.kind == "advertisement",
@@ -265,7 +266,7 @@ async def edit_advertisement(
         ).limit(1))
         if pending:
             raise HTTPException(409, "Finish or wait for the current payment before editing")
-        if ad.payment_status in {"paid", "waived"} and not expired:
+        if ad.payment_status == "paid" and not expired:
             await require_free_slot(session, exclude_id=ad.id)
         ad.title = payload.title
         ad.description = payload.description
@@ -275,15 +276,16 @@ async def edit_advertisement(
         ad.approved_at = None
         if expired:
             ad.payment_status = "unpaid"
+            ad.payment_waived = None
             ad.package_id = PACKAGE_ID
             ad.duration_days = None
             ad.current_payment_order_id = None
         # A paid edit keeps its original expiry instead of granting a new day.
-        if ad.payment_status not in {"paid", "waived"}:
+        if ad.payment_status != "paid":
             ad.starts_at = None
             ad.ends_at = None
         ad.moderation_note = None
-        ad.status = "pending_review" if ad.payment_status in {"paid", "waived"} else "pending_payment"
+        ad.status = "pending_review" if ad.payment_status == "paid" else "pending_payment"
         if ad.status == "pending_review":
             ad.submitted_at = datetime.now(UTC)
         await session.flush()
@@ -381,7 +383,7 @@ async def approve_advertisement(
     duration = ad.duration_days or (30 if ad.package_id == "test_homepage_30d" else 1)
     from ...services.homepage_purchase import one_month_after
     paid_order = await session.get(PaymentOrder, ad.current_payment_order_id) if ad.current_payment_order_id else None
-    paid_end = one_month_after(proposed_start) if ad.payment_status == "waived" or paid_order and paid_order.duration_months == 1 else proposed_start + timedelta(days=duration)
+    paid_end = one_month_after(proposed_start) if ad.payment_waived or paid_order and paid_order.duration_months == 1 else proposed_start + timedelta(days=duration)
     proposed_end = decision.endsAt or ad.ends_at or paid_end
     if proposed_start.tzinfo is None or proposed_end.tzinfo is None or proposed_end <= proposed_start or proposed_end <= now:
         raise HTTPException(422, "Invalid advertisement schedule")
@@ -395,7 +397,7 @@ async def approve_advertisement(
             Ad.id != ad.id,
             Ad.placement == "homepage_bottom",
             Ad.status == "active",
-            Ad.payment_status.in_(["paid", "waived"]),
+            Ad.payment_status == "paid",
             or_(Ad.starts_at.is_(None), Ad.starts_at < proposed_end),
             or_(Ad.ends_at.is_(None), Ad.ends_at > proposed_start),
             User.deleted_at.is_(None),

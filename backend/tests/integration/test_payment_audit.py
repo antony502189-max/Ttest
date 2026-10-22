@@ -169,7 +169,7 @@ async def test_bug004_financial_event_before_checkout_never_grants_refunded_top(
     assert not result.json()['items'][0]['promoted']
 
 
-async def test_bug005_paid_rejected_banner_retains_seventh_place(client,register_user,provider):
+async def test_rejected_banner_is_deleted_and_releases_slot_with_refund_evidence(client,register_user,provider):
     # Create eight drafts before any payment reserves capacity.
     drafts = await campaigns_from_distinct_clients(client,register_user,'fix-banner')
     for ad, _, headers, _ in drafts[:7]:
@@ -178,13 +178,16 @@ async def test_bug005_paid_rejected_banner_retains_seventh_place(client,register
         await paid(client,provider,result.json()['url'])
     admin = await admin_headers(client,register_user)
     first, payload, headers, _ = drafts[0]
-    assert (await client.post(f"/api/v1/admin/advertisements/{first['id']}/reject",headers=admin,json={'note':'Fix wording'})).status_code == 200
+    assert (await client.post(f"/api/v1/admin/advertisements/{first['id']}/reject",headers=admin,json={'note':'Fix wording'})).status_code == 204
+    assert (await client.get('/api/v1/advertisements/'+first['id'],headers=headers)).status_code == 404
+    reviews = (await client.get('/api/v1/payments/admin/review-required',headers=admin)).json()
+    assert any(order['targetId'] == first['id'] for order in reviews)
     eighth, _, other, _ = drafts[7]
-    denied = await client.post(f"/api/v1/payments/advertisements/{eighth['id']}/checkout",headers=other)
-    assert denied.status_code == 409
+    replacement = await client.post(f"/api/v1/payments/advertisements/{eighth['id']}/checkout",headers=other)
+    assert replacement.status_code == 200, replacement.text
     payload['title'] = 'Corrected local service'
     corrected = await client.patch('/api/v1/advertisements/'+first['id'],headers=headers,json=payload)
-    assert corrected.status_code == 200 and corrected.json()['status'] == 'pending_review', corrected.text
+    assert corrected.status_code == 404
 
 
 async def test_bug006_slow_stripe_does_not_hold_global_sales_lock(client,register_user,provider):

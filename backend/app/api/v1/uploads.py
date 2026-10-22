@@ -310,7 +310,7 @@ async def get_media(
         .where(
             CommercialAdvertisement.image_asset_id == MediaAsset.id,
             CommercialAdvertisement.status == "active",
-            CommercialAdvertisement.payment_status.in_(["paid", "waived"]),
+            CommercialAdvertisement.payment_status == "paid",
             (CommercialAdvertisement.starts_at.is_(None)) | (CommercialAdvertisement.starts_at <= func.now()),
             (CommercialAdvertisement.ends_at.is_(None)) | (CommercialAdvertisement.ends_at > func.now()),
             User.deleted_at.is_(None), User.blocked.is_(False),
@@ -414,7 +414,7 @@ async def get_media(
                 select(CommercialAdvertisement.id).join(User, User.id == CommercialAdvertisement.owner_user_id).where(
                     CommercialAdvertisement.image_asset_id == asset.id,
                     CommercialAdvertisement.status == "active",
-                    CommercialAdvertisement.payment_status.in_(["paid", "waived"]),
+                    CommercialAdvertisement.payment_status == "paid",
                     (CommercialAdvertisement.starts_at.is_(None)) | (CommercialAdvertisement.starts_at <= func.now()),
                     (CommercialAdvertisement.ends_at.is_(None)) | (CommercialAdvertisement.ends_at > func.now()),
                     User.deleted_at.is_(None), User.blocked.is_(False),

@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,7 +12,7 @@ class CommercialAdvertisement(Base):
     __tablename__ = "commercial_advertisements"
     __table_args__ = (
         CheckConstraint("status IN ('pending_payment','pending_review','active','rejected','cancelled')", name="ck_commercial_ad_status"),
-        CheckConstraint("payment_status IN ('unpaid','pending','paid','failed','refunded','waived')", name="ck_commercial_ad_payment"),
+        CheckConstraint("payment_status IN ('unpaid','pending','paid','failed','refunded')", name="ck_commercial_ad_payment"),
         CheckConstraint("destination_type IN ('website','phone','whatsapp','email')", name="ck_commercial_ad_destination"),
         Index("ix_commercial_ad_homepage", "placement", "status", "payment_status", "admin_priority"),
     )
@@ -27,6 +27,8 @@ class CommercialAdvertisement(Base):
     placement: Mapped[str] = mapped_column(String(40), default="homepage_bottom")
     status: Mapped[str] = mapped_column(String(24), default="pending_payment")
     payment_status: Mapped[str] = mapped_column(String(16), default="unpaid")
+    # Legacy paid status means entitled; this explicit flag distinguishes a waiver from a charge.
+    payment_waived: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     package_id: Mapped[str] = mapped_column(String(40), default="homepage_1d")
     duration_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     current_payment_order_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)

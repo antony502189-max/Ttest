@@ -40,9 +40,11 @@ Apply migration `0066_complimentary_ads` before deploying this behavior.
 The moderation screen offers **Publicar banner sin coste**, opening the banner
 editor in administrator mode. `POST /admin/advertisements` requires the normal
 server-side administrator allowlist and full account access. It publishes a
-banner immediately for one calendar month with `payment_status=waived`, without
+banner immediately for one calendar month with API `paymentStatus=waived`, without
 creating a payment order or Stripe session. Complimentary banners consume the
 same seven-slot capacity and use the same image validation as paid banners.
+Storage retains the legacy paid entitlement status plus nullable `payment_waived`
+to preserve rollback compatibility without inventing payment orders or charges.
 Ordinary advertisement creation still requires payment; client fields and URL
 parameters cannot grant the exemption. Editing a live complimentary campaign
 retains its expiry and sends it through moderation.
@@ -60,7 +62,7 @@ Validation for this change: 17 advertising unit tests, 14 advertising API tests,
 13 browser tests, TypeScript checking and the production build passed. API tests
 used an isolated PostgreSQL database with the real advertising, payment and
 authentication tables; unrelated geography columns were inert because PostGIS
-was unavailable locally. The `0066` constraint migration was also applied and
+was unavailable locally. The additive `0066` waiver-column migration was also applied and
 verified separately on that database.
 
 In **Mis anuncios**, the TOP action on each eligible owned listing offers two
