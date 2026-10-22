@@ -14,7 +14,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 @pytest.mark.skipif(not shutil.which("jq") or not shutil.which("bash"), reason="release gate requires Bash and jq")
 @pytest.mark.parametrize("scenario,allowed", [("complete", True), ("missing_payment", False),
-                                               ("failed_payment", False), ("incomplete_files", False)])
+                                               ("failed_payment", False), ("incomplete_files", False),
+                                               ("lookup_failure", True), ("malformed_lookup", True),
+                                               ("stale_fallback", False), ("unmerged_fallback", False)])
 def test_paginated_manual_release_gate(tmp_path, scenario, allowed):
     workflow = yaml.safe_load((ROOT / ".github/workflows/manual-production-deploy.yml").read_text())
     script = next(step["run"] for step in workflow["jobs"]["verify-release"]["steps"]
@@ -35,6 +37,11 @@ def test_paginated_manual_release_gate(tmp_path, scenario, allowed):
     data = {"pulls": [{"number": 360, "merge_commit_sha": sha, "merged_at": "2026-10-20T09:00:00Z",
                         "base": {"ref": "main"}, "head": {"sha": head}}],
             "files": file_pages, "checks": [{"check_runs": checks}, {"check_runs": payments}]}
+    data["scenario"] = scenario
+    if scenario == "stale_fallback":
+        data["pulls"][0]["merge_commit_sha"] = "c" * 40
+    if scenario == "unmerged_fallback":
+        data["pulls"][0]["merged_at"] = None
     fixture = tmp_path / "responses.json"
     fixture.write_text(json.dumps(data))
     stub = tmp_path / "gh"
@@ -42,6 +49,12 @@ def test_paginated_manual_release_gate(tmp_path, scenario, allowed):
 args = sys.argv[1:]
 data = json.load(open(os.environ['RELEASE_FIXTURES']))
 endpoint = next(arg for arg in args if arg.startswith('/repos/'))
+if '/commits/' in endpoint and endpoint.split('?', 1)[0].endswith('/pulls'):
+    if data['scenario'] in ('lookup_failure', 'stale_fallback', 'unmerged_fallback'):
+        sys.exit(1)
+    if data['scenario'] == 'malformed_lookup':
+        print('{')
+        sys.exit(0)
 if endpoint.split('?', 1)[0].endswith('/pulls'):
     print(json.dumps(data['pulls']))
 elif '/files?' in endpoint or '/check-runs?' in endpoint:
@@ -58,5 +71,6 @@ else:
     result = subprocess.run(["bash", "-c", script], env=env, capture_output=True, text=True, check=False)
     assert result.returncode == (0 if allowed else 65), result.stdout + result.stderr
     if not allowed:
-        expected = "Incomplete PR file list" if scenario == "incomplete_files" else "Unsafe to deploy: required check"
+        expected = ("No merged main PR matches" if scenario in {"stale_fallback", "unmerged_fallback"}
+                    else "Incomplete PR file list" if scenario == "incomplete_files" else "Unsafe to deploy: required check")
         assert expected in result.stdout + result.stderr
