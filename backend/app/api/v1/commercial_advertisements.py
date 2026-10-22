@@ -65,7 +65,7 @@ def detail(ad: Ad) -> AdvertisementDetail:
         id=ad.id, ownerUserId=ad.owner_user_id, title=ad.title, description=ad.description,
         imageAssetId=ad.image_asset_id, imageUrl=image_url(ad.image_asset_id),
         destinationType=cast(DestinationType, ad.destination_type), destination=ad.destination, status=visible_status,
-        paymentStatus=ad.payment_status, packageId=ad.package_id, placement=ad.placement,
+        paymentStatus="waived" if ad.payment_waived and ad.payment_status == "paid" else ad.payment_status, packageId=ad.package_id, placement=ad.placement,
         createdAt=ad.created_at, startsAt=ad.starts_at, endsAt=ad.ends_at,
         moderationNote=ad.moderation_note,
         paymentOrderId=ad.current_payment_order_id,
@@ -176,6 +176,17 @@ async def upload_advertisement_image(
 async def create_advertisement(
     payload: AdvertisementWrite, user: User = Depends(current_user), session: AsyncSession = Depends(get_session),
 ):
+    return await persist_advertisement(payload, user, session)
+
+
+@router.post("/admin/advertisements", response_model=AdvertisementDetail, status_code=status.HTTP_201_CREATED)
+async def create_admin_advertisement(
+    payload: AdvertisementWrite, user: User = Depends(require_admin), session: AsyncSession = Depends(get_session),
+):
+    return await persist_advertisement(payload, user, session, complimentary=True)
+
+
+async def persist_advertisement(payload: AdvertisementWrite, user: User, session: AsyncSession, *, complimentary=False):
     await lock_advertising_capacity(session)
     await require_free_slot(session)
     await lock_media_owner(session, user.id)
@@ -191,6 +202,15 @@ async def create_advertisement(
             destination=payload.destination, status="pending_payment", payment_status="unpaid",
             placement="homepage_bottom", package_id=payload.packageId, admin_priority=0)
     session.add(ad)
+    if complimentary:
+        from ...services.homepage_purchase import one_month_after
+        now = datetime.now(UTC)
+        ad.payment_status = "paid"
+        ad.payment_waived = True
+        ad.status = "active"
+        ad.starts_at, ad.ends_at = now, one_month_after(now)
+        ad.approved_at = now
+        ad.submitted_at = now
     await session.commit()
     await session.refresh(ad)
     logger.info("commercial_advertisement_created")
@@ -256,6 +276,7 @@ async def edit_advertisement(
         ad.approved_at = None
         if expired:
             ad.payment_status = "unpaid"
+            ad.payment_waived = None
             ad.package_id = PACKAGE_ID
             ad.duration_days = None
             ad.current_payment_order_id = None
@@ -362,7 +383,7 @@ async def approve_advertisement(
     duration = ad.duration_days or (30 if ad.package_id == "test_homepage_30d" else 1)
     from ...services.homepage_purchase import one_month_after
     paid_order = await session.get(PaymentOrder, ad.current_payment_order_id) if ad.current_payment_order_id else None
-    paid_end = one_month_after(proposed_start) if paid_order and paid_order.duration_months == 1 else proposed_start + timedelta(days=duration)
+    paid_end = one_month_after(proposed_start) if ad.payment_waived or paid_order and paid_order.duration_months == 1 else proposed_start + timedelta(days=duration)
     proposed_end = decision.endsAt or ad.ends_at or paid_end
     if proposed_start.tzinfo is None or proposed_end.tzinfo is None or proposed_end <= proposed_start or proposed_end <= now:
         raise HTTPException(422, "Invalid advertisement schedule")
@@ -399,23 +420,38 @@ async def approve_advertisement(
     return detail(ad)
 
 
-@router.post("/admin/advertisements/{ad_id}/reject", response_model=AdvertisementDetail)
+@router.post("/admin/advertisements/{ad_id}/reject", status_code=status.HTTP_204_NO_CONTENT)
 async def reject_advertisement(
     ad_id: UUID, decision: ModerationDecision, user: User = Depends(require_admin), session: AsyncSession = Depends(get_session),
 ):
     await lock_advertising_capacity(session)
+    current = await session.get(Ad, ad_id)
+    if current is None:
+        raise HTTPException(404, "Advertisement not found")
+    await lock_media_owner(session, current.owner_user_id)
+    await lock_media_assets(session, {current.image_asset_id})
     ad = await admin_ad(session, ad_id)
     if ad.status != "pending_review":
         raise HTTPException(409, "Pending-review advertisement required")
-    ad.status = "rejected"
-    ad.rejected_at = datetime.now(UTC)
-    ad.moderation_note = decision.note
-    await notify_advertiser(session, ad, "advertisement_rejected", "Tu publicidad necesita cambios",
-                            "Tu publicidad no ha sido aprobada. Consulta la nota de moderación en Mis campañas.")
+    orders = (await session.scalars(select(PaymentOrder).where(
+        PaymentOrder.kind == "advertisement", PaymentOrder.target_id == ad.id,
+    ).with_for_update())).all()
+    if any(order.status in {"creating", "pending"} for order in orders):
+        raise HTTPException(409, "Finish or wait for the current payment before deleting")
+    for order in orders:
+        if order.status == "paid" and order.financial_status != "refunded":
+            order.fulfillment_status = "review_required"
+            order.fulfillment_note = "Campaign deleted after moderation rejection; refund required."
+    body = f"Tu banner no ha sido aprobado y se ha eliminado.\n\n{ad.title}"
+    if decision.note:
+        body += f"\n{decision.note}"
+    await notify_advertiser(session, ad, "advertisement_deleted", "Tu banner se ha eliminado", body)
+    image_id = ad.image_asset_id
+    await session.delete(ad)
+    await session.flush()
+    await mark_orphaned_media(session, {image_id})
     await session.commit()
-    await session.refresh(ad)
-    logger.info("commercial_advertisement_rejected")
-    return detail(ad)
+    logger.info("commercial_advertisement_rejected_and_deleted")
 
 
 @router.post("/admin/advertisements/{ad_id}/deactivate", response_model=AdvertisementDetail)

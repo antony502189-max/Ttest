@@ -70,6 +70,11 @@ const pageCopy: Record<Language, {
 }
 
 const productNotificationCopy: Record<string, Record<Language, { title: string; body: string }>> = {
+  advertisement_deleted: {
+    es: { title: 'Tu banner se ha eliminado', body: 'Tu banner no ha sido aprobado y se ha eliminado.' },
+    en: { title: 'Your banner has been deleted', body: 'Your banner was rejected during moderation and has been deleted.' },
+    ru: { title: 'Ваш баннер удалён', body: 'Ваш баннер отклонён при модерации и удалён.' },
+  },
   advertisement_paid: {
     es: { title: 'Pago publicitario confirmado', body: 'Tu publicidad está pagada y pendiente de revisión. El plazo empieza tras la aprobación.' },
     ru: { title: 'Оплата рекламы подтверждена', body: 'Баннер оплачен и ожидает проверки. Срок показа начнётся после одобрения.' },
@@ -185,6 +190,11 @@ function formattedDate(value: string, language: Language) {
 }
 
 function displayNotification(item: NotificationItem, language: Language) {
+  if (item.type === 'advertisement_deleted') {
+    const copy = productNotificationCopy.advertisement_deleted[language]
+    const details = item.body.split('\n\n').slice(1).join('\n\n')
+    return { title: copy.title, body: `${copy.body}${details ? `\n\n${details}` : ''}` }
+  }
   return productNotificationCopy[item.type]?.[language] ?? { title: item.title, body: item.body }
 }
 

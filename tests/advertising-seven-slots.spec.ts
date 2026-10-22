@@ -42,6 +42,45 @@ test('seven banner positions are a grid with genuine sponsored links and bounded
   await block.screenshot({ path: 'output/advertising/seven-desktop.png', style: '.site-header, .skip-link { visibility: hidden !important; }' })
 })
 
+for (const width of [320, 390, 480, 768, 1280]) {
+  test(`paid banner images stay inside their column at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.addInitScript(() => localStorage.setItem('112233:language:v1', 'ru'))
+    const shapes = [[800, 800], [1600, 400], [400, 1600]]
+    await page.route('**/api/v1/advertisements/homepage', route => route.fulfill({ json: shapes.map(([imageWidth, imageHeight], index) => ({
+      ...ads[index], title: index === 0 ? 'ChatGPT' : 'ОченьДлинноеНазваниеРекламодателяБезПробелов',
+      description: 'Ваш интеллектуальный помощник. Помогаем с работой, учёбой и повседневными задачами.',
+      imageUrl: `/api/v1/media/${assetId}?shape=${index}`, imageWidth, imageHeight,
+    })) }))
+    await page.route(`**/api/v1/media/${assetId}**`, route => {
+      const [w, h] = shapes[Number(new URL(route.request().url()).searchParams.get('shape'))]
+      return route.fulfill({ contentType: 'image/svg+xml', body: `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="${w}" height="${h}" fill="#173d32"/><circle cx="${w / 2}" cy="${h / 2}" r="${Math.min(w, h) * .3}" fill="#d8ff4b"/></svg>` })
+    })
+    await page.goto('/#/')
+    const cards = page.locator('.commercial-ad article[data-ad-id]')
+    await expect(cards).toHaveCount(3)
+    for (const card of await cards.all()) {
+      await card.scrollIntoViewIfNeeded()
+      await expect.poll(() => card.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true)
+      const bounds = await card.evaluate(element => {
+        const rect = (selector: string) => {
+          const { x, y, width, height, right, bottom } = element.querySelector(selector)!.getBoundingClientRect()
+          return { x, y, width, height, right, bottom }
+        }
+        return { card: element.getBoundingClientRect().toJSON(), visual: rect('.commercial-ad__visual'), image: rect('img'), copy: rect('.commercial-ad__copy'), link: rect('a') }
+      })
+      expect(bounds.image.right).toBeLessThanOrEqual(bounds.visual.right + 1)
+      expect(bounds.image.bottom).toBeLessThanOrEqual(bounds.visual.bottom + 1)
+      expect(bounds.visual.right + 8).toBeLessThanOrEqual(bounds.copy.x)
+      expect(bounds.copy.right).toBeLessThanOrEqual(bounds.card.right)
+      expect(bounds.link.right).toBeLessThanOrEqual(bounds.card.right)
+      expect(bounds.link.bottom).toBeLessThanOrEqual(bounds.card.bottom)
+    }
+    expect(await page.locator('.commercial-ad').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+    await cards.first().screenshot({ path: `output/advertising/paid-banner-${width}.png` })
+  })
+}
+
 for (const width of [320, 390, 480]) {
   test(`empty mobile advertising positions match restored vertical reference at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 })
