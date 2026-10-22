@@ -43,8 +43,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          merged_prs="$(gh api "/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls?per_page=100")"
-          pr_number="$(jq -er --arg sha "$GITHUB_SHA" '[.[] | select(.merge_commit_sha == $sha and .merged_at != null and .base.ref == "main") | .number] | first // empty' <<<"$merged_prs")"
+          if ! merged_prs="$(gh api "/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls?per_page=100")" \
+            || ! jq -e 'type == "array"' <<<"$merged_prs" >/dev/null; then
+            echo "Commit-to-PR lookup unavailable; checking recently closed main PRs"
+            merged_prs="$(gh api "/repos/$GITHUB_REPOSITORY/pulls?state=closed&base=main&sort=updated&direction=desc&per_page=100")"
+          fi
+          pr_number="$(jq -er --arg sha "$GITHUB_SHA" '[.[] | select(.merge_commit_sha == $sha and .merged_at != null and .base.ref == "main") | .number] | first // empty' <<<"$merged_prs")" \
+            || { echo "No merged main PR matches the exact release SHA"; exit 65; }
           pr_head="$(jq -er --arg sha "$GITHUB_SHA" '[.[] | select(.merge_commit_sha == $sha and .merged_at != null and .base.ref == "main") | .head.sha] | first // empty' <<<"$merged_prs")"
           echo "Merged PR #$pr_number; tested head $pr_head"
           files="$(gh api --paginate --slurp "/repos/$GITHUB_REPOSITORY/pulls/$pr_number/files?per_page=100" | jq 'add')"
