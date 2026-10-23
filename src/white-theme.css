@@ -303,6 +303,11 @@ html.mobile-v2-active #root {
 
 .m2-location-search input {
   color: #252a2b;
+  font-size: 1rem;
+}
+
+.m2-app .m2-location-search input:focus-visible {
+  outline: none;
 }
 
 .m2-location-search input::placeholder {
