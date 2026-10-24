@@ -180,3 +180,68 @@ def test_generated_vapid_keys_can_be_loaded_by_push_library(monkeypatch, tmp_pat
     loaded = Vapid.from_string(values['WEB_PUSH_PRIVATE_KEY'])
     assert loaded.public_key is not None
     assert len(base64.urlsafe_b64decode(values['WEB_PUSH_PUBLIC_KEY'] + '==')) == 65
+
+
+@pytest.mark.asyncio
+async def test_one_premium_placement_is_exclusive_before_stripe(monkeypatch):
+    ad = SimpleNamespace(id=uuid4(), placement="homepage_premium",
+                         package_id="homepage_premium_1m", status="pending_payment", payment_status="unpaid")
+    session = SimpleNamespace(scalar=AsyncMock(side_effect=[ad, None, 1]), execute=AsyncMock())
+    provider = AsyncMock()
+    monkeypatch.setattr(payments, "checkout", provider)
+    with pytest.raises(HTTPException) as exc:
+        await payments.advertisement_checkout(ad.id, SimpleNamespace(id=uuid4()), session)
+    assert exc.value.status_code == 409
+    assert exc.value.detail == "No advertising slots available"
+    provider.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_premium_checkout_charges_sixty_euros_without_client_price_override(monkeypatch):
+    ad = SimpleNamespace(id=uuid4(), placement="homepage_premium",
+                         package_id="homepage_premium_1m", status="pending_payment", payment_status="unpaid")
+    session = SimpleNamespace(scalar=AsyncMock(side_effect=[ad, None, 0]), execute=AsyncMock())
+    provider = AsyncMock(return_value="stripe")
+    monkeypatch.setattr(payments, "checkout", provider)
+    result = await payments.advertisement_checkout(ad.id, SimpleNamespace(id=uuid4()), session)
+    assert result == "stripe"
+    assert provider.await_args.args[4:6] == (30, 6000)
+    assert provider.await_args.kwargs["months"] == 1
+
+
+def test_premium_and_standard_are_distinct_valid_packages():
+    payload = {'title': 'Banner de negocios', 'description': 'Publicidad comercial local',
+               'imageAssetId': uuid4(), 'destinationType': 'website',
+               'destination': 'https://example.org/'}
+    premium = AdvertisementWrite(**payload, packageId='homepage_premium_1m')
+    standard = AdvertisementWrite(**payload)
+    assert premium.packageId == 'homepage_premium_1m'
+    assert standard.packageId == 'homepage_1d'
+    assert ads.placement_for_package(premium.packageId) == "homepage_premium"
+    assert ads.placement_for_package(standard.packageId) == "homepage_bottom"
+    assert ads.price_for_package(premium.packageId) == 6000
+    assert ads.price_for_package(standard.packageId) == 3000
+    assert ads.capacity_for_placement("homepage_premium") == 1
+    assert ads.capacity_for_placement("homepage_bottom") == 7
+    with pytest.raises(ValueError):
+        AdvertisementWrite(**payload, packageId='homepage_premium_free')
+
+
+@pytest.mark.asyncio
+async def test_premium_occupancy_filters_only_premium_and_pending_reservations():
+    session = SimpleNamespace(scalar=AsyncMock(return_value=1))
+    assert await ads.occupied_slots(session, placement="homepage_premium") == 1
+    sql = str(session.scalar.await_args.args[0].compile(
+        dialect=postgresql.dialect(), compile_kwargs={'literal_binds': True}))
+    assert "homepage_premium" in sql
+    assert "payment_orders.status IN ('creating', 'pending')" in sql
+
+
+@pytest.mark.asyncio
+async def test_public_availability_offers_separate_verified_prices(monkeypatch):
+    monkeypatch.setattr(advertising_api, 'occupied_slots', AsyncMock(side_effect=[3, 0]))
+    monkeypatch.setattr(advertising_api, 'get_settings', lambda: SimpleNamespace(web_push_public_key=''))
+    monkeypatch.setattr(advertising_api, 'push_configured', lambda: False)
+    result = await advertising_api.advertising_availability(SimpleNamespace())
+    assert (result['monthlyPriceCents'], result['premiumMonthlyPriceCents']) == (3000, 6000)
+    assert (result['available'], result['premiumAvailable']) == (4, 1)
