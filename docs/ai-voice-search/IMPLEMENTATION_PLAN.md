@@ -241,3 +241,97 @@ listing_search_features (подготовленные признаки по list
 ---
 
 **Правило дальнейшей работы:** дополнять этот документ по мере принятых решений, отмечать чекбоксы **только после реальных изменений и проверки**, отделять предложения от выполненной работы. Исходный код и инфраструктуру менять в отдельных контролируемых PR.
+
+
+## 9. AI API — предварительная архитектура и план проверки (2026-10-24)
+
+> **СТАТУС: кандидаты / исследование, НЕ финальный контракт и НЕ решение заказчика.** Сначала проверить качество на реальных примерах и финансовые/юридические ограничения. Никаких API-ключей в репозитории.
+
+### 9.1. Разделить на два самостоятельных контура
+
+**Контур каталога — асинхронный, не пользовательский:**
+
+```text
+existing parser → normalize + commit → durable queue
+→ AI enrichment worker → structured LLM extraction → schema + evidence validation
+→ source facts → canonical resolver → search features in PostgreSQL
+```
+
+**Контур пользователя — синхронный по запросу, без посещения сайтов:**
+
+```text
+React MediaRecorder (или обычный текст)
+→ Ttest FastAPI backend (API keys только на сервере)
+→ speech transcription provider (только для аудио)
+→ structured intent LLM
+→ Pydantic validation & hard/soft constraints
+→ PostgreSQL/PostGIS candidate filtering
+→ deterministic compatibility ranking and existing visibility rules
+→ cards + explanation/unknown conditions (если утверждено заказчиком)
+```
+
+Frontend не вызывает платные provider API напрямую и не получает их ключи. Не отправлять весь каталог в LLM. Не допускать произвольного выполнения SQL из ответа LLM. Персистентность диалога, уточнения и UI-формат — после ответов заказчика.
+
+### 9.2. Проверенные API-кандидаты (официальная документация, 2026-10-24)
+
+| Назначение | Кандидат | Факты из документации | Оценка / открытый вопрос |
+|---|---|---|---|
+| Голос → текст | Groq `whisper-large-v3` | Мультиязычный, $0.111 / аудиочас; поддерживает передачу записанного файла. | Первый кандидат по точности; тестировать произнесённые испанские названия, числа, русско-испанское переключение. |
+| Голос → текст | Groq `whisper-large-v3-turbo` | Мультиязычный, $0.04 / аудиочас. | Более дешёвый baseline; выбирать только после A/B теста качества критических полей. |
+| Голос → текст | OpenAI `gpt-transcribe` | Рекомендуемый новый API для записанного аудио, $0.0045 / аудиоминуту; поддерживает контекст/список ожидаемых языков. | Сравнить на сложных смешанных запросах; держать как возможную альтернативу. |
+| Текст → JSON | DeepSeek `deepseek-flash` | Актуальное имя модели; JSON mode и Responses API, `json_schema` на Responses endpoint; в Chat Completions thinking по умолчанию включён. | Основной кандидат для intent/extraction; начать с non-thinking, ограниченного выхода, строгой валидации. |
+| Сложные случаи | DeepSeek `deepseek-v4-pro` | Более дорогой доступный вариант. | Только для отложенного A/B либо контролируемого escalation при систематических ошибках. |
+
+**Официальные источники:**
+- Groq ASR: https://console.groq.com/docs/speech-to-text
+- Groq limits: https://console.groq.com/docs/rate-limits
+- OpenAI Transcription: https://developers.openai.com/api/docs/guides/transcription
+- OpenAI GPT-Transcribe pricing: https://developers.openai.com/api/docs/models/gpt-transcribe
+- DeepSeek models, prices: https://api-docs.deepseek.com/quick_start/pricing/
+- DeepSeek structured JSON / Responses: https://api-docs.deepseek.com/api/create-response/
+- DeepSeek non-thinking controls: https://api-docs.deepseek.com/guides/thinking_mode/
+
+**Важное исправление прежних предложений:** `gpt-4o-transcribe`, `gpt-4o-mini-transcribe` и `whisper-1` у OpenAI объявлены устаревающими с датой отключения 2027-02-26; для нового проекта разумнее проверять `gpt-transcribe`. Groq `whisper-large-v3` не следует путать с отдельным `whisper-1` endpoint у OpenAI.
+
+**DeepSeek тарифы:** `deepseek-flash` на официальной странице указан по off-peak/peak тарифам, кэшированным/некэшированным входным и выходным токенам; фиксировать не выдуманную «цену запроса», а реальные `input_tokens`, `output_tokens`, cache hits, retry и стоимость конкретного провайдера. Предварительная модель расходов определяется после замеров длин реальных объявлений и промптов.
+
+### 9.3. Минимальные внутренние интерфейсы сервисов — без публичного URL-контракта
+
+- `TranscriptionProvider.transcribe(audio, language_hints, vocabulary_hints) -> transcript + metadata`
+- `IntentExtractor.parse(query_text, optional_current_filters) -> validated_search_intent`
+- `ListingFactExtractor.extract(evidence_input, extractor_version) -> fact_set`
+- `ListingFeatureResolver.materialize(canonical_listing_id) -> search_features`
+- `CandidateMatcher.match(search_intent, pagination) -> matching_cards`
+
+Это логические Python-интерфейсы; названия предложены для планирования, не являются кодом. API URL/версии схем/методы HTTP обсуждаются позже.
+
+### 9.4. Операционная схема API
+
+- **Timeouts:** раздельные тайм-ауты транскрипции, intent и фонового extraction. Общий пользовательский deadline + понятные ошибки; при сбое транскрипции разрешить текстовый ввод, при сбое intent сохранить обычный поиск доступным.
+- **Retries:** 429/5xx — ограниченное количество попыток с jitter/Retry-After; не дублировать денежные запросы при клиентском повторном нажатии. Фоновые задачи идемпотентны.
+- **Limits:** rate limiting по IP/сессии для анонимных пользователей, лимит длительности и байтов аудио, валидация MIME/контента. Учитывать provider quota на аудиосекунды, не только RPS.
+- **Payloads:** аудио держать в памяти/короткоживущем temp-storage только до завершения обработки; исключить аудио и личные данные из обычных логов; политика сроков хранения и правовое основание требуют review.
+- **Sessions:** хранить только нужное для последующего уточнения состояние фильтров в рамках пользовательской сессии; **не считать**, что DeepSeek хранит диалог: Responses API задокументирован как stateless. Полноценный чат и долговременное хранение — решит заказчик.
+- **Search:** SQLite/локальную память каталога и отдельную векторную базу не добавлять; использовать текущий PostgreSQL/PostGIS с подготовленными признаками. Не нарушать существующие видимость, рекламные TOP, карту, стоимость и закрытые listings.
+- **Deployment prerequisites:** перед активацией микрофона проверить и поправить `Permissions-Policy` в `backend/app/main.py` и `deploy/nginx.conf`, где сейчас отключён microphone; отдельный защищённый multipart endpoint потребует scoped body limit вместо обычных ~256 KiB. Это будущая задача, не изменение текущего PR.
+
+### 9.5. Следующий технический эксперимент и критерии решения
+
+- [ ] **API-RESEARCH-001.** Собрать 50–100 *добровольно записанных* тестовых голосовых запросов RU/ES/EN, смешанные топонимы, жильцы/количество, €-бюджеты, отрицания, дети/животные. Для сравнения ASR один и тот же набор прогнать через Groq Whisper Large V3, Turbo, OpenAI GPT-Transcribe; измерить *ошибки критических слотов* и p50/p95 latency, не только WER.
+- [ ] **API-RESEARCH-002.** На размеченных текстах испытать `deepseek-flash` (non-thinking structured output) для двух отдельных промптов: (`A`) объявление→facts+evidence, (`B`) запрос→search intent. Измерить ложные «разрешено», пропущенные ограничения, invalid JSON и стоимость.
+- [ ] **API-RESEARCH-003.** Сверить провайдерские rate limits, условия использования, GDPR/data processing, хранение данных и доступные регионы прежде чем передавать реальные записи пользователей.
+- [ ] **API-RESEARCH-004.** Проверить mock provider adapter и fallback без реальных ключей, с симуляцией timeouts/429/500 и частичных/пустых JSON ответов.
+- [ ] **API-RESEARCH-005.** По итогам аудита каталогов и экспериментов зафиксировать ADR: выбранный provider, маршруты API, versioned schemas, retry budgets, voice UX и acceptance thresholds. Только затем начинать реализацию пользовательского voice API.
+
+### 9.6. Вопросы для следующего разговора (не требуют ответа заказчика)
+
+1. Выбираем **качество транскрипции** по измерениям на локальных RU/ES/EN примерах, а не заранее по цене: согласны?
+2. MVP делаем **push-to-talk с завершённой аудиозаписью** (проще, дешевле и стабильнее) или принципиально нужен live streaming со словами во время речи?
+3. Предпочитаем **одну Python-обёртку для нескольких ASR/LLM API**, чтобы переключать провайдера конфигом, а не быть привязанными к одной реализации?
+4. Нужно ли работать без регистрации и разрешать публичный AI-поиск, и какой дневной бюджет/злоупотребления допустимы? Решение влияет на rate limiting.
+
+## 10. Журнал обновлений после создания плана
+
+| Дата | Изменение |
+|---|---|
+| 2026-10-24 | Зафиксирована предварительная архитектура внешних ASR/LLM API и экспериментальный план; поставщики и публичный API-контракт остаются неутверждёнными. |
