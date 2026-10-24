@@ -280,7 +280,10 @@ test('advertiser previews, returns from Stripe and sees persisted review state',
       ad = { ...body, id: adId, ownerUserId: 'host-demo', imageUrl: `/api/v1/media/${assetId}?variant=card`, status: 'pending_payment', paymentStatus: 'unpaid', placement: 'homepage_bottom', createdAt: new Date().toISOString(), startsAt: null, endsAt: null, moderationNote: null }
       return route.fulfill({ status: 201, json: ad })
     }
-    return route.continue()
+    // Let the earlier, endpoint-specific availability fixture supply the
+    // server-authoritative €30 price. continue() bypasses other Playwright
+    // handlers and made this test falsely simulate an unavailable tariff.
+    return route.fallback()
   })
   await page.route(`**/api/v1/media/${assetId}**`, (route) => route.fulfill({ body: png, contentType: 'image/png' }))
   await page.goto('/#/publicidad/nueva')
