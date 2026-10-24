@@ -513,7 +513,11 @@ export function MobileSearchResults() {
       : draftFilters.shower === 'Ducha compartida' && draftFilters.toilet === 'Aseo compartido'
         ? 'shared'
         : draftFilters.shower === 'Cualquiera' && draftFilters.toilet === 'Cualquiera' ? 'any' : 'custom'
+  const rememberResultsScroll = () => {
+    if (resultsRootRef.current) savedScrollTopRef.current = resultsRootRef.current.scrollTop
+  }
   const contact = (listing: Listing) => {
+    rememberResultsScroll()
     if (listing.isExternal && listing.sourceUrl) {
       window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer')
       return
@@ -586,7 +590,7 @@ export function MobileSearchResults() {
     setPanel('results')
   }
 
-  return createPortal(<section ref={resultsRootRef} className="m2-results notranslate" translate="no" data-testid="mobile-results" onScroll={(event) => { savedScrollTopRef.current = event.currentTarget.scrollTop }}>
+  return createPortal(<section ref={resultsRootRef} className="m2-results notranslate" translate="no" data-testid="mobile-results" onScroll={(event) => { if (searchRouteActive && panel === 'results') savedScrollTopRef.current = event.currentTarget.scrollTop }}>
     {panel === 'results' ? <>
       <header className={cn('m2-results__header', showMonthlyCap && 'm2-results__header--with-cap')}>
         <button type="button" onClick={goBack} aria-label={t.back}><ArrowLeft /></button>
@@ -613,6 +617,7 @@ export function MobileSearchResults() {
       </header>
       <div className="m2-results__toolbar"><button type="button" onClick={() => { setDraftResetAll(false); setDraftFilters(filters); setPanel('filters') }}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
       <div className="m2-results__summary"><span>{t.showing(listings.length, resultCount)}</span><button type="button" className="m2-results__summary-sort" onClick={() => setPanel('sort')} aria-label={`${t.order}: ${orderLabel(t, order)}`}><b>{orderLabel(t, order)}</b><ChevronDown aria-hidden="true" /></button></div><div className="m2-results__list">{serverLoading ? <div role="status">Cargando resultados…</div> : serverError ? <div role="alert">No se pudieron cargar los resultados. <button type="button" onClick={() => setRetry((value) => value + 1)}>Reintentar</button></div> : orderedListings.length ? orderedListings.map((listing) => <MobileResultCard key={listing.id} listing={listing} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={() => contact(listing)} onOpen={() => {
+        rememberResultsScroll()
         markRecentlyViewed(listing.id)
         if (listing.isExternal && listing.sourceUrl) { window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer'); return }
         navigate(`/habitacion/${listing.id}`)
