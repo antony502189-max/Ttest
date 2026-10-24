@@ -96,14 +96,14 @@
   white-space: nowrap;
 }
 
-.m2-results .m2-results__price-cap-copy > span {
+.m2-results .m2-results__price-cap-label {
   color: #2f4c06;
   font-size: clamp(.49rem, 2.35vw, .71rem);
   font-weight: 900;
   letter-spacing: -.018em;
 }
 
-.m2-results .m2-results__price-cap-copy > strong {
+.m2-results .m2-results__price-cap-value {
   color: #355604;
   font-size: clamp(1.32rem, 7vw, 2.1rem);
   font-weight: 900;
@@ -269,11 +269,11 @@
     padding-right: 2.25rem;
   }
 
-  .m2-results .m2-results__price-cap-copy > span {
+  .m2-results .m2-results__price-cap-label {
     font-size: .51rem;
   }
 
-  .m2-results .m2-results__price-cap-copy > strong {
+  .m2-results .m2-results__price-cap-value {
     font-size: 1.27rem;
   }
 
