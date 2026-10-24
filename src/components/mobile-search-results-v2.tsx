@@ -8,6 +8,7 @@ import {
   ArrowDownUp,
   ArrowLeft,
   ChevronRight,
+  ChevronDown,
   Heart,
   Image as ImageIcon,
   Map,
@@ -485,9 +486,19 @@ export function MobileSearchResults() {
       ? communityName(visibleGeography.autonomousCommunity, language)
       : allSpain ? { es: 'España', en: 'Spain', ru: 'Испания' }[language]
         : visibleGeography.query ?? 'España'
-  const headingSubtitle = allSpain
-    ? { es: 'Toda España', en: 'All Spain', ru: 'Вся Испания' }[language]
-    : resultsCopy[language].zone
+  // The monthly-price promise belongs to Vivienda, never nightly Turismo.
+  const routeRentalMode = new URLSearchParams(location.search).get('alquiler')
+  const showMonthlyCap = routeRentalMode === 'long'
+    || (routeRentalMode !== 'holiday' && (filters.rentalMode ?? rentalMode) !== 'holiday')
+  const headingCountLabel = language === 'es' ? 'viviendas' : language === 'en' ? 'properties' : 'объявлений'
+  const headingLocationLabel = language === 'es' ? `en ${headingPlace}`
+    : language === 'en' ? `in ${headingPlace}` : headingPlace
+  const capEyebrow = { es: 'SOLO DE HASTA', en: 'ONLY UP TO', ru: 'ТОЛЬКО ДО' }[language]
+  const capAccessibleLabel = {
+    es: 'Vivienda de hasta 1.000 euros al mes',
+    en: 'Long-term rentals up to 1,000 euros per month',
+    ru: 'Долгосрочная аренда до 1 000 евро в месяц',
+  }[language]
 
 
   if (!open) return null
@@ -576,9 +587,32 @@ export function MobileSearchResults() {
   }
 
   return createPortal(<section ref={resultsRootRef} className="m2-results notranslate" translate="no" data-testid="mobile-results" onScroll={(event) => { savedScrollTopRef.current = event.currentTarget.scrollTop }}>
-    {panel === 'results' ? <><header className="m2-results__header"><button type="button" onClick={goBack} aria-label={t.back}><ArrowLeft /></button><div><strong>{t.header(resultCount, headingPlace)}</strong><small>{headingSubtitle}</small></div></header>
+    {panel === 'results' ? <>
+      <header className={cn('m2-results__header', showMonthlyCap && 'm2-results__header--with-cap')}>
+        <button type="button" onClick={goBack} aria-label={t.back}><ArrowLeft /></button>
+        <div className="m2-results__headline">
+          <strong>{resultCount} {headingCountLabel}</strong>
+          <span>{headingLocationLabel}</span>
+        </div>
+        {showMonthlyCap ? <aside className="m2-results__price-cap" aria-label={capAccessibleLabel}>
+          <div className="m2-results__price-cap-copy">
+            <span>{capEyebrow}</span>
+            <strong>1.000</strong>
+          </div>
+          <div className="m2-results__price-cap-art" aria-hidden="true">
+            <svg className="m2-results__price-cap-house" viewBox="0 0 64 60" focusable="false">
+              <path d="M4 27 29 3a5 5 0 0 1 7 0l24 24-7 8-5-5v27H15V30l-4 5z" fill="#fff" />
+              <rect x="27" y="35" width="11" height="22" rx="2" fill="#badc76" />
+            </svg>
+            <span className="m2-results__price-cap-coin">€</span>
+            <i className="m2-results__price-cap-spark m2-results__price-cap-spark--a" />
+            <i className="m2-results__price-cap-spark m2-results__price-cap-spark--b" />
+            <i className="m2-results__price-cap-spark m2-results__price-cap-spark--c" />
+          </div>
+        </aside> : null}
+      </header>
       <div className="m2-results__toolbar"><button type="button" onClick={() => { setDraftResetAll(false); setDraftFilters(filters); setPanel('filters') }}><SlidersHorizontal />{t.filters}</button><button type="button" onClick={() => setPanel('sort')}><ArrowDownUp />{t.order}</button><button type="button" onClick={openMap}><Map />{t.map}</button></div>
-      <div className="m2-results__summary"><span>{t.showing(listings.length, resultCount)}</span><b>{orderLabel(t, order)}</b></div><div className="m2-results__list">{serverLoading ? <div role="status">Cargando resultados…</div> : serverError ? <div role="alert">No se pudieron cargar los resultados. <button type="button" onClick={() => setRetry((value) => value + 1)}>Reintentar</button></div> : orderedListings.length ? orderedListings.map((listing) => <MobileResultCard key={listing.id} listing={listing} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={() => contact(listing)} onOpen={() => {
+      <div className="m2-results__summary"><span>{t.showing(listings.length, resultCount)}</span><button type="button" className="m2-results__summary-sort" onClick={() => setPanel('sort')} aria-label={`${t.order}: ${orderLabel(t, order)}`}><b>{orderLabel(t, order)}</b><ChevronDown aria-hidden="true" /></button></div><div className="m2-results__list">{serverLoading ? <div role="status">Cargando resultados…</div> : serverError ? <div role="alert">No se pudieron cargar los resultados. <button type="button" onClick={() => setRetry((value) => value + 1)}>Reintentar</button></div> : orderedListings.length ? orderedListings.map((listing) => <MobileResultCard key={listing.id} listing={listing} language={language} favorite={favorites.has(listing.id)} onFavorite={() => toggleFavorite(listing.id)} onDiscard={() => discardListing(listing.id)} onContact={() => contact(listing)} onOpen={() => {
         markRecentlyViewed(listing.id)
         if (listing.isExternal && listing.sourceUrl) { window.open(listing.sourceUrl, '_blank', 'noopener,noreferrer'); return }
         navigate(`/habitacion/${listing.id}`)
