@@ -1,5 +1,9 @@
 /* 112233 mobile results: reference header, control row and list spacing.
-   Visual-only; search counts and rental-mode eligibility come from React. */
+   Search counts and rental-mode eligibility come from React. */
+.m2-results {
+  /* Keep the stored scrollTop exact while a recovered card/gallery rehydrates. */
+  overflow-anchor: none;
+}
 .m2-results .m2-results__header {
   min-height: calc(4.5rem + env(safe-area-inset-top));
   grid-template-columns: 2.35rem minmax(0, 1fr);
