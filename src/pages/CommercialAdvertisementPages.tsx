@@ -25,6 +25,7 @@ export function AdvertisementEditorPage() {
   const { t, locale } = useI18n()
   const [form, setForm] = useState<AdvertisementWrite>(() => ({ ...initial, packageId: requestedPackage }))
   const [advertisingPrice, setAdvertisingPrice] = useState<number | null>(null)
+  const [availabilityRetry, setAvailabilityRetry] = useState(0)
   const [existing, setExisting] = useState<AdvertisementDetail | null>(null)
   const [preview, setPreview] = useState(false)
   const [filePreview, setFilePreview] = useState('')
@@ -46,12 +47,14 @@ export function AdvertisementEditorPage() {
       const available = premium ? status.premiumAvailable : status.available
       const verified = status.currency === 'EUR' && status.months === 1 && Number.isSafeInteger(price) && (price ?? 0) > 0
       setAdvertisingPrice(verified ? price! : null)
-      setFull(available === 0 || !verified)
+      // An unknown tariff or a failed availability request must not masquerade
+      // as sold-out inventory. Allow editing; block paid submission until verified.
+      setFull(available === 0)
     })
-      .catch(() => { if (active) { setFull(true); setError('No se pudo comprobar la disponibilidad. Inténtalo de nuevo.') } })
+      .catch(() => { if (active) { setFull(false); setAdvertisingPrice(null) } })
       .finally(() => { if (active) setAvailabilityLoading(false) })
     return () => { active = false }
-  }, [id, requestedPackage])
+  }, [id, requestedPackage, availabilityRetry])
   useEffect(() => {
     if (!id) return
     void getAdvertisement(id).then((ad) => {
@@ -82,6 +85,10 @@ export function AdvertisementEditorPage() {
     } finally { setBusy(false) }
   }
   const save = async () => {
+    if (!id && !complimentary && advertisingPrice === null) {
+      setError('No se pudo comprobar la disponibilidad. Inténtalo de nuevo.')
+      return
+    }
     setBusy(true); setError(''); setFieldErrors({})
     try {
       const ad = id ? await updateAdvertisement(id, form) : complimentary ? await createAdminAdvertisement(form) : await createAdvertisement(form)
@@ -91,12 +98,15 @@ export function AdvertisementEditorPage() {
   const submit = (event: FormEvent) => { event.preventDefault(); setError(''); setPreview(true) }
   return <div className="ad-flow"><Link to="/mis-campanas" className="ad-flow__back"><ArrowLeft />{t('Mis campañas')}</Link><div className="ad-flow__heading"><span>{t('Publicidad comercial')}</span><h1>{t(id ? 'Editar publicidad' : 'Crear publicidad')}</h1><p>{t(complimentary ? 'Publica un banner durante un mes sin pago como administrador.' : 'Tu campaña será revisada antes de aparecer en la portada.')}</p></div>
     {!id && !complimentary ? <div className="ad-flow__selected-package" data-testid="advertising-editor-package">
-      <strong>{selectedPlacement}</strong><span>{verifiedPriceLabel ? `${verifiedPriceLabel} / ${t('1 mes')}` : t('Comprobando disponibilidad…')}</span>
+      <strong>{selectedPlacement}</strong><span>{verifiedPriceLabel ? `${verifiedPriceLabel} / ${t('1 mes')}` : availabilityLoading ? t('Comprobando disponibilidad…') : t('No se pudo comprobar la disponibilidad. Inténtalo de nuevo.')}</span>
+    </div> : null}
+    {!id && !complimentary && !availabilityLoading && advertisingPrice === null ? <div className="ad-flow__price-retry" role="status">
+      <button type="button" className="ad-flow__secondary" onClick={() => setAvailabilityRetry((count) => count + 1)}>{t('Reintentar')}</button>
     </div> : null}
     {error ? <p role="alert" className="ad-flow__error">{t(error)}</p> : null}
     {full ? <section className="ad-flow__panel">{form.packageId === 'homepage_premium_1m'
       ? <><p role="status">{t('No hay espacios publicitarios disponibles en este momento.')}</p><Link to="/">{t('Volver al inicio')}</Link></>
-      : <AdvertisingVacancy onAvailable={() => setFull(false)} />}</section> : availabilityLoading ? <p role="status">{t('Comprobando disponibilidad…')}</p> : preview ? <section className="ad-flow__panel" aria-label={t('Vista previa')}><h2>{t('Vista previa')}</h2><div className="ad-flow__preview">{filePreview ? <img data-i18n-exempt src={filePreview} alt={form.title} /> : form.imageAssetId ? <CommercialAdvertisementImage path={imagePath} title={form.title} /> : null}<div><small>{t('Publicidad')}</small><h3 data-i18n-exempt>{form.title}</h3><p data-i18n-exempt>{form.description}</p><span>{form.destination}</span></div></div><div className="ad-flow__actions"><button type="button" className="ad-flow__secondary" onClick={() => setPreview(false)}>{t('Volver a editar')}</button><button type="button" disabled={busy} onClick={() => { void save() }}>{t(complimentary ? 'Publicar banner sin coste' : ['paid', 'waived'].includes(existing?.paymentStatus ?? '') && existing?.status !== 'expired' ? 'Enviar a revisión' : 'Continuar al pago')}</button></div></section> : <form className="ad-flow__panel ad-flow__form" onSubmit={submit}>
+      : <AdvertisingVacancy onAvailable={() => setFull(false)} />}</section> : availabilityLoading ? <p role="status">{t('Comprobando disponibilidad…')}</p> : preview ? <section className="ad-flow__panel" aria-label={t('Vista previa')}><h2>{t('Vista previa')}</h2><div className="ad-flow__preview">{filePreview ? <img data-i18n-exempt src={filePreview} alt={form.title} /> : form.imageAssetId ? <CommercialAdvertisementImage path={imagePath} title={form.title} /> : null}<div><small>{t('Publicidad')}</small><h3 data-i18n-exempt>{form.title}</h3><p data-i18n-exempt>{form.description}</p><span>{form.destination}</span></div></div><div className="ad-flow__actions"><button type="button" className="ad-flow__secondary" onClick={() => setPreview(false)}>{t('Volver a editar')}</button><button type="button" disabled={busy || (!id && !complimentary && advertisingPrice === null)} onClick={() => { void save() }}>{t(complimentary ? 'Publicar banner sin coste' : ['paid', 'waived'].includes(existing?.paymentStatus ?? '') && existing?.status !== 'expired' ? 'Enviar a revisión' : 'Continuar al pago')}</button></div></section> : <form className="ad-flow__panel ad-flow__form" onSubmit={submit}>
       <label>{t('Imagen publicitaria')}<input type="file" accept="image/jpeg,image/png,image/webp" required={!form.imageAssetId} disabled={busy} aria-invalid={Boolean(fieldErrors.imageAssetId)} aria-describedby={fieldErrors.imageAssetId ? 'ad-image-error' : undefined} onChange={(event) => { void chooseFile(event.target.files?.[0]) }} />{fieldErrors.imageAssetId ? <small id="ad-image-error">{t(fieldErrors.imageAssetId)}</small> : null}</label>
       {filePreview ? <img className="ad-flow__uploaded" src={filePreview} alt={t('Vista previa de la imagen')} /> : existing ? <CommercialAdvertisementImage path={existing.imageUrl} title={existing.title} /> : null}
       <label>{t('Título')}<input value={form.title} maxLength={90} minLength={3} required aria-invalid={Boolean(fieldErrors.title)} aria-describedby={fieldErrors.title ? 'ad-title-error' : undefined} onChange={(event) => setForm((previous) => ({ ...previous, title: event.target.value }))} />{fieldErrors.title ? <small id="ad-title-error">{t(fieldErrors.title)}</small> : null}</label>
