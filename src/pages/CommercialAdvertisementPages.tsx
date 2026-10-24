@@ -20,9 +20,11 @@ export function AdvertisementEditorPage() {
   const { id } = useParams()
   const [editorParams] = useSearchParams()
   const complimentary = !id && editorParams.get('admin') === '1'
+  const requestedPackage = editorParams.get('plan') === 'premium' ? 'homepage_premium_1m' : 'homepage_1d'
   const navigate = useNavigate()
-  const { t } = useI18n()
-  const [form, setForm] = useState<AdvertisementWrite>(initial)
+  const { t, locale } = useI18n()
+  const [form, setForm] = useState<AdvertisementWrite>(() => ({ ...initial, packageId: requestedPackage }))
+  const [advertisingPrice, setAdvertisingPrice] = useState<number | null>(null)
   const [existing, setExisting] = useState<AdvertisementDetail | null>(null)
   const [preview, setPreview] = useState(false)
   const [filePreview, setFilePreview] = useState('')
@@ -33,21 +35,36 @@ export function AdvertisementEditorPage() {
   const [availabilityLoading, setAvailabilityLoading] = useState(!id)
   useEffect(() => {
     if (id) return
+    setForm((current) => ({ ...current, packageId: requestedPackage }))
     let active = true
-    void getAdvertisingAvailability().then((status) => { if (active) setFull(status.available === 0) })
+    setAvailabilityLoading(true)
+    setAdvertisingPrice(null)
+    void getAdvertisingAvailability().then((status) => {
+      if (!active) return
+      const premium = requestedPackage === 'homepage_premium_1m'
+      const price = premium ? status.premiumMonthlyPriceCents : status.monthlyPriceCents
+      const available = premium ? status.premiumAvailable : status.available
+      const verified = status.currency === 'EUR' && status.months === 1 && Number.isSafeInteger(price) && (price ?? 0) > 0
+      setAdvertisingPrice(verified ? price! : null)
+      setFull(available === 0 || !verified)
+    })
       .catch(() => { if (active) setError('No se pudo comprobar la disponibilidad. Inténtalo de nuevo.') })
       .finally(() => { if (active) setAvailabilityLoading(false) })
     return () => { active = false }
-  }, [id])
+  }, [id, requestedPackage])
   useEffect(() => {
     if (!id) return
     void getAdvertisement(id).then((ad) => {
       setExisting(ad)
-      setForm({ title: ad.title, description: ad.description, imageAssetId: ad.imageAssetId, destinationType: ad.destinationType, destination: ad.destination, packageId: 'homepage_1d' })
+      setForm({ title: ad.title, description: ad.description, imageAssetId: ad.imageAssetId, destinationType: ad.destinationType, destination: ad.destination, packageId: ad.packageId === 'homepage_premium_1m' ? 'homepage_premium_1m' : 'homepage_1d' })
     }).catch((reason: Error) => setError(reason.message))
   }, [id])
   useEffect(() => () => { if (filePreview) URL.revokeObjectURL(filePreview) }, [filePreview])
   const imagePath = existing && form.imageAssetId === existing.imageAssetId ? existing.imageUrl : `/api/v1/media/${form.imageAssetId}?variant=card`
+  const selectedPlacement = form.packageId === 'homepage_premium_1m' ? t('Banner Premium Principal') : t('Espacio publicitario')
+  const verifiedPriceLabel = advertisingPrice !== null
+    ? new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(advertisingPrice / 100)
+    : null
   const chooseFile = async (file?: File) => {
     if (!file) return
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { setError('Solo se admiten imágenes JPEG, PNG o WebP.'); return }
@@ -73,6 +90,9 @@ export function AdvertisementEditorPage() {
   }
   const submit = (event: FormEvent) => { event.preventDefault(); setError(''); setPreview(true) }
   return <div className="ad-flow"><Link to="/mis-campanas" className="ad-flow__back"><ArrowLeft />{t('Mis campañas')}</Link><div className="ad-flow__heading"><span>{t('Publicidad comercial')}</span><h1>{t(id ? 'Editar publicidad' : 'Crear publicidad')}</h1><p>{t(complimentary ? 'Publica un banner durante un mes sin pago como administrador.' : 'Tu campaña será revisada antes de aparecer en la portada.')}</p></div>
+    {!id && !complimentary ? <div className="ad-flow__selected-package" data-testid="advertising-editor-package">
+      <strong>{selectedPlacement}</strong><span>{verifiedPriceLabel ? `${verifiedPriceLabel} / ${t('1 mes')}` : t('Comprobando disponibilidad…')}</span>
+    </div> : null}
     {error ? <p role="alert" className="ad-flow__error">{t(error)}</p> : null}
     {full ? <section className="ad-flow__panel"><AdvertisingVacancy onAvailable={() => setFull(false)} /></section> : availabilityLoading ? <p role="status">{t('Comprobando disponibilidad…')}</p> : preview ? <section className="ad-flow__panel" aria-label={t('Vista previa')}><h2>{t('Vista previa')}</h2><div className="ad-flow__preview">{filePreview ? <img data-i18n-exempt src={filePreview} alt={form.title} /> : form.imageAssetId ? <CommercialAdvertisementImage path={imagePath} title={form.title} /> : null}<div><small>{t('Publicidad')}</small><h3 data-i18n-exempt>{form.title}</h3><p data-i18n-exempt>{form.description}</p><span>{form.destination}</span></div></div><div className="ad-flow__actions"><button type="button" className="ad-flow__secondary" onClick={() => setPreview(false)}>{t('Volver a editar')}</button><button type="button" disabled={busy} onClick={() => { void save() }}>{t(complimentary ? 'Publicar banner sin coste' : ['paid', 'waived'].includes(existing?.paymentStatus ?? '') && existing?.status !== 'expired' ? 'Enviar a revisión' : 'Continuar al pago')}</button></div></section> : <form className="ad-flow__panel ad-flow__form" onSubmit={submit}>
       <label>{t('Imagen publicitaria')}<input type="file" accept="image/jpeg,image/png,image/webp" required={!form.imageAssetId} disabled={busy} aria-invalid={Boolean(fieldErrors.imageAssetId)} aria-describedby={fieldErrors.imageAssetId ? 'ad-image-error' : undefined} onChange={(event) => { void chooseFile(event.target.files?.[0]) }} />{fieldErrors.imageAssetId ? <small id="ad-image-error">{t(fieldErrors.imageAssetId)}</small> : null}</label>
