@@ -366,7 +366,17 @@
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.commercial-ad__slot-chevron { width: 1.1rem; height: 1.1rem; color: #666d64; }
+/* Override the older ".commercial-ad__slot--empty > svg" (specificity 0,1,1).
+   Otherwise its 1.5rem SVG width overrides the narrower mobile chevron track. */
+.commercial-ad--redesign .commercial-ad__slot--empty > .commercial-ad__slot-chevron {
+  display: block;
+  justify-self: center;
+  width: min(100%, 1rem);
+  height: 1rem;
+  min-width: 0;
+  min-height: 0;
+  color: #666d64;
+}
 .commercial-ad__picker { width: min(33rem, calc(100vw - 1rem)); }
 .commercial-ad__plans { display: grid; gap: .7rem; margin-block: .8rem; }
 .commercial-ad__plans button {
@@ -427,7 +437,7 @@
   .commercial-ad__slot-icon svg { width: 1.45rem; height: 1.45rem; }
   .commercial-ad__slot-copy strong { font-size: clamp(.74rem, 3.6vw, .92rem); }
   .commercial-ad__slot-price { font-size: clamp(.64rem, 3.1vw, .85rem); padding: .4rem .35rem; }
-  .commercial-ad__slot-chevron { width: .9rem; }
+  .commercial-ad--redesign .commercial-ad__slot--empty > .commercial-ad__slot-chevron { width: min(100%, .9rem); height: .9rem; }
 }
 @media (max-width: 360px) {
   /* Reserve a genuinely bounded price column. An auto-sized no-wrap price
@@ -450,7 +460,7 @@
     white-space: normal;
     text-align: center;
   }
-  .commercial-ad__slot-chevron { min-width: 0; }
+  .commercial-ad--redesign .commercial-ad__slot--empty > .commercial-ad__slot-chevron { width: min(100%, .8rem); height: .8rem; }
   .commercial-ad__premium-cost { min-width: 4.6rem; }
   .commercial-ad__premium-title strong { font-size: .7rem; }
 }
