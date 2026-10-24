@@ -600,8 +600,8 @@ export function MobileSearchResults() {
         </div>
         {showMonthlyCap ? <aside className="m2-results__price-cap" aria-label={capAccessibleLabel}>
           <div className="m2-results__price-cap-copy">
-            <span>{capEyebrow}</span>
-            <strong>1.000</strong>
+            <span className="m2-results__price-cap-label">{capEyebrow}</span>
+            <span className="m2-results__price-cap-value">1.000</span>
           </div>
           <div className="m2-results__price-cap-art" aria-hidden="true">
             <svg className="m2-results__price-cap-house" viewBox="0 0 64 60" focusable="false">
