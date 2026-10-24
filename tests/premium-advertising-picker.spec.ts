@@ -148,18 +148,23 @@ test('unavailable price keeps ad editor editable but blocks payment until a fres
     if (route.request().method() === 'POST') creates += 1
     return route.fulfill({ status: 503, json: { detail: 'Unavailable' } })
   })
+  await page.route('**/api/v1/advertisements/uploads', route => route.fulfill({
+    status: 201, json: { id: '00000000-0000-4000-8000-000000000999', url: '/api/v1/media/00000000-0000-4000-8000-000000000999' },
+  }))
   await page.goto('/#/publicidad/nueva?plan=premium')
   await expect(page.locator('input[type=file]')).toBeVisible()
   await expect(page.getByTestId('advertising-editor-package')).toContainText('No se pudo comprobar')
   await page.getByLabel('Título').fill('A premium campaign')
   await page.getByLabel('Descripción').fill('A local premium campaign ready for upload')
   await page.getByLabel('Enlace web').fill('https://example.org/')
-  await expect(page.getByRole('button', { name: 'Vista previa' })).toBeDisabled()
+  await page.locator('input[type=file]').setInputFiles('src/assets/mobile-hero.jpg')
+  await page.getByRole('button', { name: 'Vista previa', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Continuar al pago' })).toBeDisabled()
   expect(creates).toBe(0)
   available = true
   await page.getByRole('button', { name: 'Reintentar' }).click()
   await expect(page.getByTestId('advertising-editor-package')).toContainText('60')
-  await expect(page.locator('input[type=file]')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Continuar al pago' })).toBeEnabled()
   expect(creates).toBe(0)
 })
 
