@@ -9,6 +9,8 @@ import {
   Edit3,
   Frown,
   Home,
+  Luggage,
+  Check,
   Rocket,
   Smile,
   Eye,
@@ -84,6 +86,33 @@ function AccountHeader({
       {action}
     </header>
   );
+}
+
+/** Decorative miniature of the actual homepage hero, not a second checkout UI. */
+function HomepagePromotionPreview({ image, language }: { image?: string; language: "es" | "en" | "ru" }) {
+  const labels = {
+    es: { rooms: "HABITACIONES", long: "VIVIENDA", short: "TURISMO" },
+    en: { rooms: "ROOMS", long: "LONG-TERM", short: "TOURISM" },
+    ru: { rooms: "КОМНАТЫ", long: "ДОЛГОСРОЧНО", short: "ТУРИЗМ" },
+  }[language];
+  return <span className="owner-promotion-choice__preview" data-testid="owner-homepage-promotion-preview" aria-hidden="true">
+    <span className="owner-promotion-choice__preview-photo">
+      {image ? <MediaImage src={image} variant="thumb" alt="" loading="lazy" /> : <Home />}
+    </span>
+    <span className="owner-promotion-choice__preview-links">
+      <span className="owner-promotion-choice__preview-tile owner-promotion-choice__preview-tile--living">
+        <span className="owner-promotion-choice__preview-tile-check"><Check /></span>
+        <Home className="owner-promotion-choice__preview-tile-icon" />
+        <span className="owner-promotion-choice__preview-tile-title">{labels.rooms}</span>
+        <span className="owner-promotion-choice__preview-tile-subtitle">{labels.long}</span>
+      </span>
+      <span className="owner-promotion-choice__preview-tile owner-promotion-choice__preview-tile--holiday">
+        <Luggage className="owner-promotion-choice__preview-tile-icon" />
+        <span className="owner-promotion-choice__preview-tile-title">{labels.rooms}</span>
+        <span className="owner-promotion-choice__preview-tile-subtitle">{labels.short}</span>
+      </span>
+    </span>
+  </span>
 }
 
 export function FavoritesPage() {
@@ -849,8 +878,9 @@ export function MyListingsPage() {
             ))}
           </div>
           {promotionStep === "choose" ? <div className="owner-top-dialog__list" data-testid="owner-promotion-choices">
-            <button type="button" className="owner-top-dialog__option owner-promotion-choice" onClick={() => { setTopDialogOpen(false); setHomepageCandidateId(topCandidateId); }} disabled={!promotable.find((listing) => listing.id === topCandidateId)?.images.length}>
-              <span className="owner-promotion-choice__icon"><Home aria-hidden="true" /></span><span><strong>{t("Banner Premium Principal")}</strong><small>{t("Su foto aparecerá en la portada con un enlace al anuncio.")}</small></span>
+            <button type="button" className="owner-top-dialog__option owner-promotion-choice owner-promotion-choice--homepage" onClick={() => { setTopDialogOpen(false); setHomepageCandidateId(topCandidateId); }} disabled={!promotable.find((listing) => listing.id === topCandidateId)?.images.length}>
+              <HomepagePromotionPreview image={promotable.find((listing) => listing.id === topCandidateId)?.images[0]} language={language} />
+              <span className="owner-promotion-choice__copy"><strong>{t("Banner Premium Principal")}</strong><small>{t("Su foto aparecerá en la portada con un enlace al anuncio.")}</small></span>
             </button>
             <button type="button" className="owner-top-dialog__option owner-promotion-choice" onClick={() => setPromotionStep("duration")}>
               <span className="owner-promotion-choice__icon"><Rocket aria-hidden="true" /></span><span><strong>{t("Sube tu anuncio a TOP")}</strong><small>{t("Haz que tu anuncio destaque y aparezca antes que los demás.")}</small></span>

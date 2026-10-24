@@ -22,6 +22,45 @@ for (const [language, width, labels] of [
     let dialog = page.getByRole('dialog')
     await expect(dialog).toHaveClass(/owner-top-dialog/)
     await expect(dialog.locator('.owner-promotion-choice')).toHaveCount(2)
+    const homepageChoice = dialog.locator('.owner-promotion-choice--homepage')
+    const preview = homepageChoice.getByTestId('owner-homepage-promotion-preview')
+    await expect(preview).toBeVisible()
+    await expect(preview.locator('.owner-promotion-choice__preview-tile')).toHaveCount(2)
+    await expect(preview.locator('.owner-promotion-choice__preview-photo img')).toBeVisible()
+    await expect(preview.locator('.owner-promotion-choice__preview-tile--living .owner-promotion-choice__preview-tile-check svg')).toBeVisible()
+    await expect(preview.locator('.owner-promotion-choice__preview-tile--holiday svg.owner-promotion-choice__preview-tile-icon')).toBeVisible()
+    const previewText = {
+      ru: ['КОМНАТЫ', 'ДОЛГОСРОЧНО', 'ТУРИЗМ'],
+      en: ['ROOMS', 'LONG-TERM', 'TOURISM'],
+      es: ['HABITACIONES', 'VIVIENDA', 'TURISMO'],
+    }[language]
+    await expect(preview.locator('.owner-promotion-choice__preview-tile-title')).toHaveText([previewText[0], previewText[0]])
+    await expect(preview.locator('.owner-promotion-choice__preview-tile-subtitle')).toHaveText([previewText[1], previewText[2]])
+    const chosenPhoto = await dialog.getByTestId('owner-top-option').locator('img').getAttribute('src')
+    expect(chosenPhoto).toBeTruthy()
+    await expect(preview.locator('img')).toHaveAttribute('src', chosenPhoto!)
+    const cardLayout = await homepageChoice.evaluate((button) => {
+      const image = button.querySelector('.owner-promotion-choice__preview')!.getBoundingClientRect()
+      const copy = button.querySelector('.owner-promotion-choice__copy')!.getBoundingClientRect()
+      const top = button.querySelector('.owner-promotion-choice__preview-photo')!.getBoundingClientRect()
+      const bottom = button.querySelector('.owner-promotion-choice__preview-links')!.getBoundingClientRect()
+      const green = button.querySelector('.owner-promotion-choice__preview-tile--living')!
+      const pink = button.querySelector('.owner-promotion-choice__preview-tile--holiday')!
+      return {
+        imageWidth: image.width,
+        aspectRatio: image.width / image.height,
+        overlap: image.right > copy.left + 1,
+        photoAboveTiles: top.bottom <= bottom.top + 1,
+        greenBorder: getComputedStyle(green).borderTopColor,
+        pinkBorder: getComputedStyle(pink).borderTopColor,
+      }
+    })
+    expect(cardLayout.imageWidth).toBeGreaterThan(60)
+    expect(cardLayout.aspectRatio).toBeGreaterThan(.85)
+    expect(cardLayout.aspectRatio).toBeLessThan(.97)
+    expect(cardLayout.overlap).toBe(false)
+    expect(cardLayout.photoAboveTiles).toBe(true)
+    expect(cardLayout.greenBorder).not.toBe(cardLayout.pinkBorder)
     await expect(dialog).not.toContainText(/60\s*€|4[.,]95|8[.,]50|22[.,]50/)
     await dialog.getByRole('button', { name: new RegExp(labels.home) }).click()
     dialog = page.getByRole('dialog')
