@@ -335,3 +335,89 @@ Frontend не вызывает платные provider API напрямую и �
 | Дата | Изменение |
 |---|---|
 | 2026-10-24 | Зафиксирована предварительная архитектура внешних ASR/LLM API и экспериментальный план; поставщики и публичный API-контракт остаются неутверждёнными. |
+
+
+
+## 11. P0 — предварительный статический аудит импортёров (2026-10-24)
+
+> **Охват и границы.** Проверен код в этой ветке: `external_sources.py`, `habitaclia_source.py`, `external_import.py`, `models/__init__.py`, `models/room_details.py` и `repositories/listings.py`. Это **code-level audit**, а НЕ оценка содержимого живой БД, качества действующих внешних сайтов или реально включённых на VPS источников. Фактические проценты coverage, эффективность парсинга, производительность и runtime-конфигурация **пока неизвестны**. Нет подключений к production DB, повторного скрейпинга или изменения исходников.
+
+### 11.1. Карта сборки данных (верифицировано кодом)
+
+1. Общий `ExternalListingSource.parse_listing()` читает публичные JSON-LD и embedded JSON, meta descriptions и fallback; составляет `title`/`description`, другие structured поля, `raw`. Для generic-adapter `raw` включает `jsonLd`, `embeddedJson` и **фрагмент HTML до 200 000 символов** (`external_sources.py:1296–1445`).
+2. `ExternalListingSource.normalize_listing()` передаёт `title`/`description` и опциональные факты через `public_detail_fields(data)` в `NormalizedListing` (`external_sources.py:1447–1533`); Regex-извлечение `pets_allowed`, `children_allowed`, `smoking_allowed` и `room_capacity` расположено в `external_sources.py:662–711`.
+3. `run_source()` сначала валидирует категорию, географию и цену, затем передаёт `NormalizedListing` в `upsert()` (`services/external_import.py:1251+`).
+4. `upsert()` записывает `raw_payload`, `normalized_payload` и `fingerprint` для конкретного source record; canonical listing может быть общим для нескольких source records (`services/external_import.py:671+, ~940–978`).
+5. Только primary source управляет основной карточкой, в т.ч. когда другой источник выигрывает по координатам/`completeness_score`. Это не политика разрешения противоречащих правил проживания (`services/external_import.py:~918–945`).
+
+### 11.2. Source-level матрица (по исходникам, не по production coverage)
+
+| Адаптер | Где смотреть | Что уже извлекается / сохраняется | Проверка в P0/P2 |
+|---|---|---|---|
+| Idealista | `external_sources.py:1536` | Наследует generic parse/normalize, добавляет category | Есть ли полное описание и пригодный structured data на реально доступных публичных detail |
+| Fotocasa | `external_sources.py:1551` | Приоритет embedded JSON и fallback описания из HTML; опциональный Playwright fallback при недостаточном detail | Отделить текст конкретного объявления от шаблона страницы; корректность нормализации описания |
+| Milanuncios | `external_sources.py:1619, 1828` | Generic parse, классификация по URL; отдельная логика островов и fallback municipality | Проверить описание и geo без ложного «точного» местоположения |
+| PisoCompartido | `external_sources.py:1862, 1876` | Generic parse плюс DOM `h1`/`description`/price, галерея, дата доступности | Устойчивость DOM-описания и сохранность ограничений проживания |
+| Pisos | `external_sources.py:1961, 1985` | Generic parse, особая галерея, цена/price cadence, географические breadcrumbs, тип недвижимости | Полнота description и доказательство условий; не ломать price/gallery contract |
+| ThinkSpain | `external_sources.py:2099` | Generic parse, гео/категория и rental mode | Истинные категории/условия, отдельные holiday страницы |
+| AlquilerDocenteCanarias | `external_sources.py:2128, 2179` | DOM description, price, публичный geo, очищенные source metadata | В `raw` сохраняется только краткий словарь — оценить достаточно ли `normalized_payload.description` |
+| Flatio | `external_sources.py:2246, 2305` | JSON-LD `room.description`, месячная цена с проверенным unit, explicit `InStock`, краткий `raw` | Достаточность description; сохранить строгие availability/price checks |
+| Habitaclia | `habitaclia_source.py:65, 421` | DOM + embedded public state, `summary.description`; краткий `raw`; координаты специально обнуляются как непроверенные | Длина/достоверность description; не восстанавливать ложную точную геопозицию |
+
+**Важно:** перечисление существующего класса ≠ подтверждение, что он разрешён, доступен и активен в production. `configured_sources()` зависит от `EXTERNAL_IMPORT_SOURCES`; `Habitaclia` имеет отдельный механизм установки. Расширение provider crawl или активация новых scope не входит в эту задачу.
+
+### 11.3. Подтверждённые риски и исправления по приоритетам
+
+**P0-A / высокий риск: fingerprint пропускает изменившиеся правила проживания.**
+- `NormalizedListing.fingerprint` в `external_sources.py:782–814` включает описание, цену, фотографии, часть удобств и ограничений, но **не включает** отдельные `pets_allowed`, `children_allowed`, `smoking_allowed`, `room_capacity`, `couples_allowed` (последнее отсутствует в `NormalizedListing`), часть других optional facts.
+- При совпадении fingerprint `upsert()` может выйти с `unchanged` до `apply_primary_source_snapshot()` (`services/external_import.py:~849–870`). Снимок источника обновляется, но scalar-поля canonical listing не всегда обновятся.
+- **Что делать:** добавить regression test «изменился только `pets_allowed` / `room_capacity` → система не теряет изменение». Предпочтительно ввести **отдельный completeness/AI-input digest и независимую очередь**, а необходимость изменения legacy importer fingerprint решать после оценки побочных эффектов (gallery, catalog version, dedup и обновление карточек).
+
+**P0-B / высокий риск: отсутствие данных и legacy defaults.**
+- `Listing`: `pets_allowed`/`children_allowed`/`smoking_allowed` имеют nullable тип, но ORM defaults `False` (`models/__init__.py:160–162`). `room_capacity` default `1` (`models/__init__.py:155–159`).
+- При импорте некоторых значений явно записывается `None`, поэтому **нельзя утверждать**, что каждая импортированная карточка автоматически становится `False`. Но исторические записи, owner flow, partial updates и старые payload требуют provenance audit.
+- **Что делать:** новый feature resolver не использует default как доказательство; `Unknown` — собственное состояние, с полями evidence/source/type.
+
+**P0-C / вместимость более двух человек.**
+- `apply_primary_source_snapshot()` и начальное создание карточки сохраняют в `Listing.room_capacity` не более `2`; для известной вместимости от 1 до 10 `ListingRoomDetails.room_capacity_v2` должен хранить оригинал при обновлении и через создание `room_details` (см. `services/external_import.py:606–620, 671+, 885+`).
+- Действующий `apply_search_filters` использует exact equality с `coalesce(room_capacity_v2, room_capacity)`, не «не меньше N» (`repositories/listings.py:~421–448`).
+- **Что делать:** аудировать заполнение `room_capacity_v2` при первом создании и повторном sync (не считать гарантированным без интеграционного теста); подготовить отдельную семантику `max_occupancy >= party_size` для будущего AI-поиска, не ломая обычный фильтр.
+
+**P0-D / raw_payload неоднороден; возможны избыточные данные.**
+- Generic source сохраняет `raw = {"jsonLd", "embeddedJson", "html": document[:200000]}`; `Flatio`, `AlquilerDocenteCanarias`, `Habitaclia` заменяют `raw` небольшими словарями. Для backfill брать прежде всего `normalized_payload`/`description` и подтверждённые normalized structured поля.
+- `raw_payload` может содержать публичный HTML/JSON-LD с телефонами, email и иными данными. **Не передавать весь raw в LLM и не выводить в аудит/логи.** Определить разрешённые поля, редактирование PII и retention отдельно.
+
+**P0-E / слабое покрытие смысловых ограничений.**
+- Сейчас `public_detail_fields()` извлекает простые ключевые фразы; «не принимает пары», «только маленькие животные», «курить можно исключительно на балконе», «дети по согласованию» не формализуются как самостоятельные typed conditional facts.
+- `ListingRoomDetails.couples_allowed` существует, но `NormalizedListing` и `apply_primary_source_snapshot` не содержат явного маппинга этого условия из текста внешнего объявления.
+- **Что делать:** evidence-backed AI facts по источникам, три/четыре состояния, золотой набор с отрицаниями, без выдумывания ограничений.
+
+**P0-F / конфликт нескольких источников.**
+- При смене primary source карточка переписывается текущим `NormalizedListing`; сравнения доказанных условий проживания по всем активным источникам для самостоятельного AI-поиска сейчас нет.
+- **Что делать:** хранить per-source факты и материализовать результат по canonical listing с явной стратегией conflict / stale / unknown, включая переоценку при source retirement.
+
+### 11.4. Почему автономный браузерный агент пока не нужен
+
+- Текущий pipeline **уже делает detail fetch до сохранения**; LLM получает очищенное описание/структуру после parser, без повторного сетевого запроса.
+- `fetch_listing()` включает только **опциональный** Playwright fallback для неполного detail и только при разрешающем флаге (`external_sources.py:1286–1294`).
+- При действительно недостаточном тексте сделать **фоновый** выборочный refetch через имеющийся adapter, после правил ToS/robots/без обхода защиты; не в search request и не через свободный tool browser.
+
+### 11.5. Конкретный следующий PR (без несанкционированных мутаций)
+
+**PR-A: тесты и data completeness audit** — сначала реализовать инструмент только для чтения:
+- [ ] `scripts/audit_ai_listing_data.py` (путь предварительный): на TEST/staging/read-only replica запросить агрегаты по `source_name` + актуальным `source_records`/canonical listing; не экспортировать полные HTML, контактные данные и персональные поля.
+- [ ] Выход: `source, records, description_present_pct, desc_length_distribution, pets_explicit_pct, kids_explicit_pct, smoking_explicit_pct, occupancy_explicit_pct, couples_explicit_pct, geo_verified_pct, unknown_pct`. Указывать `n` и отсутствие выборки как `N/A`.
+- [ ] Golden fixtures ручной разметки, без приватных данных: явное разрешение, явный запрет, неизвестно, условное разрешение, конфликт, negation, разные языки.
+- [ ] Regression tests для изменений optional-признаков без изменения прежнего fingerprint и для вместимости >2; проверять как source snapshot, так и canonical fields.
+- [ ] Итог: таблица фактических % по источникам + дефект-лист P2, решение о minimum evidence input. Никаких изменений production/публикации новых источников без отдельного согласования.
+
+**Статус:** статический code-level аудит готов; **runtime P0, tests, sample metrics, new migrations, workers и API всё ещё НЕ выполнены**. Все чекбоксы `PARSER-001…PARSER-005` выше остаются открытыми до реальной проверки данных.
+
+### 11.6. Источники аудита
+
+- [Generic parsing and NormalizedListing](../../backend/app/external_sources.py)
+- [External import and canonical mapping](../../backend/app/services/external_import.py)
+- [External database models](../../backend/app/models/__init__.py)
+- [Room details](../../backend/app/models/room_details.py)
+- [Existing search filters](../../backend/app/repositories/listings.py)
+- [Habitaclia adapter](../../backend/app/habitaclia_source.py)
