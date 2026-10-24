@@ -136,7 +136,8 @@ test('draw and search map interfaces expose the connected listing layer without 
 
   await page.getByTestId('search-map').click()
   await expect(page.getByTestId('map-search')).toBeVisible()
-  await expect(page.locator('.m2-map-results-header')).toContainText('España')
+  await expect(page.locator('.m2-map-results-header strong')).toHaveText('España')
+  await expect(page.locator('.m2-map-results-header small')).toHaveCount(0)
   await expect.poll(async () => page.locator('.m2-listing-marker').count()).toBeGreaterThan(0)
   await expect(page.locator('.m2-map-results-header')).not.toContainText(/\d+\s+(viviendas|anuncios|resultados)/i)
 })
