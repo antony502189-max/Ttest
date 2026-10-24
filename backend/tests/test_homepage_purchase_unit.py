@@ -43,7 +43,8 @@ def test_hourly_prices_are_server_owned_and_homepage_is_exactly_five_times_top()
 @pytest.mark.asyncio
 @pytest.mark.parametrize("days", [30])
 async def test_banner_server_price(monkeypatch, days):
-    ad = SimpleNamespace(id=uuid4(), status="pending_payment", payment_status="unpaid", package_id="homepage_1d")
+    ad = SimpleNamespace(id=uuid4(), status="pending_payment", payment_status="unpaid", package_id="homepage_1d",
+                         placement="homepage_bottom")
     session = SimpleNamespace(scalar=AsyncMock(side_effect=[ad, None]))
     monkeypatch.setattr(payments, "lock_advertising_capacity", AsyncMock())
     monkeypatch.setattr(payments, "require_free_slot", AsyncMock())

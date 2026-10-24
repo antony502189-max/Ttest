@@ -9,12 +9,19 @@ from fastapi import HTTPException
 from sqlalchemy import select
 
 from ..core.config import get_settings
-from ..models import Listing, User
+from ..models import Listing, MediaAsset, User
 from ..models.commercial_advertisement import CommercialAdvertisement
 from ..models.moderation import HomepageHeroPromotion, ListingPromotion
 from ..models.payment_order import PaymentOrder
 from .catalog import touch_catalog
-from .commercial_advertisements import MAX_ACTIVE_HOMEPAGE_ADS, lock_advertising_capacity, occupied_slots
+from .commercial_advertisements import (
+    PREMIUM_PACKAGE_ID,
+    PREMIUM_PRICE_CENTS,
+    capacity_for_placement,
+    lock_advertising_capacity,
+    occupied_slots,
+    validate_package_placement,
+)
 from .homepage_purchase import eligible, one_month_after, slot_available
 from .notifications import create_notification
 from .province_top import top_availability
@@ -88,14 +95,31 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session,
         ad = await session.scalar(select(CommercialAdvertisement).where(
             CommercialAdvertisement.id == order.target_id,
             CommercialAdvertisement.owner_user_id == order.owner_user_id,
-        ).with_for_update())
+            select(User.id).where(User.id == CommercialAdvertisement.owner_user_id,
+                                  User.deleted_at.is_(None), User.blocked.is_(False)).exists(),
+            select(MediaAsset.id).where(MediaAsset.id == CommercialAdvertisement.image_asset_id,
+                                        MediaAsset.owner_id == CommercialAdvertisement.owner_user_id,
+                                        MediaAsset.kind == "advertisement_image", MediaAsset.deleted_at.is_(None)).exists(),
+        ).with_for_update().execution_options(populate_existing=True))
         valid = bool(ad and ad.status == "pending_payment" and ad.payment_status == "unpaid")
+        if valid:
+            try:
+                validate_package_placement(ad, allow_legacy=True)
+            except HTTPException:
+                valid = False
+        if valid and ad.package_id == PREMIUM_PACKAGE_ID:
+            valid = bool(getattr(order, "advertisement_fingerprint", None)
+                         and order.amount_cents == PREMIUM_PRICE_CENTS
+                         and order.duration_months == 1)
         if valid and getattr(order, "advertisement_fingerprint", None):
             valid = order.advertisement_fingerprint == advertisement_fingerprint(ad)
-        if valid and was_expired:
-            # A released reservation cannot displace seven current purchases.
-            valid = bool(getattr(order, "advertisement_fingerprint", None)) and (
-                await occupied_slots(session, exclude_id=ad.id) < MAX_ACTIVE_HOMEPAGE_ADS
+        if valid and (was_expired or retry):
+            # A failed assignment has already persisted status=paid, so retries
+            # must check capacity even though the order is no longer expired.
+            valid = bool(getattr(order, "advertisement_fingerprint", None))
+        if valid:
+            valid = (
+                await occupied_slots(session, exclude_id=ad.id, placement=ad.placement) < capacity_for_placement(ad.placement)
             )
         if valid:
             ad.duration_days = order.days
