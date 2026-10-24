@@ -253,17 +253,21 @@ Local environment: isolated Python 3.12.10 venv; project dependencies installed 
 
 - Before fixes: `pytest backend/tests/test_ai_parser_regressions.py -q`: 19 failed, 1 passed.
 - Parser/evidence regression run: 225 passed, 1 skipped.
-- Full local non-integration run: 894 passed, 15 skipped before the final two edge-case tests;
-  final run result is recorded in IMPLEMENTATION_PLAN.md section 12.
+- Final full local non-integration run: **896 passed, 15 skipped**, 4 dependency/deprecation warnings.
 - Focused new tests cover CLI calculations/PII/empty samples/repeatability/input immutability,
   read-only SQL transaction order and rollback, types/hash/contact cleaning, full importer
   control flow, optional-only updates, gallery preservation and capacity/promotion.
 - Ruff over `backend/app backend/tests`: passed. Mypy over all 117 backend modules: passed.
-- New PostgreSQL module: 8 tests collected locally. Local execution unavailable without
-  PostgreSQL/PostGIS; mocks are not represented as database integration results.
+- New PostgreSQL module: all 8 tests passed as part of the CI integration run below.
+  Local execution was unavailable without PostgreSQL/PostGIS; mock results are separate.
 - `.github/workflows/ai-parser-foundation.yml` adds planning-PR CI with full unit/lint/type
   checks and importer lifecycle/transaction/removal/Spain/new persistence tests against
   disposable PostgreSQL/PostGIS. Only this CI test database runs the existing migration chain.
+- [Successful GitHub run on code revision `6e8500dc`](https://github.com/antony502189-max/Ttest/actions/runs/40136689686):
+  **904 passed, 7 skipped** Linux unit tests; **88 passed** PostgreSQL/PostGIS integration tests,
+  including all 8 new persistence/audit checks; Ruff and mypy passed. Existing payment backend,
+  payment frontend and security static PR checks also passed at that revision. Subsequent
+  documentation-only updates record these verified results without changing executable code.
 
 Reproduce the complete local non-integration check from `backend`:
 

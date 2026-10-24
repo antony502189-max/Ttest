@@ -490,8 +490,9 @@ Frontend не вызывает платные provider API напрямую и �
 | Финальный полный local backend non-integration suite | **896 passed, 15 skipped**, 4 dependency/deprecation warnings |
 | Ruff `backend/app backend/tests` | Passed |
 | Mypy всего `backend/app` | Passed, 117 source files |
-| Новый PostgreSQL module | 8 tests collected локально; локальный daemon Docker/PostGIS недоступен |
-| Planning-PR CI | Добавлен workflow `AI parser data foundation`; PostgreSQL lifecycle/audit проверки ожидаются в PR |
+| Новый PostgreSQL module | Все 8 выполнены в составе успешного CI integration run; локальный daemon Docker/PostGIS недоступен |
+| Planning-PR CI | [Успешный run на code revision `6e8500dc`](https://github.com/antony502189-max/Ttest/actions/runs/40136689686): **904 passed, 7 skipped** unit; **88 passed** PostgreSQL/PostGIS integration; Ruff/mypy passed |
+| Совместимые существующие PR checks | Backend payments, frontend payments, security static — passed на том же revision |
 | Production/runtime completeness | Не запускалось; нет подключённой безопасной replica |
 
 Команды воспроизведения, полный список изменённых файлов и границы mock-vs-DB tests
