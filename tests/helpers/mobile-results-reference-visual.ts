@@ -10,8 +10,8 @@ export async function expectReferenceMobileResults(page: Page) {
   const results = page.getByTestId('mobile-results')
   const header = results.locator('.m2-results__header')
   await expect(results).toBeVisible()
-  await expect(header.locator('.m2-results__headline strong')).toHaveText(/^[\d.,]+ viviendas$/)
-  await expect(header.locator('.m2-results__headline span')).toHaveText(/^en /)
+  await expect(header.locator('.m2-results__headline-count')).toHaveText(/^[\d.,]+ viviendas$/)
+  await expect(header.locator('.m2-results__headline-place')).toHaveText(/^en /)
   const cap = header.locator('.m2-results__price-cap')
   await expect(cap).toBeVisible()
   await expect(cap.locator('.m2-results__price-cap-label')).toHaveText('SOLO DE HASTA')
@@ -31,7 +31,7 @@ export async function expectReferenceMobileResults(page: Page) {
       .map((item) => item.getBoundingClientRect().width)
     return {
       background: getComputedStyle(root.querySelector('.m2-results__header')!).backgroundColor,
-      countWeight: Number(getComputedStyle(root.querySelector('.m2-results__headline strong')!).fontWeight),
+      countWeight: Number(getComputedStyle(root.querySelector('.m2-results__headline-count')!).fontWeight),
       titleRight: title.right,
       badgeLeft: badge.left,
       badgeRight: badge.right,
