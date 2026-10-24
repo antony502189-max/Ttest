@@ -18,6 +18,26 @@ PACKAGE_DURATION_DAYS = 1
 PACKAGE_ID = "homepage_1d"
 PACKAGE_PRICE_CENTS = 3000
 MAX_ACTIVE_HOMEPAGE_ADS = 7
+PREMIUM_PACKAGE_ID = "homepage_premium_1m"
+PREMIUM_PRICE_CENTS = 6000
+PREMIUM_PLACEMENT = "homepage_premium"
+PREMIUM_CAPACITY = 1
+
+
+def placement_for_package(package_id: str) -> str:
+    if package_id == PREMIUM_PACKAGE_ID:
+        return PREMIUM_PLACEMENT
+    if package_id == PACKAGE_ID:
+        return "homepage_bottom"
+    raise ValueError("Unknown advertising package")
+
+
+def price_for_package(package_id: str) -> int:
+    return PREMIUM_PRICE_CENTS if package_id == PREMIUM_PACKAGE_ID else PACKAGE_PRICE_CENTS
+
+
+def capacity_for_placement(placement: str) -> int:
+    return PREMIUM_CAPACITY if placement == PREMIUM_PLACEMENT else MAX_ACTIVE_HOMEPAGE_ADS
 
 
 async def assert_advertisement_image_is_unique(
@@ -61,7 +81,7 @@ async def lock_advertising_capacity(session) -> None:
                           {"lock_key": "commercial-advertising:homepage-bottom"})
 
 
-async def occupied_slots(session, *, exclude_id=None) -> int:
+async def occupied_slots(session, *, exclude_id=None, placement: str = "homepage_bottom") -> int:
     """Paid review queues and provider-confirmed pending payments reserve space.
 
     Never release a payment on a local timer: a delayed webhook may represent a
@@ -76,7 +96,7 @@ async def occupied_slots(session, *, exclude_id=None) -> int:
         PaymentOrder.kind == "advertisement", PaymentOrder.target_id == ad.id,
         PaymentOrder.status.in_(["creating", "pending"]),
     ).exists()
-    query = select(func.count(ad.id)).where(ad.placement == "homepage_bottom", or_(
+    query = select(func.count(ad.id)).where(ad.placement == placement, or_(
         and_(ad.status == "active", ad.payment_status == "paid",
              or_(ad.ends_at.is_(None), ad.ends_at > func.now())),
         and_(ad.status.in_(["pending_review", "rejected"]), ad.payment_status == "paid",
@@ -88,8 +108,12 @@ async def occupied_slots(session, *, exclude_id=None) -> int:
     return int(await session.scalar(query) or 0)
 
 
-async def require_free_slot(session, *, exclude_id=None) -> None:
-    if await occupied_slots(session, exclude_id=exclude_id) >= MAX_ACTIVE_HOMEPAGE_ADS:
+async def require_free_slot(session, *, exclude_id=None, placement: str = "homepage_bottom") -> None:
+    if placement == "homepage_bottom":
+        used = await occupied_slots(session, exclude_id=exclude_id)
+    else:
+        used = await occupied_slots(session, exclude_id=exclude_id, placement=placement)
+    if used >= capacity_for_placement(placement):
         raise HTTPException(409, "No advertising slots available")
 
 
