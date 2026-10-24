@@ -41,3 +41,8 @@
 .ad-flow__notice { padding: .8rem; border-radius: .5rem; background: color-mix(in srgb, #d8ff4b 20%, transparent); }
 .ad-flow__price { margin: 1.25rem 0 .75rem; font-size: 1.5rem; font-weight: 800; }
 @media (max-width: 650px) { .ad-flow__preview, .ad-flow__row { grid-template-columns: 1fr; } .ad-flow { width: calc(100% - 1.5rem); margin-top: 1.25rem; } }
+
+.ad-flow__selected-package { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .85rem 1rem; margin: 0 0 1rem; border: 1px solid #a9cb77; border-radius: .7rem; background: #f3fce6; color: #283e15; }
+.ad-flow__selected-package strong { min-width: 0; font-weight: 800; }
+.ad-flow__selected-package span { flex: none; white-space: nowrap; font-weight: 750; font-variant-numeric: tabular-nums; }
+@media (max-width: 360px) { .ad-flow__selected-package { flex-wrap: wrap; gap: .3rem; } }
