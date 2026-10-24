@@ -201,6 +201,7 @@ export function MobileSearchResults() {
   const loadingMoreSessionRef = useRef<MobileSearchSession | null>(null)
   const resultsRootRef = useRef<HTMLElement>(null)
   const savedScrollTopRef = useRef(0)
+  const returnScrollTopRef = useRef<number | null>(null)
   const searchSessionRef = useRef<MobileSearchSession | null>(null)
   const [catalogEpoch, setCatalogEpoch] = useState(0)
   const [mobileViewport, setMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT).matches)
@@ -318,13 +319,7 @@ export function MobileSearchResults() {
     searchSessionRef.current = null
   }, [])
 
-  useEffect(() => {
-    if (!open) return
-    const frame = window.requestAnimationFrame(() => {
-      if (resultsRootRef.current) resultsRootRef.current.scrollTop = savedScrollTopRef.current
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [open])
+
 
   useEffect(() => {
     if (mockMode || !open || panel !== 'results' || !nextCursor || serverLoading || serverError || serverLoadMoreError) return
@@ -472,6 +467,29 @@ export function MobileSearchResults() {
     return 0
   }) : filteredListings, [favorites, filteredListings, order])
   const orderedListings = useMemo(() => prioritizePromotedListings(listings, focusListingId), [focusListingId, listings])
+
+  // Return from a listing detail without letting a transient layout clamp the
+  // saved position. The page may rehydrate images after the results route opens.
+  useLayoutEffect(() => {
+    if (!open || !searchRouteActive || panel !== 'results') return
+    const target = returnScrollTopRef.current
+    if (target == null) return
+    let frame = 0
+    let attempts = 0
+    const restore = () => {
+      const root = resultsRootRef.current
+      if (!root) return
+      root.scrollTop = target
+      attempts += 1
+      if (attempts < 32) frame = window.requestAnimationFrame(restore)
+      else {
+        savedScrollTopRef.current = root.scrollTop
+        returnScrollTopRef.current = null
+      }
+    }
+    frame = window.requestAnimationFrame(restore)
+    return () => window.cancelAnimationFrame(frame)
+  }, [open, searchRouteActive, panel, orderedListings, serverLoading])
   const resultCount = mockMode ? filteredListings.length : serverTotal
   const visibleGeography = searchGeographyFromParams(new URLSearchParams(location.search))
   const drawingAreaSelected = Boolean(visibleGeography.polygon?.length || visibleGeography.bounds || visibleGeography.center)
@@ -514,7 +532,9 @@ export function MobileSearchResults() {
         ? 'shared'
         : draftFilters.shower === 'Cualquiera' && draftFilters.toilet === 'Cualquiera' ? 'any' : 'custom'
   const rememberResultsScroll = () => {
-    if (resultsRootRef.current) savedScrollTopRef.current = resultsRootRef.current.scrollTop
+    if (!resultsRootRef.current) return
+    savedScrollTopRef.current = resultsRootRef.current.scrollTop
+    returnScrollTopRef.current = savedScrollTopRef.current
   }
   const contact = (listing: Listing) => {
     rememberResultsScroll()
@@ -590,13 +610,12 @@ export function MobileSearchResults() {
     setPanel('results')
   }
 
-  return createPortal(<section ref={resultsRootRef} className="m2-results notranslate" translate="no" data-testid="mobile-results" onScroll={(event) => { if (searchRouteActive && panel === 'results') savedScrollTopRef.current = event.currentTarget.scrollTop }}>
+  return createPortal(<section ref={resultsRootRef} className="m2-results notranslate" translate="no" data-testid="mobile-results" onScroll={(event) => { if (searchRouteActive && panel === 'results' && returnScrollTopRef.current == null) savedScrollTopRef.current = event.currentTarget.scrollTop }}>
     {panel === 'results' ? <>
       <header className={cn('m2-results__header', showMonthlyCap && 'm2-results__header--with-cap')}>
         <button type="button" onClick={goBack} aria-label={t.back}><ArrowLeft /></button>
         <div className="m2-results__headline">
-          <strong>{resultCount} {headingCountLabel}</strong>
-          <span>{headingLocationLabel}</span>
+          <strong><span className="m2-results__headline-count">{resultCount} {headingCountLabel}</span><span className="m2-results__headline-place">{headingLocationLabel}</span></strong>
         </div>
         {showMonthlyCap ? <aside className="m2-results__price-cap" aria-label={capAccessibleLabel}>
           <div className="m2-results__price-cap-copy">
