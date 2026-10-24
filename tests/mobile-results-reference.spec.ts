@@ -22,7 +22,7 @@ test('mobile long-term feed matches the reference hierarchy and uses exactly one
   const cap = header.locator('.m2-results__price-cap')
   await expect(cap).toBeVisible()
   await expect(cap.locator('.m2-results__price-cap-copy')).toContainText('SOLO DE HASTA')
-  await expect(cap.locator('.m2-results__price-cap-copy strong')).toHaveText('1.000')
+  await expect(cap.locator('.m2-results__price-cap-value')).toHaveText('1.000')
   expect(((await cap.textContent()) ?? '').match(/€/g)).toHaveLength(1)
   await expect(cap.locator('.m2-results__price-cap-coin')).toHaveText('€')
 
