@@ -140,7 +140,7 @@ export function CommercialAdvertisementPlacement({ mobile = false }: { mobile?: 
         </article>
       })}
     </div>}
-    {capacity?.available === 0 ? <AdvertisingVacancy /> : <div className="commercial-ad__house"><div><h2>{t('Tu anuncio podría estar aquí')}</h2><p>{t('Da a conocer tu negocio a la comunidad de 112233.es.')}</p></div><Link className="commercial-ad__cta" to="/publicidad/nueva?plan=standard">{t('Publicar publicidad')}<ArrowUpRight aria-hidden="true" /></Link></div>}
+    {capacity?.available === 0 ? <AdvertisingVacancy /> : <div className="commercial-ad__house"><div><h2>{t('Tu anuncio podría estar aquí')}</h2><p>{t('Da a conocer tu negocio a la comunidad de 112233.es.')}</p></div><Link className="commercial-ad__cta" to="/publicidad/nueva">{t('Publicar publicidad')}<ArrowUpRight aria-hidden="true" /></Link></div>}
     <Dialog open={choice !== null} onOpenChange={(next) => { if (!next) setChoice(null) }}>
       <DialogContent className="commercial-ad__picker" data-testid="advertising-package-picker">
         <DialogHeader><DialogTitle>{words.select}</DialogTitle><DialogDescription>{words.selectHint}</DialogDescription></DialogHeader>
