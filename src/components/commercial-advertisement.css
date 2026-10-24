@@ -430,10 +430,27 @@
   .commercial-ad__slot-chevron { width: .9rem; }
 }
 @media (max-width: 360px) {
-  .commercial-ad--redesign .commercial-ad__slot--empty { grid-template-columns: 2rem minmax(0, 1fr) auto .8rem; gap: .3rem; padding-inline: .35rem; }
+  /* Reserve a genuinely bounded price column. An auto-sized no-wrap price
+     previously pushed the chevron outside the card at 320px. */
+  .commercial-ad--redesign .commercial-ad__slot--empty {
+    grid-template-columns: 2rem minmax(0, 1fr) minmax(0, 4.6rem) .8rem;
+    gap: .3rem;
+    padding-inline: .35rem;
+  }
   .commercial-ad__slot-icon { width: 2rem; height: 2rem; }
   .commercial-ad__slot-icon svg { width: 1.2rem; height: 1.2rem; }
-  .commercial-ad__slot-price { font-size: .58rem; }
+  .commercial-ad__slot-copy { min-width: 0; overflow-wrap: anywhere; }
+  .commercial-ad__slot-copy strong { font-size: .7rem; }
+  .commercial-ad__slot-price {
+    min-width: 0;
+    max-width: 100%;
+    padding: .35rem .15rem;
+    font-size: .63rem;
+    line-height: 1.25;
+    white-space: normal;
+    text-align: center;
+  }
+  .commercial-ad__slot-chevron { min-width: 0; }
   .commercial-ad__premium-cost { min-width: 4.6rem; }
   .commercial-ad__premium-title strong { font-size: .7rem; }
 }
