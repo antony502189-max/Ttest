@@ -14,7 +14,7 @@ from ..models.commercial_advertisement import CommercialAdvertisement
 from ..models.moderation import HomepageHeroPromotion, ListingPromotion
 from ..models.payment_order import PaymentOrder
 from .catalog import touch_catalog
-from .commercial_advertisements import MAX_ACTIVE_HOMEPAGE_ADS, lock_advertising_capacity, occupied_slots
+from .commercial_advertisements import capacity_for_placement, lock_advertising_capacity, occupied_slots
 from .homepage_purchase import eligible, one_month_after, slot_available
 from .notifications import create_notification
 from .province_top import top_availability
@@ -95,7 +95,7 @@ async def apply_stripe_session(checkout_session: dict, event_type: str, session,
         if valid and was_expired:
             # A released reservation cannot displace seven current purchases.
             valid = bool(getattr(order, "advertisement_fingerprint", None)) and (
-                await occupied_slots(session, exclude_id=ad.id) < MAX_ACTIVE_HOMEPAGE_ADS
+                await occupied_slots(session, exclude_id=ad.id, placement=ad.placement) < capacity_for_placement(ad.placement)
             )
         if valid:
             ad.duration_days = order.days
