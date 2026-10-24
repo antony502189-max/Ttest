@@ -21,7 +21,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import SQLAlchemyError
 
-from ..services.ai_listing_input import clean_evidence_text
+from ..services.ai_listing_input import clean_evidence_text, has_evidence_text
 from ..services.listing_evidence import extract_policy_evidence
 
 SOURCES = (
@@ -76,6 +76,8 @@ class AuditAccumulator:
         raw_title, raw_description = payload.get("title"), payload.get("description")
         title = clean_evidence_text(raw_title if isinstance(raw_title, str) else "")
         description = clean_evidence_text(raw_description if isinstance(raw_description, str) else "")
+        if not has_evidence_text(description):
+            description = ""
         length = len(description)
         bucket["lengths"].append(length)
         counts["description_present"] += bool(description)

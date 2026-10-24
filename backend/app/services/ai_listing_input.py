@@ -68,6 +68,10 @@ def clean_evidence_text(value: str, *, advertiser_name: str | None = None) -> st
     return "\n".join(" ".join(line.split()) for line in text.splitlines() if line.strip()).strip()
 
 
+def has_evidence_text(value: str) -> bool:
+    return bool(re.search(r"\w", re.sub(r"\[(?:contact|advertiser|link|secret)\]", "", value)))
+
+
 class ProviderFact(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
     field: Literal[
@@ -184,8 +188,6 @@ def build_listing_evidence_input(
         source_language=source_language,
         provider_facts=ordered,
         policy_evidence=policies,
-        data_status="ready"
-        if re.search(r"\w", re.sub(r"\[(?:contact|advertiser|link|secret)\]", "", description))
-        else "insufficient_source_data",
+        data_status="ready" if has_evidence_text(description) else "insufficient_source_data",
         content_hash=digest,
     )

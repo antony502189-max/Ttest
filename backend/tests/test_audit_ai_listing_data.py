@@ -66,6 +66,16 @@ def test_missing_description_empty_dataset_and_untrusted_source_labels():
     assert report["sources"]["Other"]["records"] == 1
     assert "owner@" not in json.dumps(report)
     assert audit.audit_records([])["records"] == 0
+    contact_only = audit.audit_records(
+        [
+            audit.AuditRecord(
+                source_name="Flatio",
+                canonical_listing_id="id",
+                normalized_payload={"description": "+34 612 345 678 private@example.test"},
+            )
+        ]
+    )
+    assert contact_only["sources"]["Flatio"]["description_present_pct"] == 0
 
 
 def test_cli_failures_do_not_print_input_or_overwrite_fixture(tmp_path, capsys):
