@@ -28,6 +28,11 @@ from ...services.commercial_advertisements import (
     MAX_ACTIVE_HOMEPAGE_ADS,
     PACKAGE_ID,
     PACKAGE_PRICE_CENTS,
+    PREMIUM_PRICE_CENTS,
+    PREMIUM_PLACEMENT,
+    PREMIUM_CAPACITY,
+    placement_for_package,
+    capacity_for_placement,
     approve,
     assert_advertisement_image_is_unique,
     destination_url,
@@ -46,10 +51,10 @@ router = APIRouter(tags=["commercial advertisements"])
 logger = logging.getLogger(__name__)
 
 
-def eligible():
+def eligible(placement: str = "homepage_bottom"):
     now = func.now()
     return and_(
-        Ad.placement == "homepage_bottom", Ad.status == "active", Ad.payment_status == "paid",
+        Ad.placement == placement, Ad.status == "active", Ad.payment_status == "paid",
         or_(Ad.starts_at.is_(None), Ad.starts_at <= now),
         or_(Ad.ends_at.is_(None), Ad.ends_at > now),
     )
@@ -102,12 +107,32 @@ async def homepage_advertisements(session: AsyncSession = Depends(get_session)):
     ) for ad, asset in rows]
 
 
+@router.get("/advertisements/premium", response_model=list[AdvertisementPublic])
+async def premium_advertisement(session: AsyncSession = Depends(get_session)):
+    rows = (await session.execute(
+        select(Ad, MediaAsset).join(MediaAsset, Ad.image_asset_id == MediaAsset.id)
+        .join(User, Ad.owner_user_id == User.id)
+        .where(eligible(PREMIUM_PLACEMENT), MediaAsset.deleted_at.is_(None),
+               User.deleted_at.is_(None), User.blocked.is_(False))
+        .order_by(Ad.admin_priority.desc(), Ad.approved_at, Ad.id).limit(PREMIUM_CAPACITY)
+    )).all()
+    return [AdvertisementPublic(
+        id=ad.id, title=ad.title, description=ad.description, imageUrl=image_url(ad.image_asset_id),
+        imageWidth=asset.width, imageHeight=asset.height, destinationType=cast(DestinationType, ad.destination_type),
+        destinationUrl=destination_url(ad.destination_type, ad.destination), placement=ad.placement,
+    ) for ad, asset in rows]
+
+
 @router.get("/advertisements/availability")
 async def advertising_availability(session: AsyncSession = Depends(get_session)):
     used = await occupied_slots(session)
+    premium_used = await occupied_slots(session, placement=PREMIUM_PLACEMENT)
     settings = get_settings()
     return {"total": MAX_ACTIVE_HOMEPAGE_ADS, "available": max(0, MAX_ACTIVE_HOMEPAGE_ADS - used),
-            "monthlyPriceCents": PACKAGE_PRICE_CENTS, "months": 1, "currency": "EUR", "pushEnabled": push_configured(),
+            "monthlyPriceCents": PACKAGE_PRICE_CENTS, "months": 1, "currency": "EUR",
+            "premiumAvailable": max(0, PREMIUM_CAPACITY - premium_used),
+            "premiumMonthlyPriceCents": PREMIUM_PRICE_CENTS,
+            "pushEnabled": push_configured(),
             "pushPublicKey": settings.web_push_public_key if push_configured() else None}
 
 
@@ -188,7 +213,8 @@ async def create_admin_advertisement(
 
 async def persist_advertisement(payload: AdvertisementWrite, user: User, session: AsyncSession, *, complimentary=False):
     await lock_advertising_capacity(session)
-    await require_free_slot(session)
+    placement = placement_for_package(payload.packageId)
+    await require_free_slot(session, placement=placement)
     await lock_media_owner(session, user.id)
     created_today = await session.scalar(select(func.count(Ad.id)).where(
         Ad.owner_user_id == user.id, Ad.created_at >= datetime.now(UTC) - timedelta(days=1),
@@ -200,7 +226,7 @@ async def persist_advertisement(payload: AdvertisementWrite, user: User, session
     ad = Ad(owner_user_id=user.id, image_asset_id=payload.imageAssetId, title=payload.title,
             description=payload.description, destination_type=payload.destinationType,
             destination=payload.destination, status="pending_payment", payment_status="unpaid",
-            placement="homepage_bottom", package_id=payload.packageId, admin_priority=0)
+            placement=placement, package_id=payload.packageId, admin_priority=0)
     session.add(ad)
     if complimentary:
         from ...services.homepage_purchase import one_month_after
@@ -255,10 +281,15 @@ async def edit_advertisement(
     asset = await valid_asset(session, payload.imageAssetId, user.id)
     await assert_advertisement_image_is_unique(session, asset, exclude_id=ad.id)
     old_image_id = ad.image_asset_id
+    expired = ad.payment_status == "paid" and ad.ends_at is not None and ad.ends_at <= datetime.now(UTC)
+    # Paid placements are immutable: editing their creative must not change
+    # the product or grant a cheaper reservation in the premium position.
+    if not expired and ad.payment_status == "paid" and payload.packageId != ad.package_id:
+        raise HTTPException(409, "A paid placement cannot change its advertising package")
+    new_placement = placement_for_package(payload.packageId)
     changed = any((ad.title != payload.title, ad.description != payload.description,
                    ad.image_asset_id != payload.imageAssetId, ad.destination_type != payload.destinationType,
-                   ad.destination != payload.destination))
-    expired = ad.payment_status == "paid" and ad.ends_at is not None and ad.ends_at <= datetime.now(UTC)
+                   ad.destination != payload.destination, ad.package_id != payload.packageId))
     if changed or expired:
         pending = await session.scalar(select(PaymentOrder.id).where(
             PaymentOrder.target_id == ad.id, PaymentOrder.kind == "advertisement",
@@ -267,17 +298,20 @@ async def edit_advertisement(
         if pending:
             raise HTTPException(409, "Finish or wait for the current payment before editing")
         if ad.payment_status == "paid" and not expired:
-            await require_free_slot(session, exclude_id=ad.id)
+            await require_free_slot(session, exclude_id=ad.id, placement=ad.placement)
+        elif new_placement != ad.placement:
+            await require_free_slot(session, placement=new_placement)
         ad.title = payload.title
         ad.description = payload.description
         ad.image_asset_id = payload.imageAssetId
         ad.destination_type = payload.destinationType
         ad.destination = payload.destination
+        ad.package_id = payload.packageId
+        ad.placement = new_placement
         ad.approved_at = None
         if expired:
             ad.payment_status = "unpaid"
             ad.payment_waived = None
-            ad.package_id = PACKAGE_ID
             ad.duration_days = None
             ad.current_payment_order_id = None
         # A paid edit keeps its original expiry instead of granting a new day.
@@ -325,8 +359,8 @@ async def complete_test_payment(ad_id: UUID, user: User = Depends(current_user),
     if get_settings().is_production or get_settings().stripe_secret_key:
         raise HTTPException(404, "Not found")
     await lock_advertising_capacity(session)
-    await require_free_slot(session, exclude_id=ad_id)
     ad = await owned_ad(session, ad_id, user, lock=True)
+    await require_free_slot(session, exclude_id=ad_id, placement=ad.placement)
     payment_service.complete(ad)
     await session.commit()
     await session.refresh(ad)
@@ -373,7 +407,7 @@ async def approve_advertisement(
     )
     if owner_is_active is None or image_is_active is None:
         raise HTTPException(409, "Advertisement owner and image must still be active")
-    await require_free_slot(session, exclude_id=ad.id)
+    await require_free_slot(session, exclude_id=ad.id, placement=ad.placement)
     if ad.current_payment_order_id:
         order = await session.get(PaymentOrder, ad.current_payment_order_id)
         if order and order.financial_status != "normal":
@@ -395,7 +429,7 @@ async def approve_advertisement(
         .join(MediaAsset, MediaAsset.id == Ad.image_asset_id)
         .where(
             Ad.id != ad.id,
-            Ad.placement == "homepage_bottom",
+            Ad.placement == ad.placement,
             Ad.status == "active",
             Ad.payment_status == "paid",
             or_(Ad.starts_at.is_(None), Ad.starts_at < proposed_end),
@@ -405,8 +439,8 @@ async def approve_advertisement(
             MediaAsset.deleted_at.is_(None),
         )
     )
-    if (overlapping or 0) >= MAX_ACTIVE_HOMEPAGE_ADS:
-        raise HTTPException(409, f"Homepage advertising is limited to {MAX_ACTIVE_HOMEPAGE_ADS} simultaneous campaigns")
+    if (overlapping or 0) >= capacity_for_placement(ad.placement):
+        raise HTTPException(409, "Homepage advertising capacity is occupied")
     approve(ad, proposed_start, proposed_end)
     if ad.current_payment_order_id:
         order = await session.get(PaymentOrder, ad.current_payment_order_id)
