@@ -483,3 +483,17 @@ async def test_active_edit_preserves_paid_window_when_reapproved(client, registe
     assert reapproved.json()["status"] == "active"
     assert reapproved.json()["startsAt"] is not None
     assert reapproved.json()["endsAt"] is not None
+
+
+async def test_premium_test_payment_and_concurrent_approval_use_one_month(client, register_user):
+    from app.services.homepage_purchase import one_month_after
+    ad, payload, owner, _ = await create_ad(client, register_user)
+    changed = await client.patch(f"/api/v1/advertisements/{ad['id']}", headers=owner,
+                                 json={**payload, 'packageId': 'homepage_premium_1m'})
+    assert changed.status_code == 200
+    assert (await client.post(f"/api/v1/advertisements/{ad['id']}/fake-payment/complete", headers=owner)).status_code == 200
+    admin = await admin_headers(client, register_user)
+    approvals = await asyncio.gather(*(client.post(f"/api/v1/admin/advertisements/{ad['id']}/approve", headers=admin, json={}) for _ in range(2)))
+    assert sorted(r.status_code for r in approvals) == [200, 409]
+    result = next(r.json() for r in approvals if r.status_code == 200)
+    assert datetime.fromisoformat(result['endsAt']) == one_month_after(datetime.fromisoformat(result['startsAt']))

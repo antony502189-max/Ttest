@@ -45,8 +45,11 @@ async def create_stripe_session(order: PaymentOrder, name: str, return_path: str
     }
     if getattr(order, "kind", None) in {"advertisement", "homepage_hero"}:
         # Only immediate card payments can reserve this scarce inventory.
-        data["allowed_payment_method_types[0]"] = "card"
-        data["expires_at"] = str(int(time.time()) + 31 * 60)
+        data["payment_method_types[0]"] = "card"
+        # Every retry of the same idempotency key must have identical params.
+        # A full hour leaves room for initial request/retry latency and Stripe's
+        # 30-minute minimum. An unknown outcome never releases this reservation.
+        data["expires_at"] = str(int(order.created_at.timestamp()) + 60 * 60)
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             response = await client.post(
@@ -55,6 +58,9 @@ async def create_stripe_session(order: PaymentOrder, name: str, return_path: str
                 headers={
                     "Authorization": f"Bearer {settings.stripe_secret_key}",
                     "Idempotency-Key": str(order.id),
+                    # Pin the documented card-only Checkout contract; newer
+                    # account defaults can remove payment_method_types input.
+                    "Stripe-Version": "2025-06-30.basil",
                 },
             )
         response.raise_for_status()

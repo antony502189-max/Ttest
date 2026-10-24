@@ -18,6 +18,43 @@ PACKAGE_DURATION_DAYS = 1
 PACKAGE_ID = "homepage_1d"
 PACKAGE_PRICE_CENTS = 3000
 MAX_ACTIVE_HOMEPAGE_ADS = 7
+PREMIUM_PACKAGE_ID = "homepage_premium_1m"
+PREMIUM_PRICE_CENTS = 6000
+PREMIUM_PLACEMENT = "homepage_premium"
+PREMIUM_CAPACITY = 1
+
+
+def placement_for_package(package_id: str) -> str:
+    if package_id == PREMIUM_PACKAGE_ID:
+        return PREMIUM_PLACEMENT
+    if package_id == PACKAGE_ID:
+        return "homepage_bottom"
+    raise ValueError("Unknown advertising package")
+
+
+def price_for_package(package_id: str) -> int:
+    placement_for_package(package_id)  # Reject unsupported and legacy purchases.
+    return PREMIUM_PRICE_CENTS if package_id == PREMIUM_PACKAGE_ID else PACKAGE_PRICE_CENTS
+
+
+def validate_package_placement(ad, *, allow_legacy: bool = False) -> str:
+    """Existing legacy entitlements are valid, but cannot be sold again."""
+    try:
+        placement = ("homepage_bottom" if allow_legacy and ad.package_id == "test_homepage_30d"
+                     else placement_for_package(ad.package_id))
+    except ValueError:
+        raise HTTPException(409, "Unsupported advertising package") from None
+    if ad.placement != placement:
+        raise HTTPException(409, "Advertising package does not match placement")
+    return placement
+
+
+def capacity_for_placement(placement: str) -> int:
+    if placement == PREMIUM_PLACEMENT:
+        return PREMIUM_CAPACITY
+    if placement == "homepage_bottom":
+        return MAX_ACTIVE_HOMEPAGE_ADS
+    raise ValueError("Unknown advertising placement")
 
 
 async def assert_advertisement_image_is_unique(
@@ -61,7 +98,7 @@ async def lock_advertising_capacity(session) -> None:
                           {"lock_key": "commercial-advertising:homepage-bottom"})
 
 
-async def occupied_slots(session, *, exclude_id=None) -> int:
+async def occupied_slots(session, *, exclude_id=None, placement: str = "homepage_bottom") -> int:
     """Paid review queues and provider-confirmed pending payments reserve space.
 
     Never release a payment on a local timer: a delayed webhook may represent a
@@ -76,7 +113,7 @@ async def occupied_slots(session, *, exclude_id=None) -> int:
         PaymentOrder.kind == "advertisement", PaymentOrder.target_id == ad.id,
         PaymentOrder.status.in_(["creating", "pending"]),
     ).exists()
-    query = select(func.count(ad.id)).where(ad.placement == "homepage_bottom", or_(
+    query = select(func.count(ad.id)).where(ad.placement == placement, or_(
         and_(ad.status == "active", ad.payment_status == "paid",
              or_(ad.ends_at.is_(None), ad.ends_at > func.now())),
         and_(ad.status.in_(["pending_review", "rejected"]), ad.payment_status == "paid",
@@ -88,8 +125,12 @@ async def occupied_slots(session, *, exclude_id=None) -> int:
     return int(await session.scalar(query) or 0)
 
 
-async def require_free_slot(session, *, exclude_id=None) -> None:
-    if await occupied_slots(session, exclude_id=exclude_id) >= MAX_ACTIVE_HOMEPAGE_ADS:
+async def require_free_slot(session, *, exclude_id=None, placement: str = "homepage_bottom") -> None:
+    if placement == "homepage_bottom":
+        used = await occupied_slots(session, exclude_id=exclude_id)
+    else:
+        used = await occupied_slots(session, exclude_id=exclude_id, placement=placement)
+    if used >= capacity_for_placement(placement):
         raise HTTPException(409, "No advertising slots available")
 
 
@@ -185,7 +226,12 @@ def approve(ad: CommercialAdvertisement, starts_at: datetime | None, ends_at: da
     now = datetime.now(UTC)
     start = starts_at or ad.starts_at or now
     duration = getattr(ad, "duration_days", None) or (30 if ad.package_id == "test_homepage_30d" else PACKAGE_DURATION_DAYS)
-    end = ends_at or ad.ends_at or start + timedelta(days=duration)
+    if ad.package_id == PREMIUM_PACKAGE_ID:
+        from .homepage_purchase import one_month_after
+        default_end = one_month_after(start)
+    else:
+        default_end = start + timedelta(days=duration)
+    end = ends_at or ad.ends_at or default_end
     if start.tzinfo is None or end.tzinfo is None or end <= start or end <= now:
         raise HTTPException(422, "Invalid advertisement schedule")
     ad.status = "active"

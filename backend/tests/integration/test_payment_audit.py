@@ -11,7 +11,8 @@ import pytest
 import test_banner_payment_lifecycle as payment_lifecycle
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from test_banner_payment_lifecycle import campaigns_from_distinct_clients, paid, webhook
+from test_banner_payment_lifecycle import campaigns_from_distinct_clients, paid, premium_campaign, webhook
+from test_banner_payment_lifecycle import checkout as banner_checkout
 from test_commercial_advertisements import admin_headers
 from test_homepage_purchase import listing
 
@@ -25,6 +26,21 @@ from app.services import payment_finances
 provider = payment_lifecycle.provider
 
 pytestmark = pytest.mark.integration
+
+
+async def premium_financial_campaign(client, register_user, provider, finances):
+    ad, payload, headers, user = await premium_campaign(client, register_user, 'financial-premium@example.org')
+    result = await banner_checkout(client, ad, headers)
+    assert result.status_code == 200
+    remote = provider[result.json()['url'].rsplit('/', 1)[-1]]
+    intent, charge = 'pi_' + uuid4().hex, 'ch_' + uuid4().hex
+    remote['payment_intent'] = intent
+    objects, _, _ = finances
+    objects['payment_intents/' + intent] = {'id': intent, 'metadata': {'order_id': remote['client_reference_id']}, 'status': 'succeeded'}
+    objects['charges/' + charge] = {'id': charge, 'payment_intent': intent, 'amount': 6000, 'amount_refunded': 0,
+                                   'disputed': False, 'currency': 'eur', 'livemode': False}
+    await paid(client, provider, result.json()['url'])
+    return ad, payload, headers, user, remote, charge
 
 
 @pytest.fixture
@@ -69,6 +85,80 @@ async def financial_event(client, kind, obj, event_id=None):
     signature = hmac.new(b'whsec_review', str(timestamp).encode()+b'.'+body, hashlib.sha256).hexdigest()
     return await client.post('/api/v1/payments/stripe/webhook',content=body,
         headers={'Content-Type':'application/json','Stripe-Signature':f't={timestamp},v1={signature}'})
+
+
+async def test_premium_dispute_restoration_and_refund_preserve_inventory_and_period(client, register_user, provider, finances):
+    ad, _, headers, _, remote, charge = await premium_financial_campaign(client, register_user, provider, finances)
+    admin = await admin_headers(client, register_user)
+    approved = await client.post('/api/v1/admin/advertisements/' + ad['id'] + '/approve', headers=admin, json={})
+    assert approved.status_code == 200, approved.text
+    original = approved.json()
+    objects, _, _ = finances
+    dispute = 'du_' + uuid4().hex
+    objects['charges/' + charge]['disputed'] = True
+    objects['disputes/' + dispute] = {'id': dispute, 'charge': charge, 'status': 'needs_response'}
+    paused = await financial_event(client, 'charge.dispute.created', {'id': dispute, 'charge': charge})
+    assert paused.status_code == 200, paused.text
+    assert (await client.get('/api/v1/advertisements/premium')).json() == []
+    assert (await client.get('/api/v1/advertisements/availability')).json()['premiumAvailable'] == 0
+    objects['charges/' + charge]['disputed'] = False
+    objects['disputes/' + dispute]['status'] = 'won'
+    restored = await financial_event(client, 'charge.dispute.closed', {'id': dispute, 'charge': charge})
+    assert restored.status_code == 200, restored.text
+    current = (await client.get('/api/v1/advertisements/' + ad['id'], headers=headers)).json()
+    assert current['status'] == 'active'
+    assert (current['startsAt'], current['endsAt']) == (original['startsAt'], original['endsAt'])
+    assert (await resolve(client, admin, remote['client_reference_id'])).json()['resolved']
+    assert (await client.get('/api/v1/advertisements/availability')).json()['premiumAvailable'] == 1
+    assert len(finances[2]) == 1
+
+
+async def test_premium_moderation_deactivation_restores_original_paid_period(client, register_user, provider, finances):
+    ad, _, headers, _, remote, _ = await premium_financial_campaign(client, register_user, provider, finances)
+    admin = await admin_headers(client, register_user)
+    approved = await client.post('/api/v1/admin/advertisements/' + ad['id'] + '/approve', headers=admin, json={})
+    assert approved.status_code == 200
+    deactivated = await client.post('/api/v1/admin/advertisements/' + ad['id'] + '/deactivate', headers=admin)
+    assert deactivated.status_code == 200
+    restored = await resolve(client, admin, remote['client_reference_id'], 'restore')
+    assert restored.status_code == 200 and restored.json()['resolved'], restored.text
+    current = (await client.get('/api/v1/advertisements/' + ad['id'], headers=headers)).json()
+    assert current['status'] == 'active' and current['endsAt'] == approved.json()['endsAt']
+    assert (await resolve(client, admin, remote['client_reference_id'], 'restore')).json()['resolved']
+
+
+async def test_premium_dispute_win_is_recorded_when_capacity_cannot_be_restored(client, register_user, provider, finances):
+    from app.models.commercial_advertisement import CommercialAdvertisement
+    ad, _, _, _, remote, charge = await premium_financial_campaign(client, register_user, provider, finances)
+    admin = await admin_headers(client, register_user)
+    assert (await client.post('/api/v1/admin/advertisements/' + ad['id'] + '/approve', headers=admin, json={})).status_code == 200
+    objects, _, _ = finances
+    dispute = 'du_' + uuid4().hex
+    objects['charges/' + charge]['disputed'] = True
+    objects['disputes/' + dispute] = {'id': dispute, 'charge': charge, 'status': 'needs_response'}
+    assert (await financial_event(client, 'charge.dispute.created', {'id': dispute, 'charge': charge})).status_code == 200
+    # Simulate the original purchased period ending while the dispute is open.
+    async with SessionLocal() as db:
+        stored = await db.get(CommercialAdvertisement, UUID(ad['id']))
+        stored.ends_at = datetime.now(UTC) - timedelta(seconds=1)
+        order = await db.get(PaymentOrder, UUID(remote['client_reference_id']))
+        order.service_ends_at = stored.ends_at
+        await db.commit()
+    other, _, other_headers, _ = await premium_campaign(client, register_user, 'dispute-successor@example.org')
+    replacement = await banner_checkout(client, other, other_headers)
+    assert replacement.status_code == 200
+    await paid(client, provider, replacement.json()['url'])
+    objects['charges/' + charge]['disputed'] = False
+    objects['disputes/' + dispute]['status'] = 'won'
+    response = await financial_event(client, 'charge.dispute.closed', {'id': dispute, 'charge': charge})
+    assert response.status_code == 200, response.text
+    async with SessionLocal() as db:
+        order = await db.get(PaymentOrder, UUID(remote['client_reference_id']))
+        original = await db.get(CommercialAdvertisement, UUID(ad['id']))
+        assert order.financial_status == 'normal' and order.dispute_status == 'won'
+        assert order.fulfillment_status == 'review_required' and order.paused_ad_status == 'active'
+        assert original.status == 'rejected'
+    assert (await client.get('/api/v1/advertisements/availability')).json()['premiumAvailable'] == 0
 
 
 async def checkout_top(client, register_user, provider, finances, email='audit-top@example.com', *, pay=True):

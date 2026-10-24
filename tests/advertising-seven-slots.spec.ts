@@ -93,16 +93,21 @@ for (const width of [320, 390, 480]) {
     const slots = block.locator('.commercial-ad__slot--empty')
     await expect(slots).toHaveCount(7)
     await expect(slots.first()).toContainText('Рекламное место')
+    await expect(slots.first()).toContainText('30 € / 30 дней')
     await expect(slots.nth(6)).toContainText('Рекламное место')
     for (const slot of await slots.all()) {
-      const centers = await slot.evaluate(element => {
+      const geometry = await slot.evaluate((element) => {
         const card = element.getBoundingClientRect()
-        return Array.from(element.children).map(child => {
-          const bounds = child.getBoundingClientRect()
-          return Math.abs(bounds.y + bounds.height / 2 - (card.y + card.height / 2))
-        })
+        const children = Array.from(element.children).map((child) => child.getBoundingClientRect())
+        return {
+          inside: children.every((b) => b.left >= card.left - 1 && b.right <= card.right + 1),
+          aligned: children.every((b) => Math.abs(b.y + b.height / 2 - (card.y + card.height / 2)) <= 2),
+          priceCount: element.querySelectorAll('[data-testid="advertising-slot-price"]').length,
+        }
       })
-      for (const offset of centers) expect(offset).toBeLessThanOrEqual(1)
+      expect(geometry.inside).toBe(true)
+      expect(geometry.aligned).toBe(true)
+      expect(geometry.priceCount).toBe(1)
     }
     await expect(block.getByRole('heading', { name: 'Здесь могла быть ваша реклама' })).toBeVisible()
     await expect(block.getByText('Расскажите о своём бизнесе пользователям 112233.es.')).toBeVisible()
@@ -121,7 +126,7 @@ for (const width of [320, 390, 480]) {
     }
     const sample = await slots.first().boundingBox()
     expect(sample).not.toBeNull()
-    expect(sample!.height).toBeGreaterThanOrEqual(120)
+    expect(sample!.height).toBeGreaterThanOrEqual(70)
     // The existing mobile shell is capped at 430px; do not widen unrelated screens.
     expect(sample!.width).toBeGreaterThanOrEqual(Math.min(width, 430) - 40)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

@@ -254,9 +254,11 @@ test('advertising API failure leaves homepage usable', async ({ page }) => {
 test('advertiser previews, returns from Stripe and sees persisted review state', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('112233:session:v1', JSON.stringify('host-demo')))
   let ad: Record<string, unknown> | null = null
+  let checkoutCalls = 0
   await page.route('**/api/v1/payments/advertisements/*/status', route => route.fulfill({ json: { status: 'pending_review', paymentStatus: 'paid', orderStatus: 'paid', fulfillmentStatus: 'fulfilled' } }))
   await page.route('**/api/v1/payments/advertisements/*/quote**', route => route.fulfill({ json: { days: 30, amountCents: 3000, currency: 'EUR', available: true } }))
   await page.route('**/api/v1/payments/advertisements/*/checkout', route => {
+    checkoutCalls += 1
     ad = { ...ad, status: 'pending_review', paymentStatus: 'paid' }
     expect(route.request().postDataJSON()).toEqual({ days: 30 })
     return route.fulfill({ json: { url: '/#/publicidad/' + adId + '/checkout?payment=return', amountCents: 3000, currency: 'EUR' } })
@@ -278,24 +280,30 @@ test('advertiser previews, returns from Stripe and sees persisted review state',
       ad = { ...body, id: adId, ownerUserId: 'host-demo', imageUrl: `/api/v1/media/${assetId}?variant=card`, status: 'pending_payment', paymentStatus: 'unpaid', placement: 'homepage_bottom', createdAt: new Date().toISOString(), startsAt: null, endsAt: null, moderationNote: null }
       return route.fulfill({ status: 201, json: ad })
     }
-    return route.continue()
+    // Let the earlier, endpoint-specific availability fixture supply the
+    // server-authoritative €30 price. continue() bypasses other Playwright
+    // handlers and made this test falsely simulate an unavailable tariff.
+    return route.fallback()
   })
   await page.route(`**/api/v1/media/${assetId}**`, (route) => route.fulfill({ body: png, contentType: 'image/png' }))
   await page.goto('/#/publicidad/nueva')
-  await expect(page.locator('.ad-flow')).not.toContainText('30 €')
+  await expect(page.getByTestId('advertising-editor-package')).toContainText('30')
+  expect(checkoutCalls).toBe(0)
   await page.locator('input[type=file]').setInputFiles({ name: 'banner.png', mimeType: 'image/png', buffer: png })
   await page.getByLabel('Título').fill('Local moving service')
   await page.getByLabel('Descripción').fill('A reliable moving service for local residents.')
   await page.getByLabel('Enlace web').fill('https://example.org/moving')
   await page.getByRole('button', { name: 'Vista previa' }).click()
   await expect(page.getByRole('heading', { name: 'Local moving service' })).toBeVisible()
-  await expect(page.locator('.ad-flow')).not.toContainText('30 €')
+  await expect(page.getByTestId('advertising-editor-package')).toContainText('30')
+  expect(checkoutCalls).toBe(0)
   await page.getByRole('button', { name: 'Continuar al pago' }).click()
   await expect(page).toHaveURL(new RegExp(`#/publicidad/${adId}/checkout`))
   await expect(page.locator('.ad-flow__price')).toContainText('30,00')
   await expect(page.locator('.ad-flow__price')).toContainText('1 mes')
   await expectDecodedImage(page.locator('.ad-flow__preview .commercial-ad__visual img'))
   await page.getByRole('button', { name: 'Pagar con Stripe' }).click()
+  expect(checkoutCalls).toBe(1)
   await expect(page.getByText('Pago confirmado · pendiente de revisión')).toBeVisible()
   await page.getByRole('link', { name: 'Mis campañas', exact: true }).click()
   await expect(page).toHaveURL(/#\/mis-campanas$/)

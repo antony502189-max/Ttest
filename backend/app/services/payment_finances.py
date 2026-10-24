@@ -13,7 +13,7 @@ from ..models.payment_event import PaymentEvent
 from ..models.payment_order import PaymentOrder
 from .admin import audit
 from .catalog import touch_catalog
-from .commercial_advertisements import lock_advertising_capacity, require_free_slot
+from .commercial_advertisements import lock_advertising_capacity, require_free_slot, validate_package_placement
 from .stripe_checkout import create_stripe_refund, retrieve_stripe_session, stripe_object
 
 FINANCIAL_EVENTS = {"charge.refunded", "charge.refund.updated", "refund.created", "refund.updated", "refund.failed",
@@ -84,9 +84,28 @@ async def change_service_finances(order, session):
                     order.paused_ad_status = ad.status
                 ad.status = "rejected"  # stays reserved, but is no longer publicly shown
             elif order.paused_ad_status:
-                await require_free_slot(session, exclude_id=ad.id)
+                # Persist the authoritative financial result even when the
+                # original service cannot safely be restored into inventory.
+                from ..models import MediaAsset, User
+                owner = await session.get(User, order.owner_user_id)
+                image = await session.get(MediaAsset, ad.image_asset_id)
+                try:
+                    validate_package_placement(ad, allow_legacy=True)
+                    if (ad.payment_status != "paid" or not owner or owner.deleted_at or owner.blocked
+                            or not image or image.deleted_at or image.owner_id != ad.owner_user_id
+                            or image.kind != "advertisement_image"):
+                        raise HTTPException(409, "Campaign no longer eligible")
+                    await require_free_slot(session, exclude_id=ad.id, placement=ad.placement)
+                except HTTPException as exc:
+                    if exc.status_code != 409:
+                        raise
+                    order.fulfillment_status = "review_required"
+                    order.fulfillment_note = "Original advertising service cannot be restored; check eligibility, capacity or refund."
+                    return
                 ad.status = order.paused_ad_status
                 order.paused_ad_status = None
+                order.fulfillment_status = "fulfilled"
+                order.fulfillment_note = None
     elif order.kind == "homepage_hero":
         hero = await session.get(HomepageHeroPromotion, 1)
         if hero and hero.payment_order_id == order.id and final:
