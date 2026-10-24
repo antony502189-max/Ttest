@@ -198,3 +198,45 @@ The stored creative fingerprint prevents late events from approving different
 content. A late paid expired order cannot displace seven currently reserved places.
 Migration preserves historical paid TOP fulfillment to prevent duplicate grants;
 historical paid advertising orders without a paid campaign are queued for review.
+
+## Premium commercial advertising package (2026-10-24)
+
+The homepage now has **one additional premium commercial banner position** above
+the seven ordinary banner slots. Its visual card uses the site lime palette
+with a single €60 price and a dark-green CTA; there is no benefits/pictogram row.
+The seven ordinary positions remain independently available, each with its own
+€30/month label, and existing paid creatives and their destinations are not
+reordered or re-priced.
+
+The customer journey is **placement preview → choose Premium €60 or Standard €30
+→ create an advertisement → confirm preview → quote → explicitly start Stripe
+Checkout → verified payment → pending moderation → approved display**.
+Selecting a plan in the URL does not create a payment or reserve inventory.
+
+New ad package `homepage_premium_1m` (stored as `placement=homepage_premium`)
+is priced at **€60 per calendar month**, with a capacity of **one**. Existing
+package `homepage_1d` remains **€30 per calendar month** with **seven**
+ordinary places. Both prices and capacity are server-owned. The public
+`GET /advertisements/availability` endpoint now includes `premiumAvailable`
+and `premiumMonthlyPriceCents`, while preserving existing fields. Public
+`GET /advertisements/premium` returns at most one eligible live premium
+campaign. Existing `GET /advertisements/homepage` remains the seven ordinary
+positions only.
+
+Stripe orders still use `kind=advertisement`, duration_months=1 and the
+existing signed webhook, cancellation, reconciliation, financial audit and
+moderation flow. `/payments/advertisements/{id}/quote` and checkout calculate
+the amount from the **saved immutable package**, not any client-supplied price.
+The shared PostgreSQL advisory lock protects both independent pools;
+paid review cases and pending Stripe sessions reserve their own pool.
+Expired-order recovery, restored financial state, and moderation reject
+overbooking in the selected placement. Once paid, a campaign cannot switch
+tiers while entitlement remains active. There is no migration: existing
+`commercial_advertisements.package_id` and `.placement` VARCHAR columns
+already support the new identifiers.
+
+If availability cannot be verified, the interface withholds the price and
+disables buying rather than guessing. An occupied premium slot cannot be
+purchased even if one or more ordinary €30 positions remain available.
+Approval begins the purchased calendar month; creating a draft or opening
+Stripe does not activate advertising.
