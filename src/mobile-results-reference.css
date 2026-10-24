@@ -1,0 +1,300 @@
+/* 112233 mobile results: reference header, control row and list spacing.
+   Visual-only; search counts and rental-mode eligibility come from React. */
+.m2-results .m2-results__header {
+  min-height: calc(4.5rem + env(safe-area-inset-top));
+  grid-template-columns: 2.35rem minmax(0, 1fr);
+  gap: .32rem;
+  padding: env(safe-area-inset-top) .65rem 0 .38rem;
+  border-color: #dfe1e2;
+  background: #fff;
+  backdrop-filter: none;
+}
+
+.m2-results .m2-results__header--with-cap {
+  grid-template-columns: 2.35rem minmax(0, 1fr) minmax(0, 48%);
+}
+
+.m2-results .m2-results__header > button {
+  width: 2.35rem;
+  height: 2.8rem;
+  color: #617f09;
+}
+
+.m2-results .m2-results__header > button svg {
+  width: 1.85rem;
+  height: 1.85rem;
+  stroke-width: 2.8;
+}
+
+.m2-results .m2-results__headline {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  justify-content: center;
+  gap: .1rem;
+  line-height: 1.08;
+}
+
+.m2-results .m2-results__headline strong {
+  max-width: 100%;
+  color: #080808;
+  font-size: clamp(1rem, 4.45vw, 1.36rem);
+  font-weight: 900;
+  letter-spacing: -.047em;
+  line-height: 1.06;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m2-results .m2-results__headline span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: #4c5362;
+  font-size: clamp(.9rem, 4vw, 1.16rem);
+  font-weight: 800;
+  letter-spacing: -.03em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m2-results .m2-results__price-cap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 3.65rem;
+  isolation: isolate;
+  color: #344f04;
+}
+
+.m2-results .m2-results__price-cap::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0 .18rem;
+  border-radius: 1.1rem 1.25rem 1rem 1.2rem;
+  transform: skewX(-8deg);
+  background: linear-gradient(115deg, #edf5ce 0%, #e1f3b8 54%, #d9efa5 100%);
+}
+
+.m2-results .m2-results__price-cap-copy {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: .2rem;
+  min-width: 0;
+  padding-left: .7rem;
+  padding-right: 2.7rem;
+  white-space: nowrap;
+}
+
+.m2-results .m2-results__price-cap-copy > span {
+  color: #2f4c06;
+  font-size: clamp(.49rem, 2.35vw, .71rem);
+  font-weight: 900;
+  letter-spacing: -.018em;
+}
+
+.m2-results .m2-results__price-cap-copy > strong {
+  color: #355604;
+  font-size: clamp(1.32rem, 7vw, 2.1rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -.055em;
+}
+
+.m2-results .m2-results__price-cap-art {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+}
+
+.m2-results .m2-results__price-cap-house {
+  position: absolute;
+  top: .32rem;
+  right: 1.48rem;
+  width: 3.15rem;
+  height: 3.08rem;
+}
+
+.m2-results .m2-results__price-cap-coin {
+  position: absolute;
+  top: 1.15rem;
+  right: .21rem;
+  display: grid;
+  place-items: center;
+  width: 2.45rem;
+  height: 2.45rem;
+  border-radius: 50%;
+  background: #fbd86a;
+  box-shadow: 0 .18rem .28rem rgb(76 99 19 / .2);
+  color: #b84819;
+  font-size: 1.85rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.m2-results .m2-results__price-cap-spark {
+  position: absolute;
+  display: block;
+  width: .26rem;
+  height: .78rem;
+  border-radius: 100px;
+  background: #365a06;
+}
+
+.m2-results .m2-results__price-cap-spark--a {
+  top: .32rem;
+  right: .92rem;
+}
+
+.m2-results .m2-results__price-cap-spark--b {
+  top: .52rem;
+  right: .28rem;
+  transform: rotate(42deg);
+}
+
+.m2-results .m2-results__price-cap-spark--c {
+  top: 1.08rem;
+  right: .04rem;
+  transform: rotate(90deg);
+}
+
+.m2-results .m2-results__toolbar {
+  top: calc(4.5rem + env(safe-area-inset-top));
+  min-height: 2.6rem;
+  border-color: #dfe1e2;
+  background: #fff;
+  backdrop-filter: none;
+}
+
+.m2-results .m2-results__toolbar button {
+  min-height: 2.6rem;
+  gap: .55rem;
+  padding: .35rem .25rem;
+  border-color: #dfe1e2;
+  color: #202638;
+  font-size: .93rem;
+  font-weight: 500;
+}
+
+.m2-results .m2-results__toolbar svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  stroke-width: 2.1;
+}
+
+.m2-results .m2-results__summary {
+  min-height: 2.4rem;
+  padding: .48rem .78rem .4rem;
+  gap: .45rem;
+  color: #60687b;
+  font-size: .86rem;
+}
+
+.m2-results .m2-results__summary-sort {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: .32rem;
+  max-width: 46%;
+  padding: .2rem 0;
+  border: none;
+  background: transparent;
+  color: #434b60;
+  cursor: pointer;
+}
+
+.m2-results .m2-results__summary-sort b {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #434b60;
+  font-size: .87rem;
+  font-weight: 750;
+}
+
+.m2-results .m2-results__summary-sort svg {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  stroke-width: 3;
+}
+
+.m2-results .m2-results__list {
+  gap: 1.1rem;
+  padding-inline: .3rem;
+}
+
+.m2-results .m2-result-card {
+  border-radius: .35rem;
+}
+
+@media (max-width: 360px) {
+  .m2-results .m2-results__header {
+    gap: .2rem;
+    grid-template-columns: 1.95rem minmax(0, 1fr);
+    padding-inline: .28rem;
+  }
+
+  .m2-results .m2-results__header--with-cap {
+    grid-template-columns: 1.95rem minmax(0, 1fr) minmax(0, 47%);
+  }
+
+  .m2-results .m2-results__header > button {
+    width: 1.95rem;
+  }
+
+  .m2-results .m2-results__headline strong {
+    font-size: .91rem;
+  }
+
+  .m2-results .m2-results__headline span {
+    font-size: .83rem;
+  }
+
+  .m2-results .m2-results__price-cap-copy {
+    padding-left: .42rem;
+    padding-right: 2.25rem;
+  }
+
+  .m2-results .m2-results__price-cap-copy > span {
+    font-size: .51rem;
+  }
+
+  .m2-results .m2-results__price-cap-copy > strong {
+    font-size: 1.27rem;
+  }
+
+  .m2-results .m2-results__price-cap-house {
+    right: 1.05rem;
+    width: 2.65rem;
+  }
+
+  .m2-results .m2-results__price-cap-coin {
+    right: .1rem;
+    width: 2rem;
+    height: 2rem;
+    font-size: 1.55rem;
+  }
+
+  .m2-results .m2-results__toolbar button {
+    font-size: .85rem;
+    gap: .33rem;
+  }
+
+  .m2-results .m2-results__summary {
+    font-size: .76rem;
+  }
+
+  .m2-results .m2-results__summary-sort b {
+    font-size: .77rem;
+  }
+}
