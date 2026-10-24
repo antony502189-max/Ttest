@@ -15,14 +15,13 @@ from ...models.commercial_advertisement import CommercialAdvertisement
 from ...models.moderation import HomepageHeroPromotion, ListingPromotion
 from ...models.payment_order import PaymentOrder
 from ...services.commercial_advertisements import (
-    MAX_ACTIVE_HOMEPAGE_ADS,
-    PACKAGE_PRICE_CENTS,
     PREMIUM_PACKAGE_ID,
-    price_for_package,
     capacity_for_placement,
     lock_advertising_capacity,
     occupied_slots,
+    price_for_package,
     require_free_slot,
+    validate_package_placement,
 )
 from ...services.homepage_purchase import eligible, slot_available
 from ...services.payment_fulfillment import advertisement_fingerprint, apply_stripe_session
@@ -68,6 +67,7 @@ async def advertisement_quote(
     ))
     if not ad:
         raise HTTPException(404, "Advertisement not found")
+    placement = validate_package_placement(ad)
     reserved_days = await session.scalar(select(PaymentOrder.days).where(
         PaymentOrder.kind == "advertisement", PaymentOrder.target_id == ad.id,
         PaymentOrder.owner_user_id == user.id, PaymentOrder.status.in_(["creating", "pending"]),
@@ -76,7 +76,7 @@ async def advertisement_quote(
             "reservedDays": reserved_days,
             "amountCents": price_for_package(ad.package_id),
             "packageId": ad.package_id,
-            "currency": "EUR", "available": await occupied_slots(session, exclude_id=ad.id, placement=getattr(ad, "placement", "homepage_bottom")) < capacity_for_placement(getattr(ad, "placement", "homepage_bottom"))}
+            "currency": "EUR", "available": await occupied_slots(session, exclude_id=ad.id, placement=placement) < capacity_for_placement(placement)}
 
 
 async def checkout(
@@ -91,7 +91,7 @@ async def checkout(
             PaymentOrder.kind == kind,
             PaymentOrder.target_id == target_id,
             PaymentOrder.status.in_(["creating", "pending"]),
-        ).order_by(PaymentOrder.created_at.desc()).limit(1).with_for_update()
+        ).order_by(PaymentOrder.created_at.desc()).limit(1).with_for_update().execution_options(populate_existing=True)
     )
     if previous and previous.checkout_url and previous.stripe_session_id:
         await session.commit()
@@ -110,10 +110,10 @@ async def checkout(
         # The old reservation was released; validate capacity again before replacing it.
         await lock_advertising_capacity(session)
         if kind == "advertisement":
-            ad = await session.get(CommercialAdvertisement, target_id)
-            if not ad:
-                raise HTTPException(404, "Advertisement not found")
-            await require_free_slot(session, exclude_id=target_id, placement=ad.placement)
+            # Provider IO released every lock. A competing request may have
+            # replaced this order, edited the tier, cancelled, or paid the ad.
+            # Restart from authoritative rows, including ownership and price.
+            return await advertisement_checkout(target_id, user, session)
         elif kind == "homepage_hero" and not await slot_available(session):
             raise HTTPException(409, "Homepage placement is currently unavailable")
         elif kind == "listing_top":
@@ -149,11 +149,12 @@ async def advertisement_checkout(
     ad = await session.scalar(select(CommercialAdvertisement).where(
         CommercialAdvertisement.id == ad_id,
         CommercialAdvertisement.owner_user_id == user.id,
-    ).with_for_update())
+    ).with_for_update().execution_options(populate_existing=True))
     if not ad:
         raise HTTPException(404, "Advertisement not found")
     if ad.status != "pending_payment" or ad.payment_status != "unpaid":
         raise HTTPException(409, "Advertisement is not awaiting payment")
+    placement = validate_package_placement(ad)
     unresolved = await session.scalar(select(PaymentOrder.id).where(
         PaymentOrder.target_id == ad.id, PaymentOrder.owner_user_id == user.id,
         PaymentOrder.kind == "advertisement", PaymentOrder.status == "paid",
@@ -164,7 +165,7 @@ async def advertisement_checkout(
     amount = price_for_package(ad.package_id)
     if amount < 50:
         raise HTTPException(503, "Advertisement price has not been configured")
-    await require_free_slot(session, exclude_id=ad.id, placement=getattr(ad, "placement", "homepage_bottom"))
+    await require_free_slot(session, exclude_id=ad.id, placement=placement)
     return await checkout(session, user, "advertisement", ad.id, 30, amount,
                           ("Publicidad Premium 112233.es · 1 mes" if ad.package_id == PREMIUM_PACKAGE_ID else "Publicidad 112233.es · 1 mes"),
                           f"/publicidad/{ad.id}/checkout", advertisement_fingerprint(ad), months=1)

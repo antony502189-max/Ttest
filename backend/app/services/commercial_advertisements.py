@@ -33,11 +33,28 @@ def placement_for_package(package_id: str) -> str:
 
 
 def price_for_package(package_id: str) -> int:
+    placement_for_package(package_id)  # Reject unsupported and legacy purchases.
     return PREMIUM_PRICE_CENTS if package_id == PREMIUM_PACKAGE_ID else PACKAGE_PRICE_CENTS
 
 
+def validate_package_placement(ad, *, allow_legacy: bool = False) -> str:
+    """Existing legacy entitlements are valid, but cannot be sold again."""
+    try:
+        placement = ("homepage_bottom" if allow_legacy and ad.package_id == "test_homepage_30d"
+                     else placement_for_package(ad.package_id))
+    except ValueError:
+        raise HTTPException(409, "Unsupported advertising package") from None
+    if ad.placement != placement:
+        raise HTTPException(409, "Advertising package does not match placement")
+    return placement
+
+
 def capacity_for_placement(placement: str) -> int:
-    return PREMIUM_CAPACITY if placement == PREMIUM_PLACEMENT else MAX_ACTIVE_HOMEPAGE_ADS
+    if placement == PREMIUM_PLACEMENT:
+        return PREMIUM_CAPACITY
+    if placement == "homepage_bottom":
+        return MAX_ACTIVE_HOMEPAGE_ADS
+    raise ValueError("Unknown advertising placement")
 
 
 async def assert_advertisement_image_is_unique(
@@ -209,7 +226,12 @@ def approve(ad: CommercialAdvertisement, starts_at: datetime | None, ends_at: da
     now = datetime.now(UTC)
     start = starts_at or ad.starts_at or now
     duration = getattr(ad, "duration_days", None) or (30 if ad.package_id == "test_homepage_30d" else PACKAGE_DURATION_DAYS)
-    end = ends_at or ad.ends_at or start + timedelta(days=duration)
+    if ad.package_id == PREMIUM_PACKAGE_ID:
+        from .homepage_purchase import one_month_after
+        default_end = one_month_after(start)
+    else:
+        default_end = start + timedelta(days=duration)
+    end = ends_at or ad.ends_at or default_end
     if start.tzinfo is None or end.tzinfo is None or end <= start or end <= now:
         raise HTTPException(422, "Invalid advertisement schedule")
     ad.status = "active"

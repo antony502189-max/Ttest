@@ -28,19 +28,21 @@ from ...services.commercial_advertisements import (
     MAX_ACTIVE_HOMEPAGE_ADS,
     PACKAGE_ID,
     PACKAGE_PRICE_CENTS,
-    PREMIUM_PRICE_CENTS,
-    PREMIUM_PLACEMENT,
     PREMIUM_CAPACITY,
-    placement_for_package,
-    capacity_for_placement,
+    PREMIUM_PACKAGE_ID,
+    PREMIUM_PLACEMENT,
+    PREMIUM_PRICE_CENTS,
     approve,
     assert_advertisement_image_is_unique,
+    capacity_for_placement,
     destination_url,
     lock_advertising_capacity,
     notify_advertiser,
     occupied_slots,
     payment_service,
+    placement_for_package,
     require_free_slot,
+    validate_package_placement,
 )
 from ...services.listings import mark_orphaned_media
 from ...services.media_lifecycle import lock_media_assets, lock_media_owner
@@ -284,12 +286,15 @@ async def edit_advertisement(
     expired = ad.payment_status == "paid" and ad.ends_at is not None and ad.ends_at <= datetime.now(UTC)
     # Paid placements are immutable: editing their creative must not change
     # the product or grant a cheaper reservation in the premium position.
-    if not expired and ad.payment_status == "paid" and payload.packageId != ad.package_id:
+    legacy_edit = (not expired and ad.payment_status == "paid" and ad.package_id == "test_homepage_30d"
+                   and payload.packageId == PACKAGE_ID)
+    if not expired and ad.payment_status == "paid" and payload.packageId != ad.package_id and not legacy_edit:
         raise HTTPException(409, "A paid placement cannot change its advertising package")
-    new_placement = placement_for_package(payload.packageId)
+    new_package = ad.package_id if legacy_edit else payload.packageId
+    new_placement = ad.placement if legacy_edit else placement_for_package(new_package)
     changed = any((ad.title != payload.title, ad.description != payload.description,
                    ad.image_asset_id != payload.imageAssetId, ad.destination_type != payload.destinationType,
-                   ad.destination != payload.destination, ad.package_id != payload.packageId))
+                   ad.destination != payload.destination, ad.package_id != new_package))
     if changed or expired:
         pending = await session.scalar(select(PaymentOrder.id).where(
             PaymentOrder.target_id == ad.id, PaymentOrder.kind == "advertisement",
@@ -306,7 +311,7 @@ async def edit_advertisement(
         ad.image_asset_id = payload.imageAssetId
         ad.destination_type = payload.destinationType
         ad.destination = payload.destination
-        ad.package_id = payload.packageId
+        ad.package_id = new_package
         ad.placement = new_placement
         ad.approved_at = None
         if expired:
@@ -394,6 +399,7 @@ async def approve_advertisement(
 ):
     await lock_advertising_capacity(session)
     ad = await admin_ad(session, ad_id)
+    validate_package_placement(ad, allow_legacy=True)
     owner_is_active = await session.scalar(
         select(User.id).where(User.id == ad.owner_user_id, User.deleted_at.is_(None), User.blocked.is_(False))
     )
@@ -413,11 +419,16 @@ async def approve_advertisement(
         if order and order.financial_status != "normal":
             raise HTTPException(409, "A refund or dispute must be settled before approval")
     now = datetime.now(UTC)
+    if ((ad.starts_at is not None and decision.startsAt is not None and decision.startsAt != ad.starts_at)
+            or (ad.ends_at is not None and decision.endsAt is not None and decision.endsAt != ad.ends_at)):
+        raise HTTPException(422, "The original paid advertisement period cannot change")
     proposed_start = decision.startsAt or ad.starts_at or now
     duration = ad.duration_days or (30 if ad.package_id == "test_homepage_30d" else 1)
     from ...services.homepage_purchase import one_month_after
     paid_order = await session.get(PaymentOrder, ad.current_payment_order_id) if ad.current_payment_order_id else None
-    paid_end = one_month_after(proposed_start) if ad.payment_waived or paid_order and paid_order.duration_months == 1 else proposed_start + timedelta(days=duration)
+    monthly = (ad.payment_waived or paid_order and paid_order.duration_months == 1
+               or paid_order is None and ad.package_id == PREMIUM_PACKAGE_ID)
+    paid_end = one_month_after(proposed_start) if monthly else proposed_start + timedelta(days=duration)
     proposed_end = decision.endsAt or ad.ends_at or paid_end
     if proposed_start.tzinfo is None or proposed_end.tzinfo is None or proposed_end <= proposed_start or proposed_end <= now:
         raise HTTPException(422, "Invalid advertisement schedule")

@@ -104,8 +104,9 @@ async def test_unpaid_completion_does_not_grant_service(configured):
 @pytest.mark.asyncio
 async def test_ad_payment_and_duplicate_webhook(configured):
     order, event = order_event()
-    ad = SimpleNamespace(status="pending_payment", payment_status="unpaid", submitted_at=None)
-    session = SimpleNamespace(scalar=AsyncMock(side_effect=[order, ad, order]), commit=AsyncMock())
+    ad = SimpleNamespace(id=order.target_id, package_id="homepage_1d", placement="homepage_bottom",
+                         status="pending_payment", payment_status="unpaid", submitted_at=None)
+    session = SimpleNamespace(scalar=AsyncMock(side_effect=[order, ad, 0, order]), commit=AsyncMock())
     request, signature = signed_request(event)
     await payments.stripe_webhook(request, signature, session)
     assert (order.status, ad.status, ad.payment_status) == ("paid", "pending_review", "paid")

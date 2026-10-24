@@ -17,7 +17,7 @@ from app.services import commercial_advertisements as ads
 
 @pytest.mark.asyncio
 async def test_full_inventory_rejects_before_stripe_and_uses_shared_lock(monkeypatch):
-    ad = SimpleNamespace(id=uuid4(), package_id='homepage_1d', status='pending_payment', payment_status='unpaid')
+    ad = SimpleNamespace(id=uuid4(), package_id='homepage_1d', placement='homepage_bottom', status='pending_payment', payment_status='unpaid')
     session = SimpleNamespace(scalar=AsyncMock(side_effect=[ad, None, 7]), execute=AsyncMock())
     provider = AsyncMock()
     monkeypatch.setattr(payments, 'checkout', provider)
@@ -31,7 +31,7 @@ async def test_full_inventory_rejects_before_stripe_and_uses_shared_lock(monkeyp
 
 @pytest.mark.asyncio
 async def test_banner_defaults_to_one_month_at_thirty_euros(monkeypatch):
-    ad = SimpleNamespace(id=uuid4(), package_id='homepage_1d', status='pending_payment', payment_status='unpaid')
+    ad = SimpleNamespace(id=uuid4(), package_id='homepage_1d', placement='homepage_bottom', status='pending_payment', payment_status='unpaid')
     session = SimpleNamespace(scalar=AsyncMock(side_effect=[ad, None, 6]), execute=AsyncMock())
     provider = AsyncMock(return_value='checkout')
     monkeypatch.setattr(payments, 'checkout', provider)
@@ -225,6 +225,36 @@ def test_premium_and_standard_are_distinct_valid_packages():
     assert ads.capacity_for_placement("homepage_bottom") == 7
     with pytest.raises(ValueError):
         AdvertisementWrite(**payload, packageId='homepage_premium_free')
+
+
+@pytest.mark.parametrize('package', ['homepage_premium_free', 'test_homepage_30d', '', None])
+def test_unsupported_packages_never_fall_back_to_standard_price(package):
+    with pytest.raises(ValueError):
+        ads.price_for_package(package)
+
+
+def test_unknown_placement_has_no_default_capacity():
+    with pytest.raises(ValueError):
+        ads.capacity_for_placement('homepage_unknown')
+
+
+@pytest.mark.parametrize('start,end', [
+    ((2028, 1, 31), (2028, 2, 29)),
+    ((2027, 1, 31), (2027, 2, 28)),
+    ((2027, 12, 31), (2028, 1, 31)),
+    ((2027, 7, 15), (2027, 8, 15)),
+])
+def test_advertising_month_uses_calendar_boundaries(start, end):
+    from app.services.homepage_purchase import one_month_after
+    assert one_month_after(datetime(*start, 14, 30, tzinfo=UTC)) == datetime(*end, 14, 30, tzinfo=UTC)
+
+
+def test_premium_approval_never_falls_back_to_legacy_one_day():
+    start = datetime(2028, 1, 31, 14, 30, tzinfo=UTC)
+    ad = SimpleNamespace(status='pending_review', payment_status='paid', package_id='homepage_premium_1m',
+                         starts_at=None, ends_at=None, duration_days=None)
+    ads.approve(ad, start, None)
+    assert ad.ends_at == datetime(2028, 2, 29, 14, 30, tzinfo=UTC)
 
 
 @pytest.mark.asyncio
