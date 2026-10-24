@@ -86,6 +86,29 @@ function AccountHeader({
   );
 }
 
+/** A miniature of the homepage placement, not an additional checkout control. */
+function HomepagePromotionPreview({ image }: { image?: string }) {
+  return <span className="owner-promotion-choice__preview" data-testid="owner-homepage-promotion-preview" aria-hidden="true">
+    <span className="owner-promotion-choice__preview-photo">
+      {image
+        ? <MediaImage src={image} variant="thumb" alt="" loading="lazy" />
+        : <Home />}
+    </span>
+    <span className="owner-promotion-choice__preview-links">
+      <span className="owner-promotion-choice__preview-tile owner-promotion-choice__preview-tile--living">
+        <Home />
+        <span>HABITACIONES</span>
+        <strong>VIVIENDA</strong>
+      </span>
+      <span className="owner-promotion-choice__preview-tile owner-promotion-choice__preview-tile--holiday">
+        <Home />
+        <span>HABITACIONES</span>
+        <strong>TURÍSTICAS</strong>
+      </span>
+    </span>
+  </span>
+}
+
 export function FavoritesPage() {
   const { toggleFavorite } = useApp();
   const { listings: saved } = useFavoriteListings();
@@ -849,8 +872,9 @@ export function MyListingsPage() {
             ))}
           </div>
           {promotionStep === "choose" ? <div className="owner-top-dialog__list" data-testid="owner-promotion-choices">
-            <button type="button" className="owner-top-dialog__option owner-promotion-choice" onClick={() => { setTopDialogOpen(false); setHomepageCandidateId(topCandidateId); }} disabled={!promotable.find((listing) => listing.id === topCandidateId)?.images.length}>
-              <span className="owner-promotion-choice__icon"><Home aria-hidden="true" /></span><span><strong>{t("Banner Premium Principal")}</strong><small>{t("Su foto aparecerá en la portada con un enlace al anuncio.")}</small></span>
+            <button type="button" className="owner-top-dialog__option owner-promotion-choice owner-promotion-choice--homepage" onClick={() => { setTopDialogOpen(false); setHomepageCandidateId(topCandidateId); }} disabled={!promotable.find((listing) => listing.id === topCandidateId)?.images.length}>
+              <HomepagePromotionPreview image={promotable.find((listing) => listing.id === topCandidateId)?.images[0]} />
+              <span className="owner-promotion-choice__copy"><strong>{t("Banner Premium Principal")}</strong><small>{t("Su foto aparecerá en la portada con un enlace al anuncio.")}</small></span>
             </button>
             <button type="button" className="owner-top-dialog__option owner-promotion-choice" onClick={() => setPromotionStep("duration")}>
               <span className="owner-promotion-choice__icon"><Rocket aria-hidden="true" /></span><span><strong>{t("Sube tu anuncio a TOP")}</strong><small>{t("Haz que tu anuncio destaque y aparezca antes que los demás.")}</small></span>
