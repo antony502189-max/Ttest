@@ -178,6 +178,9 @@
   padding-top: .5rem;
   background: #fff;
 }
+/* All seven prices are already shown on their individual cards; avoid a
+   redundant advertising price bar on the compact mobile reference. */
+.commercial-ad--redesign.commercial-ad--mobile .commercial-ad__header { display: none; }
 .commercial-ad__premium {
   margin-bottom: 1.2rem;
   border: 1.5px solid #86bc1c;
