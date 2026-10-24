@@ -481,10 +481,13 @@ export function MobileSearchResults() {
       if (!root) return
       root.scrollTop = target
       attempts += 1
-      if (attempts < 32) frame = window.requestAnimationFrame(restore)
-      else {
+      // Release restoration as soon as the position is available. Holding it
+      // for 32 frames made the list fight a user's next scroll after Back.
+      if (Math.abs(root.scrollTop - target) <= 1 || attempts >= 32) {
         savedScrollTopRef.current = root.scrollTop
         returnScrollTopRef.current = null
+      } else {
+        frame = window.requestAnimationFrame(restore)
       }
     }
     frame = window.requestAnimationFrame(restore)
