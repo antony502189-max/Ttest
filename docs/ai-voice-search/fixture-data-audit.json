@@ -1,0 +1,687 @@
+{
+  "methodology": {
+    "amenities": "presence only; no assertion that every amenity is evidence-backed",
+    "conflicts": "active snapshots sharing canonical ID with differing nonnull policy values; potential, not resolved",
+    "explicit": "bounded evidence reconstructed from stored title/description, not historical provenance",
+    "geo": "coordinate presence does not prove dwelling precision; geo_confirmed_pct unavailable without provenance",
+    "limitations": "synthetic fixtures are not production coverage; unsupported phrases remain unknown",
+    "quantiles": "nearest rank, includes empty descriptions; lengths after contact/markup removal",
+    "unit": "source record; canonical counts are distinct within each source",
+    "unknown_provenance": "nonnull stored fact without matching explicit text evidence / all nonnull stored facts"
+  },
+  "potential_conflicting_canonical_listings": 1,
+  "records": 4,
+  "report_version": 1,
+  "selection": {
+    "mode": "offline",
+    "statuses": "active"
+  },
+  "sources": {
+    "AlquilerDocenteCanarias": {
+      "amenities_present_pct": null,
+      "canonical_listings": 0,
+      "description_length": {
+        "histogram": {
+          "1_79": 0,
+          "2000_plus": 0,
+          "500_1999": 0,
+          "80_499": 0,
+          "empty": 0
+        },
+        "max": null,
+        "min": null,
+        "p50": null,
+        "p95": null
+      },
+      "description_present_pct": null,
+      "geo_confirmed_pct": null,
+      "policies": {
+        "children_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "couples_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "pets_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "room_capacity": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "smoking_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        }
+      },
+      "potential_conflicting_source_records": 0,
+      "public_point_present_pct": null,
+      "records": 0,
+      "snapshot_evidence_disagreements": 0,
+      "stored_fact_values": 0,
+      "title_present_pct": null,
+      "unknown_provenance_pct": null,
+      "unknown_provenance_values": 0
+    },
+    "Flatio": {
+      "amenities_present_pct": 0.0,
+      "canonical_listings": 1,
+      "description_length": {
+        "histogram": {
+          "1_79": 1,
+          "2000_plus": 0,
+          "500_1999": 0,
+          "80_499": 0,
+          "empty": 0
+        },
+        "max": 20,
+        "min": 20,
+        "p50": 20,
+        "p95": 20
+      },
+      "description_present_pct": 100.0,
+      "geo_confirmed_pct": null,
+      "policies": {
+        "children_allowed": {
+          "explicit_pct": 0.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 1
+          }
+        },
+        "couples_allowed": {
+          "explicit_pct": 0.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 1
+          }
+        },
+        "pets_allowed": {
+          "explicit_pct": 100.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 1,
+            "unknown": 0
+          }
+        },
+        "room_capacity": {
+          "explicit_pct": 0.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 1
+          }
+        },
+        "smoking_allowed": {
+          "explicit_pct": 100.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 1,
+            "unknown": 0
+          }
+        }
+      },
+      "potential_conflicting_source_records": 1,
+      "public_point_present_pct": 0.0,
+      "records": 1,
+      "snapshot_evidence_disagreements": 0,
+      "stored_fact_values": 2,
+      "title_present_pct": 100.0,
+      "unknown_provenance_pct": 0.0,
+      "unknown_provenance_values": 0
+    },
+    "Fotocasa": {
+      "amenities_present_pct": 0.0,
+      "canonical_listings": 1,
+      "description_length": {
+        "histogram": {
+          "1_79": 1,
+          "2000_plus": 0,
+          "500_1999": 0,
+          "80_499": 0,
+          "empty": 0
+        },
+        "max": 55,
+        "min": 55,
+        "p50": 55,
+        "p95": 55
+      },
+      "description_present_pct": 100.0,
+      "geo_confirmed_pct": null,
+      "policies": {
+        "children_allowed": {
+          "explicit_pct": 0.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 1
+          }
+        },
+        "couples_allowed": {
+          "explicit_pct": 0.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 1
+          }
+        },
+        "pets_allowed": {
+          "explicit_pct": 0.0,
+          "states": {
+            "conditional": 1,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "room_capacity": {
+          "explicit_pct": 0.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 1
+          }
+        },
+        "smoking_allowed": {
+          "explicit_pct": 0.0,
+          "states": {
+            "conditional": 1,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        }
+      },
+      "potential_conflicting_source_records": 0,
+      "public_point_present_pct": 0.0,
+      "records": 1,
+      "snapshot_evidence_disagreements": 0,
+      "stored_fact_values": 2,
+      "title_present_pct": 0.0,
+      "unknown_provenance_pct": 100.0,
+      "unknown_provenance_values": 2
+    },
+    "Habitaclia": {
+      "amenities_present_pct": 0.0,
+      "canonical_listings": 1,
+      "description_length": {
+        "histogram": {
+          "1_79": 0,
+          "2000_plus": 0,
+          "500_1999": 0,
+          "80_499": 0,
+          "empty": 1
+        },
+        "max": 0,
+        "min": 0,
+        "p50": 0,
+        "p95": 0
+      },
+      "description_present_pct": 0.0,
+      "geo_confirmed_pct": null,
+      "policies": {
+        "children_allowed": {
+          "explicit_pct": 0.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 1
+          }
+        },
+        "couples_allowed": {
+          "explicit_pct": 0.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 1
+          }
+        },
+        "pets_allowed": {
+          "explicit_pct": 0.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 1
+          }
+        },
+        "room_capacity": {
+          "explicit_pct": 0.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 1
+          }
+        },
+        "smoking_allowed": {
+          "explicit_pct": 0.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 1
+          }
+        }
+      },
+      "potential_conflicting_source_records": 1,
+      "public_point_present_pct": 0.0,
+      "records": 1,
+      "snapshot_evidence_disagreements": 0,
+      "stored_fact_values": 4,
+      "title_present_pct": 100.0,
+      "unknown_provenance_pct": 100.0,
+      "unknown_provenance_values": 4
+    },
+    "Idealista": {
+      "amenities_present_pct": 100.0,
+      "canonical_listings": 1,
+      "description_length": {
+        "histogram": {
+          "1_79": 1,
+          "2000_plus": 0,
+          "500_1999": 0,
+          "80_499": 0,
+          "empty": 0
+        },
+        "max": 71,
+        "min": 71,
+        "p50": 71,
+        "p95": 71
+      },
+      "description_present_pct": 100.0,
+      "geo_confirmed_pct": null,
+      "policies": {
+        "children_allowed": {
+          "explicit_pct": 0.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 1
+          }
+        },
+        "couples_allowed": {
+          "explicit_pct": 100.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 1,
+            "unknown": 0
+          }
+        },
+        "pets_allowed": {
+          "explicit_pct": 100.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 1,
+            "unknown": 0
+          }
+        },
+        "room_capacity": {
+          "explicit_pct": 100.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 1,
+            "unknown": 0
+          }
+        },
+        "smoking_allowed": {
+          "explicit_pct": 0.0,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 1
+          }
+        }
+      },
+      "potential_conflicting_source_records": 1,
+      "public_point_present_pct": 100.0,
+      "records": 1,
+      "snapshot_evidence_disagreements": 0,
+      "stored_fact_values": 3,
+      "title_present_pct": 100.0,
+      "unknown_provenance_pct": 33.33,
+      "unknown_provenance_values": 1
+    },
+    "Milanuncios": {
+      "amenities_present_pct": null,
+      "canonical_listings": 0,
+      "description_length": {
+        "histogram": {
+          "1_79": 0,
+          "2000_plus": 0,
+          "500_1999": 0,
+          "80_499": 0,
+          "empty": 0
+        },
+        "max": null,
+        "min": null,
+        "p50": null,
+        "p95": null
+      },
+      "description_present_pct": null,
+      "geo_confirmed_pct": null,
+      "policies": {
+        "children_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "couples_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "pets_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "room_capacity": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "smoking_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        }
+      },
+      "potential_conflicting_source_records": 0,
+      "public_point_present_pct": null,
+      "records": 0,
+      "snapshot_evidence_disagreements": 0,
+      "stored_fact_values": 0,
+      "title_present_pct": null,
+      "unknown_provenance_pct": null,
+      "unknown_provenance_values": 0
+    },
+    "PisoCompartido": {
+      "amenities_present_pct": null,
+      "canonical_listings": 0,
+      "description_length": {
+        "histogram": {
+          "1_79": 0,
+          "2000_plus": 0,
+          "500_1999": 0,
+          "80_499": 0,
+          "empty": 0
+        },
+        "max": null,
+        "min": null,
+        "p50": null,
+        "p95": null
+      },
+      "description_present_pct": null,
+      "geo_confirmed_pct": null,
+      "policies": {
+        "children_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "couples_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "pets_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "room_capacity": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "smoking_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        }
+      },
+      "potential_conflicting_source_records": 0,
+      "public_point_present_pct": null,
+      "records": 0,
+      "snapshot_evidence_disagreements": 0,
+      "stored_fact_values": 0,
+      "title_present_pct": null,
+      "unknown_provenance_pct": null,
+      "unknown_provenance_values": 0
+    },
+    "Pisos": {
+      "amenities_present_pct": null,
+      "canonical_listings": 0,
+      "description_length": {
+        "histogram": {
+          "1_79": 0,
+          "2000_plus": 0,
+          "500_1999": 0,
+          "80_499": 0,
+          "empty": 0
+        },
+        "max": null,
+        "min": null,
+        "p50": null,
+        "p95": null
+      },
+      "description_present_pct": null,
+      "geo_confirmed_pct": null,
+      "policies": {
+        "children_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "couples_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "pets_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "room_capacity": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "smoking_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        }
+      },
+      "potential_conflicting_source_records": 0,
+      "public_point_present_pct": null,
+      "records": 0,
+      "snapshot_evidence_disagreements": 0,
+      "stored_fact_values": 0,
+      "title_present_pct": null,
+      "unknown_provenance_pct": null,
+      "unknown_provenance_values": 0
+    },
+    "ThinkSpain": {
+      "amenities_present_pct": null,
+      "canonical_listings": 0,
+      "description_length": {
+        "histogram": {
+          "1_79": 0,
+          "2000_plus": 0,
+          "500_1999": 0,
+          "80_499": 0,
+          "empty": 0
+        },
+        "max": null,
+        "min": null,
+        "p50": null,
+        "p95": null
+      },
+      "description_present_pct": null,
+      "geo_confirmed_pct": null,
+      "policies": {
+        "children_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "couples_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "pets_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "room_capacity": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        },
+        "smoking_allowed": {
+          "explicit_pct": null,
+          "states": {
+            "conditional": 0,
+            "conflict": 0,
+            "explicit": 0,
+            "unknown": 0
+          }
+        }
+      },
+      "potential_conflicting_source_records": 0,
+      "public_point_present_pct": null,
+      "records": 0,
+      "snapshot_evidence_disagreements": 0,
+      "stored_fact_values": 0,
+      "title_present_pct": null,
+      "unknown_provenance_pct": null,
+      "unknown_provenance_values": 0
+    }
+  }
+}
