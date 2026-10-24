@@ -84,7 +84,7 @@ async def change_service_finances(order, session):
                     order.paused_ad_status = ad.status
                 ad.status = "rejected"  # stays reserved, but is no longer publicly shown
             elif order.paused_ad_status:
-                await require_free_slot(session, exclude_id=ad.id)
+                await require_free_slot(session, exclude_id=ad.id, placement=ad.placement)
                 ad.status = order.paused_ad_status
                 order.paused_ad_status = None
     elif order.kind == "homepage_hero":
