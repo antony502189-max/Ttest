@@ -1,4 +1,5 @@
 import { expectProvinceLocationVisual } from './helpers/province-location-visual'
+import { expectReferenceMobileResults } from './helpers/mobile-results-reference-visual'
 import { expect, test, type Page } from '@playwright/test'
 
 async function open(page: Page, route: string, width = 390, height = 844) {
@@ -29,7 +30,8 @@ test('current mobile home, results, location and map visual states', async ({ pa
 
   await open(page, '/#/buscar?q=Tenerife')
   await expect(page.getByTestId('mobile-results')).toBeVisible()
-  await shot(page, 'current-search-390x844')
+  // The new owner-provided reference supersedes this one old results PNG only.
+  await expectReferenceMobileResults(page)
 
   await page.getByRole('button', { name: 'Volver' }).click()
   await page.locator('.m2-select-row').click()
