@@ -66,9 +66,15 @@ for (const rentalMode of ['holiday', 'long']) for (const back of ['browser', 'ap
     const first = page.locator(cardSelector).first()
     await expect(first.locator('.m2-result-card__counter')).toHaveText('1/1')
     await results.evaluate(el => { el.scrollTop = 180 })
+    const imageButton = first.locator('.m2-result-card__image-button')
+    // Playwright scrolls a partly clipped button into view before clicking.
+    // Capture the real position at the moment of interaction, not the
+    // earlier programmatic offset that can legitimately change by 23 px.
+    await imageButton.scrollIntoViewIfNeeded()
     const scroll = await results.evaluate(el => el.scrollTop)
+    expect(scroll).toBeGreaterThan(0)
     const searchUrl = page.url()
-    await first.locator('.m2-result-card__image-button').click()
+    await imageButton.click()
     await expect(page.locator('.listing-page h1')).toBeVisible()
     expect(searches).toHaveLength(1)
     gate.resolve()
