@@ -16,8 +16,8 @@ async function openSpanishSearch(page: Page, rentalMode: 'long' | 'holiday' = 'l
 test('mobile long-term feed matches the reference hierarchy and uses exactly one visible euro sign', async ({ page }, testInfo) => {
   const results = await openSpanishSearch(page)
   const header = results.locator('.m2-results__header')
-  await expect(header.locator('.m2-results__headline strong')).toHaveText(/^[\d.,]+ viviendas$/)
-  await expect(header.locator('.m2-results__headline span')).toHaveText('en España')
+  await expect(header.locator('.m2-results__headline-count')).toHaveText(/^[\d.,]+ viviendas$/)
+  await expect(header.locator('.m2-results__headline-place')).toHaveText('en España')
 
   const cap = header.locator('.m2-results__price-cap')
   await expect(cap).toBeVisible()
@@ -81,6 +81,6 @@ test('reference layout fits 320, 390 and 430 px without header or toolbar collis
 test('tourist accommodation never advertises the 1,000 euro monthly limit', async ({ page }) => {
   const results = await openSpanishSearch(page, 'holiday')
   await expect(results.locator('.m2-results__price-cap')).toHaveCount(0)
-  await expect(results.locator('.m2-results__headline span')).toHaveText('en España')
+  await expect(results.locator('.m2-results__headline-place')).toHaveText('en España')
   await expect(results.locator('.m2-results__toolbar button')).toHaveCount(3)
 })
