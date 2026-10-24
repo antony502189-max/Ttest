@@ -135,3 +135,53 @@ test('premium editor persists package selection and shows verified €60 before 
   await expect(page.getByRole('alert')).toBeVisible()
   expect(stripeClicks).toBe(1)
 })
+
+
+test('unavailable price keeps ad editor editable but blocks payment until a fresh quote arrives', async ({ page }) => {
+  let available = false
+  let creates = 0
+  await page.route('**/api/v1/advertisements/availability', route => {
+    if (available) return route.fulfill({ json: availability() })
+    return route.fulfill({ status: 503, json: { detail: 'Pricing unavailable' } })
+  })
+  await page.route('**/api/v1/advertisements', route => {
+    if (route.request().method() === 'POST') creates += 1
+    return route.fulfill({ status: 503, json: { detail: 'Unavailable' } })
+  })
+  await page.goto('/#/publicidad/nueva?plan=premium')
+  await expect(page.locator('input[type=file]')).toBeVisible()
+  await expect(page.getByTestId('advertising-editor-package')).toContainText('No se pudo comprobar')
+  await page.getByLabel('Título').fill('A premium campaign')
+  await page.getByLabel('Descripción').fill('A local premium campaign ready for upload')
+  await page.getByLabel('Enlace web').fill('https://example.org/')
+  await expect(page.getByRole('button', { name: 'Vista previa' })).toBeDisabled()
+  expect(creates).toBe(0)
+  available = true
+  await page.getByRole('button', { name: 'Reintentar' }).click()
+  await expect(page.getByTestId('advertising-editor-package')).toContainText('60')
+  await expect(page.locator('input[type=file]')).toBeVisible()
+  expect(creates).toBe(0)
+})
+
+test('all standard card children stay inside each card at 320px', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 780 })
+  await page.addInitScript(() => localStorage.setItem('112233:language:v1', 'ru'))
+  await page.goto('/#/')
+  const cards = page.locator('.commercial-ad--mobile .commercial-ad__slot--empty')
+  await expect(cards).toHaveCount(7)
+  for (const card of await cards.all()) {
+    const measured = await card.evaluate(node => {
+      const parent = node.getBoundingClientRect()
+      const children = Array.from(node.children).map(child => child.getBoundingClientRect())
+      return {
+        within: children.every(child => child.left >= parent.left - 1 && child.right <= parent.right + 1),
+        price: node.querySelector('[data-testid="advertising-slot-price"]')?.textContent,
+        scrollWidth: node.scrollWidth,
+        clientWidth: node.clientWidth,
+      }
+    })
+    expect(measured.within).toBe(true)
+    expect(measured.scrollWidth).toBeLessThanOrEqual(measured.clientWidth)
+    expect(measured.price).toContain('30')
+  }
+})
