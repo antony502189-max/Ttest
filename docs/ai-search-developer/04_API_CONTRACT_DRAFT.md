@@ -7,10 +7,14 @@
 | Метод | Предлагаемый путь | Доступ | Задача |
 |---|---|---|---|
 | GET | `/api/v1/ai-search/quota` | гости и пользователи | limit/used/remaining/resets_at/пользовательский status |
-| POST | `/api/v1/ai-search/transcriptions` | гости и пользователи | completed audio → редактируемый transcript; техническая reservation; без двойного business debit |
-| POST | `/api/v1/ai-search/query` | гости и пользователи | normalized query text + session/intent patch → search cards, explanations, quota finalize |
+| POST | `/api/v1/ai-search/transcriptions` (внутренний/опциональный) | гости и пользователи | completed audio → transcript; **клиент автоматически вызывает query без подтверждения пользователя**, оба этапа входят в 10 секунд |
+| POST | `/api/v1/ai-search/query` | гости и пользователи | текст либо **один multipart completed-audio запрос** → ASR→intent→DB→карточки, ≤10s p95 browser end-to-end; quota finalize один раз |
 | POST | `/api/v1/ai-search/sessions` (опционально) | гости и пользователи | создать/очистить короткий session state |
 | существующие | SavedSearch + Notifications endpoints | **после входа** | сохранить structured search; alerts через существующий outbox |
+
+### Обязательный быстрый голосовой путь (НЕ добавлять confirmation gate)
+
+Пользователь **один раз отправляет** запись → backend сам вызывает Groq batch ASR и DeepSeek intent → возвращает актуальную выдачу **не дожидаясь подтверждения транскрипта**. Текст можно исправить добровольно после выдачи; это новый последующий запрос, если пользователь его отправит. Предпочтительно один multipart `/query` со всем pipeline. Если остаются `/transcriptions` + `/query`, frontend вызывает их автоматически, и **суммарное** время до отрисовки входит в общий **p95 ≤10s**, не более одного бизнес-дебета. Считать скелетон, transcript и HTTP 200 результатом **нельзя**. Учитывать source freshness/visibility и не запускать re-import/crawling на каждый user request. Контракт в [09_PERFORMANCE_SLO.md](09_PERFORMANCE_SLO.md).
 
 ### Дневной quota contract
 

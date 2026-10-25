@@ -13,11 +13,11 @@
 | **AI-06** | DeepSeek Flash adapter + worker enrichment | AI-04/AI-05, provider DPA/keys | typed facts, validation, retries, quotas, metrics, controlled staging |
 | **AI-07** | Business daily quota ledger 3/200, idempotency and Madrid reset | AI-01 | midnight DST, guest/auth, double clicks, failures, concurrent reservation |
 | **AI-08** | Structured conversation state + patch semantics | AI-01/AI-07 | follow-up preserves named constraints, TTL, resets, safety |
-| **AI-09** | Text AI query API + server-side matching/search | AI-03/04/07/08; AI-06 for reliable features | existing cards, confidence/unknown, TOP, paging, SQL pre-pagination |
+| **AI-09** | Text AI query API + server-side matching/search | AI-03/04/07/08; AI-06 for reliable features | existing cards, confidence/unknown, TOP, paging, indexed SQL pre-pagination, profiling baseline to meet 10s voice E2E |
 | **AI-10** | Registered-only AI saved searches + existing alerts/outbox | AI-09/AI-06 | delayed enrichment alert, no duplicate notifications, legacy safe |
-| **AI-11** | Groq batch speech backend, GPT-transcribe fallback | AI-05/07/08/09, provider/privacy gate | 60s/8 MiB proposal, edit transcript, one debit, failure cleanup |
-| **AI-12** | React text panel and voice recorder mobile/desktop | AI-09, voice after AI-11 | cards/gallery/external/Map/TOP 1:1; accessible mobile |
-| **AI-13** | Gold evaluation/staging/backfill dry-run/release runbook | all relevant | verified coverage, false-permit quality, costs, no broken non-AI features |
+| **AI-11** | Groq batch speech backend, GPT-transcribe fallback | AI-05/07/08/09, provider/privacy gate | 60s/8 MiB proposal, **no mandatory transcript confirmation**, immediate auto-query, one debit, failure cleanup, measured ASR+intent budget |
+| **AI-12** | React text panel and voice recorder mobile/desktop | AI-09, voice after AI-11 | cards/gallery/external/Map/TOP 1:1; accessible mobile; **visual first result within p95 ≤10s from Send**, no extra click |
+| **AI-13** | Gold evaluation/staging/backfill dry-run/release runbook | all relevant | verified coverage, false-permit quality, costs, no broken non-AI features, **browser p95 ≤10s under representative normal network + load (with error rate)** |
 
 ## Рекомендуемая параллельность
 

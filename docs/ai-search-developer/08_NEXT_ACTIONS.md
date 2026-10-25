@@ -5,6 +5,7 @@
 - [x] Получен read-only audit Codex (3 отчёта, реальный серверный snapshot, источники/пробелы; **без real DB read-only inventory**).
 - [x] Владелец утвердил: нет вакансий/новых карт/маршрутов/TTS/live ASR; карточки и TOP не трогать; 3/200, Madrid midnight, auth-only saves, no monthly spend cap.
 - [x] Выбран предварительный провайдерный стек: Groq Whisper Large V3 batch + DeepSeek Flash, резерв OpenAI GPT-Transcribe; реальные provider accounts не проверены.
+- [x] Владелец добавил **целевой p95 ≤10 секунд от отправки законченной голосовой записи до появления реальных актуальных карточек**, без обязательной второй кнопки. Документация: [09_PERFORMANCE_SLO.md](09_PERFORMANCE_SLO.md). **Результат пока не измерен/не реализован**.
 - [ ] Review #373 (не слит на дату snapshot), проверить актуальность main и payment #372.
 - [ ] PR-AI-01 ADR facts/intent/commercial sort + code examples, без deployments/API.
 - [ ] Авторизовать readonly DB replica/роль и выполнить source coverage audit (не с production write DSN).

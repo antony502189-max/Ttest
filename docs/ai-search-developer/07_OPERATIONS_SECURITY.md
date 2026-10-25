@@ -45,6 +45,10 @@ Technical controls: guest3/registered200 daily, per-operation audio <= согл�
 
 Worker обязан иметь отдельные ресурсовые ограничения от importer, продавливать backlog не должен. Невозможность внешнего LLM не должна закрывать объявления и нарушать основной поиск.
 
+## Скорость выдачи после отправки голоса
+
+Ключевое пользовательское acceptance: **browser-measured p95 ≤10s** от завершённой отправки аудио до **видимых актуальных карточек** при обычной сети/работающих API. Учитывать audio upload + Groq batch ASR + DeepSeek intent + indexed PG query + React painting. Нельзя блокировать на обязательной коррекции транскрипта или получать данные повторным crawl. Не ухудшать проверку актуальности ради скорости. Подготовить tracing per stage, p50/p95/p99, ошибки/timeout/429, quota refunds и критерии аварийного fallback. Полный SLO: [09_PERFORMANCE_SLO.md](09_PERFORMANCE_SLO.md).
+
 ## Monitoring after rollout
 
 - AI quota accepted/completed/refunded, remaining, 429s, timezone bucket.

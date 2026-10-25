@@ -15,7 +15,7 @@
 | Follow-up | "теперь только балкон" preserves all other constraints, unset field, reset, stale cursor |
 | Ranking | existing TOP/boost positions, hard ineligibility filter, unknown warning, stable server pagination |
 | Quota | guest3, user200, login transition, concurrent last request, idempotent replay, provider failure refund, DST Madrid 00 |
-| Voice | click permission, completed ASR, editable transcript, Safari mp4, WebM, corrupt audio, oversize, silence, cancellation |
+| Voice | click permission, completed ASR, **one submit triggers automatic search without confirmation gate**, editable transcript after initial search, Safari mp4, WebM, corrupt audio, oversize, silence, cancellation |
 | Security | secret never in React, uploads size/codec checks, raw HTML/PII not outbound, injection, SSRF, rate-limit bypass |
 | Alerts | auth required, existing SavedSearch, delayed enriched data triggers only one alert, no duplicate SMTP |
 | UI | desktop/mobile property cards, external redirects, galleries, favorites, existing map, Back, 320px, keyboard, screen reader |
@@ -28,6 +28,12 @@
 - Existing Stripe, paid promotion, normal listing search, external worker lifecycle.
 - Parser PR #373: 26 synthetic policy fixtures, fingerprint regression and read-only CLI; **только synthetic**.
 - CI полный зелёный на **конечной** кодовой ревизии, не только на более раннем хеше. Post-merge fullstack failures из snapshot надо диагностировать отдельно (часть address validation 422).
+
+## Обязательный пользовательский SLO после голосовой записи
+
+**p95 ≤10 секунд** от Send **уже завершённой** записи до **отрисованных первых подходящих/проверенных карточек** в браузере при репрезентативной нормальной мобильной сети и исправных provider APIs (не включать время самой записи). 95% успешных запросов должны достигнуть 10s, **но измерять и публично учитывать все 429, timeouts, fallback и ошибки**, не исключать провалы из реальной картины. Отдельно p50/p99. Skeleton/транскрипция/200 OK не являются success. Нельзя делать обязательный transcript confirmation click. Показатель **не измерен**, он принят владельцем как новый release gate.
+
+Нужны интеграционные и browser E2E измерения стадий: audio upload, Groq ASR, DeepSeek intent, indexed SQL/filter, API, React paint. Типовые записи 5–20s на RU/ES/EN/mixed и 4G-like uplink/WiFi; отдельно slow links, 60s recordings, provider timeout, 0 matches, stale/external ads и invalid media. Невозможно гарантировать 10s при любой сети/сбое — показывать понятный fallback/error без списания квоты за сбой. Настройки budget и полная методология: [09_PERFORMANCE_SLO.md](09_PERFORMANCE_SLO.md).
 
 ## Оценка распознавания речи
 
