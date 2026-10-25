@@ -1,0 +1,37 @@
+# Инструкция для Codex / разработчика
+
+## Правила до любой реализации
+
+Прочитать [README.md](README.md) и полностью [01_PRODUCT_SPEC](01_PRODUCT_SPEC.md), [02_PRODUCTION_BASELINE](02_PRODUCTION_BASELINE.md), [03_ARCHITECTURE](03_ARCHITECTURE.md), [05_IMPLEMENTATION_PLAN](05_IMPLEMENTATION_PLAN.md).
+
+**Single source of truth:** прямые решения владельца в `01_PRODUCT_SPEC.md` выше старых customer review/AI-roadmap вопросов. Аудит датирован; проверять актуальный GitHub and production независимо.
+
+## Каждый новый таск
+
+1. Пересверить актуальный `main`, feature/planning HEAD и CI. PR #373 мог изменить состояние с 25.10.
+2. Точно определить scope одного PR и затрагиваемые компоненты.
+3. Проверить существующую реализацию прежде чем писать новую (особенно importer, ListingRoomDetails, Redis, SavedSearch).
+4. Уточнить подтверждённые DB факты только через специально разрешённый read-only канал.
+5. Сначала regression tests, потом минимальное изменение.
+6. Не ломать existing card DTO, map, TOP, Stripe, auth, price cap, promotions, gallery и imports.
+7. Код, миграции и docs — только в отдельной ветке. CI запускать по необходимости; не деплоить автоматически.
+8. Отчёт: реальные команды/tests/result, commit SHA, PR, blocker/unknown, что изменилось в поведении.
+
+## Нельзя
+
+- Продакшен deployment / merge без явного запроса.
+- Изменять секреты, env, Redis/DB production, run crawler/backup/rollback/clear.
+- Писать DeepSeek output напрямую как подтверждённый факт без evidence.
+- Пропускать ₽/€ цифры, отрицания и условные разрешения.
+- Доверять deprecated/docs-only assumptions.
+- Автоматически ограничивать monthly provider spend суммой.
+- Добавлять вакансии, маршруты, POI, live-ASR или TTS.
+- Отправлять raw HTML/контакты арендодателей в внешние модели.
+
+## Где искать доказательства
+
+[Основной архив аудита](audits/2026-10-25/README.md), [внешний исторический parser план](archive/README.md), GitHub PR #373 и текущее `backend/app/...`.
+
+## Первое действие
+
+PR-AI-01 — ADR/data intent contracts, без runtime. После этого — DBA readonly coverage и code PRs, разделённые по таблице в [05_IMPLEMENTATION_PLAN](05_IMPLEMENTATION_PLAN.md).

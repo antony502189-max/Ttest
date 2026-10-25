@@ -1,0 +1,58 @@
+# AI-поиск 112233.es — портал разработчика
+
+> **START HERE / актуально на 25.10.2026.** Эта папка — единая точка входа для разработчика AI-поиска недвижимости в существующем Ttest. Документация не является признаком внедрения функций в production. Репозиторий публичный; не размещать здесь секреты и персональные данные.
+
+## С чего начать (порядок чтения)
+
+| Порядок | Документ | Зачем читать |
+|---|---|---|
+| 1 | [01_PRODUCT_SPEC.md](01_PRODUCT_SPEC.md) | Утверждённое владельцем ТЗ: что делать и что категорически исключено |
+| 2 | [02_PRODUCTION_BASELINE.md](02_PRODUCTION_BASELINE.md) | Что действительно проверено на сервере 25 октября, а чего мы пока не знаем |
+| 3 | [03_ARCHITECTURE.md](03_ARCHITECTURE.md) | Два независимых AI-контура, модель фактов, безопасные границы |
+| 4 | [04_API_CONTRACT_DRAFT.md](04_API_CONTRACT_DRAFT.md) | Предложенные DTO/endpoints для Groq/DeepSeek, квот и диалога |
+| 5 | [05_IMPLEMENTATION_PLAN.md](05_IMPLEMENTATION_PLAN.md) | План PR-AI-01…13 и зависимости |
+| 6 | [06_QA_ACCEPTANCE.md](06_QA_ACCEPTANCE.md) | Unit/integration/E2E, доказательства, проверка условий и регрессий |
+| 7 | [07_OPERATIONS_SECURITY.md](07_OPERATIONS_SECURITY.md) | Production, CI/CD, секреты, диагностика, rollout и rollback |
+| 8 | [08_NEXT_ACTIONS.md](08_NEXT_ACTIONS.md) | Первый PR, блокеры и передача статуса |
+| 9 | [CODEX_START_HERE.md](CODEX_START_HERE.md) | Инструкция для Codex при получении задачи от разработчика |
+
+## Исходные аудиты (не выбрасывать и не выдавать за текущую метрику)
+
+- [audits/2026-10-25/PRODUCTION_REALITY_AUDIT.md](audits/2026-10-25/PRODUCTION_REALITY_AUDIT.md) — измерения и технические наблюдения Codex на 25.10.
+- [audits/2026-10-25/AI_INTEGRATION_READINESS.md](audits/2026-10-25/AI_INTEGRATION_READINESS.md) — readiness/пробелы/SQL/авторизация/frontend/ASR/LLM.
+- [audits/2026-10-25/AI_IMPLEMENTATION_SEQUENCE.md](audits/2026-10-25/AI_IMPLEMENTATION_SEQUENCE.md) — полный первоначальный подробный план 13 PR.
+- [audits/2026-10-25/README.md](audits/2026-10-25/README.md) — происхождение отчётов, ограничения по evidence и machine summary.
+- [archive/IMPLEMENTATION_PLAN_2026-10-25.md](archive/IMPLEMENTATION_PLAN_2026-10-25.md) — исторический подробный parser/data backlog.
+- [archive/PARSER_DATA_AUDIT_2026-10-25.md](archive/PARSER_DATA_AUDIT_2026-10-25.md) — подробный парсерный аудит PR #373.
+- [archive/README.md](archive/README.md) — когда использовать исторические материалы.
+
+## Самая короткая версия решения
+
+- **Только недвижимость**; вакансий, маршрутов и новых геосервисов **нет**.
+- Имеющиеся карточки, карта, внешние ссылки, TOP/paid boosts, галереи, цены и другие функции **остаются прежними**.
+- Голос: **Groq Whisper Large V3**, после окончания записи; резерв — OpenAI GPT-Transcribe. Без live-ASR и без озвучки ответа.
+- Текст/диалог/извлечение фактов: **DeepSeek Flash** через backend. Проверять schema и evidence; LLM не пишет SQL.
+- Поиск: существующие **FastAPI + PostgreSQL/PostGIS**; данные предварительно обогащаются в **отдельном** асинхронном worker.
+- Квоты: **3 успешных AI-обращения в сутки у гостя / 200 у авторизованного**, reset **00:00 Europe/Madrid**, один голосовой запрос = один debit после успешного ответа (не два API-платежа).
+- Сохранение поисков и уведомления — только после регистрации, на основе уже существующего SavedSearch/outbox.
+- **Месячного денежного лимита API нет**. Лимиты размера/длительности/частоты, anti-abuse и observability обязательны.
+- Продакшен и database snapshot от 25.10 **не обновляются автоматически** от появления документации в GitHub.
+
+## Реальное состояние/ветки
+
+На исходный аудит 25.10:
+- `main` и наблюдённый production release: `1292c6807ece59999238bb31c80e09ef7e2c3212`.
+- `planning/ai-voice-search-architecture` — план и решения. Не заменять этой веткой текущий main: она отстала от изменений платежей #372.
+- [Parser PR #373](https://github.com/antony502189-max/Ttest/pull/373) — **ещё не слит** на момент подготовки этого handoff. Нужны review и безопасный перенос/интеграция.
+- Публично доступно 1 163 listings (1 132 long-term, 31 holiday) в снимке аудита. **Это не total DB count**; прямого безопасного DB inventory не было.
+- В production **нет готовых API Groq/DeepSeek, AI-таблиц, AI-лимитов или voice UI**. Текущий frontend/backend запрещает microphone policy и имеет 256 KiB общий request body limit.
+
+**Приоритет №1:** не запускать интеграции наугад. Утвердить semantics/ADR, провести review #373 и безопасный read-only аудит настоящего каталога.
+
+## Порядок безопасности
+
+Только отдельные feature branches, небольшие PR и QA. Не изменять `main`, payments, работающий продакшен, секреты или данные без отдельного разрешения. Документационная ветка/PR не запускает автоматический деплой.
+
+## Куда вносить изменения
+
+В этой папке: решения, ADR, план, e2e-кейсы, статус и новые отчёты. Сам код AI — в существующих `backend/app/...` и `src/...` по отдельным PR, **не** внутрь документационной папки. Обновлять [08_NEXT_ACTIONS.md](08_NEXT_ACTIONS.md) после каждого принятого PR и не отмечать «сделано» без тестов/мерджа.
