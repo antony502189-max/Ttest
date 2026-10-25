@@ -35,6 +35,18 @@
 
 Нужны интеграционные и browser E2E измерения стадий: audio upload, Groq ASR, DeepSeek intent, indexed SQL/filter, API, React paint. Типовые записи 5–20s на RU/ES/EN/mixed и 4G-like uplink/WiFi; отдельно slow links, 60s recordings, provider timeout, 0 matches, stale/external ads и invalid media. Невозможно гарантировать 10s при любой сети/сбое — показывать понятный fallback/error без списания квоты за сбой. Настройки budget и полная методология: [09_PERFORMANCE_SLO.md](09_PERFORMANCE_SLO.md).
 
+### Уточнение по результатам заключительного аудита #375: честная статистика
+
+- **Zero-result**: валидный успешно обработанный AI-запрос → **один debit** и отдельная метрика `Send→verified empty state`. **Нельзя включать его в card-render p95** как быстро нарисованную карточку. Текущий baseline `09_PERFORMANCE_SLO.md` следует читать с этим более строгим уточнением.
+- Ошибка ASR/LLM/SQL/500/429 не списывает бизнес-квоту, но должна **учитываться в общем error/availability denominator**, а не игнорироваться.
+- Сценарии: два одновременных запроса на последний слот, double-click/idempotency, lost response after committed, crash/late lease, 25-hour Madrid DST day, guest cookie loss/login, free ASR attempt abuse, provider read timeout.
+- Cursor tests: изменение filters, facts/resolver revision и истечение paid TOP promotion между страницами. No client post-page resort.
+- Browser tests: real first **visible qualifying card** для same current operation, separate empty-state target и screenshot/DOM asserts; Safari/Android/desktop, realistic normal uplink, controlled concurrent load; измерять p50/p95/p99 и все error types, paid provider metrics только с authorisation.
+- Production readiness требует отдельного DBA-approved real coverage/freshness proof, privacy gate, goldset false-permit tests, исправление или закрытие с evidence CI address422 + mobile municipality, неизменность TOP/Stripe/cards.
+
+[Полное задание для реализации](10_IMPLEMENTATION_TZ.md) и [источник итогового аудита](https://github.com/antony502189-max/Ttest/pull/375).
+
+
 ## Оценка распознавания речи
 
 Оценить на добровольно записанном наборе ~100+ репрезентативных фраз RU/ES/EN/mixed. Измерять **critical slot error**, а не только generic WER:

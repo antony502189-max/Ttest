@@ -6,6 +6,15 @@
 
 **Single source of truth:** прямые решения владельца в `01_PRODUCT_SPEC.md` выше старых customer review/AI-roadmap вопросов. Аудит датирован; проверять актуальный GitHub and production независимо.
 
+## Обязательная актуальная точка входа
+
+**Сначала прочитать [10_IMPLEMENTATION_TZ.md](10_IMPLEMENTATION_TZ.md)** и [заключительный аудит PR #375](https://github.com/antony502189-max/Ttest/pull/375). Статус `READY_FOR_DEVELOPMENT`, **не** `READY_FOR_PRODUCTION`. Установить actual main/PR #373/#374/#375 HEAD прежде чем писать код. Ни один новый общий audit не нужен.
+
+Первый PR **AI-01 ADR**: версии intent/facts/patch, provenance, unknown/conditional/conflict, occupancy>=N (старое equality нетронуто), unchanged TOP, session/cursor, 3/200 Europe/Madrid transactional quota (включая успешные 0 matches), idempotency/fencing, UX one Send→cards и отдельные metrics zeros/errors. Background alerts не списывать с interactive quota — **предложение**, требующее ADR/одобрения. Нет read-only DB — не мешает DTO/mocks/disposable ledger, но запрещает утверждения об истинном coverage/backfill/readiness.
+
+Все кодовые изменения потом малыми PR от **актуального main**, не от устаревшей planning в обход payment #372. Никаких production миграций/merge/deploy/provider calls без разрешения.
+
+
 ## Безусловное требование по скорости и UX
 
 От Submit завершённой голосовой записи до **нарисованных подходящих и актуальных карточек** — целевой **p95 ≤10 секунд**, проверять настоящим browser E2E, включая upload, Groq, DeepSeek, PostgreSQL и рендер; статус **не реализовано**. Не заставлять пользователя дополнительно подтверждать распознанный текст перед первой выдачей; исправление текста должно оставаться возможным без этого препятствия. Нельзя делать live crawling или LLM-per-card ради «актуальности». Если сеть/провайдер плохие — transparent timeout/fallback/error, без списания quota при system failure. Обязательно изучить [09_PERFORMANCE_SLO.md](09_PERFORMANCE_SLO.md) до разработки API/frontend.

@@ -12,6 +12,20 @@
 - [ ] Исправить существующие 422 address fixtures/fullstack CI и определить branch protection отдельной задачей.
 - [ ] Дальнейшие кодовые PR см. [05_IMPLEMENTATION_PLAN](05_IMPLEMENTATION_PLAN.md).
 
+## Заключительный аудит #375: актуальное решение для исполнителя
+
+- [x] Финальный **targeted gap-closure audit** проведён; [PR #375](https://github.com/antony502189-max/Ttest/pull/375) **открыт**, пять отчётов находятся в его head `fe59df7`, а не автоматически в `main` или текущей ветке #374.
+- [x] Подтверждён workflow: **READY_FOR_DEVELOPMENT** (ADR/DTO/quota/session/structured facts/mocks). **PRODUCTION_ROLLOUT_BLOCKED** (нет DBA read-only data completeness, provider privacy, реальных ASR/intent timings и браузерного 10s SLO).
+- [x] Проведены безопасные single HTTP samples обычного listing search: **0.596 / 1.799 / 0.927s**; они **НЕ** являются p95/voice/full render benchmark.
+- [ ] **Первое задание: PR-AI-01 ADR/contracts**, включая provenance, conditions, hard/soft, TOP, cursor, operation lifecycle, clarification debit и recommended background notification quota semantics.
+- [ ] **После AI-01** отдельно начать AI-07 quota ledger→AI-08 sessions (disposable PG) и BASE-373 review→AI-03 facts→AI-04 queue/resolver. Feature branch от актуального `main`, без переноса planning вместо payments #372.
+- [ ] DBA/operator выдаёт отдельную approved read-only роль/реплику и выполняет bounded source/data inventory из PR #375, **без root/write credentials**.
+- [ ] Провести provider privacy/retention/account/ASR benchmarks и browser end-to-end staging performance только после отдельного разрешения и готового прототипа.
+- [ ] До live релиза закрыть CI address422/mobile municipality, TOP/Stripe/gallery/search regressions, quality/error gates, manual approval.
+
+**Актуальное полное ТЗ:** [10_IMPLEMENTATION_TZ.md](10_IMPLEMENTATION_TZ.md). **Новых общих аудитов не заказывать.**
+
+
 ## Критические ворота перед реальной интеграцией
 
 | Вопрос | Status | Требуется |

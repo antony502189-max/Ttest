@@ -7,9 +7,9 @@
 **Target:** `p95 time_to_results <= 10.0 s` после окончания записи и нажатия «Отправить» на типовом поддерживаемом клиенте и сети, при исправных внешних провайдерах.
 
 - **T0:** пользователь инициировал отправку **уже завершённой** голосовой записи (клик Send / подтверждённая передача; если продукт выберет auto-send on Stop — Stop=Send). Время самой речи/записи **не входит** в 10 секунд.
-- **T1:** в текущем списке действительно нарисованы **первые подходящие карточки**, полученные из backend после проверки видимости/актуальности и hard constraints, либо честный validated «нет подходящих вариантов». Спиннер, транскрипт, toast, голый skeleton, HTTP 200 и пустой placeholder **не считаются** появлением результатов.
+- **T1:** в текущем списке действительно нарисованы **первые подходящие карточки**, полученные из backend после проверки видимости/актуальности и hard constraints, . При отсутствии подходящих объявлений должен отображаться честный verified empty state — **отдельная latency-метрика, не карточный p95**. Спиннер, транскрипт, toast, голый skeleton, HTTP 200 и пустой placeholder **не считаются** появлением результатов.
 - **Метрика:** `T1 - T0`, browser-observed end-to-end; включает upload, очередь, batch ASR, intent DeepSeek, Postgres/PostGIS, API response и frontend render. Замер p50/p95/p99, timeout/error rates.
-- **Acceptance:** минимум **95% успешных запросов** репрезентативной голосовой тестовой выборки в нормальной поддерживаемой сети должны показать результат <=10с; отдельно публиковать error/fallback rates **по всем** запросам, чтобы не «добиться p95» исключением неудачных запросов. Quality и data-freshness gates обязательны одновременно.
+- **Acceptance:** минимум **95% успешных voice requests с ожидаемыми подтверждёнными карточками** на репрезентативной normal network/workload должны отрисовать первые действительно подходящие карточки за <=10с. **Нулевые результаты учитывать отдельно** по Send→verified empty state, они расходуют одну бизнес-квоту, но не улучшают p95 карточек. Отдельно измерять success-within-10s как долю **всех** валидных входов и error/timeout/429 rates, чтобы не «добиться p95» исключением неудачных запросов. Quality и data-freshness gates обязательны одновременно.
 - **Scope теста:** короткие типовые бытовые записи (~5–20 секунд), RU/ES/EN + смешанные топонимы, обычные mobile/desktop browsers и репрезентативный реальный mobile uplink. Отдельно тестировать долгую запись до максимального лимита, медленную сеть и provider degradation: **для них нельзя обещать гарантированные 10 секунд**, но нужно корректное уведомление/отказ и возможность повторить.
 - Нельзя считать SLO выполненным без staging/browser measurements. Значение в 10 секунд — целевое требование, а не уже измеренная возможность Groq+DeepSeek.
 
@@ -88,6 +88,11 @@
 | Desktop/mobile existing UI | cards/TOP/redirects/gallery/map remain unchanged |
 
 Measure/report: `client_time_to_first_results_ms`, `audio_upload_ms`, `asr_ms`, `intent_ms`, `db_search_ms`, `serialization_ms`, `render_ms`, `search_success`, `fallback_type`, `data_freshness_status`, `query_mode`, provider 429/timeouts, business quota charged/refunded. Redact text/transcript.
+
+## Обновление после специализированного аудита #375
+
+Вердикт: `FEASIBLE_WITH_SPECIFIC_CHANGES` — **не** измеренное достижение. Прямые public HTTP samples существующего card API `596.40 / 1798.99 / 927.30 ms` были **по одному запросу на 3 разные query** и не являются ни p95, ни ASR/LLM, ни browser-render timing. Выбранная рекомендуемая схема — **один multipart request**, без ручного второго шага. Подробности: [VOICE_10S_FEASIBILITY.md в PR #375](https://github.com/antony502189-max/Ttest/blob/fe59df7fcda852bdea39c4c6c9a26b91ff95ac2e/docs/ai-search-developer/audits/final-gap-closure-2026-10-25/VOICE_10S_FEASIBILITY.md) и [10_IMPLEMENTATION_TZ.md](10_IMPLEMENTATION_TZ.md).
+
 
 ## 7. Ownership
 

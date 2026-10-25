@@ -16,6 +16,13 @@
 
 Пользователь **один раз отправляет** запись → backend сам вызывает Groq batch ASR и DeepSeek intent → возвращает актуальную выдачу **не дожидаясь подтверждения транскрипта**. Текст можно исправить добровольно после выдачи; это новый последующий запрос, если пользователь его отправит. Предпочтительно один multipart `/query` со всем pipeline. Если остаются `/transcriptions` + `/query`, frontend вызывает их автоматически, и **суммарное** время до отрисовки входит в общий **p95 ≤10s**, не более одного бизнес-дебета. Считать скелетон, transcript и HTTP 200 результатом **нельзя**. Учитывать source freshness/visibility и не запускать re-import/crawling на каждый user request. Контракт в [09_PERFORMANCE_SLO.md](09_PERFORMANCE_SLO.md).
 
+### Проектное решение после проверки производительности #375
+
+**Рекомендуемый основной контракт — один `POST /api/v1/ai-search/query`**, принимающий завершённую аудиозапись multipart или текст. Один operation/idempotency key, один reserve→finalize, ASR→DeepSeek intent→precomputed indexed SQL→existing cards в одном серверном orchestration. Вернуть transcript для **необязательного исправления после выдачи**, не до первого поиска. Standalone `/transcriptions` — **резервный/внутренний вариант**, не рекомендуемая отдельная публичная точка с бесплатным безлимитным ASR; при двух HTTP операциях необходимо автоматически связывать один business debit и суммарный 10s SLO.
+
+**Отдельно подтвердить контракт:** stable intent hash/version, facts/resolver version, cursor binding к paid TOP и expiry; atomic PG ledger/lease/fencing; signed guest cookie и CSRF/Origin; operation replay при пропаже ответа; успех с zero-match списывает квоту, provider failure — нет; clarification debit policy ещё обсуждается ADR. **Не объявлять скопированный JSON-макет реализованным API.** Подробный исполняемый backlog: [10_IMPLEMENTATION_TZ.md](10_IMPLEMENTATION_TZ.md).
+
+
 ### Дневной quota contract
 
 ```json

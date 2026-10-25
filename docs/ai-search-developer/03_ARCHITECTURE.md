@@ -58,6 +58,18 @@ success -> finalize quota debit exactly once; errors -> release reservation
 6. **Ranking**: **hard eligibility** исключает запрещённые варианты, далее коммерческие TOP keys unchanged, затем релевантность только где не ломает платные позиции.
 7. **Presentation**: existing cards/galleries/labels/links/map; explain matching from verified reason codes; no new cards.
 
+## Зафиксированные выводы заключительного gap-closure
+
+- Архитектура **FEASIBLE_WITH_SPECIFIC_CHANGES**; числовой SLO десяти секунд ещё не подтверждён ASR+intent+browser E2E.
+- **Предпочтительно один POST multipart**: одна quota reservation, один ASR (если voice), один intent, DB search, cards; никаких обязательных 2 HTTP запросов и transcript-confirmation click.
+- Источник бизнес-квот: PostgreSQL ledger с atomic reserve/finalize/release и fencing; Redis отдельно для sessions/technical anti-abuse. Reservation до любых оплачиваемых внешних API; без PG connection/row lock во время provider await.
+- Только реальные source evidence и precomputed indexable facts. Public listings count не равен строкам БД, configured adapters не равны healthy/useful adapters. Read-only DB источник фактов ещё не открыт.
+- Search filters/compatibility **до count/seek/limit**; original TOP и boost order после eligibility; cursor должен учитывать normalized intent/version и изменения facts/promotion.
+- По результатам финального аудита можно разрабатывать DTO/quota/session и mock pipeline, **но нельзя включать production feature**, пока не закрыты data/privacy/quality/staging gates.
+
+Рабочее описание PR и DoD: [10_IMPLEMENTATION_TZ.md](10_IMPLEMENTATION_TZ.md).
+
+
 ## Модель условий
 
 Факт на уровне source:

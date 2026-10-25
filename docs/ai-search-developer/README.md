@@ -15,6 +15,8 @@
 | 7 | [07_OPERATIONS_SECURITY.md](07_OPERATIONS_SECURITY.md) | Production, CI/CD, секреты, диагностика, rollout и rollback |
 | 8 | [08_NEXT_ACTIONS.md](08_NEXT_ACTIONS.md) | Первый PR, блокеры и передача статуса |
 | **9** | **[09_PERFORMANCE_SLO.md](09_PERFORMANCE_SLO.md)** | **Новый обязательный SLO: подходящие карточки примерно за 10 секунд после отправки голосовой записи** |
+
+| **10** | **[10_IMPLEMENTATION_TZ.md](10_IMPLEMENTATION_TZ.md)** | **Актуальное рабочее ТЗ после заключительного аудита #375: обязанности, этапы, контракты, блокеры, критерии готовности** |
 | 9 | [CODEX_START_HERE.md](CODEX_START_HERE.md) | Инструкция для Codex при получении задачи от разработчика |
 
 ## Исходные аудиты (не выбрасывать и не выдавать за текущую метрику)
@@ -26,6 +28,16 @@
 - [archive/IMPLEMENTATION_PLAN_2026-10-25.md](archive/IMPLEMENTATION_PLAN_2026-10-25.md) — исторический подробный parser/data backlog.
 - [archive/PARSER_DATA_AUDIT_2026-10-25.md](archive/PARSER_DATA_AUDIT_2026-10-25.md) — подробный парсерный аудит PR #373.
 - [archive/README.md](archive/README.md) — когда использовать исторические материалы.
+
+## Актуальный итог аудита #375 и статус реализации
+
+**Разработка — READY_FOR_DEVELOPMENT. Production — BLOCKED.** Доступно создавать ADR/DTO, quota ledger, session и mock integration, новую схему фактов на disposable DB. Реальные DB coverage/freshness/source success, live provider latency/DPA и browser10s p95 пока не доказаны.
+
+- [Рабочее ТЗ на реализацию](10_IMPLEMENTATION_TZ.md) — **основной документ разработчика**.
+- [Заключительный аудит #375](https://github.com/antony502189-max/Ttest/pull/375) добавляет 5 отчётов на **отдельной ветке**, PR направлен в текущую docs ветку #374 и пока не слит.
+- Первая задача Codex: **AI-01 ADR/contracts**, затем по отдельным PR AI-07 quota и AI-03/04 facts/queue, human review #373 и DBA read-only assessment. Полный код AI всё ещё **не реализован**.
+- Не засчитывать slow-network, invalid zero-matches и provider errors как достигнутый голосовой card-render SLO; измерять честно согласно [09_PERFORMANCE_SLO.md](09_PERFORMANCE_SLO.md).
+
 
 ## Самая короткая версия решения
 

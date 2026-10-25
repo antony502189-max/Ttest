@@ -49,6 +49,13 @@ Worker обязан иметь отдельные ресурсовые огра�
 
 Ключевое пользовательское acceptance: **browser-measured p95 ≤10s** от завершённой отправки аудио до **видимых актуальных карточек** при обычной сети/работающих API. Учитывать audio upload + Groq batch ASR + DeepSeek intent + indexed PG query + React painting. Нельзя блокировать на обязательной коррекции транскрипта или получать данные повторным crawl. Не ухудшать проверку актуальности ради скорости. Подготовить tracing per stage, p50/p95/p99, ошибки/timeout/429, quota refunds и критерии аварийного fallback. Полный SLO: [09_PERFORMANCE_SLO.md](09_PERFORMANCE_SLO.md).
 
+## Отдельные development и production gates после итогового аудита #375
+
+**Разрабатывать разрешено:** ADR/DTO, quota/session в disposable DB, facts schema/mocks, provider fake adapters, React UI shell без платных API. **Live staging не включать** без provider account/privacy+data processing approval и тестовых безопасных данных; **production не включать** без полного catalog coverage, source freshness, validated facts, payment/TOP regressions, real browser p95≤10s и manual approval. Заключительный audited snapshot не подтверждает фактическую текущую readiness хоста/БД.
+
+Нужны отдельно предоставленные DBA **read-only** credentials/replica (не root / prod app write DSN), ограниченные aggregate queries и live index/PG headroom check. До этого источник health только косвенный, configured 7 adapters ≠ fresh 7 adapters. RTO/protection/CI неполадки необходимо проверить по финальному current SHA. Полные ворота: [10_IMPLEMENTATION_TZ.md](10_IMPLEMENTATION_TZ.md), [PR #375](https://github.com/antony502189-max/Ttest/pull/375).
+
+
 ## Monitoring after rollout
 
 - AI quota accepted/completed/refunded, remaining, 429s, timezone bucket.

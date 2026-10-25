@@ -2,6 +2,15 @@
 
 > Источник: [полный план Codex](audits/2026-10-25/AI_IMPLEMENTATION_SEQUENCE.md) (в нём 13 PR). Таблица ниже — единая рабочая доска. **Ни один будущий AI PR не отмечен как реализованный.** Ссылки на старые planning docs архивированы; scope определён в [01_PRODUCT_SPEC](01_PRODUCT_SPEC.md).
 
+## Обновление по заключительному аудиту #375
+
+**Статус: `READY_FOR_DEVELOPMENT` / `PRODUCTION_ROLLOUT_BLOCKED`.** Два последних отчёта не требуют нового общего аудита и **не выполняют** ни один runtime PR. Для разработчика главное [10_IMPLEMENTATION_TZ.md](10_IMPLEMENTATION_TZ.md) и [PR #375](https://github.com/antony502189-max/Ttest/pull/375).
+
+**Очередность:** AI-01 **первый документационный PR** (ADR provenance, compatibility, versioned intent+patch, quota operation, clarification/alerts choices, TOP, pagination). После согласования контрактов AI-07 quota→AI-08 session можно начинать **параллельно** с BASE-373 code review и AI-03→AI-04 facts/queue на disposable PostgreSQL. AI-02 production catalog audit требует отдельно предоставленного read-only DB; отсутствие доступа **не блокирует mocks/DTO/ledger**, но блокирует доказанный coverage, live backfill и production. Provider mocks/React shell можно прорабатывать независимо от оплачиваемых API.
+
+**Фактический 10s SLO** достигается и измеряется только при AI-13 staging E2E с действующими Groq+DeepSeek и browser paint. Три HTTP samples 0.596/1.799/0.927s — **не p95**. До запуска обеспечить provider DPA/privacy/keys, actual data freshness, quota resilience, checkout TOP/payments regressions, mobile/CI stability и operator manual deploy approval. Техническое задание [10_IMPLEMENTATION_TZ.md](10_IMPLEMENTATION_TZ.md) — источник конкретных DoD на все фазы.
+
+
 | ID | Задача | Зависимости | DoD / проверка |
 |---|---|---|---|
 | **BASE-373** | Ревью парсерного PR #373, совместимость с current main и payment #372 | По согласованию владельца | fingerprint/evidence/CLI не ломают importer/gallery/catalog; зелёные тесты |
