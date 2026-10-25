@@ -1,0 +1,1483 @@
+{
+  "schema_version": 1,
+  "title": "Итоговые инженерные ворота AI-поиска 112233.es",
+  "observation_date": "2026-10-25",
+  "timezone_for_user_dates": "Europe/Minsk",
+  "quota_timezone": "Europe/Madrid",
+  "scope": "Только исследование и документация. Production-доступ с write credentials и оплачиваемые inference вызовы не использовались.",
+  "repository": {
+    "full_name": "antony502189-max/Ttest",
+    "main_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+    "documentation_sha": "85fa9ad7ebff15634b34bd341882d302398b6dfc",
+    "parser_sha": "fcae378d9dbbc8447f18df150327180f6f2c8231",
+    "planning_sha": "1ace67b5ae67ab267fdcc37ee499b87bd433fb71",
+    "public_frontend_build_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+    "current_backend_binary_sha": null,
+    "documentation_pr": {
+      "number": 374,
+      "state": "open",
+      "merged": false,
+      "head_sha": "85fa9ad7ebff15634b34bd341882d302398b6dfc"
+    },
+    "parser_pr": {
+      "number": 373,
+      "state": "open",
+      "merged": false,
+      "head_sha": "fcae378d9dbbc8447f18df150327180f6f2c8231"
+    },
+    "payments_pr": {
+      "number": 372,
+      "merged": true,
+      "merge_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212"
+    },
+    "planning_divergence": {
+      "main_only_commits": 1,
+      "planning_only_commits": 10
+    },
+    "audit_branch": "codex/final-ai-gap-closure-2026-10-25",
+    "audit_pr_base": "docs/ai-search-developer-handoff-2026-10-25"
+  },
+  "decisions": {
+    "development": {
+      "status": "READY_FOR_DEVELOPMENT",
+      "evidence_class": "INFERRED",
+      "evidence_ids": [
+        "R01",
+        "R02",
+        "R03",
+        "C03",
+        "C07",
+        "C10",
+        "C12"
+      ],
+      "allowed_now": [
+        "ADR и versioned DTO",
+        "Quota ledger на disposable PostgreSQL",
+        "Conversation patch и ownership",
+        "Provider mock adapters",
+        "Facts schema и queue design",
+        "UI с mocks"
+      ]
+    },
+    "staging_mocks": {
+      "status": "READY_FOR_DEVELOPMENT",
+      "limitation": "Само staging окружение не было обнаружено/проверено."
+    },
+    "staging_live": {
+      "status": "NEEDS_IMPLEMENTATION",
+      "blockers": [
+        "privacy/account/paid authorization",
+        "working integration",
+        "sanitized corpus",
+        "real end-to-end measurements"
+      ]
+    },
+    "production_rollout": {
+      "status": "BLOCKED",
+      "blockers": [
+        "real catalog/source evidence",
+        "quota/attempt controls",
+        "privacy/account approvals",
+        "facts/resolver/freshness",
+        "voice transport",
+        "quality/SLO evidence",
+        "final regression/release checks"
+      ]
+    },
+    "voice_feasibility": "FEASIBLE_WITH_SPECIFIC_CHANGES",
+    "voice_slo_achieved": false,
+    "recommended_request_option": "A_SINGLE_MULTIPART_AUTOMATIC_PIPELINE",
+    "mandatory_transcript_confirmation": false,
+    "first_pr": {
+      "id": "PR-AI-01",
+      "title": "ADR provenance, compatibility, versioned intent/patch и quota operation contract",
+      "documentation_only": true
+    },
+    "first_independent_code_pr_after_contracts": "AI-07 quota ledger",
+    "further_general_audit_needed": false,
+    "targeted_followups_needed": [
+      "DBA aggregates",
+      "gold provider quality evaluation",
+      "staging browser latency/load",
+      "final CI/release checks"
+    ]
+  },
+  "catalog": {
+    "db_readonly_access_established": false,
+    "db_access_status": "BLOCKED",
+    "total_database_listings": null,
+    "published_database_listings": null,
+    "hidden_database_listings": null,
+    "closed_database_listings": null,
+    "native_database_listings": null,
+    "external_database_listings": null,
+    "source_records": null,
+    "active_source_records": null,
+    "canonical_listings": null,
+    "duplicate_source_keys": null,
+    "usable_database_listings": null,
+    "inventory_by_rental_mode": null,
+    "inventory_by_property_type": null,
+    "inventory_by_region": null,
+    "inventory_by_province": null,
+    "usable_descriptions": null,
+    "insufficient_descriptions": null,
+    "missing_structured_fields": null,
+    "trustworthy_joint_matching_coverage_pct": null,
+    "quality_score": null,
+    "public_api_totals": {
+      "long": 1134,
+      "holiday": 31,
+      "arithmetic_sum": 1165,
+      "single_snapshot": false,
+      "observed_at_utc": "2026-10-25T20:19:17.757143+00:00",
+      "evidence_ids": [
+        "P02"
+      ],
+      "is_database_inventory": false
+    },
+    "historical_public_api_totals": {
+      "long": 1132,
+      "holiday": 31,
+      "arithmetic_sum": 1163,
+      "source": "Предыдущий аудит, не перезаписан",
+      "evidence_ids": [
+        "R04"
+      ]
+    },
+    "coverage": [
+      {
+        "criterion": "maximum_occupancy",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "available_spots",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "couples",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "friends_groups",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "children",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "pets",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "pet_species",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "pet_size",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "pet_count",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "smoking",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "smoking_indoors",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "smoking_outdoors",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "furnished",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "deposit",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "bills",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "balcony",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "terrace",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "minimum_stay",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "availability",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      },
+      {
+        "criterion": "other_conditions",
+        "numerator": null,
+        "denominator": null,
+        "percentage": null,
+        "states": {
+          "explicit_allow": null,
+          "explicit_deny": null,
+          "conditional": null,
+          "unknown": null,
+          "conflict": null,
+          "legacy_unverified": null
+        },
+        "selection": "U public-eligible canonical; отдельно source/type/mode после RO snapshot",
+        "measured_at": null,
+        "status": "BLOCKED",
+        "evidence_ids": [
+          "D01",
+          "C03",
+          "C07",
+          "C11"
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "name": "Idealista",
+        "code_registration": "base_adapter",
+        "compose_default_enabled": false,
+        "runtime_enabled": null,
+        "process_health": null,
+        "useful_fresh_data_confirmed": null,
+        "source_records": null,
+        "active_source_records": null,
+        "usable_canonicals": null,
+        "successful_runs": null,
+        "failed_runs": null,
+        "partial_runs": null,
+        "http403_runs": null,
+        "accepted_events": null,
+        "last_successful_sync_at": null,
+        "last_confirmed_check_at": null,
+        "check_interval_seconds": null,
+        "stale_records": null,
+        "description_coverage_pct": null,
+        "joint_matching_coverage_pct": null,
+        "evidence_ids": [
+          "C05",
+          "C06",
+          "D01"
+        ],
+        "evidence_class": "BLOCKED"
+      },
+      {
+        "name": "Fotocasa",
+        "code_registration": "base_adapter",
+        "compose_default_enabled": true,
+        "runtime_enabled": null,
+        "process_health": null,
+        "useful_fresh_data_confirmed": null,
+        "source_records": null,
+        "active_source_records": null,
+        "usable_canonicals": null,
+        "successful_runs": null,
+        "failed_runs": null,
+        "partial_runs": null,
+        "http403_runs": null,
+        "accepted_events": null,
+        "last_successful_sync_at": null,
+        "last_confirmed_check_at": null,
+        "check_interval_seconds": null,
+        "stale_records": null,
+        "description_coverage_pct": null,
+        "joint_matching_coverage_pct": null,
+        "evidence_ids": [
+          "C05",
+          "C06",
+          "D01"
+        ],
+        "evidence_class": "BLOCKED"
+      },
+      {
+        "name": "Milanuncios",
+        "code_registration": "base_adapter",
+        "compose_default_enabled": true,
+        "runtime_enabled": null,
+        "process_health": null,
+        "useful_fresh_data_confirmed": null,
+        "source_records": null,
+        "active_source_records": null,
+        "usable_canonicals": null,
+        "successful_runs": null,
+        "failed_runs": null,
+        "partial_runs": null,
+        "http403_runs": null,
+        "accepted_events": null,
+        "last_successful_sync_at": null,
+        "last_confirmed_check_at": null,
+        "check_interval_seconds": null,
+        "stale_records": null,
+        "description_coverage_pct": null,
+        "joint_matching_coverage_pct": null,
+        "evidence_ids": [
+          "C05",
+          "C06",
+          "D01"
+        ],
+        "evidence_class": "BLOCKED"
+      },
+      {
+        "name": "PisoCompartido",
+        "code_registration": "base_adapter",
+        "compose_default_enabled": true,
+        "runtime_enabled": null,
+        "process_health": null,
+        "useful_fresh_data_confirmed": null,
+        "source_records": null,
+        "active_source_records": null,
+        "usable_canonicals": null,
+        "successful_runs": null,
+        "failed_runs": null,
+        "partial_runs": null,
+        "http403_runs": null,
+        "accepted_events": null,
+        "last_successful_sync_at": null,
+        "last_confirmed_check_at": null,
+        "check_interval_seconds": null,
+        "stale_records": null,
+        "description_coverage_pct": null,
+        "joint_matching_coverage_pct": null,
+        "evidence_ids": [
+          "C05",
+          "C06",
+          "D01"
+        ],
+        "evidence_class": "BLOCKED"
+      },
+      {
+        "name": "Pisos",
+        "code_registration": "base_adapter",
+        "compose_default_enabled": true,
+        "runtime_enabled": null,
+        "process_health": null,
+        "useful_fresh_data_confirmed": null,
+        "source_records": null,
+        "active_source_records": null,
+        "usable_canonicals": null,
+        "successful_runs": null,
+        "failed_runs": null,
+        "partial_runs": null,
+        "http403_runs": null,
+        "accepted_events": null,
+        "last_successful_sync_at": null,
+        "last_confirmed_check_at": null,
+        "check_interval_seconds": null,
+        "stale_records": null,
+        "description_coverage_pct": null,
+        "joint_matching_coverage_pct": null,
+        "evidence_ids": [
+          "C05",
+          "C06",
+          "D01"
+        ],
+        "evidence_class": "BLOCKED"
+      },
+      {
+        "name": "ThinkSpain",
+        "code_registration": "base_adapter",
+        "compose_default_enabled": false,
+        "runtime_enabled": null,
+        "process_health": null,
+        "useful_fresh_data_confirmed": null,
+        "source_records": null,
+        "active_source_records": null,
+        "usable_canonicals": null,
+        "successful_runs": null,
+        "failed_runs": null,
+        "partial_runs": null,
+        "http403_runs": null,
+        "accepted_events": null,
+        "last_successful_sync_at": null,
+        "last_confirmed_check_at": null,
+        "check_interval_seconds": null,
+        "stale_records": null,
+        "description_coverage_pct": null,
+        "joint_matching_coverage_pct": null,
+        "evidence_ids": [
+          "C05",
+          "C06",
+          "D01"
+        ],
+        "evidence_class": "BLOCKED"
+      },
+      {
+        "name": "AlquilerDocenteCanarias",
+        "code_registration": "base_adapter",
+        "compose_default_enabled": true,
+        "runtime_enabled": null,
+        "process_health": null,
+        "useful_fresh_data_confirmed": null,
+        "source_records": null,
+        "active_source_records": null,
+        "usable_canonicals": null,
+        "successful_runs": null,
+        "failed_runs": null,
+        "partial_runs": null,
+        "http403_runs": null,
+        "accepted_events": null,
+        "last_successful_sync_at": null,
+        "last_confirmed_check_at": null,
+        "check_interval_seconds": null,
+        "stale_records": null,
+        "description_coverage_pct": null,
+        "joint_matching_coverage_pct": null,
+        "evidence_ids": [
+          "C05",
+          "C06",
+          "D01"
+        ],
+        "evidence_class": "BLOCKED"
+      },
+      {
+        "name": "Flatio",
+        "code_registration": "base_adapter",
+        "compose_default_enabled": true,
+        "runtime_enabled": null,
+        "process_health": null,
+        "useful_fresh_data_confirmed": null,
+        "source_records": null,
+        "active_source_records": null,
+        "usable_canonicals": null,
+        "successful_runs": null,
+        "failed_runs": null,
+        "partial_runs": null,
+        "http403_runs": null,
+        "accepted_events": null,
+        "last_successful_sync_at": null,
+        "last_confirmed_check_at": null,
+        "check_interval_seconds": null,
+        "stale_records": null,
+        "description_coverage_pct": null,
+        "joint_matching_coverage_pct": null,
+        "evidence_ids": [
+          "C05",
+          "C06",
+          "D01"
+        ],
+        "evidence_class": "BLOCKED"
+      },
+      {
+        "name": "Habitaclia",
+        "code_registration": "production_hook",
+        "compose_default_enabled": false,
+        "runtime_enabled": null,
+        "process_health": null,
+        "useful_fresh_data_confirmed": null,
+        "source_records": null,
+        "active_source_records": null,
+        "usable_canonicals": null,
+        "successful_runs": null,
+        "failed_runs": null,
+        "partial_runs": null,
+        "http403_runs": null,
+        "accepted_events": null,
+        "last_successful_sync_at": null,
+        "last_confirmed_check_at": null,
+        "check_interval_seconds": null,
+        "stale_records": null,
+        "description_coverage_pct": null,
+        "joint_matching_coverage_pct": null,
+        "evidence_ids": [
+          "C05",
+          "C06",
+          "D01"
+        ],
+        "evidence_class": "BLOCKED"
+      }
+    ],
+    "limitations": [
+      "Первая страница не random sample",
+      "No primarySource не подтверждает native",
+      "Visible source label не подтверждает свежий успешный import",
+      "Synthetic fixtures не production coverage"
+    ]
+  },
+  "performance": {
+    "metric": "browser Send completed recording to first meaningful qualifying current cards paint",
+    "target_p95_ms": 10000,
+    "measured_voice_p50_ms": null,
+    "measured_voice_p95_ms": null,
+    "measured_voice_p99_ms": null,
+    "asr_latency_ms": null,
+    "intent_latency_ms": null,
+    "sql_only_latency_ms": null,
+    "browser_render_latency_ms": null,
+    "connection_pool_headroom": null,
+    "public_http_samples": [
+      {
+        "name": "cards_long",
+        "method": "POST",
+        "path": "/api/v1/listings/search/cards",
+        "request": {
+          "rentalMode": "long",
+          "limit": 20
+        },
+        "status": 200,
+        "headers_ms": 547.67,
+        "complete_ms": 596.4,
+        "wire_body_bytes": 32931,
+        "decoded_body_bytes": 32931,
+        "content_encoding": null,
+        "content_type": "application/json",
+        "permissions_policy": "camera=(), microphone=()",
+        "public_search_total": 1134,
+        "returned_cards": 20,
+        "next_cursor_present": true,
+        "source_counts_in_page": {
+          "no_primary_source": 3,
+          "Pisos": 16,
+          "Fotocasa": 1
+        },
+        "property_types_in_page": {
+          "Habitación individual": 10,
+          "Apartamento de 1 dormitorio": 8,
+          "Estudio": 2
+        }
+      },
+      {
+        "name": "cards_holiday",
+        "method": "POST",
+        "path": "/api/v1/listings/search/cards",
+        "request": {
+          "rentalMode": "holiday",
+          "limit": 20
+        },
+        "status": 200,
+        "headers_ms": 1740.7,
+        "complete_ms": 1798.99,
+        "wire_body_bytes": 37582,
+        "decoded_body_bytes": 37582,
+        "content_encoding": null,
+        "content_type": "application/json",
+        "permissions_policy": "camera=(), microphone=()",
+        "public_search_total": 31,
+        "returned_cards": 20,
+        "next_cursor_present": true,
+        "source_counts_in_page": {
+          "no_primary_source": 1,
+          "Pisos": 19
+        },
+        "property_types_in_page": {
+          "Habitación individual": 1,
+          "Apartamento de 1 dormitorio": 16,
+          "Estudio": 3
+        }
+      },
+      {
+        "name": "cards_adeje",
+        "method": "POST",
+        "path": "/api/v1/listings/search/cards",
+        "request": {
+          "rentalMode": "long",
+          "query": "Adeje",
+          "maxPrice": 700,
+          "limit": 20
+        },
+        "status": 200,
+        "headers_ms": 849.39,
+        "complete_ms": 927.3,
+        "wire_body_bytes": 8985,
+        "decoded_body_bytes": 8985,
+        "content_encoding": null,
+        "content_type": "application/json",
+        "permissions_policy": "camera=(), microphone=()",
+        "public_search_total": 6,
+        "returned_cards": 6,
+        "next_cursor_present": false,
+        "source_counts_in_page": {
+          "no_primary_source": 5,
+          "Fotocasa": 1
+        },
+        "property_types_in_page": {
+          "Habitación individual": 6
+        }
+      }
+    ],
+    "sampling": "Один sequential request на query, без reuse; headers/full body, не p95 и не browser paint.",
+    "budget_hypotheses_ms": {
+      "upload_routing": 1500,
+      "asr": 3000,
+      "intent": 2500,
+      "database": 1000,
+      "other": 2000
+    },
+    "budget_is_measurement": false,
+    "zero_result_policy": "Успешный business debit; отдельная empty-state latency, не доказательство card-render SLO.",
+    "required_changes": [
+      "scoped audio endpoint/caps",
+      "same-origin microphone headers",
+      "one request orchestration",
+      "async deadline-bound provider clients",
+      "quota and technical admission before ASR",
+      "precomputed facts/indexed filters before pagination",
+      "release DB connections before provider await",
+      "progressive existing cards",
+      "stage tracing and real browser verification"
+    ]
+  },
+  "matching": {
+    "legacy_capacity_operator": "==",
+    "proposed_confirmed_capacity_operator": ">=",
+    "filter_before_pagination_required": true,
+    "top_order_preserved": [
+      "active promotion descending",
+      "boost time descending",
+      "existing requested sort",
+      "stable listing UUID"
+    ],
+    "hard_incompatible_top_excluded_by_filter_contract": true,
+    "commercial_legal_terms_verified": false,
+    "current_cursor_signed": false,
+    "current_cursor_snapshot_consistent": false,
+    "new_cursor_requires_intent_fact_sort_binding": true,
+    "unknown_is_permission": false,
+    "source_conflict_policy": "Предложено: provenance/freshness-aware resolver; равноправные allow/deny дают conflict; default не explicit owner override.",
+    "freshness_global_ttl_seconds": null,
+    "freshness_policy_approved": false,
+    "evidence_ids": [
+      "C03",
+      "C04",
+      "C05",
+      "C07",
+      "C11"
+    ]
+  },
+  "quota": {
+    "guest_daily": 3,
+    "registered_daily": 200,
+    "reset_local": "00:00",
+    "timezone": "Europe/Madrid",
+    "shared_voice_text": true,
+    "success_zero_results_consumes": true,
+    "provider_system_failure_consumes": false,
+    "followup_consumes_on_success": true,
+    "implemented": false,
+    "proposed_authority": "PostgreSQL",
+    "redis_role": "Технические rate/attempt/session controls; не единственный business ledger",
+    "reservation_before_asr": true,
+    "nonrefunded_technical_attempt_budget_required": true,
+    "monthly_spending_cap": null,
+    "monthly_spending_cap_allowed": false,
+    "guest_login_policy_status": "PROPOSED",
+    "clarification_debit_policy_approved": false,
+    "evidence_ids": [
+      "C12",
+      "R03"
+    ]
+  },
+  "saved_searches": {
+    "reuse_existing_saved_search_and_notifications": true,
+    "existing_auth_required": true,
+    "existing_ai_extra_fields_replayed_correctly": false,
+    "needs_shared_matcher": true,
+    "needs_delayed_enrichment_rematch": true,
+    "background_consumes_interactive_quota_proposal": false,
+    "background_quota_decision_approved": false,
+    "evidence_ids": [
+      "C05",
+      "C10",
+      "C11"
+    ]
+  },
+  "providers": {
+    "paid_calls_made": false,
+    "account_entitlements_verified": false,
+    "account_rate_limits": null,
+    "account_privacy_settings_verified": false,
+    "api_specific_dpa_approved": null,
+    "primary_asr": {
+      "model": "whisper-large-v3",
+      "contract_source": "https://console.groq.com/docs/speech-to-text",
+      "quality_measured": false
+    },
+    "fallback_asr": {
+      "model": "gpt-transcribe",
+      "contract_source": "https://developers.openai.com/api/docs/models/gpt-transcribe",
+      "quality_measured": false
+    },
+    "intent_and_enrichment": {
+      "model": "deepseek-flash",
+      "documented_model_version": "DeepSeek-V4.1-Flash-1017",
+      "contract_source": "https://api-docs.deepseek.com/quick_start/pricing/",
+      "quality_measured": false,
+      "json_schema_guarantee_verified": false
+    },
+    "outbound_full_raw_or_normalized_payload_allowed": false,
+    "outbound_privacy_gate_implemented": false,
+    "evidence_ids": [
+      "V01",
+      "V02",
+      "V03",
+      "V04",
+      "V05",
+      "V06",
+      "V07",
+      "C07"
+    ]
+  },
+  "release": {
+    "main_protected_branch_flag": false,
+    "repository_rulesets_visible_count": 0,
+    "branch_protection_detail_read": "403 integration scope",
+    "current_environment_reviewers": null,
+    "manual_workflow_verified_in_code": true,
+    "code_alembic_head": "0066_complimentary_ads",
+    "code_migration_count": 66,
+    "live_alembic_head": null,
+    "live_indexes_valid": null,
+    "ci": [
+      {
+        "sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+        "run_id": 40138694278,
+        "conclusion": "failure",
+        "finding": "Full-stack fixtures address validation422;10failed/13passed/7skipped"
+      },
+      {
+        "sha": "85fa9ad7ebff15634b34bd341882d302398b6dfc",
+        "run_id": 40228259640,
+        "conclusion": "success",
+        "finding": "Full-stack23passed/7skipped; не доказательство source fix main failures"
+      },
+      {
+        "sha": "85fa9ad7ebff15634b34bd341882d302398b6dfc",
+        "run_id": 40228259650,
+        "conclusion": "failure",
+        "finding": "mock-e2e(4): municipality-search.spec.ts49,1failed/155passed"
+      },
+      {
+        "sha": "fcae378d9dbbc8447f18df150327180f6f2c8231",
+        "run_id": 40136990342,
+        "conclusion": "success",
+        "finding": "904passed/7skipped,88PostGIS integration passed"
+      }
+    ],
+    "evidence_ids": [
+      "R05",
+      "R06",
+      "C13",
+      "C14",
+      "D01"
+    ]
+  },
+  "safety": {
+    "production_code_modified": false,
+    "production_database_modified": false,
+    "production_redis_modified": false,
+    "migrations_applied": false,
+    "crawls_triggered": false,
+    "backfills_run": false,
+    "production_load_tests_run": false,
+    "paid_provider_calls_made": false,
+    "deploy_triggered": false,
+    "pull_requests_merged": false,
+    "secrets_included": false,
+    "personal_records_published": false
+  },
+  "reports": [
+    "FINAL_GAP_CLOSURE_AUDIT.md",
+    "REAL_CATALOG_EVIDENCE.md",
+    "VOICE_10S_FEASIBILITY.md",
+    "IMPLEMENTATION_GATE_MATRIX.md",
+    "final-gates-summary.json"
+  ],
+  "evidence_register": "FINAL_GAP_CLOSURE_AUDIT.md#12-реестр-доказательств",
+  "unknown_value_policy": "Неизвестные counts/timings/rates/scores=null, false означает проверенное отсутствие либо явно сформулированное design prohibition, не нулевое измерение.",
+  "evidence": [
+    {
+      "id": "R01",
+      "classification": "VERIFIED_CODE_MAIN",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_CODE_MAIN / GitHub / M,P",
+      "source_and_method": "[main API](https://api.github.com/repos/antony502189-max/Ttest/branches/main), PR372 API; fresh git refs, rev-list main...planning",
+      "limitations": "snapshot refs, не runtime",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "R02",
+      "classification": "VERIFIED_BRANCH_ONLY",
+      "observed_date": "2026-10-25",
+      "commit_sha": "fcae378d9dbbc8447f18df150327180f6f2c8231",
+      "environment_and_ref": "VERIFIED_BRANCH_ONLY / GitHub / F",
+      "source_and_method": "[PR373](https://github.com/antony502189-max/Ttest/pull/373), точные blobs/diff M→F",
+      "limitations": "open, не main",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "R03",
+      "classification": "VERIFIED_BRANCH_ONLY",
+      "observed_date": "2026-10-25",
+      "commit_sha": "85fa9ad7ebff15634b34bd341882d302398b6dfc",
+      "environment_and_ref": "VERIFIED_BRANCH_ONLY / GitHub / H",
+      "source_and_method": "[PR374](https://github.com/antony502189-max/Ttest/pull/374); docs/ai-search-developer/README.md:1, 01–09, CODEX_START_HERE:1; diff executable paths H/M",
+      "limitations": "документы, не реализованные возможности",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "R04",
+      "classification": "DOCUMENTED_ONLY",
+      "observed_date": "2026-10-25",
+      "commit_sha": "85fa9ad7ebff15634b34bd341882d302398b6dfc",
+      "environment_and_ref": "DOCUMENTED_ONLY / historical audit / H, о M",
+      "source_and_method": "[PRODUCTION_REALITY_AUDIT:24](https://github.com/antony502189-max/Ttest/blob/85fa9ad7ebff15634b34bd341882d302398b6dfc/docs/ai-search-developer/audits/2026-10-25/PRODUCTION_REALITY_AUDIT.md#L24); E01–E09/S01–S15; два companion reports",
+      "limitations": "использованы как прошлые выводы; новый SSH не выполнялся",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "R05",
+      "classification": "VERIFIED_CI",
+      "observed_date": "2026-10-25",
+      "commit_sha": null,
+      "environment_and_ref": "VERIFIED_CI / GitHub Actions / M,H,F",
+      "source_and_method": "M [40138694278/job121005614722](https://github.com/antony502189-max/Ttest/actions/runs/40138694278); H [40228259640](https://github.com/antony502189-max/Ttest/actions/runs/40228259640), [40228259650](https://github.com/antony502189-max/Ttest/actions/runs/40228259650); F [40136990342](https://github.com/antony502189-max/Ttest/actions/runs/40136990342). GET runs/jobs/existing logs",
+      "limitations": "no reruns; F904passed/7skipped+88integration не data coverage",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "R06",
+      "classification": "VERIFIED_CI",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_CI / GitHub settings / M ref",
+      "source_and_method": "[branch](https://api.github.com/repos/antony502189-max/Ttest/branches/main), [rulesets](https://api.github.com/repos/antony502189-max/Ttest/rulesets): protected=false, []; protection detail403",
+      "limitations": "ограничение integration scope; env policy current UNKNOWN",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "P01",
+      "classification": "VERIFIED_PRODUCTION",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_PRODUCTION / public HTTPS / build M",
+      "source_and_method": "GET/build-info.json и GET/ в20:19:17–20:19:19UTC; commit и selected headers",
+      "limitations": "frontend build identity; no backend binary attestation",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "P02",
+      "classification": "VERIFIED_PRODUCTION",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_PRODUCTION / public search behind build M",
+      "source_and_method": "POST/api/v1/listings/search/cards: long20/holiday20,20:19UTC; urllib full body timing/byte count, response immediately reduced to aggregates",
+      "limitations": "n=1 на query; отдельные snapshots; no p95/SQL timing",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "P03",
+      "classification": "VERIFIED_PRODUCTION",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_PRODUCTION / public search behind build M",
+      "source_and_method": "тот же route, long/query=Adeje/maxPrice700/limit20,20:19UTC",
+      "limitations": "page sample, не pet/capacity-compatible AI results",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "D01",
+      "classification": "BLOCKED",
+      "observed_date": "2026-10-25",
+      "commit_sha": null,
+      "environment_and_ref": "BLOCKED / production DB / runtime SHA null",
+      "source_and_method": "не предоставлен явно авторизованный RO role/replica; нет DB connector/session с доказанными grants. Server password не использован",
+      "limitations": "total/coverage/freshness/plans/live schema неизвестны",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "C01",
+      "classification": "VERIFIED_CODE_MAIN",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_CODE_MAIN / source / M",
+      "source_and_method": "[nginx.conf:60](https://github.com/antony502189-max/Ttest/blob/1292c6807ece59999238bb31c80e09ef7e2c3212/deploy/nginx.conf#L60),69–79,172–180,184–249,274–289",
+      "limitations": "source config, не новый effective settings read",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "C02",
+      "classification": "VERIFIED_CODE_MAIN",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_CODE_MAIN / source / M",
+      "source_and_method": "[main.py:118](https://github.com/antony502189-max/Ttest/blob/1292c6807ece59999238bb31c80e09ef7e2c3212/backend/app/main.py#L118),136–143,224–318; db/session.py:8–28; core/config.py:25–31; docker-compose.production.yml:6–12; backend/Dockerfile:31",
+      "limitations": "defaults/runtime различать",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "C03",
+      "classification": "VERIFIED_CODE_MAIN",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_CODE_MAIN / source / M",
+      "source_and_method": "[repositories/listings.py:272](https://github.com/antony502189-max/Ttest/blob/1292c6807ece59999238bb31c80e09ef7e2c3212/backend/app/repositories/listings.py#L272),338–518; schemas/listings.py:454–607; services/rental_price_limit.py:79–88",
+      "limitations": "filter semantics, не provenance/count",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "C04",
+      "classification": "VERIFIED_CODE_MAIN",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_CODE_MAIN / source / M",
+      "source_and_method": "[repositories/listings.py:89](https://github.com/antony502189-max/Ttest/blob/1292c6807ece59999238bb31c80e09ef7e2c3212/backend/app/repositories/listings.py#L89),110–137,551–615,634–721; api/v1/listings.py:217–239",
+      "limitations": "TOP/seek/count/DTO; no snapshot guarantee",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "C05",
+      "classification": "VERIFIED_CODE_MAIN",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_CODE_MAIN / source / M",
+      "source_and_method": "[external_import.py:594](https://github.com/antony502189-max/Ttest/blob/1292c6807ece59999238bb31c80e09ef7e2c3212/backend/app/services/external_import.py#L594),606–668,671–702,755–774,925–984,1387–1426,1504–1572",
+      "limitations": "stored snapshots/lifecycle/event counters",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "C06",
+      "classification": "VERIFIED_CODE_MAIN",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_CODE_MAIN / source / M",
+      "source_and_method": "[workers/external_listings.py:217](https://github.com/antony502189-max/Ttest/blob/1292c6807ece59999238bb31c80e09ef7e2c3212/backend/app/workers/external_listings.py#L217),243–365; external_sources.py:2376–2394; habitaclia_source.py:527–544; core/observability.py:27–64",
+      "limitations": "config/health/log distinction",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "C07",
+      "classification": "VERIFIED_BRANCH_ONLY",
+      "observed_date": "2026-10-25",
+      "commit_sha": "fcae378d9dbbc8447f18df150327180f6f2c8231",
+      "environment_and_ref": "VERIFIED_BRANCH_ONLY / source / F",
+      "source_and_method": "[listing_evidence.py:16](https://github.com/antony502189-max/Ttest/blob/fcae378d9dbbc8447f18df150327180f6f2c8231/backend/app/services/listing_evidence.py#L16),27–56,65–100; ai_listing_input.py:45–193; commands/audit_ai_listing_data.py:228–287; external_sources.py:675–697,808–827; docs/ai-voice-search/PARSER_DATA_AUDIT.md:16–140",
+      "limitations": "grammar partial, cleaner not general privacy gate",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "C08",
+      "classification": "VERIFIED_CODE_MAIN",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_CODE_MAIN / source / M",
+      "source_and_method": "[SearchPage.tsx:205](https://github.com/antony502189-max/Ttest/blob/1292c6807ece59999238bb31c80e09ef7e2c3212/src/pages/SearchPage.tsx#L205),217–248,250–297,773/820; src/api/listings.ts:256–283,348–386",
+      "limitations": "no browser paint measurement",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "C09",
+      "classification": "VERIFIED_CODE_MAIN",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_CODE_MAIN / source / M",
+      "source_and_method": "[mobile-search-results-v2.tsx:245](https://github.com/antony502189-max/Ttest/blob/1292c6807ece59999238bb31c80e09ef7e2c3212/src/components/mobile-search-results-v2.tsx#L245),248–334",
+      "limitations": "separate mobile session, observer",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "C10",
+      "classification": "VERIFIED_CODE_MAIN",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_CODE_MAIN / source / M",
+      "source_and_method": "[notifications.py:46](https://github.com/antony502189-max/Ttest/blob/1292c6807ece59999238bb31c80e09ef7e2c3212/backend/app/services/notifications.py#L46),143–221,251–285; api/v1/saved_searches.py:20–53; services/search_state.py:260–314",
+      "limitations": "existing auth/outbox; AI dispatcher отсутствует",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "C11",
+      "classification": "VERIFIED_CODE_MAIN",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_CODE_MAIN / source / M",
+      "source_and_method": "[models/__init__.py:126](https://github.com/antony502189-max/Ttest/blob/1292c6807ece59999238bb31c80e09ef7e2c3212/backend/app/models/__init__.py#L126),138–203,206–287,324–334; models/room_details.py:13–43; models/moderation.py:22–50; external_removal.py:76–96,273–290; external_import.py:1031–1052,1131–1154",
+      "limitations": "наличие полей не говорит о качестве stored values",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "C12",
+      "classification": "VERIFIED_CODE_MAIN",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_CODE_MAIN / source / M",
+      "source_and_method": "[rate_limit.py:19](https://github.com/antony502189-max/Ttest/blob/1292c6807ece59999238bb31c80e09ef7e2c3212/backend/app/services/rate_limit.py#L19),47–101; main.py:118–163,241–273; api/dependencies.py:17; api/v1/listings.py:185–192",
+      "limitations": "fixed window; GET catalog-version может писать при отсутствии singleton, не использован как audit probe",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "C13",
+      "classification": "VERIFIED_CODE_MAIN",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_CODE_MAIN / source / M",
+      "source_and_method": "[manual-production-deploy.yml:1](https://github.com/antony502189-max/Ttest/blob/1292c6807ece59999238bb31c80e09ef7e2c3212/.github/workflows/manual-production-deploy.yml#L1),23–74; docs/production-operations.md",
+      "limitations": "workflow не запускался",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "C14",
+      "classification": "VERIFIED_CODE_MAIN",
+      "observed_date": "2026-10-25",
+      "commit_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+      "environment_and_ref": "VERIFIED_CODE_MAIN / static graph / M",
+      "source_and_method": "[0066 migration:6](https://github.com/antony502189-max/Ttest/blob/1292c6807ece59999238bb31c80e09ef7e2c3212/backend/alembic/versions/0066_complimentary_advertisements.py#L6); AST revision/down_revision всех66 файлов; 0050_spain_search_indexes.py:15–35; 0029_external_import_run_retention.py:17–32",
+      "limitations": "один code head; live migrations/index validity неизвестны",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "V01",
+      "classification": "DOCUMENTED_ONLY",
+      "observed_date": "2026-10-25",
+      "commit_sha": null,
+      "environment_and_ref": "DOCUMENTED_ONLY / public provider / null",
+      "source_and_method": "[Groq speech](https://console.groq.com/docs/speech-to-text), headings Supported Models/Audio File Limitations/Parameters",
+      "limitations": "прочитан официальный контракт; no inference",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "V02",
+      "classification": "DOCUMENTED_ONLY",
+      "observed_date": "2026-10-25",
+      "commit_sha": null,
+      "environment_and_ref": "DOCUMENTED_ONLY / public provider / null",
+      "source_and_method": "[Groq limits](https://console.groq.com/docs/rate-limits), [errors](https://console.groq.com/docs/errors), [data](https://console.groq.com/docs/your-data)",
+      "limitations": "account plan/settings неизвестны",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "V03",
+      "classification": "DOCUMENTED_ONLY",
+      "observed_date": "2026-10-25",
+      "commit_sha": null,
+      "environment_and_ref": "DOCUMENTED_ONLY / public provider / null",
+      "source_and_method": "[OpenAI file transcription](https://developers.openai.com/api/docs/guides/speech-to-text), [gpt-transcribe](https://developers.openai.com/api/docs/models/gpt-transcribe)",
+      "limitations": "model-specific integration нужно проверить",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "V04",
+      "classification": "DOCUMENTED_ONLY",
+      "observed_date": "2026-10-25",
+      "commit_sha": null,
+      "environment_and_ref": "DOCUMENTED_ONLY / public provider / null",
+      "source_and_method": "[OpenAI pricing](https://developers.openai.com/api/docs/pricing), [data controls](https://developers.openai.com/api/docs/guides/your-data), endpoint table",
+      "limitations": "не account settings/DPA",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "V05",
+      "classification": "DOCUMENTED_ONLY",
+      "observed_date": "2026-10-25",
+      "commit_sha": null,
+      "environment_and_ref": "DOCUMENTED_ONLY / public provider / null",
+      "source_and_method": "[DeepSeek pricing/models](https://api-docs.deepseek.com/quick_start/pricing/), [thinking](https://api-docs.deepseek.com/guides/thinking_mode/)",
+      "limitations": "mutable alias/price; response version записывать",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "V06",
+      "classification": "DOCUMENTED_ONLY",
+      "observed_date": "2026-10-25",
+      "commit_sha": null,
+      "environment_and_ref": "DOCUMENTED_ONLY / public provider / null",
+      "source_and_method": "[JSON](https://api-docs.deepseek.com/guides/json_mode/), [rate limit](https://api-docs.deepseek.com/quick_start/rate_limit/), [errors](https://api-docs.deepseek.com/quick_start/error_codes/)",
+      "limitations": "JSON не гарантия наших semantic constraints",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "V07",
+      "classification": "DOCUMENTED_ONLY",
+      "observed_date": "2026-10-25",
+      "commit_sha": null,
+      "environment_and_ref": "DOCUMENTED_ONLY / public policy / null",
+      "source_and_method": "[DeepSeek privacy, Feb10 2026](https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html?os=___)",
+      "limitations": "downstream/API-specific terms не установлены",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    },
+    {
+      "id": "V08",
+      "classification": "DOCUMENTED_ONLY",
+      "observed_date": "2026-10-25",
+      "commit_sha": null,
+      "environment_and_ref": "DOCUMENTED_ONLY / browser API / null",
+      "source_and_method": "[MDN isTypeSupported](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder/isTypeSupported_static)",
+      "limitations": "capability может не гарантировать recording; device QA впереди",
+      "confidence": "Ограничено указанной средой; production экстраполяция отдельно не подтверждена."
+    }
+  ]
+}
