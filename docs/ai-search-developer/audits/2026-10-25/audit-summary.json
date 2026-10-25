@@ -1,0 +1,77 @@
+{
+  "_notice": "CURATED public handoff summary based on user-supplied audit; NOT the original audit-summary.json. Original observations.json and checksums are retained in the user-uploaded ZIP, not in this public repository.",
+  "snapshot_date": "2026-10-25",
+  "repo": "antony502189-max/Ttest",
+  "main_sha_snapshot": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+  "production_sha_snapshot": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+  "source": "PRODUCTION_REALITY_AUDIT.md, AI_INTEGRATION_READINESS.md, AI_IMPLEMENTATION_SEQUENCE.md",
+  "public_cards_snapshot": {
+    "total": 1163,
+    "long_term": 1132,
+    "holiday": 31,
+    "definition": "publicly available search cards, NOT total rows in PostgreSQL"
+  },
+  "sources_snapshot": {
+    "effective_adapters": 7,
+    "per_source_success": "UNKNOWN",
+    "configured_list": [
+      "fotocasa",
+      "milanuncios",
+      "pisocompartido",
+      "pisos",
+      "alquilerdocentecanarias",
+      "flatio"
+    ],
+    "additional_hook": "habitaclia"
+  },
+  "database_readonly_inventory": "BLOCKED: no approved read-only replica/user",
+  "production_ai": {
+    "speech_to_text": false,
+    "intent_llm": false,
+    "enrichment_worker": false,
+    "ai_quota_ledger": false,
+    "ai_search_api": false
+  },
+  "parser_pr": {
+    "number": 373,
+    "snapshot_state": "open",
+    "target": "planning/ai-voice-search-architecture",
+    "head_sha_snapshot": "fcae378d9dbbc8447f18df150327180f6f2c8231"
+  },
+  "quota_product_decisions": {
+    "guest_daily": 3,
+    "authenticated_daily": 200,
+    "reset_timezone": "Europe/Madrid",
+    "reset_time": "00:00",
+    "success_only_debit": true,
+    "saved_search_auth_required": true
+  },
+  "provider_candidates": {
+    "asr_primary": "Groq whisper-large-v3",
+    "asr_fallback": "OpenAI gpt-transcribe",
+    "intent": "DeepSeek deepseek-flash",
+    "enrichment": "DeepSeek deepseek-flash",
+    "deployment_status": "not integrated"
+  },
+  "excluded_features": [
+    "job_search",
+    "new_maps",
+    "routes",
+    "places",
+    "poi",
+    "live_speech_transcription",
+    "text_to_speech",
+    "monthly_money_cutoff",
+    "card_replacement",
+    "TOP_changes"
+  ],
+  "unknowns": [
+    "real listing/database counts",
+    "per-source data coverage",
+    "confirmed policy provenance in production",
+    "source success rates",
+    "PostGIS query plans",
+    "provider account settings and DPA",
+    "current future production state"
+  ]
+}
