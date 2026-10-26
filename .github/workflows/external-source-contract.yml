@@ -60,6 +60,9 @@ jobs:
           pytest -q tests/test_external_source_contract_audit.py
           pytest -q tests/test_external_import_health.py
       - name: Audit public discovery and detail contracts
+        # PR validation stays offline; real discovery runs only on the existing
+        # scheduled/manual audit paths, outside development fixture checks.
+        if: github.event_name != 'pull_request'
         working-directory: backend
         run: |
           python -m app.commands.audit_external_sources \

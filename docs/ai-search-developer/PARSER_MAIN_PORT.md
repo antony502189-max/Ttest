@@ -33,6 +33,12 @@ preserved. No schema change or data migration is introduced.
 - The dedicated parser CI now also targets main, uses the integration marker
   for unit selection, checks Alembic drift and uploads JUnit. Source workflow
   pins and synthetic PostgreSQL/PostGIS import tests are retained.
+- The pre-existing external-source contract workflow now skips its live discovery
+  step for pull requests; adapter regressions still run. Existing scheduled/manual
+  audit paths retain their behavior. On the first PR head this pre-existing job
+  auto-started; it was cancelled while installing dependencies, before its live
+  discovery step. Final-head PR checks must stay offline. No audit was requested
+  manually and no provider or application credentials were exposed.
 
 ## Verification
 
