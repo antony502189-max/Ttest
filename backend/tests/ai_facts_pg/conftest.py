@@ -61,7 +61,8 @@ async def pipeline(pg):
         schema = connection.scalar(text("SELECT current_schema()"))
         # Minimal clearly synthetic stand-ins for the selected legacy columns.
         # Full real legacy migrations run independently in CI before these tests.
-        connection.execute(text("CREATE TABLE listings (id uuid PRIMARY KEY, status text NOT NULL, deleted_at timestamptz)"))
+        connection.execute(text("CREATE TYPE listing_status AS ENUM ('draft','pending','published','hidden','closed','rejected')"))
+        connection.execute(text("CREATE TABLE listings (id uuid PRIMARY KEY, status listing_status NOT NULL, deleted_at timestamptz)"))
         connection.execute(text("CREATE TABLE external_listing_sources (id uuid PRIMARY KEY, canonical_listing_id uuid NOT NULL, "
                                 "fingerprint text NOT NULL, current_status text NOT NULL, last_success_at timestamptz, "
                                 "content_updated_at timestamptz, raw_payload jsonb NOT NULL DEFAULT '{}', "

@@ -1,4 +1,4 @@
-name: AI Search facts queue and resolver
+name: AI Search facts queue resolver and bridge
 
 on:
   pull_request:
@@ -58,7 +58,7 @@ jobs:
           alembic upgrade head
           alembic check
       - name: Actual facts migration and PostgreSQL constraints
-        run: python -m pytest -q backend/tests/test_ai_listing_facts.py backend/tests/test_ai_fact_resolver.py backend/tests/ai_facts_pg --junitxml=output/ai-facts-pg.xml
+        run: python -m pytest -q backend/tests/test_ai_listing_facts.py backend/tests/test_ai_fact_resolver.py backend/tests/test_ai_fact_bridge.py backend/tests/ai_facts_pg --junitxml=output/ai-facts-pg.xml
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
