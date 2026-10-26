@@ -74,7 +74,13 @@ _RULES = (
     ("students_only", True, r"(?:solo estudiantes|students only)"),
 )
 _CONDITIONAL = (
-    ("pets_allowed", r"(?:solo mascotas pequenas|solo perros pequenos(?: y gatos)?|mascotas a consultar|no gatos)"),
+    # Species restrictions qualify the global pets policy in either order.
+    # Keep arbitrary trailing scope as evidence rather than promising that all
+    # animals are allowed (or all are forbidden).
+    ("pets_allowed", (
+        r"(?:(?:solo|solamente|unicamente|only|no|sin) (?:small )?"
+        r"(?:mascotas|perros|gatos|dogs|cats|pets)\b.*|(?:dogs|cats) (?:are )?not allowed\b.*|mascotas a consultar)"
+    )),
     ("children_allowed", r"ninos a consultar"),
     ("smoking_allowed", r"(?:no fumar (?:dentro del piso|en el piso)|se permite fumar (?:solo )?en la terraza)"),
 )
@@ -84,17 +90,18 @@ _NUMBERS = {"una": 1, "un": 1, "one": 1, "dos": 2, "two": 2, "tres": 3, "cuatro"
 def extract_policy_evidence(*, title: str = "", description: str = "") -> dict[str, PolicyFact]:
     matches: dict[str, list[PolicyFact]] = {field: [] for field in POLICY_FIELDS}
     texts: tuple[tuple[EvidenceSource, str], ...] = (("title", title), ("description", description))
-    previous_permissions: tuple[str, ...] = ()
+    previous_fields: tuple[str, ...] = ()
+    pending_condition: EvidenceSpan | None = None
     for source, text in texts:
         for clause_match in re.finditer(r"([^.!?;\n]+)([.!?;\n]+|$)", text):
             clause, ending = clause_match.groups()
             quote = " ".join(clause.split()).strip()
             if not quote or len(quote) > 512 or "?" in ending or "¿" in quote:
-                previous_permissions = ()
+                previous_fields = ()
+                pending_condition = None
                 continue
             folded = _fold(quote)
             span = EvidenceSpan(source=source, quote=quote)
-            clause_permissions: list[str] = []
             matched_fields: set[str] = set()
 
             def add(
@@ -104,11 +111,8 @@ def extract_policy_evidence(*, title: str = "", description: str = "") -> dict[s
                 conditional: bool = False,
                 evidence: EvidenceSpan = span,
                 fields: set[str] = matched_fields,
-                permissions: list[str] = clause_permissions,
             ) -> None:
                 fields.add(field)
-                if not conditional and value is not False:
-                    permissions.append(field)
                 matches[field].append(
                     PolicyFact(
                         status="conditional" if conditional else "explicit",
@@ -121,7 +125,7 @@ def extract_policy_evidence(*, title: str = "", description: str = "") -> dict[s
                 if re.fullmatch(pattern, folded):
                     add(field, value)
             for field, pattern in _CONDITIONAL:
-                if re.fullmatch(pattern, folded):
+                if field not in matched_fields and re.fullmatch(pattern, folded):
                     add(field, None, conditional=True)
             if re.fullmatch(r"no fumar (?:dentro del piso|en el piso)", folded):
                 add("smoking_indoors_allowed", False)
@@ -136,19 +140,26 @@ def extract_policy_evidence(*, title: str = "", description: str = "") -> dict[s
                 number = int(token) if token.isdigit() else _NUMBERS[token]
                 if 1 <= number <= 99:
                     add("room_capacity", number)
-            # A short continuation can qualify the preceding statement without
-            # repeating its subject ("Pets allowed. Only with prior approval.").
-            # Retain it as a condition rather than inventing a global permission.
-            # Recognized independent rules, such as "Solo estudiantes", retain
-            # their own meaning. An immediately following description can also
-            # qualify its title; an unrelated sentence/question clears context.
-            if not matched_fields and re.match(
+            # An adjacent condition can qualify a permission OR a denial, before
+            # or after it. Independent recognized rules keep their own meaning;
+            # unrelated clauses/questions clear this short-range context.
+            is_condition = not matched_fields and re.match(
                 r"(?:solo|solamente|unicamente|only|except|excepto|salvo|a consultar|"
-                r"con autorizacion|with prior approval)\b", folded,
-            ):
-                for field in previous_permissions:
+                r"con autorizacion|previa autorizacion|sujeto a|subject to|with prior approval)\b", folded,
+            )
+            if is_condition:
+                for field in previous_fields:
                     add(field, None, conditional=True)
-            previous_permissions = tuple(clause_permissions)
+                if not previous_fields:
+                    pending_condition = span
+            elif matched_fields:
+                if pending_condition is not None:
+                    for field in tuple(matched_fields):
+                        add(field, None, conditional=True, evidence=pending_condition)
+                pending_condition = None
+            else:
+                pending_condition = None
+            previous_fields = tuple(matched_fields)
     result = {}
     for field, facts in matches.items():
         if not facts:

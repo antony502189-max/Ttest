@@ -20,6 +20,19 @@ def test_link_before_denial_does_not_inflate_explicit_audit_coverage():
     assert pets["states"]["conflict"] == 1
 
 
+def test_exception_and_species_scope_are_counted_as_conditional_not_explicit():
+    descriptions = ["No pets. Except small dogs.", "Se admiten mascotas. No perros.",
+                    "Solo gatos. Se admiten mascotas."]
+    report = audit.audit_records([
+        audit.AuditRecord(source_name="Flatio", canonical_listing_id=f"synthetic-{index}",
+                          normalized_payload={"description": text})
+        for index, text in enumerate(descriptions)
+    ])
+    pets = report["sources"]["Flatio"]["policies"]["pets_allowed"]
+    assert pets["explicit_pct"] == 0
+    assert pets["states"]["conditional"] == len(descriptions)
+
+
 def records():
     return [audit.AuditRecord.model_validate(value) for value in json.loads(FIXTURE.read_text(encoding="utf-8"))]
 

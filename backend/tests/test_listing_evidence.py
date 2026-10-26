@@ -91,3 +91,61 @@ def test_conditional_continuation_does_not_erase_an_explicit_conflict():
         description="No pets. Pets allowed. Only with prior approval."
     )["pets_allowed"]
     assert fact.status == "conflict" and fact.value is None
+
+
+@pytest.mark.parametrize(
+    "rule,condition,field",
+    [
+        ("No pets", "Except small dogs", "pets_allowed"),
+        ("No se admiten mascotas", "Excepto perros pequenos", "pets_allowed"),
+        ("No smoking", "Except on the terrace", "smoking_allowed"),
+        ("Prohibido fumar", "Salvo en la terraza", "smoking_allowed"),
+        ("No children", "Except with prior approval", "children_allowed"),
+        ("Pets allowed", "Subject to prior approval", "pets_allowed"),
+        ("Se admiten mascotas", "Previa autorizacion", "pets_allowed"),
+    ],
+)
+@pytest.mark.parametrize("condition_first", [False, True])
+def test_adjacent_exceptions_qualify_both_permissions_and_denials(rule, condition, field, condition_first):
+    clauses = (condition, rule) if condition_first else (rule, condition)
+    text = ". ".join(clauses) + "."
+    fact = extract_policy_evidence(description=text)[field]
+    assert fact.status == "conditional" and fact.value is None
+    assert {span.quote for span in fact.evidence} == {rule, condition}
+    assert public_detail_fields({"description": text})[field] is None
+
+
+@pytest.mark.parametrize(
+    "restriction",
+    ["No perros", "No perros grandes", "Sin gatos", "Solo gatos", "Only small dogs",
+     "No dogs", "No cats", "Dogs are not allowed"],
+)
+@pytest.mark.parametrize("condition_first", [False, True])
+def test_species_restrictions_are_not_unconditional_permissions_in_either_order(restriction, condition_first):
+    rule = "Se admiten mascotas"
+    text = ". ".join((restriction, rule) if condition_first else (rule, restriction)) + "."
+    fact = extract_policy_evidence(description=text)["pets_allowed"]
+    assert fact.status == "conditional" and fact.value is None
+    assert restriction in [span.quote for span in fact.evidence]
+    assert public_detail_fields({"description": text})["pets_allowed"] is None
+
+
+def test_description_exception_qualifies_title_denial_with_both_sources():
+    fact = extract_policy_evidence(title="No pets", description="Except small dogs.")["pets_allowed"]
+    assert fact.status == "conditional" and fact.value is None
+    assert {span.source for span in fact.evidence} == {"title", "description"}
+
+
+def test_unrelated_clause_and_question_clear_forward_condition_context():
+    for middle in ("Bright room.", "Small dogs?"):
+        fact = extract_policy_evidence(
+            description=f"Only with prior approval. {middle} Pets allowed."
+        )["pets_allowed"]
+        assert fact.status == "explicit" and fact.value is True
+
+
+def test_species_scope_and_exception_do_not_erase_explicit_conflict():
+    fact = extract_policy_evidence(
+        description="No pets. Except small dogs. Pets allowed. No dogs."
+    )["pets_allowed"]
+    assert fact.status == "conflict" and fact.value is None

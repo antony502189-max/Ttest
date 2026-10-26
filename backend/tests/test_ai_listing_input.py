@@ -120,3 +120,20 @@ def test_link_redaction_preserves_following_conflicting_denial(delimiter):
 def test_packet_does_not_promote_questions_or_conditions(text):
     fact = packet(description=text).policy_evidence["pets_allowed"]
     assert fact.status in {"unknown", "conditional"} and fact.value is None
+
+
+@pytest.mark.parametrize(
+    "text,field",
+    [
+        ("No pets. Except small dogs.", "pets_allowed"),
+        ("No smoking. Except on the terrace.", "smoking_allowed"),
+        ("Se admiten mascotas. No perros.", "pets_allowed"),
+        ("Pets allowed. No dogs.", "pets_allowed"),
+        ("Solo gatos. Se admiten mascotas.", "pets_allowed"),
+    ],
+)
+def test_packet_retains_exception_and_species_scope(text, field):
+    value = packet(description=text)
+    fact = value.policy_evidence[field]
+    assert fact.status == "conditional" and fact.value is None
+    assert len(fact.evidence) == 2
