@@ -99,5 +99,3 @@ def edge_cases():
     features[0]["typed_value"] = {"kind": "category", "value": "catalog_other", "catalog_code": "synthetic_house"}
     cases.append((case, features, True))
     return cases
-
-

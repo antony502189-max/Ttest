@@ -188,4 +188,3 @@ def evaluate_hard_match(plan: HardMatchPlan, projection: SearchProjection) -> tu
         return True
 
     return tuple(group.name for group in plan.criteria if not all(matches(rule) for rule in group.rules))
-

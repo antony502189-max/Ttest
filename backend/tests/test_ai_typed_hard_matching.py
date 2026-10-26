@@ -58,5 +58,3 @@ def test_semantic_boundaries(case, features, expected):
             projection(features)
         return
     assert (not evaluate_hard_match(plan(case), projection(features))) is expected
-
-
