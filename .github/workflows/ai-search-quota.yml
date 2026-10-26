@@ -1,4 +1,4 @@
-name: AI Search backend quota
+name: AI Search backend quota and sessions
 
 on:
   pull_request:
@@ -36,6 +36,7 @@ jobs:
       DATABASE_URL: postgresql+asyncpg://ai_lab:ai_lab@127.0.0.1:5432/ai_quota_test_ci
       AI_QUOTA_TEST_DATABASE_URL: postgresql+asyncpg://ai_lab:ai_lab@127.0.0.1:5432/ai_quota_test_ci
       AI_QUOTA_REDIS_TEST_URL: redis://127.0.0.1:6379/15
+      REDIS_URL: ''
       JWT_SECRET: ci-ai-quota-secret-at-least-32-characters
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -48,15 +49,23 @@ jobs:
           cache-dependency-path: backend/constraints.txt
       - run: python -m pip install --constraint backend/constraints.txt -e './backend[dev]'
       - run: python -m pip check
+      - name: Backend lint and typecheck
+        working-directory: backend
+        run: |
+          ruff check app tests
+          mypy app
+      - name: Backend unit regressions
+        working-directory: backend
+        run: pytest -q -m 'not integration' --junitxml=../output/ai-search-unit.xml
       - name: Complete migration chain and metadata check
         working-directory: backend
         run: |
           alembic upgrade head
           alembic check
-      - run: python -m pytest -q backend/tests/test_ai_search_quota.py backend/tests/ai_search_pg --junitxml=output/ai-search-quota.xml
+      - run: python -m pytest -q backend/tests/test_ai_search_quota.py backend/tests/test_ai_search_intent.py backend/tests/ai_search_pg --junitxml=output/ai-search-quota.xml
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: ai-search-quota-results
-          path: output/ai-search-quota.xml
+          path: output/ai-search-*.xml
           if-no-files-found: ignore

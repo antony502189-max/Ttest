@@ -1,23 +1,18 @@
 """Real PG tests for the actual backend migration/repository, no application DSN."""
 
 import asyncio
-import importlib.util
 import os
 from datetime import UTC, datetime
-from pathlib import Path
 from uuid import uuid4
 
 import pytest
-import pytest_asyncio
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
-from alembic.operations import Operations
 from sqlalchemy import MetaData, func, select, text, update
-from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.models.ai_search_quota import AISearchRequest, AIUsageDay
+from app.models.ai_search_session import AISearchResult, AISearchSession
 from app.repositories.ai_search_quota import QuotaError, QuotaLedger, SessionVersionConflict, madrid_window
 from app.schemas.ai_search_quota import FailureCode, LeasePolicy, QuotaOperation, QuotaSubject, ResultReceipt
 from app.services.ai_search_attempts import AIAttemptGate, AIAttemptRejected
@@ -37,62 +32,6 @@ def operation(**changes):
             **changes,
         }
     )
-
-
-@pytest_asyncio.fixture
-async def pg():
-    # Never infer credentials from DATABASE_URL or app configuration.
-    value = os.getenv("AI_QUOTA_TEST_DATABASE_URL") or os.getenv("TEST_DATABASE_URL")
-    if not value:
-        pytest.fail("set AI_QUOTA_TEST_DATABASE_URL to a disposable loopback ai_quota_test_* database")
-    url = make_url(value)
-    if url.host not in {"localhost", "127.0.0.1", "::1"} or not (
-        (url.database or "").startswith("ai_quota_test_") or url.database == "ttest_test"
-    ):
-        pytest.fail("quota tests require a disposable loopback test database")
-    schema = "ai_quota_" + uuid4().hex
-    admin = create_async_engine(url.set(drivername="postgresql+asyncpg"))
-    async with admin.begin() as conn:
-        await conn.execute(text(f'CREATE SCHEMA "{schema}"'))
-    engine = create_async_engine(
-        url.set(drivername="postgresql+asyncpg"),
-        pool_size=16,
-        max_overflow=0,
-        connect_args={
-            "server_settings": {
-                "search_path": schema,
-                "lock_timeout": "5000",
-                "statement_timeout": "10000",
-            }
-        },
-    )
-    try:
-        async with engine.begin() as conn:
-
-            def migrate(sync):
-                path = Path(__file__).parents[2] / "alembic/versions/0067_ai_search_quota.py"
-                # tests/ai_search_pg -> backend is parents[2].
-                spec = importlib.util.spec_from_file_location("quota_migration", path)
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-                with Operations.context(MigrationContext.configure(sync)):
-                    module.upgrade()
-
-            await conn.run_sync(migrate)
-            await conn.execute(
-                text(
-                    "CREATE TABLE session_fixture (id uuid PRIMARY KEY, owner uuid NOT NULL, version integer NOT NULL)"
-                )
-            )
-            await conn.execute(text("CREATE TABLE result_fixture (id uuid PRIMARY KEY, count integer NOT NULL)"))
-        sessions = async_sessionmaker(engine, expire_on_commit=False)
-        policy = LeasePolicy(reservation_seconds=60, running_seconds=60, recovery_grace_seconds=30)
-        yield QuotaLedger(sessions, policy), sessions
-    finally:
-        await engine.dispose()
-        async with admin.begin() as conn:
-            await conn.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
-        await admin.dispose()
 
 
 async def writer(pg, subject, op, receipt):
@@ -403,7 +342,7 @@ async def test_bounded_reconciler(pg):
 async def test_actual_migration_matches_models(pg):
     async with pg[1]() as conn:
         metadata = MetaData()
-        for model in (AIUsageDay, AISearchRequest):
+        for model in (AIUsageDay, AISearchRequest, AISearchSession, AISearchResult):
             model.__table__.to_metadata(metadata)
 
         def compare(sync):

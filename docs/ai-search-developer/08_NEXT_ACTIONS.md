@@ -10,8 +10,12 @@
   transaction callback for AI-08 CAS/result writes and fail-closed Redis attempt
   gate on current main. See [implementation report](AI-07_BACKEND.md).
 - [ ] Verify final head CI and review this standalone backend PR before merge.
-- [ ] AI-08 real strict sessions/intent patches and ownership-aware CAS callback;
-  keep unnamed criteria, handle version conflict, no automatic guest transfer.
+- [x] AI-08 real strict sessions/intent patches and ownership-aware CAS callback;
+  unnamed criteria preserved, same-version conflict releases quota, explicit
+  closed reset, no automatic guest transfer. Stacked branch
+  `codex/ai-08-search-sessions` over #378; [implementation/evidence](AI-08_BACKEND.md).
+- [ ] Review AI-07 and AI-08 separately and check their final-head CI. They remain
+  unmerged and are not the public AI query product.
 - [ ] AI-09 query API: signed guest identity, server request hashing, enforce
   technical gates, durable validated result and visibility-safe replay.
 - [ ] Decide clarification debit, background-alert quota, transfer and approved
