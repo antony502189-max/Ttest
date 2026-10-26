@@ -351,7 +351,9 @@ class SearchProjection(Contract):
         for feature in self.features:
             for fact_id in feature.supporting_fact_ids:
                 supporting = facts.get(fact_id)
-                if supporting is None or (supporting.key, supporting.scope_hash) != (feature.key, feature.scope_hash):
+                if supporting is None or supporting.key != feature.key or (
+                    supporting.scope_hash != feature.scope_hash and feature.status not in {"conditional", "conflict"}
+                ):
                     raise ValueError("missing or differently scoped supporting observation")
                 if feature.status in {"explicit_allow", "explicit_deny"} and (
                     supporting.status != feature.status or supporting.typed_value != feature.typed_value
