@@ -37,6 +37,8 @@
 
 ## Historical / superseded references
 
+AI Search development: [AI-01 proposed contracts](ai-search-developer/README_AI01.md). These are documentation and synthetic scenarios awaiting review; AI runtime and production rollout are not implemented by this stage. The upstream handoff remains in open PR #374.
+
 Documents with titles such as `final-audit.md`, `second-implementation-audit.md`, `test-report.md`, `frontend-freeze-report.md`, `external-*-review.md` and dated incident reports are **historical evidence**. Some describe the Tenerife-only rollout, old migration heads, past importer flags or an earlier GitHub Pages architecture. They remain for traceability, not as fresh operational instructions.
 
 - [ADR 0001](adr/0001-backend-boundary.md): original separate-backend decision, superseded for production hosting.

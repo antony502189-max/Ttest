@@ -1,0 +1,222 @@
+{
+  "schema_version": "ai-search.v1",
+  "status": "proposed_docs_only",
+  "synthetic": true,
+  "listing_facts": [
+    {
+      "schema_version": "ai-search.v1",
+      "taxonomy_version": "rental.v1",
+      "fact_id": "00000000-0000-4000-8000-000000000001",
+      "source_record_id": "00000000-0000-4000-8000-000000000002",
+      "canonical_listing_id": "00000000-0000-4000-8000-000000000003",
+      "key": "pets",
+      "status": "conditional",
+      "typed_value": {
+        "kind": "policy",
+        "allowed": true
+      },
+      "qualifiers": {
+        "species": "dog",
+        "size": "small",
+        "max_count": 1,
+        "approval_required": true
+      },
+      "evidence": [
+        {
+          "field": "description",
+          "quote": "Small dogs by agreement.",
+          "start": 0,
+          "end": 24
+        }
+      ],
+      "origin": "source_text",
+      "observed_at": "2026-10-26T08:00:00Z",
+      "content_hash": "d3e82f6f8869928ef48d8f002a211a90e1bd9aedfc5b6bd3c954055564d7ce2a",
+      "extractor_version": "rules.v1"
+    },
+    {
+      "schema_version": "ai-search.v1",
+      "taxonomy_version": "rental.v1",
+      "fact_id": "00000000-0000-4000-8000-000000000004",
+      "source_record_id": "00000000-0000-4000-8000-000000000002",
+      "canonical_listing_id": "00000000-0000-4000-8000-000000000003",
+      "key": "capacity_total",
+      "status": "explicit_allow",
+      "typed_value": {
+        "kind": "quantity",
+        "value": 3,
+        "unit": "persons"
+      },
+      "qualifiers": {
+        "scope": "rented_unit"
+      },
+      "evidence": [
+        {
+          "field": "description",
+          "quote": "Capacity: 3 persons.",
+          "start": 25,
+          "end": 45
+        }
+      ],
+      "origin": "source_text",
+      "observed_at": "2026-10-26T08:00:00Z",
+      "content_hash": "d3e82f6f8869928ef48d8f002a211a90e1bd9aedfc5b6bd3c954055564d7ce2a",
+      "extractor_version": "rules.v1"
+    }
+  ],
+  "intent": {
+    "schema_version": "ai-search.v1",
+    "taxonomy_version": "rental.v1",
+    "session_id": "00000000-0000-4000-8000-000000000005",
+    "version": 7,
+    "criteria": {
+      "rental_mode": {
+        "strength": "hard",
+        "value": "long"
+      },
+      "budget": {
+        "strength": "hard",
+        "value": {
+          "amount": "650.00",
+          "currency": "EUR",
+          "period": "monthly"
+        }
+      },
+      "geography": {
+        "strength": "hard",
+        "value": {
+          "province_code": "38",
+          "municipality_code": "38001"
+        }
+      },
+      "party": {
+        "strength": "hard",
+        "value": {
+          "adults": 2,
+          "children": 0,
+          "relationship": "couple"
+        }
+      },
+      "pets": {
+        "strength": "hard",
+        "value": [
+          {
+            "species": "dog",
+            "size": "small",
+            "count": 1
+          }
+        ]
+      }
+    }
+  },
+  "patch_sequence": [
+    {
+      "utterance": "теперь только с балконом",
+      "patch": {
+        "schema_version": "ai-search.v1",
+        "session_id": "00000000-0000-4000-8000-000000000005",
+        "expected_version": 7,
+        "set": {
+          "balcony": {
+            "strength": "hard",
+            "value": true
+          }
+        },
+        "remove": []
+      },
+      "expected_version": 8,
+      "preserved": [
+        "rental_mode",
+        "budget",
+        "geography",
+        "party",
+        "pets"
+      ]
+    },
+    {
+      "utterance": "до 700",
+      "patch": {
+        "schema_version": "ai-search.v1",
+        "session_id": "00000000-0000-4000-8000-000000000005",
+        "expected_version": 8,
+        "set": {
+          "budget": {
+            "strength": "hard",
+            "value": {
+              "amount": "700.00",
+              "currency": "EUR",
+              "period": "monthly"
+            }
+          }
+        },
+        "remove": []
+      },
+      "expected_version": 9,
+      "preserved": [
+        "rental_mode",
+        "geography",
+        "party",
+        "pets",
+        "balcony"
+      ]
+    },
+    {
+      "utterance": "балкон не важен",
+      "patch": {
+        "schema_version": "ai-search.v1",
+        "session_id": "00000000-0000-4000-8000-000000000005",
+        "expected_version": 9,
+        "set": {},
+        "remove": [
+          "balcony"
+        ]
+      },
+      "expected_version": 10,
+      "preserved": [
+        "rental_mode",
+        "budget",
+        "geography",
+        "party",
+        "pets"
+      ]
+    }
+  ],
+  "operation": {
+    "schema_version": "ai-search.v1",
+    "idempotency_key": "00000000-0000-4000-8000-000000000006",
+    "channel": "text",
+    "session_id": "00000000-0000-4000-8000-000000000005",
+    "expected_session_version": 7,
+    "text": "теперь только с балконом"
+  },
+  "cursor_binding": {
+    "schema_version": "ai-search.v1",
+    "subject_hash": "server_computed_example",
+    "session_id": "00000000-0000-4000-8000-000000000005",
+    "session_version": 8,
+    "intent_hash": "server_computed_example",
+    "filter_hash": "server_computed_example",
+    "taxonomy_version": "rental.v1",
+    "resolver_version": "resolver.v1",
+    "catalog_revision": 42,
+    "promotion_revision": 18,
+    "as_of": "2026-10-26T08:00:00Z",
+    "expires_at": "2026-10-26T08:05:00Z",
+    "promotion_expiry_horizon": "2026-10-26T08:03:00Z",
+    "sort": "newest",
+    "seek": {
+      "values": [
+        1,
+        1793001600,
+        1792915200,
+        "00000000-0000-4000-8000-000000000003"
+      ],
+      "direction": "after"
+    },
+    "mac": "server_computed_example_not_a_valid_token"
+  },
+  "sanitized_snapshot": {
+    "source_record_id": "00000000-0000-4000-8000-000000000002",
+    "description": "Small dogs by agreement.\nCapacity: 3 persons."
+  }
+}
