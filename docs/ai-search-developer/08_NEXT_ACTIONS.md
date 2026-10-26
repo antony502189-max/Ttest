@@ -1,5 +1,29 @@
 # AI Search facts continuation — 2026-10-26
 
+## Continuation in the new chat — current correction
+
+- #373 was **closed without merge** at `bdd7ca93` by explicit owner request
+  and was still closed at this chat's first check. A subsequent external action
+  reopened it: latest metadata shows open/unmerged, updated 20:10:40 UTC, plus
+  a COMMENTED review explicitly marked AI verification. CHANGES_REQUESTED
+  reviews remain; no APPROVED review exists. This chat changed no PR state/review.
+  Earlier no-review statements below are history, not current status. Do not
+  treat state changes as authority to merge/port/activate its builder.
+- #374–376 and #378–383 remain open/unmerged; current main is `1292c680`.
+  #383 final-head three workflows were rechecked completed/success.
+- Partial independent AI-09 preparation on `codex/ai-offline-hard-predicates`,
+  stacked over #383 `97494713`: [offline hard-value SQL](OFFLINE_HARD_VALUES.md).
+  Confirmed capacity >= N and exact four booleans only, composable before
+  count/order/seek/limit. No public query, parser port or catalog activation.
+  Pinned local checks: 276 focused (176 unit + 100 PG), 1011 total backend unit
+  passed/15 skipped; Ruff/mypy126/pip check passed. Owned cluster stopped clean.
+- Next: current-source/projection read guards and complete typed hard matching,
+  then reviewed integration with existing visibility/TOP/cards/cursors and
+  AI-07/08. Reconcile migration branches before combined schema integration.
+  Do not silently ignore remaining hard intent criteria or select pending policy.
+
+## Earlier dated implementation journal
+
 - [x] Read Product/TZ/plan, AI-01 proposed ADR and AI-07/08 reports.
 - [x] Rechecked current main `1292c680`, open docs/parser #373–375 and backend
   #378/#379. AI-07 head `3293b9e2`: all 8 workflows succeeded. AI-08 head
