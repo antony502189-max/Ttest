@@ -28,6 +28,16 @@
 - [ ] Before live worker integration: review importer lock order and BASE-373,
   approved source vocabulary/minimization, durable snapshot-to-input hash bridge,
   privacy/retention and an explicit operating policy. No daemon is enabled here.
+- [x] Independent offline bridge prepared on `codex/ai-05-offline-fact-bridge`
+  over #381 head `ebcc1918` (all three workflows completed/success). See
+  [partial AI-05 bridge](AI-05_OFFLINE_BRIDGE.md): coherent bounded snapshot capture,
+  required injected sanitized builder, strict pinned #373 packet compatibility,
+  exact spans/scopes, distinct hashes and synthetic AI-04 end-to-end transactions.
+- [ ] Review bridge separately. #373 still has no submitted human review; its
+  cleaner/grammar/importer are not ported and a real minimizer is not supplied.
+  Approve actual field/scope mappings and minimization before real source ingestion.
+  The optional pinned fixture generator is not an application dependency or gate
+  approval. No default builder, activated worker or public AI endpoint exists.
 - [ ] Review owner-fact precedence; do not silently adopt the proposed override.
 - [ ] AI-02 authorized read-only DB role: measure real coverage/source health and
   query plans before production index/backfill/freshness claims.

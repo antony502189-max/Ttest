@@ -10,7 +10,7 @@ from typing import Literal
 from uuid import UUID, uuid4, uuid5
 
 from pydantic import TypeAdapter, ValidationError
-from sqlalchemy import Text, and_, func, or_, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -28,6 +28,7 @@ from ..schemas.ai_fact_pipeline import (
 )
 from ..schemas.ai_listing_facts import FactBatch, FactVocabulary, Version, digest
 from ..services.ai_fact_resolver import MAX_SOURCE_OBSERVATIONS, resolve_sources
+from .ai_fact_snapshots import source_snapshot_hash
 
 
 async def _now(session: AsyncSession) -> datetime:
@@ -60,11 +61,7 @@ class FactPipeline:
         known = select(AiFactSource.source_record_id).where(AiFactSource.canonical_listing_id == listing_id)
         # Coarse CAS token only. PostgreSQL returns the digest, not payload/URL/
         # identity text. This is distinct from sanitized extraction input hash.
-        snapshot = func.encode(func.sha256(func.convert_to(func.jsonb_build_object(
-            "raw", ExternalListingSource.raw_payload, "normalized", ExternalListingSource.normalized_payload,
-            "price", ExternalListingSource.source_price_text, "source_name", ExternalListingSource.source_name,
-            "external_id", ExternalListingSource.external_id, "source_url", ExternalListingSource.source_url,
-        ).cast(Text), "UTF8")), "hex").label("snapshot_hash")
+        snapshot = source_snapshot_hash().label("snapshot_hash")
         rows = (await session.execute(select(
             ExternalListingSource.id, ExternalListingSource.canonical_listing_id,
             ExternalListingSource.fingerprint, ExternalListingSource.current_status,
