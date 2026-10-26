@@ -1,0 +1,1162 @@
+{
+  "cases": [
+    {
+      "name": "pets_deny",
+      "packet": {
+        "canonical_listing_identifier": "11111111-1111-4111-8111-111111111111",
+        "content_hash": "01d4a232905629bae152d9a84f572d5b5c0427e4b3edf9f2e96f4ca572aba0bb",
+        "data_status": "ready",
+        "description": "No pets.",
+        "policy_evidence": {
+          "children_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "couples_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "pets_allowed": {
+            "evidence": [
+              {
+                "provider_field": null,
+                "quote": "No pets",
+                "source": "description"
+              }
+            ],
+            "status": "explicit",
+            "value": false
+          },
+          "room_capacity": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_indoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_outdoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "students_only": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          }
+        },
+        "property_category": "room",
+        "provider_facts": [],
+        "rental_category": "long",
+        "schema_version": "listing-evidence-v1",
+        "source_identifier": "synthetic:fixture",
+        "source_language": "mixed",
+        "title": "Synthetic listing"
+      }
+    },
+    {
+      "name": "pets_allow",
+      "packet": {
+        "canonical_listing_identifier": "11111111-1111-4111-8111-111111111111",
+        "content_hash": "a6f070700d54f6e13177ce98182d99826ce55889317d9513c1c9066908fdf241",
+        "data_status": "ready",
+        "description": "Se aceptan mascotas.",
+        "policy_evidence": {
+          "children_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "couples_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "pets_allowed": {
+            "evidence": [
+              {
+                "provider_field": null,
+                "quote": "Se aceptan mascotas",
+                "source": "description"
+              }
+            ],
+            "status": "explicit",
+            "value": true
+          },
+          "room_capacity": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_indoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_outdoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "students_only": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          }
+        },
+        "property_category": "room",
+        "provider_facts": [],
+        "rental_category": "long",
+        "schema_version": "listing-evidence-v1",
+        "source_identifier": "synthetic:fixture",
+        "source_language": "mixed",
+        "title": "Synthetic listing"
+      }
+    },
+    {
+      "name": "capacity_couple",
+      "packet": {
+        "canonical_listing_identifier": "11111111-1111-4111-8111-111111111111",
+        "content_hash": "982927907becb4324a33566ee3620fc961aa23da367ea3ce5da61ab8d4ce04a3",
+        "data_status": "ready",
+        "description": "Habitación para dos personas. Se admiten parejas.",
+        "policy_evidence": {
+          "children_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "couples_allowed": {
+            "evidence": [
+              {
+                "provider_field": null,
+                "quote": "Se admiten parejas",
+                "source": "description"
+              }
+            ],
+            "status": "explicit",
+            "value": true
+          },
+          "pets_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "room_capacity": {
+            "evidence": [
+              {
+                "provider_field": null,
+                "quote": "Habitación para dos personas",
+                "source": "description"
+              }
+            ],
+            "status": "explicit",
+            "value": 2
+          },
+          "smoking_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_indoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_outdoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "students_only": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          }
+        },
+        "property_category": "room",
+        "provider_facts": [],
+        "rental_category": "long",
+        "schema_version": "listing-evidence-v1",
+        "source_identifier": "synthetic:fixture",
+        "source_language": "mixed",
+        "title": "Synthetic listing"
+      }
+    },
+    {
+      "name": "small_dog_conditional",
+      "packet": {
+        "canonical_listing_identifier": "11111111-1111-4111-8111-111111111111",
+        "content_hash": "20b8d09b21b26ac3a7d36e9e06e6aaef1d55421c1d7ce01b7b8910f4bfc4e5b4",
+        "data_status": "ready",
+        "description": "Solo perros pequeños y gatos.",
+        "policy_evidence": {
+          "children_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "couples_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "pets_allowed": {
+            "evidence": [
+              {
+                "provider_field": null,
+                "quote": "Solo perros pequeños y gatos",
+                "source": "description"
+              }
+            ],
+            "status": "conditional",
+            "value": null
+          },
+          "room_capacity": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_indoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_outdoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "students_only": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          }
+        },
+        "property_category": "room",
+        "provider_facts": [],
+        "rental_category": "long",
+        "schema_version": "listing-evidence-v1",
+        "source_identifier": "synthetic:fixture",
+        "source_language": "mixed",
+        "title": "Synthetic listing"
+      }
+    },
+    {
+      "name": "pets_conflict",
+      "packet": {
+        "canonical_listing_identifier": "11111111-1111-4111-8111-111111111111",
+        "content_hash": "5e13db8cbd1f4d45366aceedee8f5830aa146b6479cbb1c907a0c24cf4984f12",
+        "data_status": "ready",
+        "description": "Pets allowed. No pets.",
+        "policy_evidence": {
+          "children_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "couples_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "pets_allowed": {
+            "evidence": [
+              {
+                "provider_field": null,
+                "quote": "Pets allowed",
+                "source": "description"
+              },
+              {
+                "provider_field": null,
+                "quote": "No pets",
+                "source": "description"
+              }
+            ],
+            "status": "conflict",
+            "value": null
+          },
+          "room_capacity": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_indoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_outdoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "students_only": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          }
+        },
+        "property_category": "room",
+        "provider_facts": [],
+        "rental_category": "long",
+        "schema_version": "listing-evidence-v1",
+        "source_identifier": "synthetic:fixture",
+        "source_language": "mixed",
+        "title": "Synthetic listing"
+      }
+    },
+    {
+      "name": "smoking_scoped",
+      "packet": {
+        "canonical_listing_identifier": "11111111-1111-4111-8111-111111111111",
+        "content_hash": "db4b7142696766c8c7713972bb76ec579fc7d6e5f7041fbad41d2b6f20e56018",
+        "data_status": "ready",
+        "description": "No fumar dentro del piso. Se permite fumar solo en la terraza.",
+        "policy_evidence": {
+          "children_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "couples_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "pets_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "room_capacity": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_allowed": {
+            "evidence": [
+              {
+                "provider_field": null,
+                "quote": "No fumar dentro del piso",
+                "source": "description"
+              },
+              {
+                "provider_field": null,
+                "quote": "Se permite fumar solo en la terraza",
+                "source": "description"
+              }
+            ],
+            "status": "conditional",
+            "value": null
+          },
+          "smoking_indoors_allowed": {
+            "evidence": [
+              {
+                "provider_field": null,
+                "quote": "No fumar dentro del piso",
+                "source": "description"
+              }
+            ],
+            "status": "explicit",
+            "value": false
+          },
+          "smoking_outdoors_allowed": {
+            "evidence": [
+              {
+                "provider_field": null,
+                "quote": "Se permite fumar solo en la terraza",
+                "source": "description"
+              }
+            ],
+            "status": "explicit",
+            "value": true
+          },
+          "students_only": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          }
+        },
+        "property_category": "room",
+        "provider_facts": [],
+        "rental_category": "long",
+        "schema_version": "listing-evidence-v1",
+        "source_identifier": "synthetic:fixture",
+        "source_language": "mixed",
+        "title": "Synthetic listing"
+      }
+    },
+    {
+      "name": "smoking_unscoped",
+      "packet": {
+        "canonical_listing_identifier": "11111111-1111-4111-8111-111111111111",
+        "content_hash": "7bb22113c4c4713896a9dd9d088503e10376624e3bb1aa4d308eba104197a9fe",
+        "data_status": "ready",
+        "description": "No smoking.",
+        "policy_evidence": {
+          "children_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "couples_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "pets_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "room_capacity": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_allowed": {
+            "evidence": [
+              {
+                "provider_field": null,
+                "quote": "No smoking",
+                "source": "description"
+              }
+            ],
+            "status": "explicit",
+            "value": false
+          },
+          "smoking_indoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_outdoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "students_only": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          }
+        },
+        "property_category": "room",
+        "provider_facts": [],
+        "rental_category": "long",
+        "schema_version": "listing-evidence-v1",
+        "source_identifier": "synthetic:fixture",
+        "source_language": "mixed",
+        "title": "Synthetic listing"
+      }
+    },
+    {
+      "name": "repeated_negative",
+      "packet": {
+        "canonical_listing_identifier": "11111111-1111-4111-8111-111111111111",
+        "content_hash": "a7c39a3b809538a5cebaf559deb9e0410ab8bcc267e03d34c0d29da202205c44",
+        "data_status": "ready",
+        "description": "No pets. No pets.",
+        "policy_evidence": {
+          "children_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "couples_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "pets_allowed": {
+            "evidence": [
+              {
+                "provider_field": null,
+                "quote": "No pets",
+                "source": "description"
+              },
+              {
+                "provider_field": null,
+                "quote": "No pets",
+                "source": "description"
+              }
+            ],
+            "status": "explicit",
+            "value": false
+          },
+          "room_capacity": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_indoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_outdoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "students_only": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          }
+        },
+        "property_category": "room",
+        "provider_facts": [],
+        "rental_category": "long",
+        "schema_version": "listing-evidence-v1",
+        "source_identifier": "synthetic:fixture",
+        "source_language": "mixed",
+        "title": "Synthetic listing"
+      }
+    },
+    {
+      "name": "unicode_newline",
+      "packet": {
+        "canonical_listing_identifier": "11111111-1111-4111-8111-111111111111",
+        "content_hash": "292bd97031acaf3e489d0a545d347d3012342856dbd981b19174243fedb9bfeb",
+        "data_status": "ready",
+        "description": "Квартира 🏠\nNo pets.",
+        "policy_evidence": {
+          "children_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "couples_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "pets_allowed": {
+            "evidence": [
+              {
+                "provider_field": null,
+                "quote": "No pets",
+                "source": "description"
+              }
+            ],
+            "status": "explicit",
+            "value": false
+          },
+          "room_capacity": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_indoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_outdoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "students_only": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          }
+        },
+        "property_category": "room",
+        "provider_facts": [],
+        "rental_category": "long",
+        "schema_version": "listing-evidence-v1",
+        "source_identifier": "synthetic:fixture",
+        "source_language": "mixed",
+        "title": "Synthetic listing"
+      }
+    },
+    {
+      "name": "structured_false_and_amenities",
+      "packet": {
+        "canonical_listing_identifier": "11111111-1111-4111-8111-111111111111",
+        "content_hash": "58fe3d4b4b135fc0b8d19c52fbbbab0a01cf1813a63a72c0ae0f8352779fd550",
+        "data_status": "ready",
+        "description": "Datos de la vivienda.",
+        "policy_evidence": {
+          "children_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "couples_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "pets_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "room_capacity": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_indoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_outdoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "students_only": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          }
+        },
+        "property_category": "room",
+        "provider_facts": [
+          {
+            "evidence": {
+              "provider_field": "details.amenities",
+              "quote": "Wifi y balcón",
+              "source": "structured"
+            },
+            "field": "amenities",
+            "value": [
+              "balcony",
+              "wifi"
+            ]
+          },
+          {
+            "evidence": {
+              "provider_field": "details.bills",
+              "quote": "Gastos aparte",
+              "source": "structured"
+            },
+            "field": "bills_included",
+            "value": false
+          },
+          {
+            "evidence": {
+              "provider_field": "details.furnished",
+              "quote": "Sin amueblar",
+              "source": "structured"
+            },
+            "field": "furnished",
+            "value": false
+          }
+        ],
+        "rental_category": "long",
+        "schema_version": "listing-evidence-v1",
+        "source_identifier": "synthetic:fixture",
+        "source_language": "mixed",
+        "title": "Synthetic listing"
+      }
+    },
+    {
+      "name": "structured_text_conflict",
+      "packet": {
+        "canonical_listing_identifier": "11111111-1111-4111-8111-111111111111",
+        "content_hash": "5d3b0a16578f95999aa7b56002ecb0c18612ae5bf12b789ea6b91153f98ee01e",
+        "data_status": "ready",
+        "description": "No pets.",
+        "policy_evidence": {
+          "children_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "couples_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "pets_allowed": {
+            "evidence": [
+              {
+                "provider_field": null,
+                "quote": "No pets",
+                "source": "description"
+              }
+            ],
+            "status": "explicit",
+            "value": false
+          },
+          "room_capacity": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_indoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_outdoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "students_only": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          }
+        },
+        "property_category": "room",
+        "provider_facts": [
+          {
+            "evidence": {
+              "provider_field": "rules.pets",
+              "quote": "Mascotas permitidas",
+              "source": "structured"
+            },
+            "field": "pets_allowed",
+            "value": true
+          }
+        ],
+        "rental_category": "long",
+        "schema_version": "listing-evidence-v1",
+        "source_identifier": "synthetic:fixture",
+        "source_language": "mixed",
+        "title": "Synthetic listing"
+      }
+    },
+    {
+      "name": "structured_capacity",
+      "packet": {
+        "canonical_listing_identifier": "11111111-1111-4111-8111-111111111111",
+        "content_hash": "0c80711eb6e0d2131e92f40a9a7a61dbac6cdfe1d34c00d02f5dbf2ad98c2df6",
+        "data_status": "ready",
+        "description": "Datos de la habitación.",
+        "policy_evidence": {
+          "children_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "couples_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "pets_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "room_capacity": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_indoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_outdoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "students_only": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          }
+        },
+        "property_category": "room",
+        "provider_facts": [
+          {
+            "evidence": {
+              "provider_field": "details.unit_capacity",
+              "quote": "3 personas en la habitación",
+              "source": "structured"
+            },
+            "field": "room_capacity",
+            "value": 3
+          }
+        ],
+        "rental_category": "long",
+        "schema_version": "listing-evidence-v1",
+        "source_identifier": "synthetic:fixture",
+        "source_language": "mixed",
+        "title": "Synthetic listing"
+      }
+    },
+    {
+      "name": "structured_smoking",
+      "packet": {
+        "canonical_listing_identifier": "11111111-1111-4111-8111-111111111111",
+        "content_hash": "04f20050c2d203da30f5ef4f1257016e69ed35b06376f4ae5daeca9f7171a5dd",
+        "data_status": "ready",
+        "description": "Datos de la habitación.",
+        "policy_evidence": {
+          "children_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "couples_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "pets_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "room_capacity": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_indoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_outdoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "students_only": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          }
+        },
+        "property_category": "room",
+        "provider_facts": [
+          {
+            "evidence": {
+              "provider_field": "rules.smoking_indoors",
+              "quote": "No fumar dentro",
+              "source": "structured"
+            },
+            "field": "smoking_allowed",
+            "value": false
+          }
+        ],
+        "rental_category": "long",
+        "schema_version": "listing-evidence-v1",
+        "source_identifier": "synthetic:fixture",
+        "source_language": "mixed",
+        "title": "Synthetic listing"
+      }
+    },
+    {
+      "name": "students_only",
+      "packet": {
+        "canonical_listing_identifier": "11111111-1111-4111-8111-111111111111",
+        "content_hash": "f1768ddaa277cd68532dfc52460b8d0c9e39b99e404969150db76becf30d4292",
+        "data_status": "ready",
+        "description": "Solo estudiantes.",
+        "policy_evidence": {
+          "children_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "couples_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "pets_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "room_capacity": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_indoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_outdoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "students_only": {
+            "evidence": [
+              {
+                "provider_field": null,
+                "quote": "Solo estudiantes",
+                "source": "description"
+              }
+            ],
+            "status": "explicit",
+            "value": true
+          }
+        },
+        "property_category": "room",
+        "provider_facts": [],
+        "rental_category": "long",
+        "schema_version": "listing-evidence-v1",
+        "source_identifier": "synthetic:fixture",
+        "source_language": "mixed",
+        "title": "Synthetic listing"
+      }
+    },
+    {
+      "name": "insufficient",
+      "packet": {
+        "canonical_listing_identifier": "11111111-1111-4111-8111-111111111111",
+        "content_hash": "f26921479770af933292ecfe69b4a447fb1330aea036b5d7cfa60dec2fe90d02",
+        "data_status": "insufficient_source_data",
+        "description": "",
+        "policy_evidence": {
+          "children_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "couples_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "pets_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "room_capacity": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_indoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_outdoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "students_only": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          }
+        },
+        "property_category": "room",
+        "provider_facts": [],
+        "rental_category": "long",
+        "schema_version": "listing-evidence-v1",
+        "source_identifier": "synthetic:fixture",
+        "source_language": "mixed",
+        "title": ""
+      }
+    },
+    {
+      "name": "sanitized_fixture_contacts",
+      "packet": {
+        "canonical_listing_identifier": "11111111-1111-4111-8111-111111111111",
+        "content_hash": "1f80e73ad6cd15da3f2d3a27202ce71c900f8337ef80749bd172026cf005c1d0",
+        "data_status": "ready",
+        "description": "No pets.\n[contact].",
+        "policy_evidence": {
+          "children_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "couples_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "pets_allowed": {
+            "evidence": [
+              {
+                "provider_field": null,
+                "quote": "No pets",
+                "source": "description"
+              }
+            ],
+            "status": "explicit",
+            "value": false
+          },
+          "room_capacity": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_indoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_outdoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "students_only": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          }
+        },
+        "property_category": "room",
+        "provider_facts": [],
+        "rental_category": "long",
+        "schema_version": "listing-evidence-v1",
+        "source_identifier": "synthetic:fixture",
+        "source_language": "mixed",
+        "title": "Synthetic listing"
+      }
+    },
+    {
+      "name": "marketing_capacity_unknown",
+      "packet": {
+        "canonical_listing_identifier": "11111111-1111-4111-8111-111111111111",
+        "content_hash": "f965f9712393473170cdd640dcc2ef669f20fd32b6b705a3478d85972c0ecd8e",
+        "data_status": "ready",
+        "description": "La casa tiene 6 plazas.",
+        "policy_evidence": {
+          "children_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "couples_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "pets_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "room_capacity": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_indoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "smoking_outdoors_allowed": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          },
+          "students_only": {
+            "evidence": [],
+            "status": "unknown",
+            "value": null
+          }
+        },
+        "property_category": "room",
+        "provider_facts": [],
+        "rental_category": "long",
+        "schema_version": "listing-evidence-v1",
+        "source_identifier": "synthetic:fixture",
+        "source_language": "mixed",
+        "title": "Synthetic listing"
+      }
+    }
+  ],
+  "source_sha256": {
+    "backend/app/services/ai_listing_input.py": "1fc88d388c2d20a74b7847ee53a651d8c4e00556816e8db47e19dcd102222508",
+    "backend/app/services/listing_evidence.py": "dcbf3fa055e59da77cbbd5a88d0af19fc17ad722128eac719f00b987d71f3af6"
+  },
+  "synthetic": true,
+  "upstream_revision": "fcae378d9dbbc8447f18df150327180f6f2c8231"
+}
