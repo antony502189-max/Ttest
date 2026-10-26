@@ -5,12 +5,13 @@ ordered by UUID -> AI sources -> jobs. Claim/failure lock only one job. Integrat
 must review this against importer transactions before enabling concurrent live use.
 """
 
+import json
 from datetime import datetime, timedelta
 from typing import Literal
 from uuid import UUID, uuid4, uuid5
 
 from pydantic import TypeAdapter, ValidationError
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import and_, func, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -26,7 +27,7 @@ from ..schemas.ai_fact_pipeline import (
     SourceInput,
     StaleFactWorker,
 )
-from ..schemas.ai_listing_facts import FactBatch, FactVocabulary, Version, digest
+from ..schemas.ai_listing_facts import FactBatch, FactVocabulary, SearchProjection, Version, digest
 from ..services.ai_fact_resolver import MAX_SOURCE_OBSERVATIONS, resolve_sources
 from .ai_fact_snapshots import source_snapshot_hash
 
@@ -55,19 +56,20 @@ class FactPipeline:
         return (await session.execute(select(AiFactCatalog).where(
             AiFactCatalog.canonical_listing_id == listing_id).with_for_update())).scalar_one()
 
-    async def _authority(self, session: AsyncSession, listing_id: UUID):
-        listing = (await session.execute(select(Listing.id, Listing.status, Listing.deleted_at)
-                   .where(Listing.id == listing_id).with_for_update())).first()
+    async def _authority(self, session: AsyncSession, listing_id: UUID, *, lock: bool = True):
+        listing_query = select(Listing.id, Listing.status, Listing.deleted_at).where(Listing.id == listing_id)
+        listing = (await session.execute(listing_query.with_for_update() if lock else listing_query)).first()
         known = select(AiFactSource.source_record_id).where(AiFactSource.canonical_listing_id == listing_id)
         # Coarse CAS token only. PostgreSQL returns the digest, not payload/URL/
         # identity text. This is distinct from sanitized extraction input hash.
         snapshot = source_snapshot_hash().label("snapshot_hash")
-        rows = (await session.execute(select(
+        source_query = (select(
             ExternalListingSource.id, ExternalListingSource.canonical_listing_id,
             ExternalListingSource.fingerprint, ExternalListingSource.current_status,
             ExternalListingSource.last_success_at, ExternalListingSource.content_updated_at, snapshot,
         ).where(or_(ExternalListingSource.canonical_listing_id == listing_id, ExternalListingSource.id.in_(known)))
-            .order_by(ExternalListingSource.id).limit(129).with_for_update())).all()
+            .order_by(ExternalListingSource.id).limit(129))
+        rows = (await session.execute(source_query.with_for_update() if lock else source_query)).all()
         if len(rows) > 128:
             raise ValueError("canonical source bound exceeded")
         visible = listing is not None and listing.status == "published" and listing.deleted_at is None
@@ -285,9 +287,11 @@ class FactPipeline:
             # a reviewed fresh extraction input/version, not a broad fallback.
             return None
 
-    async def _publish(self, session: AsyncSession, anchor: AiFactCatalog, visible: bool, authority) -> int:
+    async def _projection_inputs(self, session: AsyncSession, listing_id: UUID, visible: bool,
+                                 authority) -> tuple[list[FactBatch], str, bool]:
+        """Shared writer/reader manifest and pending barrier; caller owns its snapshot."""
         sources = (await session.scalars(select(AiFactSource).where(
-            AiFactSource.canonical_listing_id == anchor.canonical_listing_id)
+            AiFactSource.canonical_listing_id == listing_id)
             .order_by(AiFactSource.source_record_id).limit(129))).all()
         if len(sources) > 128:
             raise ValueError("canonical source bound exceeded")
@@ -297,7 +301,7 @@ class FactPipeline:
         pending = False
         for source_id in sorted(set(by_id) | set(authority), key=str):
             source, current = by_id.get(source_id), authority.get(source_id)
-            active = current is not None and current.canonical_listing_id == anchor.canonical_listing_id and (
+            active = current is not None and current.canonical_listing_id == listing_id and (
                 _status(current.current_status) == "active"
             )
             ready = source is not None and active and source.source_status == "active" and (
@@ -321,12 +325,16 @@ class FactPipeline:
                            "extractor": source.extractor_version if source is not None else None})
         input_hash = digest({"inputs": inputs, "visible": visible, "pending": pending,
                              "resolver": self.resolver_version, "vocabulary": self.vocabulary_hash})
+        return batches if visible and not pending else [], input_hash, pending
+
+    async def _publish(self, session: AsyncSession, anchor: AiFactCatalog, visible: bool, authority) -> int:
+        batches, input_hash, _ = await self._projection_inputs(session, anchor.canonical_listing_id, visible, authority)
         old = await session.get(AiListingSearchFeatures, anchor.canonical_listing_id)
         if old is not None and old.input_hash == input_hash and old.resolver_version == self.resolver_version:
             return old.feature_revision
         revision = max(anchor.revision, old.feature_revision if old is not None else 0) + 1
         projection = resolve_sources(canonical_listing_id=anchor.canonical_listing_id,
-                                     batches=batches if visible and not pending else [], input_hash=input_hash,
+                                     batches=batches, input_hash=input_hash,
                                      feature_revision=revision, resolver_version=self.resolver_version,
                                      computed_at=await _now(session))
         values = projection.model_dump(exclude={"features"}) | {
@@ -341,6 +349,45 @@ class FactPipeline:
                                       feature_revision=revision, input_hash=input_hash, created_at=await _now(session)))
         await session.flush()
         return revision
+
+    async def read_current_projection(self, listing_id: UUID) -> SearchProjection | None:
+        """Explicit offline read at one PG snapshot; None is unavailable, not zero matches.
+
+        No row locks, repair, enqueue or rematch. This bounded single-listing read
+        is not a pre-pagination catalog query or complete visibility authority.
+        Database failures propagate; callers must never broaden on read failure.
+        """
+        async with self.sessions() as session, session.begin():
+            # First command in a new owned transaction, before any MVCC read.
+            # All following statements see one snapshot, including new-source
+            # phantoms. READ ONLY also prevents accidental reuse of write paths.
+            await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+            anchor = await session.get(AiFactCatalog, listing_id)
+            old = await session.get(AiListingSearchFeatures, listing_id)
+            if anchor is None or old is None or anchor.revision != old.feature_revision:
+                return None
+            try:
+                stored = SearchProjection.model_validate_json(json.dumps({
+                    column.name: getattr(old, column.name) for column in old.__table__.columns
+                }, default=str))
+                if stored.resolver_version != self.resolver_version:
+                    return None
+                visible, authority = await self._authority(session, listing_id, lock=False)
+                batches, input_hash, pending = await self._projection_inputs(session, listing_id, visible, authority)
+                if not visible or pending or input_hash != stored.input_hash:
+                    return None
+                expected = resolve_sources(
+                    canonical_listing_id=listing_id, batches=batches, input_hash=input_hash,
+                    feature_revision=stored.feature_revision, resolver_version=self.resolver_version,
+                    computed_at=stored.computed_at,
+                )
+                # Re-resolve bounded current evidence, not merely metadata: the
+                # projection JSON may have been corrupted without a hash change.
+                return expected if stored == expected else None
+            except ValueError:
+                # Invalid persisted contracts, vocabulary or exceeded bounds are
+                # unavailable evidence. Never repair or silently return old facts.
+                return None
 
     async def reconcile_listing(self, listing_id: UUID) -> int:
         async with self.sessions() as session, session.begin():

@@ -1,5 +1,21 @@
 # AI Search facts continuation — 2026-10-26
 
+## Latest check after owner reports #373 ready
+
+- #373 is now **merged into planning**, `a5650517`, from unchanged `bdd7ca93`.
+  GitHub records APPROVED at 20:15:40 UTC; latest Parser/Payment/Security CI all
+  succeeded. Main is still `1292c680`. Earlier state snapshots below are history.
+- #374–384 remain open/unmerged, no submitted reviews; every returned workflow
+  on their heads succeeded. [Review/integration order](PR_INTEGRATION_ORDER.md)
+  explains docs, superseded lab #377 and the required `0066 -> 0067 -> 0068 ->
+  0069 -> 0070` migration integration. No PR branch/state was changed here.
+- Continued over #384 with [current-projection reads](CURRENT_FACT_READS.md):
+  one bounded read-only PG snapshot, shared manifest, re-resolution and stale/
+  pending/corrupt evidence rejection. No public query or parser activation.
+- Next integrate complete typed matching and efficient pre-pagination current
+  source/eligibility guards; prepare a separate reviewed #373 port onto current
+  main, preserving payment changes. Do not merge planning wholesale.
+
 ## Continuation in the new chat — current correction
 
 - #373 was **closed without merge** at `bdd7ca93` by explicit owner request
