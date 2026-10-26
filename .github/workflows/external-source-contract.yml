@@ -62,7 +62,7 @@ jobs:
       - name: Audit public discovery and detail contracts
         # PR validation stays offline; real discovery runs only on the existing
         # scheduled/manual audit paths, outside development fixture checks.
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         working-directory: backend
         run: |
           python -m app.commands.audit_external_sources \

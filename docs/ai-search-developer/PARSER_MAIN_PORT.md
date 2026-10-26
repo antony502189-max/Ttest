@@ -36,9 +36,12 @@ preserved. No schema change or data migration is introduced.
 - The pre-existing external-source contract workflow now skips its live discovery
   step for pull requests; adapter regressions still run. Existing scheduled/manual
   audit paths retain their behavior. On the first PR head this pre-existing job
-  auto-started; it was cancelled while installing dependencies, before its live
-  discovery step. Final-head PR checks must stay offline. No audit was requested
-  manually and no provider or application credentials were exposed.
+  auto-started. Cancellation was requested while the last observed step was
+  dependency installation, but applied after live discovery had started. Logs
+  show that step ran from 20:40:12 to 20:40:39 UTC, then was cancelled. Partial
+  public-source requests may have occurred; no complete source-health/coverage
+  result is claimed. Final-head PR checks must skip that step explicitly. No
+  audit was requested manually and no application DB/provider calls were involved.
 
 ## Verification
 
@@ -52,7 +55,9 @@ Local PostgreSQL has no PostGIS. Full historical migration chain, schema parity,
 real importer/gallery/deletion/payment and browser checks must pass in this PR's
 own CI against current main; #373's green CI is not a substitute. Final run links
 and any disposable combined-facts checks are recorded in the PR description.
-No live catalog/DB, external crawl/backfill, paid provider call, staging or deploy.
+No application DB/catalog import, backfill, paid provider call, staging or deploy.
+The cancelled automatic public audit above is the exception to offline-only CI
+on the initial head; the final-head guard prevents it on pull requests.
 
 ## Merge checkpoint
 
