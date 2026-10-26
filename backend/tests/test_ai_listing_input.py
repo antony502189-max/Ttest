@@ -3,7 +3,7 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
-from app.services.ai_listing_input import ProviderFact, build_listing_evidence_input
+from app.services.ai_listing_input import ProviderFact, build_listing_evidence_input, clean_evidence_text
 from app.services.listing_evidence import EvidenceSpan
 
 
@@ -103,3 +103,20 @@ def test_photos_and_raw_payload_are_outside_the_input_contract():
         packet(photos=["https://example.test/image.jpg"])
     with pytest.raises(TypeError):
         packet(raw_payload={"cookie": "secret"})
+
+
+@pytest.mark.parametrize("delimiter", [".", ";", "!", "\n"])
+def test_link_redaction_preserves_following_conflicting_denial(delimiter):
+    description = f"Pets allowed. https://example.test/x{delimiter} No pets."
+    value = packet(description=description)
+    fact = value.policy_evidence["pets_allowed"]
+    assert fact.status == "conflict" and fact.value is None
+    assert "No pets" in [span.quote for span in fact.evidence]
+    assert "https://" not in value.deterministic_json()
+    assert clean_evidence_text(value.description) == value.description
+
+
+@pytest.mark.parametrize("text", ["Pets allowed? No.", "Pets allowed. Only with prior approval."])
+def test_packet_does_not_promote_questions_or_conditions(text):
+    fact = packet(description=text).policy_evidence["pets_allowed"]
+    assert fact.status in {"unknown", "conditional"} and fact.value is None

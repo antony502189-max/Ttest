@@ -50,7 +50,14 @@ def clean_evidence_text(value: str, *, advertiser_name: str | None = None) -> st
     # Deliberately remove all hyperlinks, handles and likely phone numbers,
     # including contacts without labels. Keep negation/conditional text.
     text = re.sub(r"(?i)\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b", "[contact]", text)
-    text = re.sub(r"(?i)(?:https?://|www\.)[^\s<>]+", "[link]", text)
+    def redact_link(match: re.Match[str]) -> str:
+        # URL matches also consume prose punctuation. Preserve the delimiter so
+        # a following denial still forms its own clause after redaction.
+        value = match.group(0)
+        suffix = value[len(value.rstrip(".!?;")):]
+        return "[link]" + suffix
+
+    text = re.sub(r"(?i)(?:https?://|www\.)[^\s<>]+", redact_link, text)
     text = re.sub(r"(?<!\w)@[\w.-]+", "[contact]", text)
     text = re.sub(r"(?<!\w)\+?\d(?:[\s().-]*\d){6,14}(?!\w)", "[contact]", text)
     text = re.sub(

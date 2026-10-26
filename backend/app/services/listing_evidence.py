@@ -84,13 +84,18 @@ _NUMBERS = {"una": 1, "un": 1, "one": 1, "dos": 2, "two": 2, "tres": 3, "cuatro"
 def extract_policy_evidence(*, title: str = "", description: str = "") -> dict[str, PolicyFact]:
     matches: dict[str, list[PolicyFact]] = {field: [] for field in POLICY_FIELDS}
     texts: tuple[tuple[EvidenceSource, str], ...] = (("title", title), ("description", description))
+    previous_permissions: tuple[str, ...] = ()
     for source, text in texts:
-        for clause in re.split(r"[.!?;\n]+", text):
+        for clause_match in re.finditer(r"([^.!?;\n]+)([.!?;\n]+|$)", text):
+            clause, ending = clause_match.groups()
             quote = " ".join(clause.split()).strip()
-            if not quote or len(quote) > 512:
+            if not quote or len(quote) > 512 or "?" in ending or "¿" in quote:
+                previous_permissions = ()
                 continue
             folded = _fold(quote)
             span = EvidenceSpan(source=source, quote=quote)
+            clause_permissions: list[str] = []
+            matched_fields: set[str] = set()
 
             def add(
                 field: str,
@@ -98,7 +103,12 @@ def extract_policy_evidence(*, title: str = "", description: str = "") -> dict[s
                 *,
                 conditional: bool = False,
                 evidence: EvidenceSpan = span,
+                fields: set[str] = matched_fields,
+                permissions: list[str] = clause_permissions,
             ) -> None:
+                fields.add(field)
+                if not conditional and value is not False:
+                    permissions.append(field)
                 matches[field].append(
                     PolicyFact(
                         status="conditional" if conditional else "explicit",
@@ -126,6 +136,19 @@ def extract_policy_evidence(*, title: str = "", description: str = "") -> dict[s
                 number = int(token) if token.isdigit() else _NUMBERS[token]
                 if 1 <= number <= 99:
                     add("room_capacity", number)
+            # A short continuation can qualify the preceding statement without
+            # repeating its subject ("Pets allowed. Only with prior approval.").
+            # Retain it as a condition rather than inventing a global permission.
+            # Recognized independent rules, such as "Solo estudiantes", retain
+            # their own meaning. An immediately following description can also
+            # qualify its title; an unrelated sentence/question clears context.
+            if not matched_fields and re.match(
+                r"(?:solo|solamente|unicamente|only|except|excepto|salvo|a consultar|"
+                r"con autorizacion|with prior approval)\b", folded,
+            ):
+                for field in previous_permissions:
+                    add(field, None, conditional=True)
+            previous_permissions = tuple(clause_permissions)
     result = {}
     for field, facts in matches.items():
         if not facts:

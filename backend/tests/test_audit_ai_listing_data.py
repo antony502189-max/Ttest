@@ -8,6 +8,18 @@ from app.commands import audit_ai_listing_data as audit
 FIXTURE = Path(__file__).parent / "fixtures/ai_listing_audit.json"
 
 
+def test_link_before_denial_does_not_inflate_explicit_audit_coverage():
+    report = audit.audit_records([
+        audit.AuditRecord(
+            source_name="Flatio", canonical_listing_id="synthetic-conflict",
+            normalized_payload={"description": "Pets allowed. https://example.test/x. No pets."},
+        ),
+    ])
+    pets = report["sources"]["Flatio"]["policies"]["pets_allowed"]
+    assert pets["explicit_pct"] == 0
+    assert pets["states"]["conflict"] == 1
+
+
 def records():
     return [audit.AuditRecord.model_validate(value) for value in json.loads(FIXTURE.read_text(encoding="utf-8"))]
 
