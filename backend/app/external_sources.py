@@ -675,16 +675,16 @@ def public_detail_fields(data: dict[str, Any]) -> dict[str, Any]:
         result["bills_text"] = bills.group(0).strip()
     result["bills_included"] = explicit_bool(corpus, ("gastos incluidos", "suministros incluidos"), ("gastos no incluidos", "gastos aparte", "suministros aparte"))
     result["furnished"] = explicit_bool(corpus, ("amueblado", "amueblada", "con muebles"), ("sin amueblar", "no amueblado"))
-    result["pets_allowed"] = explicit_bool(corpus, ("mascotas permitidas", "se aceptan mascotas"), ("no mascotas", "mascotas no", "no se admiten mascotas"))
-    result["children_allowed"] = explicit_bool(corpus, ("niños permitidos", "se aceptan niños"), ("sin niños", "no niños", "no se admiten niños"))
-    result["smoking_allowed"] = explicit_bool(corpus, ("se permite fumar", "fumadores permitidos"), ("no fumar", "no fumadores", "prohibido fumar"))
+    from .services.listing_evidence import extract_policy_evidence
+
+    policies = extract_policy_evidence(title=clean(data.get("title")), description=clean(data.get("description")))
+    for name in ("pets_allowed", "children_allowed", "smoking_allowed", "room_capacity"):
+        fact = policies[name]
+        result[name] = fact.value if fact.status == "explicit" else None
     result["empadronamiento_allowed"] = explicit_bool(corpus, ("empadronamiento permitido", "se permite empadronamiento"), ("sin empadronamiento", "no empadronamiento"))
     size = re.search(r"(\d{1,3})\s*m(?:²|2)\b", corpus)
     if size:
         result["room_size_m2"] = int(size.group(1))
-    capacity = re.search(r"(?:hasta|para)\s*(\d+)\s*personas", corpus)
-    if capacity:
-        result["room_capacity"] = int(capacity.group(1))
     # Keep this compatible with the persisted/API enum.  Student-only is a
     # restriction, not a gender enum value.
     result["tenant_requirement"] = (
@@ -808,6 +808,16 @@ class NormalizedListing:
                     self.bills_text or "",
                     "|".join(self.amenities),
                     "|".join(self.restrictions),
+                    # These canonical facts can change without a description
+                    # change. Preserve null/false/zero distinctions. The digest
+                    # controls importer updates, not photo duplicate identity.
+                    json.dumps({name: getattr(self, name) for name in (
+                        "price_amount", "price_currency", "price_is_from", "weekly_price_amount",
+                        "bills_included", "furnished", "bathroom", "kitchen", "room_size_m2",
+                        "room_capacity", "tenant_requirement", "pets_allowed", "children_allowed",
+                        "smoking_allowed", "empadronamiento_allowed", "advertiser_name", "advertiser_type",
+                        "available_from", "published_at", "country", "source_url",
+                    )}, sort_keys=True, ensure_ascii=False, default=str, separators=(",", ":")),
                     *(() if self.photos_complete else ("partial_gallery",)),
                 )
             ).encode()

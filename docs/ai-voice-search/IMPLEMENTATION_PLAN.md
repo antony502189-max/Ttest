@@ -103,7 +103,7 @@ listing_search_features (подготовленные признаки по list
 - [ ] **PARSER-007 / полнота описания.** Исправить per-source адаптеры только там, где P0 показал потерю доступного описания; предпочесть публичный JSON-LD/embedded data или серверный текст; браузер Playwright — fallback в рамках существующих разрешённых адаптеров, не универсальный agent.
 - [ ] **PARSER-008 / извлечение условий.** Сохранить детерминированные извлечения для простых доказуемых полей; расширить словарь/покрытие только по тестовым кейсам. LLM используется как дополнительный, а не единственный способ извлечения.
 - [ ] **PARSER-009 / не придумывать данные.** Не угадывать пол жильца, совместимость пары, отсутствие детей/животных, точный адрес, время в пути, площадь, вместимость и разрешения на основании молчания источника или фотографии.
-- [ ] **PARSER-010 / отдельный digest.** Вычислять стабильный `ai_input_hash` из нормализованного значимого текста и структурных evidence-полей, а не полагаться на текущий import fingerprint. Изменение только телефона или порядка фото не должно запускать лишний LLM-анализ; изменение условий/описания должно.
+- [x] **PARSER-010 / отдельный digest — offline-модуль, проверен 2026-10-25.** `build_listing_evidence_input()` вычисляет стабильный content hash очищенного текста, категорий и типизированных provider facts. Фото/контакты/маршрутизирующие ID исключены; изменения условий меняют hash. Это отдельно тестируемая чистая функция; запись digest в БД, очередь и production-интеграция остаются задачами следующих PR (см. §12).
 - [ ] **PARSER-011 / fidelity и тесты.** Для каждого изменённого адаптера обновить HTML/JSON fixture tests; не ломать цену, категорию rental, географию, валидность gallery, source identity и дедупликацию.
 - [ ] **PARSER-012 / отсутствие описания.** Когда значимого текста нет, сохранять причину `insufficient_source_data`, не генерировать галлюцинаторные факты; разрешённый повторный detail-fetch выполнять только по обоснованной фоновой задаче.
 
@@ -335,6 +335,7 @@ Frontend не вызывает платные provider API напрямую и �
 | Дата | Изменение |
 |---|---|
 | 2026-10-24 | Зафиксирована предварительная архитектура внешних ASR/LLM API и экспериментальный план; поставщики и публичный API-контракт остаются неутверждёнными. |
+| 2026-10-25 | [PR #373](https://github.com/antony502189-max/Ttest/pull/373): статический аудит 9 адаптеров, read-only CLI, synthetic golden fixtures, исправления fingerprint/простых policy-условий, чистый evidence input/hash и регрессии. Подробности и ограничения — §12; production coverage не измерен. |
 
 
 
@@ -405,10 +406,10 @@ Frontend не вызывает платные provider API напрямую и �
 ### 11.5. Конкретный следующий PR (без несанкционированных мутаций)
 
 **PR-A: тесты и data completeness audit** — сначала реализовать инструмент только для чтения:
-- [ ] `scripts/audit_ai_listing_data.py` (путь предварительный): на TEST/staging/read-only replica запросить агрегаты по `source_name` + актуальным `source_records`/canonical listing; не экспортировать полные HTML, контактные данные и персональные поля.
-- [ ] Выход: `source, records, description_present_pct, desc_length_distribution, pets_explicit_pct, kids_explicit_pct, smoking_explicit_pct, occupancy_explicit_pct, couples_explicit_pct, geo_verified_pct, unknown_pct`. Указывать `n` и отсутствие выборки как `N/A`.
-- [ ] Golden fixtures ручной разметки, без приватных данных: явное разрешение, явный запрет, неизвестно, условное разрешение, конфликт, negation, разные языки.
-- [ ] Regression tests для изменений optional-признаков без изменения прежнего fingerprint и для вместимости >2; проверять как source snapshot, так и canonical fields.
+- [x] `backend/app/commands/audit_ai_listing_data.py`: реализован CLI для offline snapshots и явно выбранной read-only PostgreSQL connection. Серверная READ ONLY транзакция, выбранные JSON-поля, rollback, отсутствие crawl и экспорта исходных текстов/контактов; проверено unit-тестами. Runtime-аудит реального каталога остаётся открытым.
+- [x] JSON/Markdown: n, описания и распределение длин, policy states/explicit %, amenities/public point presence, потенциальные конфликты, unknown provenance. Пустые знаменатели — null/N/A. Подтверждённая точность геопозиции недоступна без provenance и не подменяется наличием координат.
+- [x] Synthetic golden fixtures: 26 размеченных кейсов без реальных персональных данных; разрешение/запрет/unknown/conditional/conflict, отрицания, ES/EN/mixed и явно неподдержанный русский пример. Реальный обезличенный корпус PARSER-004 ещё не собран.
+- [x] Unit-регрессии optional-only изменений, source snapshot/canonical, 1–10 проживающих, promotion/removal/restore/idempotency/gallery. Добавлены 8 PostgreSQL-тестов; локально только collected, выполнение — isolated planning-PR CI (статус §12).
 - [ ] Итог: таблица фактических % по источникам + дефект-лист P2, решение о minimum evidence input. Никаких изменений production/публикации новых источников без отдельного согласования.
 
 **Статус:** статический code-level аудит готов; **runtime P0, tests, sample metrics, new migrations, workers и API всё ещё НЕ выполнены**. Все чекбоксы `PARSER-001…PARSER-005` выше остаются открытыми до реальной проверки данных.
@@ -421,3 +422,91 @@ Frontend не вызывает платные provider API напрямую и �
 - [Room details](../../backend/app/models/room_details.py)
 - [Existing search filters](../../backend/app/repositories/listings.py)
 - [Habitaclia adapter](../../backend/app/habitaclia_source.py)
+
+## 12. Выполнение parser/data foundation — 2026-10-25
+
+> **Текущее состояние реализации:** [PR #373](https://github.com/antony502189-max/Ttest/pull/373),
+> ветка `feat/ai-search-parser-audit`, база `planning/ai-voice-search-architecture`
+> (`f203807d`). Раздел 11 выше сохраняет предварительный аудит от 2026-10-24;
+> его предположения уточнены ниже. Полный [отчёт по адаптерам, дефектам и проверкам](PARSER_DATA_AUDIT.md).
+
+### 12.1. Реализовано и проверено локально
+
+- [x] **PARSER-003 (статическая часть):** повторно изучены все 9 адаптеров, discovery/detail,
+  HTML/JSON-LD/embedded/Playwright пути, описание, raw/normalized/canonical перенос,
+  defaults, потери и риски совместимости. Сравнительная таблица — в отдельном отчёте.
+  Включённость/качество провайдеров на VPS этим не подтверждаются.
+- [x] **PARSER-001/002 (инструмент, без production-замера):** read-only CLI,
+  JSON/Markdown, фиксированные source labels, N/A, проверка повторяемости и отсутствия
+  мутаций входных fixtures, транзакционных write/commit и crawling. Dedicated DSN берётся
+  только из `AI_AUDIT_DATABASE_URL`; обычный DATABASE_URL/.env не загружается.
+- [x] **PARSER-004 (synthetic subset), PARSER-008 (простые условия):** 26 golden cases,
+  typed evidence spans/status; отрицания и условия не превращаются в unconditional true.
+  Couples, students и smoking indoors/outdoors доступны чистому evidence-модулю;
+  новые поля DTO/NormalizedListing или окончательная AI-схема не вводились.
+- [x] **DATA / fingerprint freshness:** подтверждённый дефект исправлен для ранее
+  пропущенных canonical scalar facts (включая pets/children/smoking/capacity/furnished).
+  Регрессии до исправления: **19 failed, 1 passed**. После исправления optional-only
+  изменения доходят до canonical, повтор неизменённого импорта остаётся no-op.
+- [x] **DATA / occupancy regression:** для 1,2,3,4,7,10 проверены создание/sync/promotion/
+  failover. Исходный код уже сохранял >2 в room_capacity_v2; подтверждённым дефектом
+  оказался stale optional-only refresh, а не безусловная потеря >2 при каждом создании.
+- [x] **PARSER-006/010 (чистый offline input):** строгие типы/валидация, очищенные
+  выбранные поля, evidence metadata, deterministic JSON/hash, известный либо unknown
+  язык, empty/contact-only → insufficient_source_data. Нет LLM-клиента/очереди/вызовов API.
+
+### 12.2. Ограничения и решения, которые ещё открыты
+
+- **PARSER-001/002, BACKFILL-001:** реальные проценты/числа production-каталога не
+  измерялись. [fixture-data-audit.json](fixture-data-audit.json) — только 4 active
+  synthetic source records из fixture на 5 snapshots. Не использовать как production baseline.
+- **DATA-002/004/005:** legacy ORM и owner DTO defaults не доказывают происхождение
+  значения. Исторические строки/nullable defaults не переписывались; нужна versioned
+  per-source provenance и сохранение явных owner choices в последующем ADR/PR.
+- **DATA-007 / SEARCH-DATA-001:** current canonical следует primary source; unknown
+  primary может обнулить известное правило, конфликтующие snapshots остаются per-source.
+  Тестовые сценарии и предложенная resolver-таблица есть в отчёте; финального resolver нет.
+- **SEARCH-DATA-002:** обычный фильтр по `coalesce(v2, legacy)` остаётся exact equality.
+  Вмещаемость >10 пока сохраняется лишь в source snapshot; расширение контракта не
+  сделано. Будущий AI должен отдельно использовать доказанное capacity >= requested.
+- **PARSER-006/007/009:** generic normalized snapshot содержит вложенный raw_payload
+  с возможным HTML/PII; его нельзя целиком передавать LLM. Полнота meta/DOM descriptions,
+  route-bound selection и structured provider policy mapping требуют реальных fixtures.
+- **AI-ENRICH-002/004/006:** offline cleaner не гарантирует выявление произвольных имён,
+  обфусцированных контактов и page chrome в legacy copy. До provider-интеграции нужен
+  outbound privacy gate и проверка корпуса. Платных вызовов/передачи данных не было.
+- **PARSER-008:** bounded complete-clause grammar предпочитает unknown для сложных
+  неподдержанных условий. Прочие substring amenities/furnishing/bathroom extractors
+  не объявлены evidence-backed; дополнительные потери/false positives перечислены в отчёте.
+- **Geo:** presence координат не равно verified dwelling precision; соответствующая
+  confirmed-метрика возвращается null. Habitaclia map suppression сохранён.
+
+### 12.3. Проверки
+
+| Проверка | Фактический результат |
+|---|---|
+| Регрессии до исправления | 19 failed, 1 passed (исходный fingerprint, conflict и terrace smoking) |
+| Парсеры и initial evidence tests | 225 passed, 1 skipped |
+| Финальный полный local backend non-integration suite | **896 passed, 15 skipped**, 4 dependency/deprecation warnings |
+| Ruff `backend/app backend/tests` | Passed |
+| Mypy всего `backend/app` | Passed, 117 source files |
+| Новый PostgreSQL module | Все 8 выполнены в составе успешного CI integration run; локальный daemon Docker/PostGIS недоступен |
+| Planning-PR CI | [Успешный run на code revision `6e8500dc`](https://github.com/antony502189-max/Ttest/actions/runs/40136689686): **904 passed, 7 skipped** unit; **88 passed** PostgreSQL/PostGIS integration; Ruff/mypy passed |
+| Совместимые существующие PR checks | Backend payments, frontend payments, security static — passed на том же revision |
+| Production/runtime completeness | Не запускалось; нет подключённой безопасной replica |
+
+Команды воспроизведения, полный список изменённых файлов и границы mock-vs-DB tests
+даны в [PARSER_DATA_AUDIT.md](PARSER_DATA_AUDIT.md). Миграции, публичные DTO/API,
+обычный search predicate, locks, paid TOP, pricing, gallery/dedup algorithms не менялись.
+Fingerprint добавляет однократный refresh на обычном следующем импорте; массового запуска нет.
+`main`, production-настройки и незакоммиченные изображения исходной рабочей копии не менялись.
+
+### 12.4. Следующие три задачи
+
+1. **PARSER-001/002/003, BACKFILL-001:** разрешённый replica audit и обезличенная
+   per-source выборка; измерить полноту, потребление памяти CLI и реальные потери описаний.
+2. **DATA-001/002/004/005/007, SEARCH-DATA-001/002:** ADR по provenance, freshness,
+   конфликтам, owner precedence и capacity; затем expand-only storage design.
+3. **PARSER-006/007/010, AI-ENRICH-002/004/006:** проверенные provider facts, privacy
+   gate и versioned evidence input; отдельный PR для очереди/пилота после решений по архитектуре.
+   Голосовой API и paid provider остаются вне выполненного этапа.

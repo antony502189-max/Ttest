@@ -1,0 +1,7 @@
+[
+  {"source_name":"Idealista","canonical_listing_id":"shared-1","normalized_payload":{"title":"Habitación","description":"Se admiten mascotas. Habitación para 4 personas. No se admiten parejas.","pets_allowed":true,"room_capacity":4,"amenities":["wifi"],"latitude":28.1,"longitude":-16.7}},
+  {"source_name":"Flatio","canonical_listing_id":"shared-1","normalized_payload":{"title":"Room","description":"No pets. No smoking.","pets_allowed":false,"smoking_allowed":false}},
+  {"source_name":"Habitaclia","canonical_listing_id":"shared-1","normalized_payload":{"title":"Habitación","description":"","pets_allowed":null,"children_allowed":false,"smoking_allowed":false,"room_capacity":1,"furnished":true}},
+  {"source_name":"Idealista","canonical_listing_id":"closed-2","current_status":"removed","normalized_payload":{"description":"Se aceptan niños.","children_allowed":true}},
+  {"source_name":"Fotocasa","canonical_listing_id":"single-3","normalized_payload":{"description":"Solo mascotas pequeñas. Se permite fumar en la terraza.","pets_allowed":true,"smoking_allowed":true,"email":"private@example.test","html":"<p>secret</p>"}}
+]
