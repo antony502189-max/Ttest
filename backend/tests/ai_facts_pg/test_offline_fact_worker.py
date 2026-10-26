@@ -248,5 +248,3 @@ async def test_expired_builder_cannot_commit_facts(pipeline, pg):
     result = await runner((short, sessions), build=slow).run_once()
     assert result.outcome == "stale"
     assert await count(pipeline, AiListingFact) == 0
-
-
