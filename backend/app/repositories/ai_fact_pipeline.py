@@ -145,13 +145,19 @@ class FactPipeline:
             await self._publish(session, anchor, visible, authority)
             return job_id
 
-    async def claim(self) -> FactJobClaim | None:
+    async def claim(self, *, extractor_version: Version | None = None) -> FactJobClaim | None:
+        if extractor_version is not None:
+            extractor_version = TypeAdapter(Version).validate_python(extractor_version, strict=True)
         async with self.sessions() as session, session.begin():
             now = await _now(session)
-            job = await session.scalar(select(AiFactJob).where(or_(
+            query = select(AiFactJob).where(or_(
                 and_(AiFactJob.status == "pending", AiFactJob.available_at <= now),
                 and_(AiFactJob.status == "running", AiFactJob.lease_until <= now),
-            )).order_by(AiFactJob.available_at, AiFactJob.id).limit(1).with_for_update(skip_locked=True))
+            ))
+            if extractor_version is not None:
+                query = query.where(AiFactJob.extractor_version == extractor_version)
+            job = await session.scalar(query.order_by(AiFactJob.available_at, AiFactJob.id)
+                                       .limit(1).with_for_update(skip_locked=True))
             if job is None:
                 return None
             source = await session.get(AiFactSource, job.source_record_id)

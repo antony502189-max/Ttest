@@ -38,6 +38,14 @@
   Approve actual field/scope mappings and minimization before real source ingestion.
   The optional pinned fixture generator is not an application dependency or gate
   approval. No default builder, activated worker or public AI endpoint exists.
+- [x] One-job offline runner prepared on `codex/ai-offline-fact-worker` over
+  #382 head `c9fab184` (all three workflows completed/success). See
+  [runner behavior and limits](OFFLINE_FACT_WORKER.md). Explicit version dispatch,
+  required fake builder/retry policy, guarded failure and commit-ack/cancellation
+  safety; no scheduler/provider/endpoint activation.
+- [ ] User requested a new project chat after completion to explain human review
+  of #373. It must explain actual developer review and GitHub submission, not
+  submit an AI approval, merge planning into main or treat green CI as a human gate.
 - [ ] Review owner-fact precedence; do not silently adopt the proposed override.
 - [ ] AI-02 authorized read-only DB role: measure real coverage/source health and
   query plans before production index/backfill/freshness claims.
