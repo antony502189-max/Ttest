@@ -1,7 +1,7 @@
 """Add inert per-source facts and canonical projection; no backfill or activation.
 
-Independent of unmerged AI-07/08. Reconcile migration heads in a separate
-integration change before combining branches; never rewrite released history.
+Integrated after still-unreleased AI-07/08. This parent reconciliation must
+land before any deployment of 0069; released migration history is unchanged.
 """
 
 import sqlalchemy as sa
@@ -10,7 +10,7 @@ from sqlalchemy.dialects import postgresql as pg
 from alembic import op
 
 revision = "0069_ai_listing_facts"
-down_revision = "0066_complimentary_ads"
+down_revision = "0068_ai_search_sessions"
 branch_labels = None
 depends_on = None
 
