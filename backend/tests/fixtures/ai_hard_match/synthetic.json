@@ -1,0 +1,403 @@
+[
+  {
+    "name": "rental_mode",
+    "value": "holiday",
+    "features": [
+      {
+        "key": "rental_mode",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "category",
+          "value": "holiday"
+        },
+        "qualifiers": {},
+        "supporting_fact_ids": [
+          "a681a85b-0067-4d16-b49f-b767a3f186de"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "budget",
+    "value": {
+      "amount": "700.00",
+      "currency": "EUR",
+      "period": "monthly"
+    },
+    "features": [
+      {
+        "key": "price",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "money",
+          "amount": "699.99",
+          "currency": "EUR",
+          "period": "monthly"
+        },
+        "qualifiers": {},
+        "supporting_fact_ids": [
+          "fc68b689-5eab-432f-be28-759dc8d19254"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "geography",
+    "value": {
+      "province_code": "38",
+      "municipality_code": "38001"
+    },
+    "features": [
+      {
+        "key": "geography",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "geography",
+          "province_code": "38",
+          "municipality_code": "38001",
+          "zone_id": "synthetic_zone"
+        },
+        "qualifiers": {},
+        "supporting_fact_ids": [
+          "cfeb666b-4ed6-44eb-8b4c-15d646b28f4b"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "accommodation",
+    "value": {
+      "kind": "one_bedroom"
+    },
+    "features": [
+      {
+        "key": "accommodation",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "category",
+          "value": "one_bedroom"
+        },
+        "qualifiers": {},
+        "supporting_fact_ids": [
+          "b1da6913-655f-45f9-b46f-ac378c677f11"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "party",
+    "value": {
+      "adults": 2,
+      "children": 1,
+      "relationship": "couple"
+    },
+    "features": [
+      {
+        "key": "capacity_total",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "quantity",
+          "value": 3,
+          "unit": "persons"
+        },
+        "qualifiers": {
+          "inventory_scope": "rented_unit"
+        },
+        "supporting_fact_ids": [
+          "46cea36a-b8a9-4ac4-9505-c8bb644b4736"
+        ]
+      },
+      {
+        "key": "available_spots",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "quantity",
+          "value": 3,
+          "unit": "persons"
+        },
+        "qualifiers": {
+          "inventory_scope": "rented_unit"
+        },
+        "supporting_fact_ids": [
+          "3be8a20f-c898-4f70-98b3-9d6f0f57400a"
+        ]
+      },
+      {
+        "key": "couples",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "policy",
+          "allowed": true
+        },
+        "qualifiers": {},
+        "supporting_fact_ids": [
+          "1ee42e98-b8f2-4590-99e7-7fbdc9151e0d"
+        ]
+      },
+      {
+        "key": "children",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "policy",
+          "allowed": true
+        },
+        "qualifiers": {},
+        "supporting_fact_ids": [
+          "e0c4b9a9-8f81-4fb1-aed2-b99318b5f900"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "pets",
+    "value": [
+      {
+        "species": "dog",
+        "size": "small",
+        "count": 2
+      }
+    ],
+    "features": [
+      {
+        "key": "pets",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "policy",
+          "allowed": true
+        },
+        "qualifiers": {
+          "species": "dog",
+          "size": "small",
+          "max_count": 2
+        },
+        "supporting_fact_ids": [
+          "e12c14cb-321c-4a3c-a449-0cf6aff48eff"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "smoking",
+    "value": {
+      "scope": "balcony"
+    },
+    "features": [
+      {
+        "key": "smoking",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "policy",
+          "allowed": true
+        },
+        "qualifiers": {
+          "smoking_scope": "outdoors"
+        },
+        "supporting_fact_ids": [
+          "56af2799-ce1a-49a6-a1ff-e56c90f10d74"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "furnished",
+    "value": false,
+    "features": [
+      {
+        "key": "furnished",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "boolean",
+          "value": false
+        },
+        "qualifiers": {},
+        "supporting_fact_ids": [
+          "ec4cb078-73ba-48d4-8f63-056737a24916"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "bills_included",
+    "value": false,
+    "features": [
+      {
+        "key": "bills_included",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "boolean",
+          "value": false
+        },
+        "qualifiers": {},
+        "supporting_fact_ids": [
+          "db6de371-8e89-4764-9aaf-dc0d064ebbc6"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "balcony",
+    "value": false,
+    "features": [
+      {
+        "key": "balcony",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "boolean",
+          "value": false
+        },
+        "qualifiers": {},
+        "supporting_fact_ids": [
+          "6fe73523-1bb6-41f2-816a-6b0876d3184a"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "terrace",
+    "value": false,
+    "features": [
+      {
+        "key": "terrace",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "boolean",
+          "value": false
+        },
+        "qualifiers": {},
+        "supporting_fact_ids": [
+          "d2419a0f-4ba8-45f2-9848-b945cf203c33"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "deposit",
+    "value": {
+      "kind": "quantity",
+      "value": 2,
+      "unit": "months"
+    },
+    "features": [
+      {
+        "key": "deposit",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "quantity",
+          "value": 1,
+          "unit": "months"
+        },
+        "qualifiers": {},
+        "supporting_fact_ids": [
+          "8c2f3c14-d303-4a66-b512-2c0eff35dfe5"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "amenities",
+    "value": [
+      "synthetic_wifi"
+    ],
+    "features": [
+      {
+        "key": "amenity",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "boolean",
+          "value": true
+        },
+        "qualifiers": {
+          "amenity_code": "synthetic_wifi"
+        },
+        "supporting_fact_ids": [
+          "00c606f3-c581-4095-bbf0-28fbec11d523"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "dates",
+    "value": {
+      "check_in": "2026-11-01",
+      "check_out": "2026-11-04"
+    },
+    "features": [
+      {
+        "key": "availability",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "date_range",
+          "start": "2026-10-31",
+          "end": "2026-11-05"
+        },
+        "qualifiers": {
+          "inventory_scope": "rented_unit"
+        },
+        "supporting_fact_ids": [
+          "64f06b4a-f8bf-4d35-8a98-4a956f01118c"
+        ]
+      },
+      {
+        "key": "minimum_stay",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "quantity",
+          "value": 2,
+          "unit": "nights"
+        },
+        "qualifiers": {},
+        "supporting_fact_ids": [
+          "e4e1faf9-ff18-438b-8a6e-a2ea988f38e5"
+        ]
+      },
+      {
+        "key": "maximum_stay",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "quantity",
+          "value": 4,
+          "unit": "nights"
+        },
+        "qualifiers": {},
+        "supporting_fact_ids": [
+          "1de8ec27-5ab6-4e32-a976-a3a3dc20ea8d"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "stay",
+    "value": {
+      "value": 3,
+      "unit": "nights"
+    },
+    "features": [
+      {
+        "key": "minimum_stay",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "quantity",
+          "value": 2,
+          "unit": "nights"
+        },
+        "qualifiers": {},
+        "supporting_fact_ids": [
+          "001d5c55-b8ed-4aa7-ad88-d18ad28950bc"
+        ]
+      },
+      {
+        "key": "maximum_stay",
+        "status": "explicit_allow",
+        "typed_value": {
+          "kind": "quantity",
+          "value": 4,
+          "unit": "nights"
+        },
+        "qualifiers": {},
+        "supporting_fact_ids": [
+          "6c924d1a-0f74-48ec-834d-d685e88a63d3"
+        ]
+      }
+    ]
+  }
+]
