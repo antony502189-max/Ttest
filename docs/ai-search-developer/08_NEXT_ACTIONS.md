@@ -16,6 +16,18 @@
   identity checks, idempotent validated ingest, CAS stale-hash rejection,
   resolver conflict/authority rules and atomic projection/revision/rematch outbox.
   Use only synthetic/disposable data and fake workers until later gates pass.
+- [x] AI-04 offline backend delta prepared on stacked branch
+  `codex/ai-04-facts-queue` over #380 head `a5f4705a`; see
+  [queue/resolver implementation and limits](AI-04_BACKEND.md). Actual durable
+  transactions and source-only resolver are tested; importer/worker activation,
+  real source packet bridge, canonical remap and owner precedence remain open.
+- [ ] Review AI-03 and AI-04 separately; check final-head dedicated and payment
+  CI. Do not treat stacked CI synthetic merge refs as actual merges. On the
+  final verification AI-03 head `a5f4705a` has all eight triggered workflows
+  completed/success, including Mobile. No submitted reviews; #380 remains open.
+- [ ] Before live worker integration: review importer lock order and BASE-373,
+  approved source vocabulary/minimization, durable snapshot-to-input hash bridge,
+  privacy/retention and an explicit operating policy. No daemon is enabled here.
 - [ ] Review owner-fact precedence; do not silently adopt the proposed override.
 - [ ] AI-02 authorized read-only DB role: measure real coverage/source health and
   query plans before production index/backfill/freshness claims.

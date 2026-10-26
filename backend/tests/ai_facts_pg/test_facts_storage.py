@@ -10,6 +10,7 @@ from sqlalchemy import MetaData, func, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 
 from app.db.base import Base
+from app.models.ai_fact_pipeline import AiFactCatalog, AiFactJob, AiFactRematchEvent, AiFactSource
 from app.models.ai_listing_facts import AiListingFact, AiListingFactBatch, AiListingSearchFeatures
 from app.schemas.ai_listing_facts import FactBatch, SearchProjection, digest
 
@@ -60,7 +61,8 @@ def store_projection(connection, value):
 def test_actual_migration_and_full_new_table_metadata(pg):
     engine, _ = pg
     metadata = MetaData()
-    for table in (AiListingFactBatch.__table__, AiListingFact.__table__, AiListingSearchFeatures.__table__):
+    for table in (AiListingFactBatch.__table__, AiListingFact.__table__, AiListingSearchFeatures.__table__,
+                  AiFactCatalog.__table__, AiFactSource.__table__, AiFactJob.__table__, AiFactRematchEvent.__table__):
         assert table.name in Base.metadata.tables
         table.to_metadata(metadata)
     with engine.connect() as connection:
