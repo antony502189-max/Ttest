@@ -1,6 +1,9 @@
 # AI-07 — offline preparation, 2026-10-26
 
 Status: **PROPOSED / REVIEW PREPARATION**, not AI-07 runtime completion.
+Draft PR: [#377](https://github.com/antony502189-max/Ttest/pull/377), branch
+`codex/ai-07-quota-lab`; executable-code SHA
+`b4680e88ebde3cd47b0b2a21d9d13357584d4a6d` (follow-up only records PR metadata).
 Base: main `1292c6807ece59999238bb31c80e09ef7e2c3212`, includes payment #372.
 AI-01 dependency: [#376](https://github.com/antony502189-max/Ttest/pull/376),
 head `d46c44ee62aa89e0ac312e69d754aca9594f96d8`, open, no submitted reviews or

@@ -9,6 +9,10 @@ do not replace their entries or describe them as merged.
 - [x] Confirm current main includes payment #372; #373/#374/#375/#376 remain open.
 - [x] Confirm #376 has no human reviews/comments; dependent runtime gate remains.
 - [x] Prepare isolated AI-07 quota SQL lab with real disposable PostgreSQL tests.
+  Draft [#377](https://github.com/antony502189-max/Ttest/pull/377), branch
+  `codex/ai-07-quota-lab`, executable-code SHA
+  `b4680e88ebde3cd47b0b2a21d9d13357584d4a6d`; local PG18.6: 25 passed.
+  Final head/checks are available in the PR; CI is not presumed green.
   See [validation](AI-07_LAB_VALIDATION.md) and [run instructions](../../tools/ai_search_quota_lab/README.md).
 - [ ] Human review of [AI-01 #376](https://github.com/antony502189-max/Ttest/pull/376),
   especially section 6 operation lifecycle, before dependent backend runtime PR.
