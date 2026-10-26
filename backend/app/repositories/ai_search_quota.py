@@ -30,8 +30,26 @@ class QuotaError(Exception):
         super().__init__(code)
 
 
-class SessionVersionConflict(Exception):
+class SessionCommitRejected(Exception):
+    """A deterministic session failure releases quota after callback rollback."""
+
+    def __init__(self, failure: FailureCode):
+        if failure not in {
+            FailureCode.SESSION_VERSION_CONFLICT,
+            FailureCode.SESSION_EXPIRED,
+            FailureCode.SESSION_NOT_FOUND,
+            FailureCode.SESSION_STATE_INVALID,
+        }:
+            raise ValueError("a session failure code is required")
+        self.failure = failure
+        super().__init__(failure)
+
+
+class SessionVersionConflict(SessionCommitRejected):
     """The session CAS callback must raise this when its guarded update loses."""
+
+    def __init__(self):
+        super().__init__(FailureCode.SESSION_VERSION_CONFLICT)
 
 
 async def _now(session: AsyncSession) -> datetime:
@@ -284,8 +302,8 @@ class QuotaLedger:
                 now = await self._live(session, request, fence)
                 result = await self._complete(session, usage, request, now, receipt, None)
             return result
-        except SessionVersionConflict:
-            return await self._complete(session, usage, request, now, None, FailureCode.SESSION_VERSION_CONFLICT)
+        except SessionCommitRejected as error:
+            return await self._complete(session, usage, request, now, None, error.failure)
 
     async def finalize(
         self,

@@ -445,6 +445,7 @@ class SearchHistory(Base):
 # for orphaned schema objects.
 from .advertising_waitlist import AdvertisingWaitlist  # noqa: F401
 from .ai_search_quota import AISearchRequest, AIUsageDay  # noqa: F401
+from .ai_search_session import AISearchResult, AISearchSession  # noqa: F401
 from .commercial_advertisement import CommercialAdvertisement  # noqa: F401
 from .moderation import (  # noqa: F401
     AdminAccess,
