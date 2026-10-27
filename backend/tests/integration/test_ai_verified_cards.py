@@ -8,9 +8,6 @@ from test_listing_gallery_cards import _seed_listing_with_gallery
 
 from app.db.session import SessionLocal
 from app.models import ExternalListingSource, Listing, User
-
-
-
 from app.models.ai_query_proof import AiQueryProof
 from app.models.ai_search_quota import AIUsageDay
 from app.models.ai_search_session import AISearchSession
