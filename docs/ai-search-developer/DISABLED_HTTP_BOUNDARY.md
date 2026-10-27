@@ -1,0 +1,47 @@
+# Disabled HTTP boundary and current card values — 2026-10-27
+
+Registers /api/v1/ai-search with capability, owned session/create/reset, text query, session-card and durable-result-card paths. Application never constructs AISearchRuntime: capabilities text=false/voice=false/saved_searches=false and private operations503 without an explicit reviewed runtime. No env key/feature flag automatically activates it. Legacy messaging/chat routes remain absent; text search uses POST /query. Existing API inventory regenerated.
+
+After the supplied PR394review, see [finding-by-finding resolution](PR_394_REVIEW_RESOLUTION.md).
+Runtime additionally requires AIHTTPPolicy: explicit trusted proxy networks,
+request deadline and active-session bound. Subject issuance uses its own injected
+gate key. Guest browser use is same-origin only; bearer clients can use explicitly
+allowed CORS origins and X-AI-Request. Capabilities advertise configuration, not
+health. Private application logs/metrics redact paths, Uvicorn private access
+events are dropped and nginx suppresses raw AI access/error URLs.
+
+For hard budgets, responses include budget_prices with each card's actual
+confirmed amount/period and separate native display amount/period. The client
+must show the confirmed requested-period amount beside the existing card; it
+must not imply that the native monthly/nightly price is the checked weekly price.
+No price conversion or commercial ordering change is made.
+
+The full async request is deadline-bound. A504 requires replay of the exact
+operation key/body/version because commit may already have succeeded. Expired
+pre-success work leaves a fenced reservation for recovery rather than starting
+unbounded cancellation cleanup. Explicit cleanup_unused is an offline bounded
+operation requiring a caller-chosen retention cutoff; no production cleanup or
+retention default is supplied.
+
+Runtime requires the same owned session authority for query/execution, independent signed guest key, explicit TTL, trusted origins and an injected fail-closed HTTP/IP gate. No production TTL, key, Redis budget, body limit, provider or bootstrap defaults are supplied. A bounded body policy is required; origin/IP gates and streaming byte limits run before FastAPI reads/parses JSON, including chunked requests. Missing runtime rejects before body parsing. Policies remain operator/product gates.
+
+- Identity comes only from persisted valid bearer+existing full-access moderation or server-minted HMAC guest cookie. Invalid/blocked bearer never falls back to guest. No request body can choose subject/channel/hash/credits; server hashes final text. Guest cookie is Secure/HttpOnly/SameSiteStrict/host-only/AI-path, bounded and policy/time/version/signature checked. Missing guest identity can mint only on explicit session creation, after HTTP+guest-issuance gates; invalid/expired cookie never auto-mints a replacement.
+- Mutation origins must be explicitly trusted and X-AI-Request=1 present. GET ownership still applies; missing runtime fails before DB/provider. No memory rate-limit fallback is supplied by this layer; absent/broken injected gate yields a fixed503. Future bootstrap must wire real distributed technical limits before activation.
+- Card view inputs allow only pagination/sort/favorite ordering. All semantic constraints stay in the owned typed intent; legacy manual boolean/default filters cannot silently broaden or contradict it. Manual search retains its original separate API.
+- Session reset preserves guest identity/quota and closes old session. Registration starts an auth-owned session; guest state/credits are not transferred. Paging never debits. Durable-result paging preserves old intent after followup and uses signed cursors; current cards/eligibility are revalidated.
+- Private responses are no-store. Fixed private error codes omit provider/SQL/body/keys. Request isolation drops AI Sentry events; global error+transaction filters drop AI URL/tag events, including bodies/frames/breadcrumbs. Existing unrelated telemetry retained; source test updated for the new explicit callbacks. Raw text is not stored in sessions/results.
+- Private schema errors return fixed `AI_REQUEST_INVALID` with HTTP422 and bypass the shared validation logger. Unknown JSON keys can contain private input, so neither error locations nor values are exported to response fields or validation logs. A regression checks both with an injected offline runtime.
+
+## Current public price/mode guard
+
+Source facts alone cannot justify showing a card whose current displayed price/rental mode contradicts a hard criterion. Shared current_card_values_predicate additionally checks actual monthly/nightly/weekly canonical column in exact requested period, nonnegative/nonmissing amount<=budget, no known foreign currency or starting/from price, and actual hard rental mode. It does not convert units or use legacy boolean/capacity defaults as evidence. This conservative cross-check precedes count/order/seek/limit in verified cards. It can reject ambiguous price rows; real data reconciliation remains required.
+
+## Verification
+
+Pinned local Python3.14.4/SQLAlchemy2.0.51:1284unit passed/15platform-or-opt-in skips,24targeted passes(3real PG price cases + HTTP-default/guest/telemetry/health/legacy security units). Ruff/mypy147 and supply-chain checks. Full PostGIS HTTP tests are added to dedicated combined CI: signed guest cookies,3success messages/replay/quota reset protection, old-result paging, owner isolation, origin/CSRF/token/IP-gate/body authority rejection, registered200quota/no guest transfer/blocked bearer. End-to-end current card price/currency/from/mode mutation regression uses real proofs/cards. Exact-head CI required; local PG lacks PostGIS.
+
+After the owner merged #392 and #393, this boundary was refreshed onto actual main63b6d4a0, retaining both review sets without rewriting published history. Adapter/schema/deadline/no-op review files match main. New exact-head CI is required; the earlier counts above are historical evidence.
+
+Refresh validation (2026-10-27): 1340 backend unit passes /15 platform-or-opt-in skips; 350 isolated PostgreSQL facts/proofs/quota/session/execution passes /1 unavailable Redis skip. Ruff, mypy148, supply-chain pins, immutable migration checks and diff checks passed. The disposable loopback PostgreSQL cluster was stopped after both test databases reported zero temporary AI schemas. Full PostGIS HTTP/card/gallery and Redis evidence must come from fresh CI on the final commit. Retargeting a PR alone does not trigger default pull_request workflows filtered to main; the validation record is committed after retargeting so those workflows run on the new exact head.
+
+No public runtime/provider/worker activation, liveDB/crawl/backfill/API charge/mainmerge/deploy. This boundary still needs real runtime factory/privacy/minimization/source-coverage/health/policy approval and realistic SQL/browserp95<=10s validation. Voice, registered AI saved-search storage/rematch delivery and frontend remain followup work. No clarification/alerts/guest-transfer/retention/owner-precedence decision is made.

@@ -38,6 +38,7 @@ jobs:
       AI_QUOTA_TEST_DATABASE_URL: postgresql+asyncpg://ai_lab:ai_lab@127.0.0.1:5432/ttest_test
       AI_QUOTA_REDIS_TEST_URL: redis://127.0.0.1:6379/15
       REDIS_URL: ''
+      AI_HTTP_BROWSER_TEST: '1'
       JWT_SECRET: ci-ai-facts-secret-at-least-32-characters
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -66,7 +67,11 @@ jobs:
       - name: Actual facts migration and PostgreSQL constraints
         run: python -m pytest -q backend/tests/test_ai_listing_facts.py backend/tests/test_ai_fact_resolver.py backend/tests/test_ai_fact_bridge.py backend/tests/test_ai_offline_fact_worker.py backend/tests/test_ai_hard_facts.py backend/tests/ai_facts_pg backend/tests/test_ai_search_quota.py backend/tests/test_ai_search_intent.py backend/tests/ai_search_pg --junitxml=output/ai-facts-pg.xml
       - name: Existing card query and verified AI paging on full PostGIS schema
-        run: python -m pytest -q backend/tests/integration/test_ai_verified_cards.py backend/tests/integration/test_listing_gallery_cards.py --junitxml=output/ai-verified-cards.xml
+        run: python -m pytest -q backend/tests/integration/test_ai_verified_cards.py backend/tests/integration/test_ai_http.py backend/tests/integration/test_listing_gallery_cards.py --junitxml=output/ai-verified-cards.xml
+      - name: Install isolated Chromium contract runtime
+        run: python -m playwright install --with-deps chromium
+      - name: Actual browser guest cookie and cross-site boundary
+        run: python -m pytest -q backend/tests/ai_http_browser/test_ai_http_browser.py --junitxml=output/ai-http-browser.xml
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:

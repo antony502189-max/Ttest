@@ -108,6 +108,8 @@ def test_sentry_uses_explicit_release_without_pii(monkeypatch) -> None:
             "release": release,
             "traces_sample_rate": 0.05,
             "send_default_pii": False,
+            "before_send": main_module.exclude_private_ai_telemetry,
+            "before_send_transaction": main_module.exclude_private_ai_telemetry,
         }
     ]
 
