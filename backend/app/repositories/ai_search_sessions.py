@@ -2,14 +2,16 @@
 
 import hashlib
 import json
+import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
 from pydantic import Field
-from sqlalchemy import select, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..models.ai_search_quota import AISearchRequest
 from ..models.ai_search_session import AISearchResult, AISearchSession
 from ..schemas.ai_search_intent import Criteria, IntentPatch, SearchIntent, apply_patch
 from ..schemas.ai_search_quota import (
@@ -24,8 +26,9 @@ from .ai_search_quota import QuotaLedger, SessionCommit, SessionCommitRejected, 
 
 
 class SessionError(Exception):
-    def __init__(self, code: str):
+    def __init__(self, code: str, retry_after: int = 0):
         self.code = code
+        self.retry_after = retry_after
         super().__init__(code)
 
 
@@ -121,8 +124,19 @@ class SearchSessions:
             raise SessionError("SESSION_EXPIRED")
         return row, self._decode(row)
 
-    async def _create(self, conn: AsyncSession, subject: QuotaSubject) -> SessionSnapshot:
+    async def _create(self, conn: AsyncSession, subject: QuotaSubject, *, max_active: int | None = None) -> SessionSnapshot:
+        if max_active is not None and (type(max_active) is not int or max_active < 1):
+            raise ValueError("explicit positive active session bound required")
+        await conn.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+                           {"key": f"ai-session-create:{subject.kind}:{subject.id}"})
         now = await _now(conn)
+        if max_active is not None:
+            active = select(func.count(), func.min(AISearchSession.expires_at)).where(
+                AISearchSession.subject_kind == subject.kind, AISearchSession.subject_id == subject.id,
+                AISearchSession.closed_at.is_(None), AISearchSession.expires_at > now)
+            count, earliest = (await conn.execute(active)).one()
+            if count >= max_active:
+                raise SessionError("SESSION_LIMIT", max(1, math.ceil((earliest - now).total_seconds())))
         intent = SearchIntent(
             schema_version="ai-search.v1",
             taxonomy_version="rental.v1",
@@ -148,16 +162,16 @@ class SearchSessions:
         await conn.flush()
         return SessionSnapshot(intent=intent, expires_at=expiry)
 
-    async def create(self, subject: QuotaSubject) -> SessionSnapshot:
+    async def create(self, subject: QuotaSubject, *, max_active: int | None = None) -> SessionSnapshot:
         async with self.ledger.sessions.begin() as conn:
-            return await self._create(conn, subject)
+            return await self._create(conn, subject, max_active=max_active)
 
     async def get(self, subject: QuotaSubject, session_id: UUID) -> SessionSnapshot:
         async with self.ledger.sessions() as conn:
             row, intent = await self._read(conn, subject, session_id)
             return SessionSnapshot(intent=intent, expires_at=row.expires_at)
 
-    async def reset(self, subject: QuotaSubject, session_id: UUID, expected_version: int) -> SessionSnapshot:
+    async def reset(self, subject: QuotaSubject, session_id: UUID, expected_version: int, *, max_active: int | None = None) -> SessionSnapshot:
         """Explicit caller command only. Never inferred from missing patch fields."""
         if type(expected_version) is not int or not 0 <= expected_version <= 2_147_483_647:
             raise ValueError("a bounded expected version is required")
@@ -169,7 +183,29 @@ class SearchSessions:
             row.expires_at = row.updated_at
             row.closed_at = row.updated_at
             # New identity; old requests can never resurrect or mutate it.
-            return await self._create(conn, subject)
+            return await self._create(conn, subject, max_active=max_active)
+
+    async def cleanup_unused(self, *, older_than: datetime, limit: int) -> int:
+        """Explicit offline retention cutoff only; no worker or default policy.
+
+        Preserve every quota/audit/result row and any session referenced by one.
+        Expiry alone is not authorization to run this against application data.
+        """
+        if older_than.tzinfo is None or type(limit) is not int or not 1 <= limit <= 1000:
+            raise ValueError("aware retention cutoff and bounded batch required")
+        async with self.ledger.sessions.begin() as conn:
+            now = await _now(conn)
+            if older_than > now:
+                raise ValueError("retention cutoff cannot be in the future")
+            referenced = select(AISearchRequest.idempotency_key).where(AISearchRequest.session_id == AISearchSession.id).exists()
+            results = select(AISearchResult.id).where(AISearchResult.session_id == AISearchSession.id).exists()
+            ids = list(await conn.scalars(select(AISearchSession.id).where(
+                AISearchSession.expires_at <= older_than, AISearchSession.version == 0,
+                AISearchSession.criteria == {}, ~referenced, ~results,
+            ).order_by(AISearchSession.expires_at, AISearchSession.id).limit(limit).with_for_update(skip_locked=True)))
+            if ids:
+                await conn.execute(delete(AISearchSession).where(AISearchSession.id.in_(ids)))
+            return len(ids)
 
     def commit_patch(
         self, subject: QuotaSubject, operation: QuotaOperation, patch: IntentPatch, receipt: ResultReceipt

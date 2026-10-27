@@ -18,6 +18,7 @@ from ..schemas.ai_listing_facts import digest
 from ..schemas.ai_search_intent import IntentPatch, SearchIntent, apply_patch
 from ..schemas.ai_search_quota import FailureCode, OperationState, QuotaOperation, QuotaSubject, ResultReceipt
 from ..schemas.listings import ListingCardSearchRequest
+from .ai_http_policy import HTTP_DEADLINE
 from .ai_search_attempts import AIAttemptRejected
 
 
@@ -106,7 +107,14 @@ class TextSearchExecution:
             # No durable success has begun. Cancellation cannot debit. If DB
             # cleanup fails, lease recovery releases it later; never infer again.
             with suppress(Exception):
-                await self.ledger.release(subject, operation, state.fence, FailureCode.BACKEND_FAILURE)
+                deadline = HTTP_DEADLINE.get()
+                if deadline is None:
+                    await self.ledger.release(subject, operation, state.fence, FailureCode.BACKEND_FAILURE)
+                elif asyncio.get_running_loop().time() < deadline:
+                    async with asyncio.timeout_at(deadline):
+                        await self.ledger.release(subject, operation, state.fence, FailureCode.BACKEND_FAILURE)
+                # An exhausted HTTP deadline must not start unbounded cleanup.
+                # Fenced PG lease recovery releases the reservation later.
             raise
         except Exception as error:  # noqa: BLE001 - map arbitrary injected service failure to a fixed private code
             if isinstance(error, (SessionError, AIAttemptRejected)) and error.code in {code.value for code in FailureCode}:

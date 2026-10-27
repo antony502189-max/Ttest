@@ -21,7 +21,7 @@ charset-normalizer==3.4.9
 click==8.4.2
 coverage==7.15.3
 cryptography==50.0.0
-dnspython==2.8.0
+dnspython==2.9.0
 email-validator==2.3.0
 fastapi==0.141.1
 geoalchemy2==0.20.0
