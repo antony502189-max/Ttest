@@ -66,7 +66,7 @@ def test_session_creation_accepts_only_explicit_typed_mode_and_legacy_empty_body
     sessions = SimpleNamespace(create=AsyncMock(return_value={"ok": True}))
     guests = GuestTokens(key=b"synthetic-guest-key-not-secret-32", policy=GuestPolicy(ttl_seconds=60))
     active = AISearchRuntime(sessions, SimpleNamespace(sessions=sessions), SimpleNamespace(sessions=sessions),
-                             guests, SimpleNamespace(check=AsyncMock()), frozenset({"https://testserver"}), 4096, AIHTTPPolicy(10, 5, ()))
+                             guests, SimpleNamespace(check=AsyncMock()), frozenset({"https://testserver"}), 4096, AIHTTPPolicy(10, 5, (), "https://testserver"))
     monkeypatch.setattr(app.state, "ai_search_runtime", active, raising=False)
     token, owner = guests.issue()
     headers = {"Origin": "https://testserver", "X-AI-Request": "1", "Cookie": "ai_search_guest=" + token}
