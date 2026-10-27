@@ -139,14 +139,14 @@ class Criteria(StrictContract):
     geography: Criterion[Geography] | None = None
     accommodation: Criterion[Accommodation] | None = None
     party: Criterion[Party] | None = None
-    pets: Criterion[Annotated[tuple[Pet, ...], Field(max_length=10)]] | None = None
+    pets: Criterion[Annotated[tuple[Pet, ...], Field(min_length=1, max_length=10)]] | None = None
     smoking: Criterion[Smoking] | None = None
     furnished: Criterion[bool] | None = None
     bills_included: Criterion[bool] | None = None
     deposit: Criterion[Annotated[DepositMoney | DepositMonths, Field(discriminator="kind")]] | None = None
     balcony: Criterion[bool] | None = None
     terrace: Criterion[bool] | None = None
-    amenities: Criterion[Annotated[tuple[Code, ...], Field(max_length=100)]] | None = None
+    amenities: Criterion[Annotated[tuple[Code, ...], Field(min_length=1, max_length=100)]] | None = None
     dates: Criterion[Dates] | None = None
     stay: Criterion[Stay] | None = None
 

@@ -6,6 +6,7 @@ Clarification and background-alert business policies are deliberately absent.
 """
 import asyncio
 import hashlib
+import math
 from contextlib import suppress
 from dataclasses import dataclass
 from typing import Protocol
@@ -47,6 +48,13 @@ class TextSearchExecution:
                  query: CandidateCardQuery):
         self.sessions, self.parser, self.attempts, self.query = sessions, parser, attempts, query
         self.ledger = sessions.ledger
+        # Optional declared parser budget must leave time for query/finalize.
+        # This is a configuration guard, not a latency guarantee for the rest
+        # of the pipeline; database lease fencing remains authoritative.
+        budget = getattr(parser, "total_budget_seconds", None)
+        if budget is not None and (type(budget) not in {float, int} or not math.isfinite(budget)
+                                   or not 0 < budget < self.ledger.policy.running_seconds):
+            raise ValueError("parser deadline must be shorter than running lease")
 
     async def execute(self, subject: QuotaSubject, operation: QuotaOperation, text: str,
                       payload: ListingCardSearchRequest) -> SearchExecution:
