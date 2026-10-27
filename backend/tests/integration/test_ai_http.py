@@ -42,7 +42,7 @@ async def active(monkeypatch):
     parser, gate = Parser(), Gate()
     value = AISearchRuntime(query.sessions, query, TextSearchExecution(query.sessions, parser, Gate(), query),
         GuestTokens(key=b"synthetic-http-guest-key-not-secret32", policy=GuestPolicy(ttl_seconds=600)),
-        gate, frozenset({"http://testserver"}))
+        gate, frozenset({"http://testserver"}), 131_072)
     monkeypatch.setattr(app.state, "ai_search_runtime", value, raising=False)
     return value, parser, gate
 
@@ -101,6 +101,9 @@ async def test_origin_cookie_gate_and_client_authority_fields_fail_closed(active
         for cookie in ("forged", runtime.guests.issue(now=1)[0]):
             result = await client.get(f"/api/v1/ai-search/sessions/{sid}", headers={"Cookie": "ai_search_guest=" + cookie})
             assert result.status_code == 401 and "set-cookie" not in result.headers
+        oversized = await client.post("/api/v1/ai-search/query", content=b"x" * 131_073,
+                                      headers={"Content-Type": "application/json"})
+        assert oversized.status_code == 413 and parser.calls == 0
         forged = message(sid, 0) | {"subject_id": str(uuid4()), "quota_limit": 99999}
         result = await client.post("/api/v1/ai-search/query", json=forged)
         assert result.status_code == 422 and "PRIVATE_SYNTHETIC_INPUT" not in result.text

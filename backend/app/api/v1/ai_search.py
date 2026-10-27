@@ -41,8 +41,11 @@ class AISearchRuntime:
     guests: GuestTokens
     http_gate: HTTPGate
     origins: frozenset[str]
+    max_body_bytes: int
 
     def __post_init__(self):
+        if type(self.max_body_bytes) is not int or not 1024 <= self.max_body_bytes <= 1_048_576:
+            raise ValueError("explicit bounded HTTP body policy required")
         if not self.origins or "*" in self.origins:
             raise ValueError("explicit trusted browser origins required")
         if self.cards.sessions is not self.sessions or self.execution.sessions is not self.sessions:
@@ -57,6 +60,20 @@ class PrivateAIRoute(APIRoute):
                 scope.set_tag("ai_private", True)
                 scope.add_event_processor(lambda event, hint: None)
                 try:
+                    if request.url.path != "/api/v1/ai-search/capabilities":
+                        active = await runtime(request)
+                        if request.method not in {"GET", "HEAD"}:
+                            length = request.headers.get("content-length")
+                            if length is not None and (int(length) < 0 or int(length) > active.max_body_bytes):
+                                raise HTTPException(413, "AI_REQUEST_BODY_TOO_LARGE")
+                            body = bytearray()
+                            async for chunk in request.stream():
+                                if len(body) + len(chunk) > active.max_body_bytes:
+                                    raise HTTPException(413, "AI_REQUEST_BODY_TOO_LARGE")
+                                body.extend(chunk)
+                            # Reuse Starlette's bounded body cache for FastAPI
+                            # validation, after the fail-closed gate and limit.
+                            request._body = bytes(body)
                     result = await handler(request)
                     result.headers["Cache-Control"] = "no-store"
                     return result
@@ -115,12 +132,15 @@ async def runtime(request: Request) -> AISearchRuntime:
     value = getattr(request.app.state, "ai_search_runtime", None)
     if not isinstance(value, AISearchRuntime):
         raise HTTPException(503, "AI_SEARCH_DISABLED")
+    if getattr(request.state, "validated_ai_runtime", None) is value:
+        return value
     if request.method not in {"GET", "HEAD"} and (
         request.headers.get("origin") not in value.origins or request.headers.get("x-ai-request") != "1"
     ):
         raise HTTPException(403, "AI_ORIGIN_OR_CSRF_REJECTED")
     address = request.client.host if request.client else "unknown"
     await value.http_gate.check(value.guests.ip_key(address, purpose="ai-http"))
+    request.state.validated_ai_runtime = value
     return value
 
 
