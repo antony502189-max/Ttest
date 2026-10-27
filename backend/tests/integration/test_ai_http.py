@@ -43,7 +43,7 @@ async def active(monkeypatch):
     parser, gate = Parser(), Gate()
     value = AISearchRuntime(query.sessions, query, TextSearchExecution(query.sessions, parser, Gate(), query),
         GuestTokens(key=b"synthetic-http-guest-key-not-secret32", policy=GuestPolicy(ttl_seconds=600)),
-        gate, frozenset({"https://testserver"}), 131_072, AIHTTPPolicy(10, 5, ()))
+        gate, frozenset({"https://testserver"}), 131_072, AIHTTPPolicy(10, 5, (), "https://testserver"))
     monkeypatch.setattr(app.state, "ai_search_runtime", value, raising=False)
     return value, parser, gate
 
