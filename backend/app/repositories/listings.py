@@ -661,10 +661,16 @@ def _seek(components: list, values: list, direction: str):
 
 async def search_public_cards(session: AsyncSession, payload: ListingCardSearchRequest) -> ListingCardSearchResponse:
     filtered = apply_search_filters(visible_query(), payload)
+    return await _search_filtered_cards(session, payload, filtered, _cursor_fingerprint(payload))
+
+
+async def _search_filtered_cards(
+    session: AsyncSession, payload: ListingCardSearchRequest, filtered: Select, fingerprint: str,
+) -> ListingCardSearchResponse:
+    """Shared card rendering/order; callers supply ALL eligibility before count."""
     count_query = filtered.with_only_columns(Listing.id).order_by(None).subquery()
     total = await session.scalar(select(func.count()).select_from(count_query)) or 0
     components = _card_sort_components(payload.sort, payload.favoriteIds)
-    fingerprint = _cursor_fingerprint(payload)
     direction = "after"
     if payload.cursor:
         values, direction = _decode_cursor(payload.cursor, fingerprint, len(components))

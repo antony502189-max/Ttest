@@ -444,6 +444,11 @@ class SearchHistory(Base):
 # module registered here so autogeneration can never mistake application tables
 # for orphaned schema objects.
 from .advertising_waitlist import AdvertisingWaitlist  # noqa: F401
+from .ai_fact_pipeline import AiFactCatalog, AiFactJob, AiFactRematchEvent, AiFactSource  # noqa: F401
+from .ai_listing_facts import AiListingFact, AiListingFactBatch, AiListingSearchFeatures  # noqa: F401
+from .ai_query_proof import AiQueryProof  # noqa: F401
+from .ai_search_quota import AISearchRequest, AIUsageDay  # noqa: F401
+from .ai_search_session import AISearchResult, AISearchSession  # noqa: F401
 from .commercial_advertisement import CommercialAdvertisement  # noqa: F401
 from .moderation import (  # noqa: F401
     AdminAccess,
