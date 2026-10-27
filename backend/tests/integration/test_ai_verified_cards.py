@@ -310,16 +310,31 @@ async def test_verified_fact_budget_cannot_override_current_card_price_currency_
         "observed_at": datetime.now(UTC), "source_status": "active", "last_successful_check_at": None,
         "last_content_change_at": None, "last_check_error_at": None, "facts": observations})
     await pipeline.complete(claim, batch, {"description": description})
+    # Reviewed proof.v2 rejects certification while canonical price is 725
+    # and the source fact is 600. Certify only after they agree.
+    assert not await QueryProofs(pipeline).prepare(listing_id)
+    async with SessionLocal() as session, session.begin():
+        await session.execute(update(Listing).where(Listing.id == listing_id).values(monthly_price=600))
     assert await QueryProofs(pipeline).prepare(listing_id)
     async with SessionLocal() as session, session.begin():
         await session.execute(update(AISearchSession).where(AISearchSession.id == session_id).values(criteria={
             "budget": {"strength": "hard", "value": {"amount": "700", "currency": "EUR", "period": "monthly"}},
             "rental_mode": {"strength": "hard", "value": "long"}}))
+    page = await query.search_owned(subject, session_id, 1, ListingCardSearchRequest())
+    assert page.cards.total == 1 and page.cards.items[0].price == 600
+    async with SessionLocal() as session, session.begin():
+        await session.execute(update(Listing).where(Listing.id == listing_id).values(monthly_price=725))
     assert (await query.search_owned(subject, session_id, 1, ListingCardSearchRequest())).cards.total == 0
     async with SessionLocal() as session, session.begin():
         await session.execute(update(Listing).where(Listing.id == listing_id).values(monthly_price=650))
+    # Within budget still does not excuse stale, inconsistent source evidence.
+    assert (await query.search_owned(subject, session_id, 1, ListingCardSearchRequest())).cards.total == 0
+    assert not await QueryProofs(pipeline).prepare(listing_id)
+    async with SessionLocal() as session, session.begin():
+        await session.execute(update(Listing).where(Listing.id == listing_id).values(monthly_price=600))
+    assert await QueryProofs(pipeline).prepare(listing_id)
     page = await query.search_owned(subject, session_id, 1, ListingCardSearchRequest())
-    assert page.cards.total == 1 and page.cards.items[0].price == 650
+    assert page.cards.total == 1 and page.cards.items[0].price == 600
     for changes in ({"source_price_currency": "USD"}, {"source_price_is_from": True}, {"rental_mode": "holiday", "nightly_price": 55}):
         async with SessionLocal() as session, session.begin():
             await session.execute(update(Listing).where(Listing.id == listing_id).values(**changes))
