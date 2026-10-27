@@ -247,15 +247,39 @@ def test_one_structured_path_cannot_claim_two_different_quotes():
         prepare(rehash(data))
 
 
-def test_unapproved_amenity_code_and_unsupported_provider_fact_fail_closed():
+def test_unapproved_amenity_code_fails_closed():
     with pytest.raises(BridgeRejected, match="INVALID_SANITIZED_PACKET_OR_MAPPING"):
         prepare(packet("structured_false_and_amenities"), rules=mapping(amenity_codes={"wifi": "unapproved"}))
-    data = packet("structured_text_conflict").model_dump()
-    data["provider_facts"][0]["field"] = "empadronamiento_allowed"
-    custom = mapping(structured_fields={"rules.pets": "empadronamiento_allowed"},
-                     rented_unit_capacity_fields=frozenset(), structured_smoking_scopes={})
-    with pytest.raises(BridgeRejected, match="UNSUPPORTED_SOURCE_FACT"):
-        prepare(rehash(data), rules=custom)
+
+
+@pytest.mark.parametrize("allowed", [True, False])
+def test_empadronamiento_is_explicitly_excluded_without_losing_supported_facts(allowed):
+    data = packet("structured_false_and_amenities").model_dump()
+    ref = reference(rehash(data))
+    original = prepare(rehash(data), ref=ref)
+    data["provider_facts"].append({"field": "empadronamiento_allowed", "value": allowed,
+        "evidence": {"source": "structured", "provider_field": "rules.registration", "quote": str(allowed)}})
+    ready = prepare(rehash(data), ref=ref)
+    assert ready.skipped_provider_fields == ("empadronamiento_allowed",)
+    assert ready.facts == original.facts
+    assert not any(f.key == "empadronamiento_allowed" for f in ready.facts)
+
+
+@pytest.mark.parametrize("status", ["ready", "insufficient_source_data"])
+def test_structured_evidence_without_description(status):
+    data = packet("structured_false_and_amenities").model_dump()
+    data.update(title="", description="", data_status=status)
+    ready = prepare(rehash(data))
+    assert next(f for f in ready.facts if f.key == "furnished").typed_value.value is False
+    assert not any(f.origin == "source_text" and f.status != "unknown" for f in ready.facts)
+
+
+def test_redacted_structured_evidence_cannot_admit_empty_source():
+    data = packet("structured_capacity").model_dump()
+    data.update(title="", description="", data_status="insufficient_source_data")
+    data["provider_facts"][0]["evidence"]["quote"] = "[contact]"
+    with pytest.raises(BridgeRejected, match="INSUFFICIENT_SOURCE_DATA"):
+        prepare(rehash(data))
 
 
 @pytest.mark.parametrize("old_key,value", [("room_capacity", True), ("pets_allowed", 2), ("pets_allowed", "false")])

@@ -4,6 +4,7 @@ No public activation, default freshness TTL, provider, crawl or backfill. This
 proof establishes equality with explicitly verified stored source state, not
 source-health freshness by elapsed time or complete listing eligibility.
 """
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import DateTime, Text, func, literal, or_, select, text
@@ -14,7 +15,11 @@ from ..models import ExternalListingSource, Listing
 from ..models.ai_fact_pipeline import AiFactCatalog, AiFactSource
 from ..models.ai_listing_facts import AiListingFact, AiListingFactBatch, AiListingSearchFeatures
 from ..models.ai_query_proof import AiQueryProof
+from ..models.room_details import ListingRoomDetails
+from ..schemas.ai_listing_facts import Category, DateRange, Money, Quantity, SearchProjection
 from .ai_fact_pipeline import FactPipeline
+
+PROOF_CONTRACT_VERSION = "query-proof.v2"
 
 
 def _hash(value):
@@ -43,6 +48,7 @@ def projection_signature(listing_id) -> ColumnElement[str]:
     fact = AiListingFact.__table__.alias()
     external = ExternalListingSource.__table__.alias()
     listing = Listing.__table__.alias()
+    room = ListingRoomDetails.__table__.alias()
     projection = AiListingSearchFeatures.__table__.alias()
     anchor = AiFactCatalog.__table__.alias()
     known_ids = select(source.c.source_record_id).where(source.c.canonical_listing_id == listing_id).correlate_except(source)
@@ -61,9 +67,23 @@ def projection_signature(listing_id) -> ColumnElement[str]:
         "fingerprint", external.c.fingerprint, "status", external.c.current_status, "snapshot", snapshot,
         "last_success", func.extract("epoch", external.c.last_success_at),
         "content_updated", func.extract("epoch", external.c.content_updated_at))
+    canonical = func.to_jsonb(listing.table_valued()).op("-")(literal("views")).op("-")(literal("updated_at"))
+    timestamps: list[ColumnElement] = []
+    for column in listing.c:
+        if isinstance(column.type, DateTime) and column.name != "updated_at":
+            timestamps.extend((literal(column.name, type_=Text), func.extract(
+                "epoch", canonical.op("->>")(literal(column.name, type_=Text)).cast(DateTime(timezone=True)))))
+    canonical = canonical.op("||")(func.jsonb_build_object(*timestamps))
     return _hash(func.jsonb_build_object(
+        # Bump whenever preparation's semantic checks change. Old cache rows
+        # must not bypass a new verifier merely because their inputs are equal.
+        "proof_contract", PROOF_CONTRACT_VERSION,
+        # Hash the canonical row too: public cards can change independently of
+        # the provider snapshot. Views/updated_at are bookkeeping, not evidence.
+        # to_jsonb(row) also supports deliberately minimal legacy test schemas.
         "listing", rows(listing, listing.c.id == listing_id, listing.c.id, 1,
-                        _object([listing.c.id, listing.c.status, listing.c.deleted_at])),
+                        canonical),
+        "room", rows(room, room.c.listing_id == listing_id, room.c.listing_id, 1),
         "anchor", rows(anchor, anchor.c.canonical_listing_id == listing_id, anchor.c.canonical_listing_id, 1),
         "projection", rows(projection, projection.c.canonical_listing_id == listing_id, projection.c.canonical_listing_id, 1),
         "sources", rows(source, source.c.canonical_listing_id == listing_id, source.c.source_record_id, 129),
@@ -71,6 +91,24 @@ def projection_signature(listing_id) -> ColumnElement[str]:
                           external.c.id, 129, authority),
         "batches", rows(batch, batch.c.id.in_(batch_ids), batch.c.id, 129),
         "facts", rows(fact, fact.c.batch_id.in_(batch_ids), fact.c.id, 1025)))
+
+
+def proof_population_signature(*, resolver_version: str, vocabulary_hash: str):
+    """Exact prepared-set identity, scoped to this resolver and vocabulary.
+
+    Insertions, deletions and replacement proofs change the cursor identity;
+    preparing an identical proof does not. An identical restored set is the
+    same prepared-set identity, so this needs no global generation lock.
+    This is cache identity, not a snapshot of live eligibility or TOP ordering.
+    This aggregate still needs representative capacity testing before release.
+    """
+    proof = AiQueryProof.__table__
+    member = func.concat(proof.c.canonical_listing_id, ":", proof.c.signature, ":", proof.c.feature_revision)
+    return select(_hash(func.coalesce(func.string_agg(
+        member, aggregate_order_by(literal("|"), proof.c.canonical_listing_id)), literal("")))).where(
+        proof.c.resolver_version == resolver_version,
+        proof.c.vocabulary_hash == vocabulary_hash,
+    ).scalar_subquery()
 
 
 def current_projection_predicate(listing_id, *, resolver_version: str, vocabulary_hash: str) -> ColumnElement[bool]:
@@ -81,6 +119,56 @@ def current_projection_predicate(listing_id, *, resolver_version: str, vocabular
         AiQueryProof.vocabulary_hash == vocabulary_hash,
         AiQueryProof.signature == projection_signature(listing_id),
     ).correlate_except(AiQueryProof).exists()
+
+
+async def _canonical_values_agree(session, listing_id: UUID, projection: SearchProjection) -> bool:
+    """Preparation cannot recertify stale prices/dates against a changed card.
+
+    The provider remains evidence authority. The public canonical price and
+    inventory must agree before certifying it; defaults never create AI facts.
+    The SQL signature subsequently guards both rows at each query snapshot.
+    """
+    listing = Listing.__table__.alias()
+    room = ListingRoomDetails.__table__.alias()
+    card = await session.scalar(select(func.to_jsonb(listing.table_valued())).where(listing.c.id == listing_id))
+    details = await session.scalar(select(func.to_jsonb(room.table_valued())).where(room.c.listing_id == listing_id)) or {}
+    if card is None:
+        return False
+    for feature in projection.features:
+        if feature.status != "explicit_allow":
+            continue
+        value = feature.typed_value
+        if feature.key == "price" and isinstance(value, Money):
+            field = {"monthly": "monthly_price", "nightly": "nightly_price", "weekly": "weekly_price"}.get(value.period)
+            if field is None or card.get(field) is None or Decimal(str(card[field])) != Decimal(value.amount):
+                return False
+            if card.get("source_price_is_from") is True:
+                return False
+        elif feature.key == "rental_mode" and isinstance(value, Category):
+            if card.get("rental_mode") != value.value:
+                return False
+        elif feature.key == "availability" and isinstance(value, DateRange):
+            if (card.get("available_from"), card.get("available_until")) != (value.start, value.end):
+                return False
+        elif feature.key == "available_spots" and isinstance(value, Quantity):
+            # Use exactly the public rented-unit inventory contract. A missing
+            # occupancy is unknown, never zero; household current_residents
+            # cannot substitute for current_room_residents.
+            capacity = details.get("room_capacity_v2")
+            if capacity is None:
+                capacity = card.get("room_capacity")
+            residents = details.get("current_room_residents")
+            if (type(capacity) is not int or capacity <= 0 or type(residents) is not int or residents < 0
+                    or value.value != max(0, capacity - residents)):
+                return False
+        elif feature.key in {"capacity_total", "current_room_residents"} and isinstance(value, Quantity):
+            field = "room_capacity_v2" if feature.key == "capacity_total" else "current_room_residents"
+            current = details.get(field)
+            if current is None and feature.key == "capacity_total":
+                current = card.get("room_capacity")
+            if current != value.value:
+                return False
+    return True
 
 
 class QueryProofs:
@@ -98,7 +186,7 @@ class QueryProofs:
         async with self.pipeline.sessions() as session, session.begin():
             await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
             projection = await self.pipeline._read_current_projection(session, listing_id)
-            if projection is None:
+            if projection is None or not await _canonical_values_agree(session, listing_id, projection):
                 return False
             signature = await session.scalar(select(projection_signature(literal(listing_id))))
         async with self.pipeline.sessions() as session, session.begin():
