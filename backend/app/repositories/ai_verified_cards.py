@@ -29,7 +29,7 @@ from ..schemas.listings import (
     ListingMapResponse,
 )
 from ..services.ai_card_cursors import AICardCursors
-from ..services.ai_hard_matching import compile_hard_match
+from ..services.ai_hard_matching import HardMatchPlan, compile_hard_match
 from .ai_card_values import current_card_values_predicate
 from .ai_fact_pipeline import FactPipeline
 from .ai_hard_matching import hard_match_predicate
@@ -122,7 +122,7 @@ class VerifiedCardSearch:
         payload = payload.model_copy(update={"cursor": raw_cursor})
         # EXISTS preserves one catalog row per listing and the existing
         # commercial ordering/gallery/redirect pipeline. No post-page filter.
-        filtered = apply_search_filters(visible_query(), payload).where(verified_intent_predicate(self.pipeline, intent))
+        filtered = apply_search_filters(visible_query(), payload).where(_verified_intent_predicate(self.pipeline, intent, compiled))
         cards = await _search_filtered_cards(session, payload, filtered, _cursor_fingerprint(payload))
         cards = cards.model_copy(update={"nextCursor": self.cursors.encode(cards.nextCursor, context),
                                          "previousCursor": self.cursors.encode(cards.previousCursor, context)})
@@ -177,7 +177,11 @@ class VerifiedMapResult:
 
 def verified_intent_predicate(pipeline: FactPipeline, intent: SearchIntent):
     """Identical evidence/current card-value contract for cards, map and later saved matching."""
-    compiled = compile_hard_match(intent, pipeline.vocabulary)
+    return _verified_intent_predicate(pipeline, intent, compile_hard_match(intent, pipeline.vocabulary))
+
+
+def _verified_intent_predicate(pipeline: FactPipeline, intent: SearchIntent, compiled: HardMatchPlan):
+    # Cards reuse this exact plan for reason codes; map compiles once above.
     facts = select(1).select_from(AiListingSearchFeatures).where(
         AiListingSearchFeatures.canonical_listing_id == Listing.id,
         current_projection_predicate(Listing.id, resolver_version=pipeline.resolver_version,
