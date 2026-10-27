@@ -45,5 +45,12 @@ ingress trust/ASGI forwarding must be verified before activation without
 silently enabling a public AI runtime. Upstream infrastructure logging remains
 an operator privacy gate. No production p95 claim follows from correctness CI.
 
+Additional self-review covers TLS termination: AIHTTPPolicy requires the public
+guest_origin explicitly, inside the runtime origin allowlist. Guest checks bind
+Origin and request authority to that value rather than deriving the public
+scheme from a backend HTTP connection. HTTPS guest creation/read works with an
+internal HTTP ASGI scope; a foreign Host and unsafe origin policy fail closed.
+No arbitrary forwarded-proto header is trusted to select the guest origin.
+
 Local final and exact-head CI evidence is recorded in the PR description after
 the corrected commit is pushed. Previous-head green checks are historical.
