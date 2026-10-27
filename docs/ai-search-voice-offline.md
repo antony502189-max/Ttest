@@ -1,0 +1,31 @@
+# One-operation voice contract
+
+`VoiceSearchExecution` is an injected offline service, with no application/HTTP
+registration or microphone UI. The server hashes final bounded immutable audio
+bytes and binds media, session/version and the complete validated card request.
+It reserves and claims once, checks ownership/version/technical gate, runs ASR
+and the existing intent parser, queries the candidate and atomically finalizes
+the same operation. It never invokes text execution or generates another key.
+
+The injected policy allocates explicit monotonic ASR, intent and total budgets.
+Their allocation leaves query time and lease headroom for finalize. Synchronous
+late results are rejected too. ASR/intent/backend failures release with fixed
+phase codes. Cancellation before finalize releases or relies on fenced recovery.
+Finalize acknowledgement loss remains outside speculative release handling.
+Running/replayed operations never call either provider again. Zero matches after
+a meaningful successful change still cost one search. Reviewed DeepSeek no-op
+rejection and text fingerprints remain unchanged.
+
+`OfflineASR` accepts only HTTPX MockTransport, targeting a synthetic `.invalid`
+host. Its explicit local outbound gate is not production consent approval. It
+rejects compression/redirects, limits raw response bytes before JSON parsing,
+validates a strict bounded transcript and emits fixed errors. Audio/transcripts
+are in memory only and excluded from stored session/ledger/receipt and repr.
+
+Local validation: 240 tests passed (full disposable-PG quota/session/text/voice
+suite plus 18 mock-ASR wire contracts), one optional Redis test skipped; Ruff
+and mypy (150 source files) passed. The dependent PR records isolated CI evidence.
+
+Real ASR/provider transport, consent/minimization/retention/DPA, production media
+policy and public capability remain separate activation gates. No live service,
+application database, notification, crawler or deployment was used.
