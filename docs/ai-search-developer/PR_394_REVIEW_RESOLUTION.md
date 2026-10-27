@@ -5,6 +5,12 @@ while retaining disabled public runtime and all392/393 review corrections.
 No production policy defaults, real provider, application database, migration,
 automatic cleanup worker, notification or deployment are introduced.
 
+Fresh security CI identified an existing dnspython2.8.0 vulnerability,
+[CVE-2026-114605 upstream advisory](https://github.com/rthalley/dnspython/security/advisories/GHSA-45c3-73f7-pv4m).
+Its exact constraint is updated to the upstream patched2.9.0; the complete
+production lint/type/migration/unit/PostGIS/S3 graph must pass again. No audit
+exception or suppression is added.
+
 | Finding | Correction and evidence |
 | --- | --- |
 | F-01 trusted IP | Required AIHTTPPolicy declares immutable trusted proxy networks. Only a peer inside that explicit allowlist may supply the existing sanitized client_ip headers. Direct untrusted peers cannot rotate forwarded addresses. Both HTTP and guest-issue keys share this policy; subject mint keys are HMACed too. Contract tests use two users behind one trusted proxy and forged headers outside it. Universal IPv4/IPv6 trust is rejected. |
