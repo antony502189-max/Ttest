@@ -2,6 +2,27 @@
 
 Registers /api/v1/ai-search with capability, owned session/create/reset, text query, session-card and durable-result-card paths. Application never constructs AISearchRuntime: capabilities text=false/voice=false/saved_searches=false and private operations503 without an explicit reviewed runtime. No env key/feature flag automatically activates it. Legacy messaging/chat routes remain absent; text search uses POST /query. Existing API inventory regenerated.
 
+After the supplied PR394review, see [finding-by-finding resolution](PR_394_REVIEW_RESOLUTION.md).
+Runtime additionally requires AIHTTPPolicy: explicit trusted proxy networks,
+request deadline and active-session bound. Subject issuance uses its own injected
+gate key. Guest browser use is same-origin only; bearer clients can use explicitly
+allowed CORS origins and X-AI-Request. Capabilities advertise configuration, not
+health. Private application logs/metrics redact paths, Uvicorn private access
+events are dropped and nginx suppresses raw AI access/error URLs.
+
+For hard budgets, responses include budget_prices with each card's actual
+confirmed amount/period and separate native display amount/period. The client
+must show the confirmed requested-period amount beside the existing card; it
+must not imply that the native monthly/nightly price is the checked weekly price.
+No price conversion or commercial ordering change is made.
+
+The full async request is deadline-bound. A504 requires replay of the exact
+operation key/body/version because commit may already have succeeded. Expired
+pre-success work leaves a fenced reservation for recovery rather than starting
+unbounded cancellation cleanup. Explicit cleanup_unused is an offline bounded
+operation requiring a caller-chosen retention cutoff; no production cleanup or
+retention default is supplied.
+
 Runtime requires the same owned session authority for query/execution, independent signed guest key, explicit TTL, trusted origins and an injected fail-closed HTTP/IP gate. No production TTL, key, Redis budget, body limit, provider or bootstrap defaults are supplied. A bounded body policy is required; origin/IP gates and streaming byte limits run before FastAPI reads/parses JSON, including chunked requests. Missing runtime rejects before body parsing. Policies remain operator/product gates.
 
 - Identity comes only from persisted valid bearer+existing full-access moderation or server-minted HMAC guest cookie. Invalid/blocked bearer never falls back to guest. No request body can choose subject/channel/hash/credits; server hashes final text. Guest cookie is Secure/HttpOnly/SameSiteStrict/host-only/AI-path, bounded and policy/time/version/signature checked. Missing guest identity can mint only on explicit session creation, after HTTP+guest-issuance gates; invalid/expired cookie never auto-mints a replacement.

@@ -16,6 +16,7 @@ from app.models.ai_search_quota import AISearchRequest, AIUsageDay
 from app.repositories.ai_search_quota import QuotaError
 from app.schemas.ai_search_quota import QuotaOperation, QuotaSubject
 from app.schemas.listings import ListingCardSearchRequest
+from app.services.ai_http_policy import HTTP_DEADLINE
 from app.services.ai_search_attempts import AIAttemptRejected
 from app.services.ai_search_execution import TextSearchExecution
 from app.services.ai_voice_execution import VoicePolicy, VoiceSearchExecution
@@ -256,3 +257,29 @@ async def test_total_monotonic_budget_bounds_query_before_durable_finalize(store
     result = await execute(service, subject, snapshot, uuid4())
     assert result.operation.failure_code == "BACKEND_FAILURE" and await usage(pg, subject) == (0, 0)
     assert (await store.get(subject, snapshot.intent.session_id)).intent.version == 0
+
+
+async def test_exhausted_http_deadline_defers_cancellation_cleanup_to_fenced_recovery(store, pg, monkeypatch):
+    from unittest.mock import AsyncMock
+    subject, snapshot, asr, parser, _, _, service = await configured(store)
+    asr.finish = asyncio.Event()
+    key = uuid4()
+    release = AsyncMock(wraps=service.ledger.release)
+    monkeypatch.setattr(service.ledger, "release", release)
+    token = HTTP_DEADLINE.set(asyncio.get_running_loop().time() - 1)
+    try:
+        task = asyncio.create_task(execute(service, subject, snapshot, key))
+        await asr.started.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    finally:
+        HTTP_DEADLINE.reset(token)
+    release.assert_not_awaited()
+    assert asr.calls == 1 and parser.calls == 0 and await usage(pg, subject) == (0, 1)
+    async with pg[1].begin() as conn:
+        await conn.execute(update(AISearchRequest).where(AISearchRequest.idempotency_key == key).values(
+            lease_until=text("clock_timestamp() - interval '31 seconds'"),
+            recover_after=text("clock_timestamp() - interval '1 second'")))
+    await service.ledger.recover(subject, key)
+    assert await usage(pg, subject) == (0, 0)

@@ -104,6 +104,14 @@ async def test_explicit_mode_seeds_only_new_session_and_survives_followup(store,
     assert reset.intent.criteria.model_dump(exclude_none=True) == {}
 
 
+async def test_explicit_mode_does_not_bypass_reviewed_active_session_bound(store):
+    subject = QuotaSubject(kind="guest", id=uuid4())
+    first = await store.create(subject, SessionCreate(rental_mode="holiday"), max_active=1)
+    with pytest.raises(SessionError, match="SESSION_LIMIT"):
+        await store.create(subject, SessionCreate(rental_mode="long"), max_active=1)
+    assert await store.get(subject, first.intent.session_id) == first
+
+
 async def test_finalize_never_transfers_guest_session_to_another_subject(store, pg):
     owner = QuotaSubject(kind="guest", id=uuid4())
     initial = await store.create(owner)

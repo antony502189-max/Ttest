@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from app.api.v1.ai_search import AISearchRuntime
 from app.main import app, exclude_private_ai_telemetry
 from app.services.ai_guest_tokens import GuestPolicy, GuestTokens, InvalidGuestToken
+from app.services.ai_http_policy import AIHTTPPolicy
 
 
 def test_signed_guest_identity_is_server_minted_bounded_and_policy_bound():
@@ -46,7 +47,7 @@ def test_private_validation_never_exports_body_keys_or_values(monkeypatch, caplo
     sessions = SimpleNamespace()
     guests = GuestTokens(key=b"synthetic-guest-key-not-secret-32", policy=GuestPolicy(ttl_seconds=60))
     active = AISearchRuntime(sessions, SimpleNamespace(sessions=sessions), SimpleNamespace(sessions=sessions),
-                             guests, SimpleNamespace(check=AsyncMock()), frozenset({"https://testserver"}), 4096)
+                             guests, SimpleNamespace(check=AsyncMock()), frozenset({"https://testserver"}), 4096, AIHTTPPolicy(10, 5, ()))
     monkeypatch.setattr(app.state, "ai_search_runtime", active, raising=False)
     token, _ = guests.issue()
     headers = {"Origin": "https://testserver", "X-AI-Request": "1", "Cookie": "ai_search_guest=" + token}
@@ -65,17 +66,17 @@ def test_session_creation_accepts_only_explicit_typed_mode_and_legacy_empty_body
     sessions = SimpleNamespace(create=AsyncMock(return_value={"ok": True}))
     guests = GuestTokens(key=b"synthetic-guest-key-not-secret-32", policy=GuestPolicy(ttl_seconds=60))
     active = AISearchRuntime(sessions, SimpleNamespace(sessions=sessions), SimpleNamespace(sessions=sessions),
-                             guests, SimpleNamespace(check=AsyncMock()), frozenset({"https://testserver"}), 4096)
+                             guests, SimpleNamespace(check=AsyncMock()), frozenset({"https://testserver"}), 4096, AIHTTPPolicy(10, 5, ()))
     monkeypatch.setattr(app.state, "ai_search_runtime", active, raising=False)
     token, owner = guests.issue()
     headers = {"Origin": "https://testserver", "X-AI-Request": "1", "Cookie": "ai_search_guest=" + token}
     with TestClient(app, base_url="https://testserver") as client:
         response = client.post("/api/v1/ai-search/sessions", headers=headers)
         assert response.status_code == 200
-        sessions.create.assert_awaited_with(owner, None)
+        sessions.create.assert_awaited_with(owner, None, max_active=5)
         for mode in ("long", "holiday"):
             assert client.post("/api/v1/ai-search/sessions", json={"rental_mode": mode}, headers=headers).status_code == 200
-            sessions.create.assert_awaited_with(owner, SessionCreate(rental_mode=mode))
+            sessions.create.assert_awaited_with(owner, SessionCreate(rental_mode=mode), max_active=5)
         calls = sessions.create.await_count
         for body in ({"rental_mode": "vivienda"}, {"rental_mode": False}, {"criteria": {}}, {"intent_hash": "x"}, {"occupants": 2}):
             response = client.post("/api/v1/ai-search/sessions", json=body, headers=headers)

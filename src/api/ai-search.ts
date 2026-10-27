@@ -6,7 +6,8 @@ import type { RentalMode } from '@/types'
 export type AICapabilities = { text: boolean; map: boolean; voice: boolean; saved_searches: boolean }
 export type AISession = { intent: AIIntent; expires_at: string }
 export type AIMessage = { idempotency_key: string; session_id: string; expected_version: number; text: string }
-type CardResponse = { cards: { items: ListingCardDto[]; total: number; nextCursor: string | null; previousCursor: string | null }; intent_hash: string }
+export type AIBudgetPrice = { listing_id: string; matched_amount: number; matched_period: 'monthly' | 'weekly' | 'nightly'; display_amount: number | null; display_period: 'monthly' | 'nightly'; currency: 'EUR'; confirmation: 'current_source_proof' }
+type CardResponse = { budget_prices?: AIBudgetPrice[]; cards: { items: ListingCardDto[]; total: number; nextCursor: string | null; previousCursor: string | null }; intent_hash: string }
 export type AIExecution = {
   operation: { status: 'reserved' | 'running' | 'succeeded' | 'failed'; failure_code: string | null; remaining: number; receipt: { result_ref: string; count: number } | null }
   cards: CardResponse | null
