@@ -13,6 +13,7 @@ from ..schemas.ai_listing_facts import digest
 from ..schemas.ai_search_intent import IntentPatch, apply_patch
 from ..schemas.ai_search_quota import FailureCode, QuotaOperation, QuotaSubject, ResultReceipt, StrictContract
 from ..schemas.listings import ListingCardSearchRequest
+from .ai_http_policy import HTTP_DEADLINE
 from .ai_search_attempts import AIAttemptRejected
 from .ai_search_execution import AttemptGate, CandidateCardQuery, IntentPatchParser, SearchExecution
 
@@ -113,7 +114,14 @@ class VoiceSearchExecution:
                 receipt = ResultReceipt(result_ref=uuid4(), count=cards.cards.total)
         except asyncio.CancelledError:
             with suppress(Exception):
-                await self.ledger.release(subject, operation, state.fence, FailureCode.BACKEND_FAILURE)
+                deadline = HTTP_DEADLINE.get()
+                if deadline is None:
+                    await self.ledger.release(subject, operation, state.fence, FailureCode.BACKEND_FAILURE)
+                elif asyncio.get_running_loop().time() < deadline:
+                    async with asyncio.timeout_at(deadline):
+                        await self.ledger.release(subject, operation, state.fence, FailureCode.BACKEND_FAILURE)
+                # Preserve the reviewed request-boundary contract even for an
+                # injected future caller: exhausted HTTP budgets use recovery.
             raise
         except Exception as error:  # noqa: BLE001 - no raw audio/transcript/provider/SQL export
             if isinstance(error, (SessionError, AIAttemptRejected)) and error.code in {code.value for code in FailureCode}:
