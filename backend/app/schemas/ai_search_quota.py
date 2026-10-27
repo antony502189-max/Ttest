@@ -32,8 +32,10 @@ class QuotaOperation(StrictContract):
 
     def fingerprint(self) -> str:
         # Exact UTF-8 text or final audio bytes must be hashed by the server.
-        # Key is an identity, not body content. Channel/session/version are bound.
-        body = self.model_dump(mode="json", exclude={"idempotency_key"})
+        # Key is an identity, not body content. Channel/session/version and any
+        # supplied filters are bound. Omitted filters preserve quota-only v1
+        # fingerprints; adding an optional field must not break old receipts.
+        body = self.model_dump(mode="json", exclude={"idempotency_key"}, exclude_none=True)
         return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 

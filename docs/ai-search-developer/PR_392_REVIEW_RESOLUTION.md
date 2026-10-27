@@ -27,7 +27,7 @@ offline re-preparation. There is no automatic crawl or backfill.
 Python 3.13.17 with backend/constraints.txt; isolated PostgreSQL 16/PostGIS 3.4
 and test Redis namespace:
 
-- Full unit suite: 1262 passed, 15 platform/opt-in skips.
+- Full unit suite: 1263 passed, 15 platform/opt-in skips.
 - Facts/proofs and quota/session/execution PostgreSQL/Redis suites: 279 passed.
 - Full-schema verified cards and existing gallery regressions: 24 passed.
 - Ruff, mypy (144 modules), pip check and git diff --check passed.
