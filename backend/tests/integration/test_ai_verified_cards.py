@@ -139,3 +139,41 @@ async def test_expired_session_cannot_page_without_debit():
         await session.execute(text("UPDATE ai_search_sessions SET expires_at=clock_timestamp()-interval '1 second'"))
     with pytest.raises(SessionError, match="SESSION_EXPIRED"):
         await query.search_owned(subject, session_id, 1, ListingCardSearchRequest())
+
+
+async def test_text_execution_uses_real_cards_and_atomic_session_quota_then_safe_replay():
+    import hashlib
+
+    from app.schemas.ai_search_intent import IntentPatch
+    from app.schemas.ai_search_quota import QuotaOperation
+    from app.services.ai_search_execution import TextSearchExecution
+    query, subject, session_id, _, source_ids = await setup("long")
+    class Parser:
+        calls = 0
+        async def parse(self, message, current):
+            self.calls += 1
+            return IntentPatch(schema_version="ai-search.v1", session_id=current.session_id,
+                               expected_version=current.version)
+    class Gate:
+        calls = 0
+        async def check(self, subject):
+            self.calls += 1
+    parser, gate = Parser(), Gate()
+    execution = TextSearchExecution(query.sessions, parser, gate, query)
+    message = "synthetic followup"
+    operation = QuotaOperation(idempotency_key=uuid4(), channel="text",
+        payload_sha256=hashlib.sha256(message.encode()).hexdigest(), session_id=session_id, expected_session_version=1)
+    result = await execution.execute(subject, operation, message, ListingCardSearchRequest(limit=1))
+    assert result.operation.status == "succeeded" and result.operation.receipt.count == result.cards.cards.total == 3
+    assert result.operation.used == 1 and result.operation.reserved == 0
+    assert (await query.sessions.get(subject, session_id)).intent.version == 2
+    second = await query.search_owned(subject, session_id, 2,
+        ListingCardSearchRequest(limit=1, cursor=result.cards.cards.nextCursor))
+    assert second.cards.total == 3
+    async with SessionLocal() as session, session.begin():
+        await session.execute(update(ExternalListingSource).where(ExternalListingSource.id == source_ids[1]).values(
+            raw_payload={"changed": True}))
+    replay = await execution.execute(subject, operation, message, ListingCardSearchRequest(limit=1))
+    assert replay.replay and replay.operation.receipt == result.operation.receipt
+    assert replay.cards.cards.total == 2 and replay.operation.used == 1
+    assert parser.calls == gate.calls == 1
