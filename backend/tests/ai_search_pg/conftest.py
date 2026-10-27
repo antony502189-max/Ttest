@@ -14,6 +14,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.repositories.ai_search_quota import QuotaLedger
+from app.repositories.ai_search_sessions import IntentVocabulary, SearchSessions, SessionPolicy
 from app.schemas.ai_search_quota import LeasePolicy
 
 
@@ -71,3 +72,16 @@ async def pg():
         async with admin.begin() as conn:
             await conn.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
         await admin.dispose()
+
+
+@pytest.fixture
+def store(pg):
+    return SearchSessions(
+        pg[0],
+        SessionPolicy(inactivity_seconds=3600),
+        IntentVocabulary(
+            frozenset({"wifi", "elevator"}),
+            frozenset({"synthetic_unit"}),
+            frozenset(),
+        ),
+    )

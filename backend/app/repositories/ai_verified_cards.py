@@ -12,6 +12,7 @@ from ..models import CatalogState, Listing
 from ..models.ai_fact_pipeline import AiFactCatalog
 from ..models.ai_listing_facts import AiListingSearchFeatures
 from ..schemas.ai_listing_facts import digest
+from ..schemas.ai_search_intent import SearchIntent
 from ..schemas.ai_search_quota import QuotaSubject
 from ..schemas.listings import ListingCardSearchRequest, ListingCardSearchResponse
 from ..services.ai_card_cursors import AICardCursors
@@ -48,26 +49,53 @@ class VerifiedCardSearch:
             _, intent = await self.sessions._read(session, subject, session_id)
             if intent.version != expected_version:
                 raise SessionError("SESSION_VERSION_CONFLICT")
-            compiled = compile_hard_match(intent, self.pipeline.vocabulary)
-            normalized_hash = intent_hash(intent)
-            catalog = await session.scalar(select(CatalogState.version).where(CatalogState.id == 1))
-            facts = (await session.execute(select(func.count(), func.coalesce(func.sum(AiFactCatalog.revision), 0)))).one()
-            context = digest({"subject": [subject.kind, str(subject.id)], "intent": normalized_hash,
-                "filters": _cursor_fingerprint(payload), "catalog": catalog,
-                "facts": [facts[0], str(facts[1])], "resolver": self.pipeline.resolver_version,
-                "vocabulary": self.pipeline.vocabulary_hash})
-            raw_cursor = self.cursors.decode(payload.cursor, context)
-            payload = payload.model_copy(update={"cursor": raw_cursor})
-            # EXISTS preserves one catalog row per listing and the existing
-            # commercial ordering/gallery/redirect pipeline. No post-page filter.
-            verified = select(1).select_from(AiListingSearchFeatures).where(
-                AiListingSearchFeatures.canonical_listing_id == Listing.id,
-                current_projection_predicate(Listing.id, resolver_version=self.pipeline.resolver_version,
-                                             vocabulary_hash=self.pipeline.vocabulary_hash),
-                hard_match_predicate(AiListingSearchFeatures.__table__.c.features, compiled),
-            ).correlate(Listing).exists()
-            filtered = apply_search_filters(visible_query(), payload).where(verified)
-            cards = await _search_filtered_cards(session, payload, filtered, _cursor_fingerprint(payload))
-            cards = cards.model_copy(update={"nextCursor": self.cursors.encode(cards.nextCursor, context),
-                                             "previousCursor": self.cursors.encode(cards.previousCursor, context)})
-            return VerifiedCardResult(cards, normalized_hash, tuple(group.name for group in compiled.criteria))
+            return await self._query_intent(session, subject, intent, payload)
+
+    async def query_candidate(self, subject: QuotaSubject, current: SearchIntent, candidate: SearchIntent,
+                              payload: ListingCardSearchRequest) -> VerifiedCardResult:
+        if candidate.session_id != current.session_id or candidate.version != current.version + 1:
+            raise SessionError("SESSION_STATE_INVALID")
+        async with self.pipeline.sessions() as session, session.begin():
+            await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+            _, owned = await self.sessions._read(session, subject, current.session_id)
+            if intent_hash(owned) != intent_hash(current):
+                raise SessionError("SESSION_VERSION_CONFLICT")
+            self.sessions.vocabulary.validate(candidate.criteria)
+            return await self._query_intent(session, subject, candidate, payload)
+
+    async def query_result(self, subject: QuotaSubject, result_ref: UUID,
+                           payload: ListingCardSearchRequest) -> VerifiedCardResult:
+        # Durable original intent is reloaded on replay; never apply its patch
+        # again or use a later conversational intent to recreate old semantics.
+        committed = await self.sessions.result(subject, result_ref)
+        async with self.pipeline.sessions() as session, session.begin():
+            await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+            await self.sessions._read(session, subject, committed.intent.session_id)
+            return await self._query_intent(session, subject, committed.intent, payload)
+
+    async def _query_intent(self, session, subject: QuotaSubject, intent: SearchIntent,
+                            payload: ListingCardSearchRequest) -> VerifiedCardResult:
+        payload = ListingCardSearchRequest.model_validate(payload.model_dump())
+        compiled = compile_hard_match(intent, self.pipeline.vocabulary)
+        normalized_hash = intent_hash(intent)
+        catalog = await session.scalar(select(CatalogState.version).where(CatalogState.id == 1))
+        facts = (await session.execute(select(func.count(), func.coalesce(func.sum(AiFactCatalog.revision), 0)))).one()
+        context = digest({"subject": [subject.kind, str(subject.id)], "intent": normalized_hash,
+            "filters": _cursor_fingerprint(payload), "catalog": catalog,
+            "facts": [facts[0], str(facts[1])], "resolver": self.pipeline.resolver_version,
+            "vocabulary": self.pipeline.vocabulary_hash})
+        raw_cursor = self.cursors.decode(payload.cursor, context)
+        payload = payload.model_copy(update={"cursor": raw_cursor})
+        # EXISTS preserves one catalog row per listing and the existing
+        # commercial ordering/gallery/redirect pipeline. No post-page filter.
+        verified = select(1).select_from(AiListingSearchFeatures).where(
+            AiListingSearchFeatures.canonical_listing_id == Listing.id,
+            current_projection_predicate(Listing.id, resolver_version=self.pipeline.resolver_version,
+                                         vocabulary_hash=self.pipeline.vocabulary_hash),
+            hard_match_predicate(AiListingSearchFeatures.__table__.c.features, compiled),
+        ).correlate(Listing).exists()
+        filtered = apply_search_filters(visible_query(), payload).where(verified)
+        cards = await _search_filtered_cards(session, payload, filtered, _cursor_fingerprint(payload))
+        cards = cards.model_copy(update={"nextCursor": self.cursors.encode(cards.nextCursor, context),
+                                         "previousCursor": self.cursors.encode(cards.previousCursor, context)})
+        return VerifiedCardResult(cards, normalized_hash, tuple(group.name for group in compiled.criteria))

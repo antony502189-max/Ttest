@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from app.models.ai_search_quota import AISearchRequest, AIUsageDay
 from app.models.ai_search_session import AISearchResult, AISearchSession
 from app.repositories.ai_search_quota import QuotaError, QuotaLedger
-from app.repositories.ai_search_sessions import IntentVocabulary, SearchSessions, SessionError, SessionPolicy
+from app.repositories.ai_search_sessions import SearchSessions, SessionError
 from app.schemas.ai_search_intent import IntentPatch
 from app.schemas.ai_search_quota import FailureCode, LeasePolicy, QuotaOperation, QuotaSubject, ResultReceipt
 
@@ -21,18 +21,6 @@ pytestmark = pytest.mark.integration
 def hard(value):
     return {"strength": "hard", "value": value}
 
-
-@pytest.fixture
-def store(pg):
-    return SearchSessions(
-        pg[0],
-        SessionPolicy(inactivity_seconds=3600),
-        IntentVocabulary(
-            frozenset({"wifi", "elevator"}),
-            frozenset({"synthetic_unit"}),
-            frozenset(),
-        ),
-    )
 
 
 def operation(snapshot):
