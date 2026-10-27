@@ -330,8 +330,16 @@ class FactPipeline:
     async def _publish(self, session: AsyncSession, anchor: AiFactCatalog, visible: bool, authority) -> int:
         batches, input_hash, _ = await self._projection_inputs(session, anchor.canonical_listing_id, visible, authority)
         old = await session.get(AiListingSearchFeatures, anchor.canonical_listing_id)
-        if old is not None and old.input_hash == input_hash and old.resolver_version == self.resolver_version:
-            return old.feature_revision
+        if (old is not None and old.input_hash == input_hash and old.resolver_version == self.resolver_version
+                and anchor.revision == old.feature_revision):
+            expected = resolve_sources(
+                canonical_listing_id=anchor.canonical_listing_id, batches=batches, input_hash=input_hash,
+                feature_revision=old.feature_revision, resolver_version=self.resolver_version, computed_at=old.computed_at,
+            )
+            stored = {column.name: getattr(old, column.name) for column in old.__table__.columns}
+            deterministic = expected.model_dump() | {"features": expected.model_dump(mode="json")["features"]}
+            if stored == deterministic:
+                return old.feature_revision
         revision = max(anchor.revision, old.feature_revision if old is not None else 0) + 1
         projection = resolve_sources(canonical_listing_id=anchor.canonical_listing_id,
                                      batches=batches, input_hash=input_hash,
