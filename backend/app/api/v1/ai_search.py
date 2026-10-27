@@ -77,9 +77,13 @@ class PrivateAIRoute(APIRoute):
                     result = await handler(request)
                     result.headers["Cache-Control"] = "no-store"
                     return result
-                except (HTTPException, RequestValidationError) as error:
-                    if isinstance(error, HTTPException):
-                        error.headers = {**(error.headers or {}), "Cache-Control": "no-store"}
+                except RequestValidationError:
+                    # Unknown JSON keys can themselves contain private text.
+                    # Do not pass their locations to the shared validation logger.
+                    return JSONResponse({"detail": "AI_REQUEST_INVALID"}, 422,
+                                        headers={"Cache-Control": "no-store"})
+                except HTTPException as error:
+                    error.headers = {**(error.headers or {}), "Cache-Control": "no-store"}
                     raise
                 except InvalidGuestToken:
                     return JSONResponse({"detail": "AI_GUEST_IDENTITY_INVALID_OR_EXPIRED"}, 401, headers={"Cache-Control": "no-store"})
