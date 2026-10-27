@@ -3,7 +3,7 @@ import math
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..core.config import get_settings
 
@@ -95,8 +95,18 @@ class PolygonPoint(BaseModel):
     lng: float = Field(ge=-180, le=180)
 
 
-class SavedSearchWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class ManualSearchBody(BaseModel):
+    @model_validator(mode="before")
+    @classmethod
+    def reject_ai_metadata(cls, value):
+        # Preserve historical handling of unrelated legacy extension fields,
+        # but never silently ignore a caller's matcher/typed-intent metadata.
+        if has_ai_metadata(value):
+            raise ValueError("AI metadata is not a manual saved search")
+        return value
+
+
+class SavedSearchWrite(ManualSearchBody):
     provinceCode: str | None = Field(default=None, pattern=r"^(0[1-9]|[1-4][0-9]|5[0-2])$")
     name: str = Field(default="", max_length=120)
     query: str = Field(default="", max_length=240)
@@ -118,8 +128,7 @@ class SavedSearchWrite(BaseModel):
         return validate_filter_payload(value) or {}
 
 
-class SavedSearchPatch(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class SavedSearchPatch(ManualSearchBody):
     provinceCode: str | None = Field(default=None, pattern=r"^(0[1-9]|[1-4][0-9]|5[0-2])$")
     name: str | None = Field(default=None, max_length=120)
     query: str | None = Field(default=None, max_length=240)
@@ -153,8 +162,7 @@ class SavedSearchResponse(BaseModel):
     updatedAt: datetime | None
 
 
-class GuestStateImport(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class GuestStateImport(ManualSearchBody):
     # Older frontend builds stored slug-like listing ids. The service validates
     # and imports only UUIDs that exist in the current database.
     favoriteIds: list[str] = Field(default_factory=list, max_length=500)

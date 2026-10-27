@@ -40,6 +40,12 @@ def test_top_level_ai_metadata_cannot_be_ignored_by_legacy_models(field):
         SavedSearchPatch.model_validate({field: "PRIVATE"})
 
 
+def test_unrelated_legacy_extensions_keep_historical_compatibility():
+    assert SavedSearchWrite.model_validate({"rentalMode": "long", "oldClientExtension": True}).rentalMode == "long"
+    assert SavedSearchPatch.model_validate({"name": "manual", "oldClientExtension": True}).name == "manual"
+    assert GuestStateImport.model_validate({"oldClientExtension": True}).savedSearches == []
+
+
 async def test_ai_and_unknown_notifier_rows_never_reach_manual_sql_or_delivery(monkeypatch):
     from unittest.mock import AsyncMock
 
