@@ -104,6 +104,13 @@ async def test_origin_cookie_gate_and_client_authority_fields_fail_closed(active
         oversized = await client.post("/api/v1/ai-search/query", content=b"x" * 131_073,
                                       headers={"Content-Type": "application/json"})
         assert oversized.status_code == 413 and parser.calls == 0
+        async def chunks():
+            yield b"x" * 70_000
+            yield b"x" * 70_000
+        chunked = await client.post("/api/v1/ai-search/query", content=chunks(), headers={"Content-Type": "application/json"})
+        assert chunked.status_code == 413 and parser.calls == 0
+        semantic_view = message(sid, 0) | {"search": {"petsAllowed": False}}
+        assert (await client.post("/api/v1/ai-search/query", json=semantic_view)).status_code == 422
         forged = message(sid, 0) | {"subject_id": str(uuid4()), "quota_limit": 99999}
         result = await client.post("/api/v1/ai-search/query", json=forged)
         assert result.status_code == 422 and "PRIVATE_SYNTHETIC_INPUT" not in result.text

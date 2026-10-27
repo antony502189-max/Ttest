@@ -10,7 +10,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 
 from ...repositories.ai_search_quota import QuotaError
 from ...repositories.ai_search_sessions import SearchSessions, SessionError
@@ -112,12 +112,30 @@ class APIBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class AICardView(APIBody):
+    # Semantic constraints live only in the owned typed intent. Never mix
+    # legacy manual defaults/booleans into the confirmed AI contract.
+    limit: Annotated[int, Field(strict=True, ge=1, le=50)] = 20
+    cursor: Annotated[StrictStr, Field(max_length=1024)] | None = None
+    sort: Annotated[StrictStr, Field(max_length=64)] = "newest"
+    favoriteIds: Annotated[list[UUID], Field(max_length=1000)] = Field(default_factory=list)
+
+    @field_validator("sort")
+    @classmethod
+    def existing_sort(cls, value: str) -> str:
+        ListingCardSearchRequest(sort=value)
+        return value
+
+    def to_request(self) -> ListingCardSearchRequest:
+        return ListingCardSearchRequest.model_validate(self.model_dump())
+
+
 class MessageBody(APIBody):
     idempotency_key: UUID
     session_id: UUID
     expected_version: Annotated[int, Field(strict=True, ge=0, le=2_147_483_647)]
     text: Annotated[StrictStr, Field(min_length=1, max_length=16_384)] = Field(repr=False)
-    search: ListingCardSearchRequest = Field(default_factory=ListingCardSearchRequest)
+    search: AICardView = Field(default_factory=AICardView)
 
 
 class VersionBody(APIBody):
@@ -125,7 +143,7 @@ class VersionBody(APIBody):
 
 
 class PageBody(VersionBody):
-    search: ListingCardSearchRequest = Field(default_factory=ListingCardSearchRequest)
+    search: AICardView = Field(default_factory=AICardView)
 
 
 async def runtime(request: Request) -> AISearchRuntime:
@@ -193,7 +211,7 @@ async def reset(session_id: UUID, payload: VersionBody, active: AISearchRuntime 
 @router.post("/sessions/{session_id}/cards")
 async def page(session_id: UUID, payload: PageBody, active: AISearchRuntime = Depends(runtime),
                owner: QuotaSubject = Depends(subject)):
-    return jsonable_encoder(await active.cards.search_owned(owner, session_id, payload.expected_version, payload.search))
+    return jsonable_encoder(await active.cards.search_owned(owner, session_id, payload.expected_version, payload.search.to_request()))
 
 
 @router.post("/query")
@@ -201,14 +219,14 @@ async def message(payload: MessageBody, active: AISearchRuntime = Depends(runtim
     operation = QuotaOperation(idempotency_key=payload.idempotency_key, channel="text",
         payload_sha256=hashlib.sha256(payload.text.encode()).hexdigest(), session_id=payload.session_id,
         expected_session_version=payload.expected_version)
-    return jsonable_encoder(await active.execution.execute(owner, operation, payload.text, payload.search))
+    return jsonable_encoder(await active.execution.execute(owner, operation, payload.text, payload.search.to_request()))
 
 
 class ResultPageBody(APIBody):
-    search: ListingCardSearchRequest = Field(default_factory=ListingCardSearchRequest)
+    search: AICardView = Field(default_factory=AICardView)
 
 
 @router.post("/results/{result_ref}/cards")
 async def result_page(result_ref: UUID, payload: ResultPageBody, active: AISearchRuntime = Depends(runtime),
                       owner: QuotaSubject = Depends(subject)):
-    return jsonable_encoder(await active.cards.query_result(owner, result_ref, payload.search))
+    return jsonable_encoder(await active.cards.query_result(owner, result_ref, payload.search.to_request()))
