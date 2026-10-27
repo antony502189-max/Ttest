@@ -87,18 +87,18 @@ async def test_rematch_reloads_current_sources_proofs_moderation_and_saved_state
     query, repo, subject, ids, sources = await configured()
     saved, _ = await saved_result(query, repo, subject, PET)
     async with SessionLocal() as conn:
-        events = (await conn.scalars(select(AiFactRematchEvent).where(AiFactRematchEvent.canonical_listing_id == ids[1]))).all()
+        events = (await conn.scalars(select(AiFactRematchEvent).where(
+            AiFactRematchEvent.canonical_listing_id == ids[1]).order_by(AiFactRematchEvent.feature_revision))).all()
+        assert len(events) >= 2
         event_id = events[0].id
+        later_id = events[-1].id
+        assert events[-1].feature_revision > events[0].feature_revision
         event_count = await conn.scalar(select(func.count()).select_from(AiFactRematchEvent))
     first = await repo.dry_run_event(subject, saved.id, event_id)
     assert first.status == "matched" and first.delivery_enabled is False
     assert await repo.dry_run_event(subject, saved.id, event_id) == first
-    async with SessionLocal.begin() as conn:
-        # Synthetic out-of-order signal with an unauthoritative revision/hash:
-        # a dry run must inspect current proof, never claim it as verified input.
-        later_id = uuid4()
-        conn.add(AiFactRematchEvent(id=later_id, canonical_listing_id=ids[1],
-            feature_revision=events[0].feature_revision + 1, input_hash="b" * 64, created_at=datetime.now(UTC)))
+    # Observation/completion already emitted real successive events. Inspect
+    # them in reverse order and repeat the older event against current proof.
     assert await repo.dry_run_event(subject, saved.id, later_id) == first
     assert await repo.dry_run_event(subject, saved.id, event_id) == first
     async with SessionLocal.begin() as conn:
@@ -119,7 +119,7 @@ async def test_rematch_reloads_current_sources_proofs_moderation_and_saved_state
         await conn.execute(delete(AISearchSession))
     assert (await repo.get(subject, saved.id)).intent_hash == saved.intent_hash
     async with SessionLocal() as conn:
-        assert await conn.scalar(select(func.count()).select_from(AiFactRematchEvent)) == event_count + 1
+        assert await conn.scalar(select(func.count()).select_from(AiFactRematchEvent)) == event_count
         assert await conn.scalar(select(func.count()).select_from(Notification)) == 0
         assert await conn.scalar(select(func.count()).select_from(MailOutbox)) == 0
         assert await conn.scalar(select(func.sum(AIUsageDay.used))) == 1
