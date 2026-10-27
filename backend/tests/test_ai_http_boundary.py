@@ -22,7 +22,7 @@ def test_signed_guest_identity_is_server_minted_bounded_and_policy_bound():
 
 def test_http_api_is_disabled_without_database_provider_or_runtime():
     with TestClient(app) as client:
-        assert client.get("/api/v1/ai-search/capabilities").json() == {"text": False, "voice": False, "saved_searches": False}
+        assert client.get("/api/v1/ai-search/capabilities").json() == {"text": False, "map": False, "voice": False, "saved_searches": False}
         result = client.post("/api/v1/ai-search/sessions")
         assert result.status_code == 503 and result.json() == {"detail": "AI_SEARCH_DISABLED"}
         assert result.headers["cache-control"] == "no-store"
@@ -31,7 +31,8 @@ def test_http_api_is_disabled_without_database_provider_or_runtime():
 def test_ai_telemetry_drops_whole_event_and_transaction_but_preserves_other_routes():
     for event in ({"tags": {"ai_private": True}, "extra": {"text": "PRIVATE"}},
                   {"request": {"url": "https://example.invalid/api/v1/ai-search/query", "data": "PRIVATE"}},
-                  {"type": "transaction", "request": {"url": "https://example.invalid/api/v1/ai-search/sessions"}}):
+                  {"type": "transaction", "request": {"url": "https://example.invalid/api/v1/ai-search/sessions"}},
+                  {"request": {"url": "https://[malformed/api/v1/ai-search/query", "data": "PRIVATE"}}):
         assert exclude_private_ai_telemetry(event, {}) is None
     other = {"request": {"url": "https://example.invalid/api/v1/listings"}}
     assert exclude_private_ai_telemetry(other, {}) is other

@@ -79,3 +79,12 @@ class OperationState(StrictContract):
 class Reservation(StrictContract):
     action: Literal["created", "inflight", "replay"]
     operation: OperationState
+
+
+class DailyQuotaView(StrictContract):
+    madrid_date: date
+    reset_at: datetime
+    limit: int = Field(ge=0, le=200)
+    used: int = Field(ge=0)
+    reserved: int = Field(ge=0)
+    remaining: int = Field(ge=0)

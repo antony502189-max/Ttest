@@ -220,3 +220,31 @@ async def test_verified_fact_budget_cannot_override_current_card_price_currency_
         async with SessionLocal() as session, session.begin():
             await session.execute(update(Listing).where(Listing.id == listing_id).values(
                 source_price_currency=None, source_price_is_from=None, rental_mode="long", nightly_price=None))
+
+
+async def test_ai_map_uses_same_guards_before_markers_clusters_and_public_visibility():
+    from app.repositories.listings import search_public_map
+    from app.schemas.listings import ListingMapRequest
+    query, subject, session_id, ids, source_ids = await setup("long")
+    bounds = {"north": 28.5, "south": 27.5, "east": -16.6, "west": -16.9, "zoom": 14}
+    payload = ListingMapRequest(**bounds)
+    result = await query.map_owned(subject, session_id, 1, payload)
+    assert {item.id for item in result.map.items} == {str(i) for i in ids[1:]}
+    assert next(item for item in result.map.items if item.id == str(ids[1])).promoted
+    assert result.intent_hash == (await query.search_owned(subject, session_id, 1, ListingCardSearchRequest())).intent_hash
+    with pytest.raises(SessionError, match="SESSION_NOT_FOUND"):
+        await query.map_owned(QuotaSubject(kind="guest", id=uuid4()), session_id, 1, payload)
+    with pytest.raises(SessionError, match="SESSION_VERSION_CONFLICT"):
+        await query.map_owned(subject, session_id, 0, payload)
+    async with SessionLocal() as session, session.begin():
+        await session.execute(update(ExternalListingSource).where(ExternalListingSource.id == source_ids[1]).values(
+            raw_payload={"changed": True}))
+    clustered = await query.map_owned(subject, session_id, 1, ListingMapRequest(**(bounds | {"zoom": 8})))
+    assert len(clustered.map.items) == 1 and clustered.map.items[0].type == "cluster"
+    assert clustered.map.items[0].count == 2 and not clustered.map.items[0].promoted
+    async with SessionLocal() as session:
+        manual = await search_public_map(session, payload)
+        assert len(manual.items) == 4
+    async with SessionLocal() as session, session.begin():
+        await session.execute(update(User).values(blocked=True))
+    assert not (await query.map_owned(subject, session_id, 1, payload)).map.items

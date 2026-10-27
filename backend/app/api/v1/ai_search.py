@@ -16,7 +16,7 @@ from ...repositories.ai_search_quota import QuotaError
 from ...repositories.ai_search_sessions import SearchSessions, SessionError
 from ...repositories.ai_verified_cards import VerifiedCardSearch
 from ...schemas.ai_search_quota import QuotaOperation, QuotaSubject
-from ...schemas.listings import ListingCardSearchRequest
+from ...schemas.listings import ListingCardSearchRequest, ListingMapRequest
 from ...services.ai_card_cursors import InvalidAICursor
 from ...services.ai_guest_tokens import GuestTokens, InvalidGuestToken
 from ...services.ai_search_attempts import AIAttemptRejected
@@ -189,7 +189,7 @@ async def subject(request: Request, response: Response, active: AISearchRuntime 
 @router.get("/capabilities")
 async def capabilities(request: Request):
     active = isinstance(getattr(request.app.state, "ai_search_runtime", None), AISearchRuntime)
-    return {"text": active, "voice": False, "saved_searches": False}
+    return {"text": active, "map": active, "voice": False, "saved_searches": False}
 
 
 @router.post("/sessions")
@@ -230,3 +230,44 @@ class ResultPageBody(APIBody):
 async def result_page(result_ref: UUID, payload: ResultPageBody, active: AISearchRuntime = Depends(runtime),
                       owner: QuotaSubject = Depends(subject)):
     return jsonable_encoder(await active.cards.query_result(owner, result_ref, payload.search.to_request()))
+
+
+class MapView(APIBody):
+    north: float = Field(ge=-90, le=90)
+    south: float = Field(ge=-90, le=90)
+    east: float = Field(ge=-180, le=180)
+    west: float = Field(ge=-180, le=180)
+    zoom: float = Field(ge=2, le=21)
+
+    def to_request(self) -> ListingMapRequest:
+        return ListingMapRequest.model_validate(self.model_dump())
+
+
+class MapBody(VersionBody):
+    search: MapView
+
+
+class ResultMapBody(APIBody):
+    search: MapView
+
+
+@router.get("/quota")
+async def quota(active: AISearchRuntime = Depends(runtime), owner: QuotaSubject = Depends(subject)):
+    return await active.sessions.ledger.daily_status(owner)
+
+
+@router.get("/results/{result_ref}")
+async def result_metadata(result_ref: UUID, active: AISearchRuntime = Depends(runtime), owner: QuotaSubject = Depends(subject)):
+    return jsonable_encoder(await active.sessions.result(owner, result_ref), exclude_none=True)
+
+
+@router.post("/sessions/{session_id}/map")
+async def session_map(session_id: UUID, payload: MapBody, active: AISearchRuntime = Depends(runtime),
+                      owner: QuotaSubject = Depends(subject)):
+    return jsonable_encoder(await active.cards.map_owned(owner, session_id, payload.expected_version, payload.search.to_request()))
+
+
+@router.post("/results/{result_ref}/map")
+async def result_map(result_ref: UUID, payload: ResultMapBody, active: AISearchRuntime = Depends(runtime),
+                     owner: QuotaSubject = Depends(subject)):
+    return jsonable_encoder(await active.cards.map_result(owner, result_ref, payload.search.to_request()))

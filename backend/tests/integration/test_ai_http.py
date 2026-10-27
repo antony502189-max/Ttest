@@ -61,6 +61,8 @@ async def test_guest_cookie_three_messages_replay_reset_paging_and_owner_isolati
         cookie = created.headers["set-cookie"].lower()
         assert "httponly" in cookie and "secure" in cookie and "samesite=strict" in cookie
         sid = created.json()["intent"]["session_id"]
+        untouched = await first.get("/api/v1/ai-search/quota")
+        assert untouched.status_code == 200 and untouched.json()["remaining"] == 3
         initial = message(sid, 0)
         result = await first.post("/api/v1/ai-search/query", json=initial)
         assert result.status_code == 200, result.text
@@ -78,6 +80,16 @@ async def test_guest_cookie_three_messages_replay_reset_paging_and_owner_isolati
         old_page = await first.post(f"/api/v1/ai-search/results/{receipt}/cards", json={"search": {
             "limit": 1, "cursor": answer["cards"]["cards"]["nextCursor"]}})
         assert old_page.status_code == 200 and old_page.json()["cards"]["total"] == 3, old_page.text
+        metadata = await first.get(f"/api/v1/ai-search/results/{receipt}")
+        assert metadata.status_code == 200 and metadata.json()["intent"]["version"] == 1
+        bounds = {"north": 28.5, "south": 27.5, "east": -16.6, "west": -16.9, "zoom": 14}
+        result_map = await first.post(f"/api/v1/ai-search/results/{receipt}/map", json={"search": bounds})
+        assert result_map.status_code == 200 and len(result_map.json()["map"]["items"]) == 3, result_map.text
+        assert result_map.json()["intent_hash"] == answer["cards"]["intent_hash"]
+        current_map = await first.post(f"/api/v1/ai-search/sessions/{sid}/map", json={"expected_version": 3, "search": bounds})
+        assert current_map.status_code == 200 and len(current_map.json()["map"]["items"]) == 3
+        quota = await first.get("/api/v1/ai-search/quota")
+        assert quota.json()["used"] == 3 and quota.json()["reserved"] == 0
         reset = await first.post(f"/api/v1/ai-search/sessions/{sid}/reset", json={"expected_version": 3})
         assert reset.status_code == 200 and reset.json()["intent"]["session_id"] != sid
         new_sid = reset.json()["intent"]["session_id"]
