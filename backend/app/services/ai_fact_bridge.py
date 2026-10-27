@@ -8,11 +8,12 @@ from datetime import datetime
 from uuid import UUID, uuid5
 
 from ..repositories.ai_fact_snapshots import CapturedParserSnapshot, FactSnapshotReader
+from ..schemas.ai_evidence_support import SUPPORTED_PROVIDER_FIELDS, has_evidence_text
 from ..schemas.ai_fact_bridge import BridgeMapping, BridgeReference, BridgeRejected, ParserEvidencePacket, ParserSpan
 from ..schemas.ai_fact_pipeline import FactJobClaim, SourceInput
 from ..schemas.ai_listing_facts import EvidenceSpan, FactBatch, FactObservation, FactVocabulary, Version, digest
 
-BRIDGE_VERSION = "offline-fact-bridge.v1"
+BRIDGE_VERSION = "offline-fact-bridge.v2"
 
 
 def _json(value: object) -> str:
@@ -30,6 +31,7 @@ class PreparedFactInput:
     source: SourceInput
     _fields: tuple[tuple[str, str], ...] = field(repr=False)
     _facts: tuple[str, ...] = field(repr=False)
+    skipped_provider_fields: tuple[str, ...] = ()
 
     @property
     def sanitized_fields(self) -> dict[str, str]:
@@ -127,7 +129,14 @@ def bridge_packet(packet: ParserEvidencePacket, reference: BridgeReference, mapp
             raise BridgeRejected("PACKET_IDENTITY_MISMATCH")
         if digest(upstream_content(packet)) != packet.content_hash:
             raise BridgeRejected("UPSTREAM_CONTENT_HASH_MISMATCH")
-        if packet.data_status != "ready":
+        # Older upstream packets mark empty descriptions insufficient even
+        # with typed structured evidence. Only the explicit adapter subset and
+        # reviewed field mappings may satisfy this alternative admission rule.
+        if (packet.data_status != "ready" or not has_evidence_text(packet.description)) and not any(
+            f.field in SUPPORTED_PROVIDER_FIELDS and has_evidence_text(f.evidence.quote)
+            and mapping.structured_fields.get(f.evidence.provider_field or "") == f.field
+            for f in packet.provider_facts
+        ):
             raise BridgeRejected("INSUFFICIENT_SOURCE_DATA")
         fields = {"title": packet.title, "description": packet.description,
                   "metadata.upstream_content": _json(upstream_content(packet)),
@@ -178,7 +187,14 @@ def bridge_packet(packet: ParserEvidencePacket, reference: BridgeReference, mapp
             facts.append(_observation(reference, key=direct[old_key], status=status, value=value,
                                        qualifiers=qualifiers, evidence=_text_spans(policy.evidence, fields), origin="source_text"))
         for provider in packet.provider_facts:
+            # Preserve the complete packet in the hashed manifest, but select
+            # the declared supported subset before conversion. Municipality
+            # registration is not an AI fact in this version; never infer it.
+            if provider.field not in SUPPORTED_PROVIDER_FIELDS:
+                continue
             path = provider.evidence.provider_field
+            if not has_evidence_text(provider.evidence.quote):
+                raise BridgeRejected("INSUFFICIENT_STRUCTURED_EVIDENCE")
             if path is None or mapping.structured_fields.get(path) != provider.field:
                 raise BridgeRejected("UNAPPROVED_STRUCTURED_FIELD")
             name = f"structured.{path}"
@@ -227,7 +243,9 @@ def bridge_packet(packet: ParserEvidencePacket, reference: BridgeReference, mapp
         # Enforce the exact AI-04 mapping/JSON limits before enqueue, not after claim.
         if len(fields) > 256 or sum(len(k.encode()) + len(v.encode()) for k, v in fields.items()) > 1_048_576 or len(facts) > 128:
             raise BridgeRejected("BRIDGE_INPUT_BOUND_EXCEEDED")
-        return PreparedFactInput(source, tuple(sorted(fields.items())), tuple(f.model_dump_json() for f in facts))
+        return PreparedFactInput(source, tuple(sorted(fields.items())), tuple(f.model_dump_json() for f in facts),
+                                 tuple(sorted({f.field for f in packet.provider_facts
+                                               if f.field not in SUPPORTED_PROVIDER_FIELDS})))
     except BridgeRejected:
         raise
     except (ValueError, TypeError, AttributeError):
