@@ -114,11 +114,11 @@ class VoiceSearchExecution:
                 receipt = ResultReceipt(result_ref=uuid4(), count=cards.cards.total)
         except asyncio.CancelledError:
             with suppress(Exception):
-                deadline = HTTP_DEADLINE.get()
-                if deadline is None:
+                http_deadline = HTTP_DEADLINE.get()
+                if http_deadline is None:
                     await self.ledger.release(subject, operation, state.fence, FailureCode.BACKEND_FAILURE)
-                elif asyncio.get_running_loop().time() < deadline:
-                    async with asyncio.timeout_at(deadline):
+                elif asyncio.get_running_loop().time() < http_deadline:
+                    async with asyncio.timeout_at(http_deadline):
                         await self.ledger.release(subject, operation, state.fence, FailureCode.BACKEND_FAILURE)
                 # Preserve the reviewed request-boundary contract even for an
                 # injected future caller: exhausted HTTP budgets use recovery.
