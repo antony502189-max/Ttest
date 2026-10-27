@@ -25,6 +25,11 @@ pytestmark = pytest.mark.integration
 async def proofs(pipeline):
     service, sessions = pipeline
     async with sessions() as session, session.begin():
+        # The proof now binds the one-to-one canonical room record too.
+        from app.models.room_details import ListingRoomDetails
+        columns = ", ".join(f'"{c.name}" {c.type.compile(dialect=session.bind.dialect)}'
+                            for c in ListingRoomDetails.__table__.columns)
+        await session.execute(text(f"CREATE TABLE listing_room_details ({columns})"))
         path = Path(__file__).parents[2] / "alembic/versions/0071_ai_query_proofs.py"
         spec = importlib.util.spec_from_file_location("query_proof_migration", path)
         module = importlib.util.module_from_spec(spec)
@@ -180,3 +185,35 @@ async def test_preparation_storage_failure_propagates(pipeline, proofs):
     with pytest.raises(DBAPIError):
         await proofs.prepare(source.canonical_listing_id)
     assert not await guard(proofs, source.canonical_listing_id)
+
+
+@pytest.mark.parametrize("corruption", ["'[]'::jsonb", "jsonb_build_array(jsonb_build_object('bad',true))"])
+async def test_projection_repair_after_corruption(pipeline, proofs, corruption):
+    service, sessions = pipeline
+    source = await completed(pipeline)
+    assert await proofs.prepare(source.canonical_listing_id)
+    original = await service.read_current_projection(source.canonical_listing_id)
+    async with sessions() as session, session.begin():
+        await session.execute(text(f"UPDATE ai_listing_search_features SET features={corruption}"))
+    assert not await proofs.prepare(source.canonical_listing_id)
+    revision = await service.reconcile_listing(source.canonical_listing_id)
+    assert revision > original.feature_revision
+    restored = await service.read_current_projection(source.canonical_listing_id)
+    assert restored.features == original.features
+    assert restored.input_hash == original.input_hash
+    assert await proofs.prepare(source.canonical_listing_id)
+    assert await guard(proofs, source.canonical_listing_id)
+    assert await service.reconcile_listing(source.canonical_listing_id) == revision
+
+
+async def test_semantic_verifier_upgrade_invalidates_existing_proof(pipeline, proofs, monkeypatch):
+    from app.repositories import ai_query_proofs
+    source = await completed(pipeline)
+    current = ai_query_proofs.PROOF_CONTRACT_VERSION
+    monkeypatch.setattr(ai_query_proofs, "PROOF_CONTRACT_VERSION", "legacy-verifier.test.v1")
+    assert await proofs.prepare(source.canonical_listing_id)
+    assert await guard(proofs, source.canonical_listing_id)
+    monkeypatch.setattr(ai_query_proofs, "PROOF_CONTRACT_VERSION", current)
+    assert not await guard(proofs, source.canonical_listing_id)
+    assert await proofs.prepare(source.canonical_listing_id)
+    assert await guard(proofs, source.canonical_listing_id)

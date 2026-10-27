@@ -16,29 +16,46 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, model_validator
 
+from ..schemas.ai_evidence_support import SUPPORTED_PROVIDER_FIELDS, has_evidence_text
 from .listing_evidence import EvidenceSpan, PolicyFact, extract_policy_evidence
 
 
 class _ListingText(HTMLParser):
+    HIDDEN_TAGS = frozenset({"script", "style", "nav", "footer", "header", "aside", "form", "iframe", "noscript"})
+
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.hidden: list[str] = []
+        self.invalid_hidden = False
         self.parts: list[str] = []
 
     def handle_starttag(self, tag, attrs):
-        if tag in {"script", "style", "nav", "footer", "header", "aside", "form", "iframe", "noscript"}:
+        if tag in self.HIDDEN_TAGS:
             self.hidden.append(tag)
-        elif not self.hidden and tag in {"p", "div", "br", "li", "section"}:
+        elif not self.hidden and not self.invalid_hidden and tag in {"p", "div", "br", "li", "section"}:
             self.parts.append("\n")
 
+    def handle_startendtag(self, tag, attrs):
+        # In HTML, '/>' does not close a non-void nav/form/etc. Treat ambiguous
+        # hidden self-closing markup as an opening, not permission to export.
+        if tag in self.HIDDEN_TAGS:
+            self.handle_starttag(tag, attrs)
+        else:
+            super().handle_startendtag(tag, attrs)
+
     def handle_endtag(self, tag):
-        if tag in self.hidden:
-            self.hidden = self.hidden[: self.hidden.index(tag)]
-        elif not self.hidden and tag in {"p", "div", "li", "section"}:
+        if self.hidden and tag in self.HIDDEN_TAGS:
+            if tag == self.hidden[-1]:
+                self.hidden.pop()
+            else:
+                # Do not recover a malformed hidden boundary by exposing its
+                # remaining text, even if later tags happen to balance.
+                self.invalid_hidden = True
+        elif not self.hidden and not self.invalid_hidden and tag in {"p", "div", "li", "section"}:
             self.parts.append("\n")
 
     def handle_data(self, data):
-        if not self.hidden:
+        if not self.hidden and not self.invalid_hidden:
             self.parts.append(data)
 
 
@@ -73,10 +90,6 @@ def clean_evidence_text(value: str, *, advertiser_name: str | None = None) -> st
     if advertiser_name and advertiser_name.strip():
         text = re.sub(re.escape(advertiser_name.strip()), "[advertiser]", text, flags=re.IGNORECASE)
     return "\n".join(" ".join(line.split()) for line in text.splitlines() if line.strip()).strip()
-
-
-def has_evidence_text(value: str) -> bool:
-    return bool(re.search(r"\w", re.sub(r"\[(?:contact|advertiser|link|secret)\]", "", value)))
 
 
 class ProviderFact(BaseModel):
@@ -195,6 +208,8 @@ def build_listing_evidence_input(
         source_language=source_language,
         provider_facts=ordered,
         policy_evidence=policies,
-        data_status="ready" if has_evidence_text(description) else "insufficient_source_data",
+        data_status="ready" if has_evidence_text(description) or any(
+            f.field in SUPPORTED_PROVIDER_FIELDS and has_evidence_text(f.evidence.quote) for f in ordered
+        ) else "insufficient_source_data",
         content_hash=digest,
     )

@@ -13,6 +13,7 @@ from uuid import UUID, uuid4
 
 from ..repositories.ai_search_sessions import SearchSessions, SessionError, intent_hash
 from ..repositories.ai_verified_cards import VerifiedCardResult
+from ..schemas.ai_listing_facts import digest
 from ..schemas.ai_search_intent import IntentPatch, SearchIntent, apply_patch
 from ..schemas.ai_search_quota import FailureCode, OperationState, QuotaOperation, QuotaSubject, ResultReceipt
 from ..schemas.listings import ListingCardSearchRequest
@@ -65,6 +66,10 @@ class TextSearchExecution:
         payload = ListingCardSearchRequest.model_validate(payload.model_dump())
         if payload.cursor is not None:
             raise ValueError("a new message must not carry a paging cursor")
+        filters_hash = digest(payload.model_dump(mode="json"))
+        if operation.filters_sha256 is not None and operation.filters_sha256 != filters_hash:
+            raise ValueError("server filters hash does not match card request")
+        operation = operation.model_copy(update={"filters_sha256": filters_hash})
         reservation = await self.ledger.reserve(subject, operation)
         if reservation.action != "created":
             state = reservation.operation
