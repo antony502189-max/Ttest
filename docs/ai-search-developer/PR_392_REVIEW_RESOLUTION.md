@@ -4,6 +4,60 @@ Scope: merge the offline foundation; public AI activation remains disabled.
 The external review identifies six implementation defects and seven release or
 process risks. Fixing the defects does not establish production readiness.
 
+## Repeat review corrections (N-01, N-02, O-01)
+
+- **N-01:** Explicit rented-unit available_spots must equal the canonical
+  max(0, effective room capacity - current_room_residents). Missing occupancy
+  or capacity rejects certification; household current_residents cannot fill
+  in missing room occupancy. All present explicit capacity, room occupancy and
+  free-place facts are checked against the same canonical inventory. Full
+  PostGIS cases cover positive/negative values, omitted optional occupancy
+  facts, unknown inventory, fully occupied units, inconsistent triples and
+  attempted re-certification after an occupancy change.
+- **Proof upgrades:** Signatures now bind query-proof.v2, the semantic verifier
+  contract. Cached rows made by older checking rules cannot bypass new rules
+  simply because their source/canonical inputs still match. Re-preparation is
+  explicit; no migration, automatic import, crawl or backfill is introduced.
+  Real PostgreSQL regressions test invalidation across verifier upgrades; the
+  cursor context also binds the semantic verifier version.
+- **N-02:** Hidden HTML elements close in stack order. Closing an inner nav,
+  footer or header cannot expose its outer block. Mismatched hidden closing
+  tags latch suppression for the remaining input; unclosed hidden blocks stay
+  suppressed. Ambiguous self-closing non-void hidden elements are conservative
+  openings. Tests cover nested/mixed elements, incomplete/crossed boundaries,
+  void elements and raw-text script/style/iframe contents. This remains a
+  selected-field minimizer, not a guarantee to recognize all personal names.
+- **F-03 reinforcement:** PostgreSQL replay tests now cover every accepted
+  ListingCardSearchRequest field, nested polygon changes, UUID conversion,
+  explicit/omitted defaults and polygon closure normalization. Changed
+  validated payloads conflict without further inference or debit; equivalent
+  normalized requests replay the original receipt.
+
+### O-01: explicit live pagination contract
+
+AI cursors mean **live keyset pagination**, not a frozen eligible-result or
+commercial-order snapshot. Every request uses its own repeatable-read database
+snapshot and rechecks current source equality, public eligibility, moderation
+and TOP ordering before count/order/seek/limit. Thus totals can change between
+pages. A stored proof-set digest binds the prepared cache only; it does not
+claim to version every change in the live eligible set.
+
+Subject/intent/filter/config/catalog/fact/prepared-proof changes covered by the
+signed context reject the cursor. Direct source payload/status changes, owner
+blocking, moderation and TOP scheduling may instead leave it valid and alter
+the eligible set/order. A newly eligible row or a promotion moved before the
+seek point requires restarting at the first page to discover it. Reordering
+may also repeat a previously seen ID; future UI should deduplicate IDs and
+offer refresh rather than promise a frozen traversal. No stale/ineligible
+card is returned to preserve an old total. A stable export would require a
+separate durable snapshot contract and is not provided by these cursors.
+
+Full PostGIS tests exercise source payload/status mutations, owner blocking,
+moderation, TOP reordering and source restoration between pages without
+changing stored proof rows. They check current counts, absence of ineligible
+cards, discovering earlier rows on refresh and no quota debit for paging.
+This service contract must be exposed by the future API/UI before activation.
+
 ## Implemented corrections
 
 | Review | Contract and regression coverage |
@@ -27,9 +81,9 @@ offline re-preparation. There is no automatic crawl or backfill.
 Python 3.13.17 with backend/constraints.txt; isolated PostgreSQL 16/PostGIS 3.4
 and test Redis namespace:
 
-- Full unit suite: 1263 passed, 15 platform/opt-in skips.
-- Facts/proofs and quota/session/execution PostgreSQL/Redis suites: 279 passed.
-- Full-schema verified cards and existing gallery regressions: 24 passed.
+- Full unit suite after repeat review: 1280 passed, 15 platform/opt-in skips.
+- Facts/proofs and quota/session/execution PostgreSQL/Redis suites: 338 passed.
+- Full-schema verified cards and existing gallery regressions: 41 passed.
 - Ruff, mypy (144 modules), pip check and git diff --check passed.
 - Complete Alembic upgrade and metadata check passed; one head remains
   0071_ai_query_proofs, with no new upgrade operations detected.

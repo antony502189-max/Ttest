@@ -187,6 +187,16 @@ async def test_identical_preparation_does_not_invalidate_cursor():
     assert second.cards.total == first.cards.total
 
 
+async def test_cursor_rejects_semantic_verifier_contract_change(monkeypatch):
+    from app.repositories import ai_verified_cards
+    query, subject, session_id, _, _ = await setup("long")
+    payload = ListingCardSearchRequest(limit=1)
+    first = await query.search_owned(subject, session_id, 1, payload)
+    monkeypatch.setattr(ai_verified_cards, "PROOF_CONTRACT_VERSION", "next-verifier.test.v3")
+    with pytest.raises(InvalidAICursor):
+        await query.search_owned(subject, session_id, 1, payload.model_copy(update={"cursor": first.cards.nextCursor}))
+
+
 @pytest.mark.parametrize("changes", [
     {"monthly_price": 900}, {"nightly_price": 200}, {"weekly_price": 1200},
     {"rental_mode": "holiday", "nightly_price": 55}, {"room_capacity": 2}, {"available_from": date(2027, 2, 1)},
@@ -274,3 +284,117 @@ async def test_text_execution_uses_real_cards_and_atomic_session_quota_then_safe
     assert replay.replay and replay.operation.receipt == result.operation.receipt
     assert replay.cards.cards.total == 2 and replay.operation.used == 1
     assert parser.calls == gate.calls == 1
+
+
+@pytest.mark.parametrize("capacity,residents,spots,fact_residents,expected", [
+    (3, 2, 2, None, False),  # Review reproduction: no optional occupancy fact.
+    (3, 1, 2, None, True),
+    (3, 1, 2, 1, True),
+    (3, 1, 2, 2, False),   # Individually present facts must also agree jointly.
+    (3, 2, 2, 2, False),
+    (3, None, 2, None, False),
+    (None, 1, 2, None, False),
+    (3, 3, 2, None, False),
+    (3, 4, 2, None, False),
+])
+async def test_party_requires_current_available_spots(capacity, residents, spots, fact_residents, expected):
+    query, subject, session_id, ids, source_ids = await setup("long")
+    listing_id, source_id = ids[1], source_ids[1]
+    async with SessionLocal() as session, session.begin():
+        await session.execute(update(Listing).where(Listing.id == listing_id).values(room_capacity=None))
+        session.add(ListingRoomDetails(listing_id=listing_id, room_capacity_v2=capacity, current_room_residents=residents))
+        await session.execute(update(AISearchSession).where(AISearchSession.id == session_id).values(criteria={
+            "party": {"strength": "hard", "value": {"adults": 2, "children": 0, "relationship": "unspecified"}},
+        }))
+    fields = {"description": "Synthetic capacity and free-place evidence"}
+    async with SessionLocal() as session:
+        _, authority = await query.pipeline._authority(session, listing_id, lock=False)
+    source = SourceInput(source_record_id=source_id, canonical_listing_id=listing_id,
+        content_hash=digest(fields), snapshot_hash=authority[source_id].snapshot_hash,
+        schema_version="ai-facts.v1", taxonomy_version="ai-search.v1", extractor_version="inventory-test.v1")
+    await query.pipeline.observe(source)
+    claim = await query.pipeline.claim()
+    inventory = {"capacity_total": 3, "available_spots": spots}
+    if fact_residents is not None:
+        inventory["current_room_residents"] = fact_residents
+    batch = FactBatch.model_validate({
+        "schema_version": claim.schema_version, "taxonomy_version": claim.taxonomy_version,
+        "batch_id": uuid4(), "canonical_listing_id": listing_id, "source_record_id": source_id,
+        "source_generation": claim.generation, "content_hash": claim.content_hash,
+        "extractor_version": claim.extractor_version, "observed_at": datetime.now(UTC), "source_status": "active",
+        "last_successful_check_at": None, "last_content_change_at": None, "last_check_error_at": None,
+        "facts": [{"fact_id": uuid4(), "key": key, "status": "explicit_allow",
+            "typed_value": {"kind": "quantity", "value": value, "unit": "persons"},
+            "qualifiers": {"inventory_scope": "rented_unit"}, "origin": "source_text",
+            "evidence": [{"field": "description", "quote": fields["description"], "start": 0,
+                          "end": len(fields["description"])}]} for key, value in inventory.items()],
+    })
+    await query.pipeline.complete(claim, batch, fields)
+    assert await QueryProofs(query.pipeline).prepare(listing_id) is expected
+    page = await query.search_owned(subject, session_id, 1, ListingCardSearchRequest())
+    assert page.cards.total == int(expected)
+    assert [item.id for item in page.cards.items] == ([str(listing_id)] if expected else [])
+    if expected:
+        # Re-preparation and reconcile cannot bless stale inventory later.
+        async with SessionLocal() as session, session.begin():
+            await session.execute(update(ListingRoomDetails).where(ListingRoomDetails.listing_id == listing_id).values(
+                current_room_residents=2))
+        assert not await QueryProofs(query.pipeline).prepare(listing_id)
+        await query.pipeline.reconcile_listing(listing_id)
+        assert not await QueryProofs(query.pipeline).prepare(listing_id)
+        assert (await query.search_owned(subject, session_id, 1, ListingCardSearchRequest())).cards.total == 0
+
+
+@pytest.mark.parametrize("mutation", ["raw_payload", "status", "moderation", "owner", "top"])
+async def test_live_cursor_rechecks_eligibility_and_order_between_pages(mutation):
+    query, subject, session_id, ids, source_ids = await setup("long")
+    payload = ListingCardSearchRequest(limit=1)
+    first = await query.search_owned(subject, session_id, 1, payload)
+    assert first.cards.total == 3 and first.cards.items[0].id == str(ids[1])
+    async with SessionLocal() as session, session.begin():
+        saved_proofs = (await session.execute(select(AiQueryProof.canonical_listing_id, AiQueryProof.signature))).all()
+        if mutation == "raw_payload":
+            await session.execute(update(ExternalListingSource).where(ExternalListingSource.id == source_ids[2]).values(
+                raw_payload={"changed": True}))
+        elif mutation == "status":
+            await session.execute(update(ExternalListingSource).where(ExternalListingSource.id == source_ids[2]).values(
+                current_status="removed"))
+        elif mutation == "moderation":
+            session.add(ListingRestriction(listing_id=ids[2], reason="Synthetic restriction",
+                                           starts_at=datetime.now(UTC) - timedelta(seconds=1)))
+        elif mutation == "owner":
+            await session.execute(update(User).values(blocked=True))
+        else:
+            session.add(ListingPromotion(listing_id=ids[2], starts_at=datetime.now(UTC) - timedelta(seconds=1),
+                ends_at=datetime.now(UTC) + timedelta(days=1), boosted_at=datetime.now(UTC), payment_managed=False))
+    page = await query.search_owned(subject, session_id, 1, payload.model_copy(update={"cursor": first.cards.nextCursor}))
+    assert page.cards.total == (0 if mutation == "owner" else 3 if mutation == "top" else 2)
+    assert str(ids[2]) not in {item.id for item in page.cards.items}
+    async with SessionLocal() as session:
+        assert set((await session.execute(select(AiQueryProof.canonical_listing_id, AiQueryProof.signature))).all()) == set(saved_proofs)
+        assert await session.scalar(select(func.count()).select_from(AIUsageDay)) == 0
+    if mutation == "top":
+        # The row moved before the seek point. Only a fresh first page discovers
+        # it; signed cursors never claim stable membership/order across pages.
+        fresh = await query.search_owned(subject, session_id, 1, payload)
+        assert fresh.cards.items[0].id == str(ids[2])
+
+
+@pytest.mark.parametrize("mutation", ["raw_payload", "status"])
+async def test_live_cursor_requires_restart_for_newly_eligible_rows_before_seek(mutation):
+    query, subject, session_id, ids, source_ids = await setup("long")
+    async with SessionLocal() as session, session.begin():
+        await session.execute(update(ExternalListingSource).where(ExternalListingSource.id == source_ids[1]).values(
+            **({"raw_payload": {"changed": True}} if mutation == "raw_payload" else {"current_status": "removed"})))
+    payload = ListingCardSearchRequest(limit=1)
+    first = await query.search_owned(subject, session_id, 1, payload)
+    assert first.cards.total == 2 and first.cards.nextCursor
+    async with SessionLocal() as session, session.begin():
+        # Restore exact source equality without modifying the cached proof or
+        # canonical listing: the promoted row becomes eligible before our seek.
+        await session.execute(update(ExternalListingSource).where(ExternalListingSource.id == source_ids[1]).values(
+            **({"raw_payload": {}} if mutation == "raw_payload" else {"current_status": "active"})))
+    second = await query.search_owned(subject, session_id, 1, payload.model_copy(update={"cursor": first.cards.nextCursor}))
+    assert second.cards.total == 3 and str(ids[1]) not in {item.id for item in second.cards.items}
+    fresh = await query.search_owned(subject, session_id, 1, payload)
+    assert fresh.cards.total == 3 and fresh.cards.items[0].id == str(ids[1])

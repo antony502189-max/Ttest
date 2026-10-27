@@ -19,6 +19,8 @@ from ..models.room_details import ListingRoomDetails
 from ..schemas.ai_listing_facts import Category, DateRange, Money, Quantity, SearchProjection
 from .ai_fact_pipeline import FactPipeline
 
+PROOF_CONTRACT_VERSION = "query-proof.v2"
+
 
 def _hash(value):
     return func.encode(func.sha256(func.convert_to(value.cast(Text), "UTF8")), "hex")
@@ -73,6 +75,9 @@ def projection_signature(listing_id) -> ColumnElement[str]:
                 "epoch", canonical.op("->>")(literal(column.name, type_=Text)).cast(DateTime(timezone=True)))))
     canonical = canonical.op("||")(func.jsonb_build_object(*timestamps))
     return _hash(func.jsonb_build_object(
+        # Bump whenever preparation's semantic checks change. Old cache rows
+        # must not bypass a new verifier merely because their inputs are equal.
+        "proof_contract", PROOF_CONTRACT_VERSION,
         # Hash the canonical row too: public cards can change independently of
         # the provider snapshot. Views/updated_at are bookkeeping, not evidence.
         # to_jsonb(row) also supports deliberately minimal legacy test schemas.
@@ -91,9 +96,10 @@ def projection_signature(listing_id) -> ColumnElement[str]:
 def proof_population_signature(*, resolver_version: str, vocabulary_hash: str):
     """Exact prepared-set identity, scoped to this resolver and vocabulary.
 
-    Insertions, deletions and replacement proofs change the cursor snapshot;
+    Insertions, deletions and replacement proofs change the cursor identity;
     preparing an identical proof does not. An identical restored set is the
-    same snapshot, so this needs no global write lock or monotonic sequence.
+    same prepared-set identity, so this needs no global generation lock.
+    This is cache identity, not a snapshot of live eligibility or TOP ordering.
     This aggregate still needs representative capacity testing before release.
     """
     proof = AiQueryProof.__table__
@@ -143,6 +149,17 @@ async def _canonical_values_agree(session, listing_id: UUID, projection: SearchP
                 return False
         elif feature.key == "availability" and isinstance(value, DateRange):
             if (card.get("available_from"), card.get("available_until")) != (value.start, value.end):
+                return False
+        elif feature.key == "available_spots" and isinstance(value, Quantity):
+            # Use exactly the public rented-unit inventory contract. A missing
+            # occupancy is unknown, never zero; household current_residents
+            # cannot substitute for current_room_residents.
+            capacity = details.get("room_capacity_v2")
+            if capacity is None:
+                capacity = card.get("room_capacity")
+            residents = details.get("current_room_residents")
+            if (type(capacity) is not int or capacity <= 0 or type(residents) is not int or residents < 0
+                    or value.value != max(0, capacity - residents)):
                 return False
         elif feature.key in {"capacity_total", "current_room_residents"} and isinstance(value, Quantity):
             field = "room_capacity_v2" if feature.key == "capacity_total" else "current_room_residents"

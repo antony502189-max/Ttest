@@ -213,18 +213,68 @@ async def test_hash_mismatch_or_paging_cursor_rejected_before_reservation(store,
         assert await session.scalar(select(func.count()).select_from(AIUsageDay)) == 0
 
 
-@pytest.mark.parametrize("change", [
-    {"rentalMode": "holiday"}, {"maxPrice": 500}, {"sort": "price_asc"},
-    {"favoriteIds": [str(uuid4())]}, {"limit": 1},
-])
-async def test_same_idempotency_key_different_filters_conflicts(store, pg, change):
+def card_request_mutations():
+    """Valid independent request examples, including every accepted field."""
+    values = {
+        "query": "room", "autonomousCommunity": "05", "provinceCode": "38", "municipalityCode": "38001",
+        "city": "Adeje", "area": "Central", "rentalMode": "holiday", "minPrice": 100, "maxPrice": 500,
+        "roomType": "Estudio", "roomTypes": ["Estudio"], "bedroomCounts": [2], "availableFrom": "2027-01-01",
+        "maxMinimumStayMonths": 2, "restrictions": ["synthetic"], "tenantRequirement": "couple",
+        "tenantRequirements": ["couple"], "bathroom": "Shared", "kitchen": "Shared", "furnished": False,
+        "billsIncluded": False, "deposit": "Sin fianza", "minRoomSizeM2": 10, "maxRoomSizeM2": 20,
+        "shower": "Shared", "currentResidents": 1, "minCurrentResidents": 1, "roomCapacity": 2,
+        "maxMinimumNights": 2, "availableUntil": "2027-02-01", "smokingAllowed": False, "petsAllowed": False,
+        "childrenAllowed": False, "empadronamientoAllowed": False, "minHomeSizeM2": 40, "maxHomeSizeM2": 80,
+        "minBathroomCount": 1, "rentalUnit": "room", "bedType": "double", "minBedCount": 2,
+        "currentRoomResidents": 1, "maxCurrentRoomResidents": 2, "minAvailableSpots": 2, "toilet": "Aseo privado",
+        "householdGender": "mixed", "householdHasChildren": False, "heatingType": "central", "accessible": False,
+        "floor": "1", "couplesAllowed": False, "acceptedTenantTypes": ["couple"], "publishedWithinDays": 2,
+        "advertiserType": "Particular", "amenities": ["wifi"], "sort": "price_asc", "limit": 1, "offset": 1,
+        "favoriteIds": [str(uuid4())],
+        "polygon": [{"latitude": 28.1, "longitude": -16.7}, {"latitude": 28.2, "longitude": -16.7},
+                    {"latitude": 28.1, "longitude": -16.6}],
+    }
+    cases = [(key, {key: value}) for key, value in values.items()]
+    cases += [
+        ("bounds", {"minLatitude": 28.1, "maxLatitude": 28.2, "minLongitude": -16.7, "maxLongitude": -16.6}),
+        ("radius", {"center": {"latitude": 28.1, "longitude": -16.7}, "radiusKm": 5}),
+    ]
+    return cases
+
+
+def test_idempotency_mutations_cover_every_card_request_field():
+    tested = {key for _, payload in card_request_mutations() for key in payload}
+    assert tested == set(ListingCardSearchRequest.model_fields) - {"cursor"}  # rejected before reservation above
+
+
+@pytest.mark.parametrize("name,change", card_request_mutations(), ids=lambda case: case if isinstance(case, str) else "")
+async def test_same_idempotency_key_different_filters_conflicts(store, pg, name, change):
     subject, snapshot, parser, gate, query, service = await configured(store)
     op = operation(snapshot)
     first = await service.execute(subject, op, "synthetic message", ListingCardSearchRequest())
     assert first.operation.status == "succeeded"
     with pytest.raises(QuotaError, match="IDEMPOTENCY_CONFLICT"):
-        await service.execute(subject, op, "synthetic message", ListingCardSearchRequest(**change))
+        await service.execute(subject, op, "synthetic message", ListingCardSearchRequest.model_validate_json(json.dumps(change)))
     replay = await service.execute(subject, op, "synthetic message", ListingCardSearchRequest())
     assert replay.replay and replay.operation.receipt == first.operation.receipt
+    assert parser.calls == gate.calls == query.calls == query.replays == 1
+    assert await usage(pg, subject) == (1, 0)
+
+
+async def test_validated_defaults_uuid_and_polygon_normalization_preserve_replay(store, pg):
+    subject, snapshot, parser, gate, query, service = await configured(store)
+    op = operation(snapshot)
+    polygon = dict(card_request_mutations())["polygon"]["polygon"]
+    payload = ListingCardSearchRequest.model_validate_json(json.dumps({"favoriteIds": [str(uuid4())], "polygon": polygon}))
+    first = await service.execute(subject, op, "synthetic message", payload)
+    # Explicit defaults, JSON UUIDs, and an explicitly closed ring normalize to
+    # the same request as omitted defaults/native UUIDs/an open input ring.
+    equivalent = ListingCardSearchRequest.model_validate_json(payload.model_dump_json())
+    replay = await service.execute(subject, op, "synthetic message", equivalent)
+    assert replay.replay and replay.operation.receipt == first.operation.receipt
+    changed = equivalent.model_dump(mode="json")
+    changed["polygon"][1]["latitude"] = 28.3
+    with pytest.raises(QuotaError, match="IDEMPOTENCY_CONFLICT"):
+        await service.execute(subject, op, "synthetic message", ListingCardSearchRequest.model_validate_json(json.dumps(changed)))
     assert parser.calls == gate.calls == query.calls == query.replays == 1
     assert await usage(pg, subject) == (1, 0)

@@ -204,3 +204,16 @@ async def test_projection_repair_after_corruption(pipeline, proofs, corruption):
     assert await proofs.prepare(source.canonical_listing_id)
     assert await guard(proofs, source.canonical_listing_id)
     assert await service.reconcile_listing(source.canonical_listing_id) == revision
+
+
+async def test_semantic_verifier_upgrade_invalidates_existing_proof(pipeline, proofs, monkeypatch):
+    from app.repositories import ai_query_proofs
+    source = await completed(pipeline)
+    current = ai_query_proofs.PROOF_CONTRACT_VERSION
+    monkeypatch.setattr(ai_query_proofs, "PROOF_CONTRACT_VERSION", "legacy-verifier.test.v1")
+    assert await proofs.prepare(source.canonical_listing_id)
+    assert await guard(proofs, source.canonical_listing_id)
+    monkeypatch.setattr(ai_query_proofs, "PROOF_CONTRACT_VERSION", current)
+    assert not await guard(proofs, source.canonical_listing_id)
+    assert await proofs.prepare(source.canonical_listing_id)
+    assert await guard(proofs, source.canonical_listing_id)

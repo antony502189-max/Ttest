@@ -152,3 +152,39 @@ def test_packet_retains_exception_and_species_scope(text, field):
     fact = value.policy_evidence[field]
     assert fact.status == "conditional" and fact.value is None
     assert len(fact.evidence) == 2
+
+
+@pytest.mark.parametrize("tag", ["nav", "footer", "header", "aside", "form", "noscript"])
+def test_nested_hidden_tags_keep_outer_content_hidden(tag):
+    value = f"<{tag}><{tag}>inner</{tag}>DO_NOT_EXPORT</{tag}><p>No pets.</p>"
+    assert clean_evidence_text(value) == "No pets."
+    result = packet(description=value)
+    assert "DO_NOT_EXPORT" not in result.deterministic_json()
+    assert result.policy_evidence["pets_allowed"].value is False
+
+
+def test_different_nested_hidden_tags_close_in_stack_order():
+    value = "<header><nav>inner</nav>private A<footer>private B</footer>private C</header><p>Room text</p>"
+    assert clean_evidence_text(value) == "Room text"
+
+
+@pytest.mark.parametrize("markup", [
+    "<nav><nav>inner</nav>DO_NOT_EXPORT<p>Still private</p>",
+    "<nav><footer>inner</nav>DO_NOT_EXPORT</footer><p>Ambiguous suffix</p>",
+    "<header></footer>DO_NOT_EXPORT</header><p>Ambiguous suffix</p>",
+    "<nav/>DO_NOT_EXPORT<p>Ambiguous suffix</p>",
+    "<form><header/>DO_NOT_EXPORT</form><p>Ambiguous suffix</p>",
+    "<nav><footer>DO_NOT_EXPORT</nav></footer></nav><p>Ambiguous suffix</p>",
+])
+def test_malformed_hidden_markup_fails_closed(markup):
+    assert clean_evidence_text("<p>Public prefix</p>" + markup) == "Public prefix"
+
+
+def test_void_elements_and_stray_closing_tags_do_not_hide_valid_listing_text():
+    assert clean_evidence_text("</nav><p>No pets.<br/>No smoking.</p>") == "No pets.\nNo smoking."
+    assert clean_evidence_text("<nav>private<br/><img src='x'></nav><p>Room text</p>") == "Room text"
+
+
+@pytest.mark.parametrize("tag", ["script", "style", "iframe"])
+def test_raw_text_hidden_elements_do_not_export_markup_looking_content(tag):
+    assert clean_evidence_text(f"<{tag}>private<nav>private</nav></{tag}><p>Room text</p>") == "Room text"
