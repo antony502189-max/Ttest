@@ -45,10 +45,22 @@ from .listings import (
 
 
 @dataclass(frozen=True)
+class VerifiedBudgetPrice:
+    listing_id: str
+    matched_amount: int
+    matched_period: str
+    display_amount: int | None
+    display_period: str
+    currency: str = "EUR"
+    confirmation: str = "current_source_proof"
+
+
+@dataclass(frozen=True)
 class VerifiedCardResult:
     cards: ListingCardSearchResponse
     intent_hash: str
     reason_codes: tuple[str, ...]
+    budget_prices: tuple[VerifiedBudgetPrice, ...] = ()
 
 
 class VerifiedCardSearch:
@@ -114,7 +126,19 @@ class VerifiedCardSearch:
         cards = await _search_filtered_cards(session, payload, filtered, _cursor_fingerprint(payload))
         cards = cards.model_copy(update={"nextCursor": self.cursors.encode(cards.nextCursor, context),
                                          "previousCursor": self.cursors.encode(cards.previousCursor, context)})
-        return VerifiedCardResult(cards, normalized_hash, tuple(group.name for group in compiled.criteria))
+        budget_prices: tuple[VerifiedBudgetPrice, ...] = ()
+        budget = intent.criteria.budget
+        if budget and budget.strength == "hard" and cards.items:
+            # Same repeatable-read snapshot and already verified card IDs.
+            # Preserve native card/TOP prices while exposing the actual amount
+            # confirmed in the requested period, without unit conversion.
+            amount = {"monthly": Listing.monthly_price, "nightly": Listing.nightly_price,
+                      "weekly": Listing.weekly_price}[budget.value.period]
+            values = dict((await session.execute(select(Listing.id, amount).where(
+                Listing.id.in_([UUID(card.id) for card in cards.items])))).all())
+            budget_prices = tuple(VerifiedBudgetPrice(card.id, values[UUID(card.id)], budget.value.period,
+                card.price, "nightly" if card.rentalMode == "holiday" else "monthly") for card in cards.items)
+        return VerifiedCardResult(cards, normalized_hash, tuple(group.name for group in compiled.criteria), budget_prices)
 
 
     async def map_owned(self, subject: QuotaSubject, session_id: UUID, expected_version: int,

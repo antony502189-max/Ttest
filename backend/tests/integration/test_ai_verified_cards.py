@@ -372,6 +372,42 @@ async def test_ai_map_uses_same_guards_before_markers_clusters_and_public_visibi
     assert not (await query.map_owned(subject, session_id, 1, payload)).map.items
 
 
+@pytest.mark.parametrize("mode,period,column,display", [("long", "weekly", "weekly_price", 725),
+    ("holiday", "monthly", "monthly_price", 55)])
+async def test_budget_response_explains_confirmed_amount_and_native_display_period(mode, period, column, display):
+    from fastapi.encoders import jsonable_encoder
+    query, subject, session_id, ids, source_ids = await setup(mode)
+    listing_id, source_id = ids[1], source_ids[1]
+    pipeline = query.pipeline
+    async with SessionLocal() as session, session.begin():
+        await session.execute(update(Listing).where(Listing.id == listing_id).values(**{column: 200}))
+        _, authority = await pipeline._authority(session, listing_id, lock=False)
+    description = f"Confirmed EUR200 {period}"
+    await pipeline.observe(SourceInput(source_record_id=source_id, canonical_listing_id=listing_id,
+        content_hash=digest({"description": description}), snapshot_hash=authority[source_id].snapshot_hash,
+        schema_version="ai-facts.v1", taxonomy_version="ai-search.v1", extractor_version="test-price-period.v1"))
+    claim = await pipeline.claim()
+    batch = FactBatch.model_validate({"schema_version": claim.schema_version, "taxonomy_version": claim.taxonomy_version,
+        "batch_id": uuid4(), "canonical_listing_id": listing_id, "source_record_id": source_id,
+        "source_generation": claim.generation, "content_hash": claim.content_hash, "extractor_version": claim.extractor_version,
+        "observed_at": datetime.now(UTC), "source_status": "active", "last_successful_check_at": None,
+        "last_content_change_at": None, "last_check_error_at": None, "facts": [{"fact_id": uuid4(), "key": "price",
+        "status": "explicit_allow", "typed_value": {"kind": "money", "amount": "200", "currency": "EUR", "period": period},
+        "qualifiers": {}, "origin": "source_text", "evidence": [
+            {"field": "description", "quote": description, "start": 0, "end": len(description)}]}]})
+    await pipeline.complete(claim, batch, {"description": description})
+    assert await QueryProofs(pipeline).prepare(listing_id)
+    async with SessionLocal() as session, session.begin():
+        await session.execute(update(AISearchSession).where(AISearchSession.id == session_id).values(criteria={
+            "budget": {"strength": "hard", "value": {"amount": "200", "currency": "EUR", "period": period}}}))
+    response = jsonable_encoder(await query.search_owned(subject, session_id, 1, ListingCardSearchRequest()))
+    assert response["cards"]["total"] == 1
+    assert response["cards"]["items"][0]["price"] == display
+    assert response["budget_prices"] == [{"listing_id": str(listing_id), "matched_amount": 200,
+        "matched_period": period, "display_amount": display, "display_period": "monthly" if mode == "long" else "nightly",
+        "currency": "EUR", "confirmation": "current_source_proof"}]
+
+
 
 
 @pytest.mark.parametrize("capacity,residents,spots,fact_residents,expected", [
