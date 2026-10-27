@@ -132,8 +132,9 @@ async def runtime(request: Request) -> AISearchRuntime:
     value = getattr(request.app.state, "ai_search_runtime", None)
     if not isinstance(value, AISearchRuntime):
         raise HTTPException(503, "AI_SEARCH_DISABLED")
-    if getattr(request.state, "validated_ai_runtime", None) is value:
-        return value
+    cached = getattr(request.state, "validated_ai_runtime", None)
+    if isinstance(cached, AISearchRuntime) and cached is value:
+        return cached
     if request.method not in {"GET", "HEAD"} and (
         request.headers.get("origin") not in value.origins or request.headers.get("x-ai-request") != "1"
     ):

@@ -119,7 +119,7 @@ async def test_registered_subject_has_auth_quota_and_never_auto_transfers_guest(
     async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as client:
         guest = await client.post("/api/v1/ai-search/sessions")
         guest_sid = guest.json()["intent"]["session_id"]
-        token, user = await register_user(client, email="ai-http-auth@example.test")
+        token, user = await register_user(client, email="ai-http-auth@example.org")
         headers = {"Authorization": "Bearer " + token}
         assert (await client.get(f"/api/v1/ai-search/sessions/{guest_sid}", headers=headers)).status_code == 404
         created = await client.post("/api/v1/ai-search/sessions", headers=headers)

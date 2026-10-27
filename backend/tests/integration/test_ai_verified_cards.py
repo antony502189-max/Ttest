@@ -213,10 +213,10 @@ async def test_verified_fact_budget_cannot_override_current_card_price_currency_
         await session.execute(update(Listing).where(Listing.id == listing_id).values(monthly_price=650))
     page = await query.search_owned(subject, session_id, 1, ListingCardSearchRequest())
     assert page.cards.total == 1 and page.cards.items[0].price == 650
-    for changes in ({"source_price_currency": "USD"}, {"source_price_is_from": True}, {"rental_mode": "holiday"}):
+    for changes in ({"source_price_currency": "USD"}, {"source_price_is_from": True}, {"rental_mode": "holiday", "nightly_price": 55}):
         async with SessionLocal() as session, session.begin():
             await session.execute(update(Listing).where(Listing.id == listing_id).values(**changes))
         assert (await query.search_owned(subject, session_id, 1, ListingCardSearchRequest())).cards.total == 0
         async with SessionLocal() as session, session.begin():
             await session.execute(update(Listing).where(Listing.id == listing_id).values(
-                source_price_currency=None, source_price_is_from=None, rental_mode="long"))
+                source_price_currency=None, source_price_is_from=None, rental_mode="long", nightly_price=None))
