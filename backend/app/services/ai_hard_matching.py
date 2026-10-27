@@ -42,6 +42,10 @@ class CriterionRules:
     name: str
     rules: tuple[FeatureRule, ...]
 
+    def __post_init__(self):
+        if not self.rules:
+            raise ValueError("empty hard criterion cannot confirm a match")
+
 
 @dataclass(frozen=True)
 class HardMatchPlan:
