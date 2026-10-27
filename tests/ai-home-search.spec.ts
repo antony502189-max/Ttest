@@ -123,8 +123,11 @@ test('pages use original result reference and never submit another message', asy
     return route.fulfill({ json: { operation: { status: 'succeeded', remaining: 2, receipt: { result_ref: ref, count: 0 } }, cards: cards('signed-cursor') } })
   })
   let pages = 0
+  const cursors: Array<string | undefined> = []
   await page.route(`**/api/v1/ai-search/results/${ref}/cards`, route => {
-    expect(route.request().postDataJSON()).toEqual({ search: { limit: 6, cursor: 'signed-cursor' } })
+    const body = route.request().postDataJSON()
+    expect(body.search.limit).toBe(6)
+    cursors.push(body.search.cursor)
     pages++
     return route.fulfill({ json: cards() })
   })
@@ -136,6 +139,11 @@ test('pages use original result reference and never submit another message', asy
   await expect(page.getByRole('button', { name: 'Siguiente', exact: true })).toBeDisabled()
   expect(messages).toBe(1)
   expect(pages).toBe(1)
+  await expect(page.getByText('Los anuncios y su orden pueden cambiar entre páginas.', { exact: false })).toBeVisible()
+  await page.getByRole('button', { name: 'Actualizar resultados sin gastar una búsqueda' }).click()
+  await expect.poll(() => pages).toBe(2)
+  expect(cursors).toEqual(['signed-cursor', undefined])
+  expect(messages).toBe(1)
 })
 
 test('confirmed cards preserve server TOP order, native gallery recovery and external destination', async ({ page }) => {

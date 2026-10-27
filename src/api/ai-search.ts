@@ -18,7 +18,7 @@ export const getAIQuota = (signal: AbortSignal) => api<{ remaining: number }>('/
 export const sendAIMessage = (message: AIMessage, signal: AbortSignal) => api<AIExecution>('/ai-search/query', {
   method: 'POST', headers, body: JSON.stringify({ ...message, search: { limit: 6 } }), signal, cache: 'no-store',
 })
-export async function aiResultPage(ref: string, cursor: string, signal: AbortSignal) {
+export async function aiResultPage(ref: string, cursor: string | undefined, signal: AbortSignal) {
   return api<CardResponse>(`/ai-search/results/${encodeURIComponent(ref)}/cards`, {
     method: 'POST', headers, body: JSON.stringify({ search: { limit: 6, cursor } }), signal, cache: 'no-store',
   })

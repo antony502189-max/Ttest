@@ -6,6 +6,8 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'Los anuncios y su orden pueden cambiar entre páginas. Actualiza la lista para ver cambios desde el principio.': { ru: 'Объявления и их порядок могут меняться между страницами. Обновите список, чтобы увидеть изменения с начала.', en: 'Listings and their order can change between pages. Refresh the list to see changes from the beginning.' },
+  'Actualizar resultados sin gastar una búsqueda': { ru: 'Обновить результаты без списания поиска', en: 'Refresh results without spending a search' },
   'Búsqueda con IA': { ru: 'Поиск с ИИ', en: 'AI search' },
   'Acorta o revisa el texto antes de enviarlo de nuevo.': { ru: 'Сократите или проверьте текст перед повторной отправкой.', en: 'Shorten or review the text before sending it again.' },
   '¿No sabes por dónde empezar?': { ru: 'Не знаете, с чего начать?', en: 'Not sure where to start?' },

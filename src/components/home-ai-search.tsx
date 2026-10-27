@@ -116,7 +116,7 @@ function AISearchPanel() {
     }
   }
 
-  async function page(cursor: string) {
+  async function page(cursor?: string) {
     if (lock.current || !result) return
     lock.current = true
     setBusy(true)
@@ -152,6 +152,8 @@ function AISearchPanel() {
       {remaining !== null ? <small>{t('Búsquedas disponibles hoy')}: {remaining}</small> : null}
       {result ? <section aria-label={t('Resultados confirmados')} aria-busy={busy}>
         <h3>{result.page.total} {t('opciones con condiciones confirmadas')}</h3>
+        <p>{t('Los anuncios y su orden pueden cambiar entre páginas. Actualiza la lista para ver cambios desde el principio.')}</p>
+        <Button type="button" variant="outline" disabled={busy} onClick={() => void page()}>{t('Actualizar resultados sin gastar una búsqueda')}</Button>
         {mapEnabled ? <Button type="button" variant="outline" aria-pressed={mapVisible} onClick={() => setMapVisible(value => !value)}>{t(mapVisible ? 'Ver lista' : 'Ver mapa')}</Button> : null}
         {!result.page.total ? <p>{t('No encontramos opciones con todas las condiciones confirmadas. Puedes ajustar tu búsqueda.')}</p> : null}
         {mapVisible ? <AIResultMap key={`${result.ref}:${result.hash}`} resultRef={result.ref} intentHash={result.hash} /> : null}
