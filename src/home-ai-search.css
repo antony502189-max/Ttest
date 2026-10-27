@@ -27,3 +27,5 @@
   .ai-search-dialog__cards { grid-template-columns: minmax(0, 1fr); }
   .ai-search-dialog[data-slot=dialog-content] { padding: 1rem; }
 }
+
+.ai-search-dialog__card > p { margin-bottom: .5rem; font-weight: 600; }
