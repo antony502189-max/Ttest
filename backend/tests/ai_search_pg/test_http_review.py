@@ -91,7 +91,7 @@ async def test_http_timeout_has_phase_safe_release_rollback_or_replay(store, pg,
             subject_id=cookie_owner.id))
     subject = cookie_owner
     active = AISearchRuntime(store, SimpleNamespace(sessions=store), execution, guests, gate,
-        frozenset({"https://testserver"}), 4096, AIHTTPPolicy(.5, 2, ()))
+        frozenset({"https://testserver"}), 4096, AIHTTPPolicy(.5, 2, (), "https://testserver"))
     monkeypatch.setattr(app.state, "ai_search_runtime", active, raising=False)
     op = operation(snapshot)
     payload = {"idempotency_key": str(op.idempotency_key), "session_id": str(op.session_id),

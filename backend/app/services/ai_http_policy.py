@@ -3,6 +3,7 @@ import math
 from contextvars import ContextVar
 from dataclasses import dataclass
 from ipaddress import ip_address, ip_network
+from urllib.parse import urlsplit
 
 from fastapi import Request
 
@@ -16,8 +17,14 @@ class AIHTTPPolicy:
     request_seconds: float
     max_active_sessions: int
     trusted_proxy_networks: tuple[str, ...]
+    guest_origin: str
 
     def __post_init__(self):
+        origin = urlsplit(self.guest_origin)
+        if origin.scheme not in {"https", "http"} or not origin.hostname or origin.username or origin.password or (
+            origin.path or origin.query or origin.fragment
+        ) or (origin.scheme == "http" and origin.hostname not in {"localhost", "127.0.0.1", "::1"}):
+            raise ValueError("explicit HTTPS guest origin required (HTTP loopback fixtures only)")
         if type(self.request_seconds) not in {float, int} or not math.isfinite(self.request_seconds) or self.request_seconds <= 0:
             raise ValueError("explicit finite positive HTTP deadline required")
         if type(self.max_active_sessions) is not int or self.max_active_sessions < 1:
