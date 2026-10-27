@@ -48,7 +48,7 @@ def test_browser_guest_cookie_roundtrip_preflight_and_external_site_rejection():
     fixture.state.ai_search_runtime = AISearchRuntime(sessions, SimpleNamespace(sessions=sessions),
         SimpleNamespace(sessions=sessions), GuestTokens(key=b"synthetic-guest-key-not-secret-32",
         policy=GuestPolicy(ttl_seconds=600)), Gate(), frozenset({api_origin, external_origin}), 4096,
-        AIHTTPPolicy(2, 2, ()))
+        AIHTTPPolicy(2, 2, (), api_origin))
     server = uvicorn.Server(uvicorn.Config(fixture, log_level="critical", access_log=False, proxy_headers=False))
     thread = threading.Thread(target=lambda: asyncio.run(server.serve(sockets=[listener])), daemon=True)
     thread.start()

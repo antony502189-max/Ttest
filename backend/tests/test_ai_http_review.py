@@ -29,7 +29,7 @@ def active(monkeypatch):
     gate = SimpleNamespace(check=AsyncMock())
     value = AISearchRuntime(sessions, SimpleNamespace(sessions=sessions), SimpleNamespace(sessions=sessions),
                             guests, gate, frozenset({"https://testserver", settings.origins[0]}), 4096,
-                            AIHTTPPolicy(1, 2, ("10.0.0.0/24",)))
+                            AIHTTPPolicy(1, 2, ("10.0.0.0/24",), "https://testserver"))
     monkeypatch.setattr(app.state, "ai_search_runtime", value, raising=False)
     return value
 
@@ -98,7 +98,7 @@ def test_guest_cookie_flow_rejects_external_documents_before_mint(active, site):
 def test_deadline_bounds_gate_and_session_read_without_inventing_release(active, monkeypatch):
     async def blocked(*args, **kwargs):
         await asyncio.Event().wait()
-    value = replace(active, policy=AIHTTPPolicy(.02, 2, ()))
+    value = replace(active, policy=AIHTTPPolicy(.02, 2, (), "https://testserver"))
     monkeypatch.setattr(app.state, "ai_search_runtime", value)
     with TestClient(app, base_url="https://testserver") as client:
         value.http_gate.check.side_effect = blocked
@@ -129,7 +129,7 @@ def test_retry_after_and_configuration_capabilities_are_explicit(active, error, 
     (1, 0, ()), (1, 2, ("0.0.0.0/0",)), (1, 2, ("::/0",))])
 def test_policy_requires_explicit_budgets_and_bounded_proxy_trust(seconds, maximum, proxies):
     with pytest.raises(ValueError):
-        AIHTTPPolicy(seconds, maximum, proxies)
+        AIHTTPPolicy(seconds, maximum, proxies, "https://testserver")
 
 
 def test_server_access_logger_drops_raw_private_url_but_keeps_ordinary_requests(caplog):
@@ -143,7 +143,7 @@ def test_server_access_logger_drops_raw_private_url_but_keeps_ordinary_requests(
 
 @pytest.mark.asyncio
 async def test_deadline_covers_slow_stream_before_body_validation(active, monkeypatch):
-    monkeypatch.setattr(app.state, "ai_search_runtime", replace(active, policy=AIHTTPPolicy(.02, 2, ())))
+    monkeypatch.setattr(app.state, "ai_search_runtime", replace(active, policy=AIHTTPPolicy(.02, 2, (), "https://testserver")))
     async def slow_body():
         yield b"{"
         await asyncio.Event().wait()
@@ -154,7 +154,7 @@ async def test_deadline_covers_slow_stream_before_body_validation(active, monkey
 
 
 def test_late_synchronous_result_is_rejected_and_not_claimed_within_deadline(active, monkeypatch):
-    monkeypatch.setattr(app.state, "ai_search_runtime", replace(active, policy=AIHTTPPolicy(.02, 2, ())))
+    monkeypatch.setattr(app.state, "ai_search_runtime", replace(active, policy=AIHTTPPolicy(.02, 2, (), "https://testserver")))
     def late(*args):
         time.sleep(.04)
         return {"late": True}
@@ -164,3 +164,23 @@ def test_late_synchronous_result_is_rejected_and_not_claimed_within_deadline(act
         response = client.get(f"/api/v1/ai-search/sessions/{uuid4()}", headers={"Cookie": "ai_search_guest=" + token})
         assert response.status_code == 504
         assert "late" not in response.text
+
+
+def test_https_guest_origin_survives_tls_termination_with_internal_http_scope(active):
+    with TestClient(app, base_url="http://testserver") as client:
+        response = client.post("/api/v1/ai-search/sessions", headers=HEADERS)
+        assert response.status_code == 200
+        assert "secure" in response.headers["set-cookie"].lower()
+        token, _ = active.guests.issue()
+        response = client.get(f"/api/v1/ai-search/sessions/{uuid4()}", headers={
+            "Cookie": "ai_search_guest=" + token, "Sec-Fetch-Site": "same-origin"})
+        assert response.status_code == 200
+    with TestClient(app, base_url="https://foreign-host.invalid") as client:
+        response = client.post("/api/v1/ai-search/sessions", headers=HEADERS)
+        assert response.status_code == 403
+
+
+@pytest.mark.parametrize("origin", ["http://public.invalid", "https://testserver/private", "https://testserver?secret=x"])
+def test_guest_origin_policy_rejects_unsafe_or_non_origin_values(origin):
+    with pytest.raises(ValueError):
+        AIHTTPPolicy(1, 2, (), origin)

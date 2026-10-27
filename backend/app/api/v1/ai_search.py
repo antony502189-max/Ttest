@@ -3,6 +3,7 @@ import asyncio
 import hashlib
 from dataclasses import dataclass
 from typing import Annotated, Protocol
+from urllib.parse import urlsplit
 from uuid import UUID
 
 import sentry_sdk  # type: ignore[import-not-found]
@@ -54,6 +55,8 @@ class AISearchRuntime:
             raise ValueError("explicit bounded HTTP body policy required")
         if not self.origins or "*" in self.origins:
             raise ValueError("explicit trusted browser origins required")
+        if self.policy.guest_origin not in self.origins:
+            raise ValueError("guest origin must be explicitly allowed")
         if self.cards.sessions is not self.sessions or self.execution.sessions is not self.sessions:
             raise ValueError("runtime must share one owned-session authority")
 
@@ -209,8 +212,8 @@ async def subject(request: Request, response: Response, active: AISearchRuntime 
     # reverse proxy. Cross-origin bearer clients retain explicit CORS support.
     origin = request.headers.get("origin")
     if request.headers.get("sec-fetch-site") not in {None, "same-origin"} or (
-        origin is not None and origin != str(request.base_url).rstrip("/")
-    ):
+        origin is not None and origin != active.policy.guest_origin
+    ) or request.url.netloc.casefold() != urlsplit(active.policy.guest_origin).netloc.casefold():
         raise HTTPException(403, "AI_GUEST_SAME_ORIGIN_REQUIRED")
     token = request.cookies.get(COOKIE)
     if token is not None:
