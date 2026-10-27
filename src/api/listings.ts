@@ -94,7 +94,7 @@ type ListingDto = {
   promotionEndsAt?: string | null
 }
 
-type ListingCardDto = Pick<ListingDto, 'provinceCode' | 'id' | 'title' | 'city' | 'area' | 'approximateAddress' | 'rentalMode' | 'price' | 'roomType' | 'currentResidents' | 'roomCapacity' | 'bedroomCount' | 'roomSizeM2' | 'availableFrom' | 'billsIncluded' | 'restrictions' | 'advertiserType' | 'isExternal' | 'sourceUrl' | 'primarySource' | 'sourcePriceText' | 'pricePeriod' | 'priceIsFrom' | 'publishedAt' | 'promoted' | 'coverImageUrl' | 'description'> & { imageUrls?: string[] }
+export type ListingCardDto = Pick<ListingDto, 'provinceCode' | 'id' | 'title' | 'city' | 'area' | 'approximateAddress' | 'rentalMode' | 'price' | 'roomType' | 'currentResidents' | 'roomCapacity' | 'bedroomCount' | 'roomSizeM2' | 'availableFrom' | 'billsIncluded' | 'restrictions' | 'advertiserType' | 'isExternal' | 'sourceUrl' | 'primarySource' | 'sourcePriceText' | 'pricePeriod' | 'priceIsFrom' | 'publishedAt' | 'promoted' | 'coverImageUrl' | 'description'> & { imageUrls?: string[] }
 export type ListingCardPage = { items: Listing[]; total: number; nextCursor: string | null; previousCursor: string | null }
 
 type ListingImageDto = {
@@ -111,7 +111,7 @@ function orderedGalleryUrls(rows: ListingImageDto[]) {
     .map((row) => resolveApiUrl(row.url))
 }
 
-async function hydrateIncompleteInternalGallery(listing: Listing, signal?: AbortSignal): Promise<Listing> {
+export async function hydrateIncompleteInternalGallery(listing: Listing, signal?: AbortSignal): Promise<Listing> {
   if (listing.isExternal || listing.images.length >= MIN_LISTING_PHOTOS) return listing
   try {
     const rows = await api<ListingImageDto[]>(`/listings/${listing.id}/images`, { signal })

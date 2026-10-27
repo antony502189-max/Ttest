@@ -1,0 +1,23 @@
+# Home AI search UI checkpoint — 2026-10-27
+
+The owner's visual reference places a light AI panel between the two rental-mode cards and ordinary occupant/location controls. The implementation uses that placement on both actual mobile HomeScreen and desktop HomeMandatorySearch, with a magenta waveform, pale green surface and full-width lime action. The current action is explicitly text input. Voice recording awaits the single-debit ASR/provider boundary; the UI does not offer a microphone that cannot search.
+
+The panel appears only after the server explicitly reports text capability. Missing, failed or disabled capabilities preserve ordinary search. Application bootstrap still constructs no AI runtime, so this PR does not activate the panel in production. The browser fixtures explicitly mock capabilities and all API traffic, denying nonlocal resources.
+
+The dialog creates an owned session only on deliberate submission, sends exact input with a fresh UUID operation key and server-owned session/version, and reuses the exact key/body on network uncertainty or an in-flight result. A zero remaining count does not block reconciliation of a pending attempt. Terminal responses reload the authoritative session version before allowing another message. Terminal version conflicts require explicit resubmission. HTTP body/schema rejections allow editing because they precede reservation. Other uncertain failures retain the pending operation. Expired identity/session recovery remains conservative: the user can return to ordinary filters; the UI never silently replaces a guest identity or transfers a conversation.
+
+Raw input and pending operations remain in React memory, outside query parameters, local/session storage and ordinary search history. Login/logout changes the component key and aborts old requests. No transcript, credentials, scores or raw provider response are rendered. The textarea is excluded from DOM translation. ES/RU/EN copy uses the existing translation context.
+
+Results reuse the existing PropertyCard and DTO mapper, server order, native galleries/recovery, TOP flags, and external destinations. Counts describe options with confirmed conditions, including zero; they do not claim no physical accommodation exists. Previous/next pages use the original durable result reference and require the same intent hash. Paging and quota refresh do not submit another message. Quota refresh uses the read-only endpoint after an owned session exists and when the dialog is reopened, so the display can recover across a Madrid day boundary.
+
+The home rental/occupant/location controls continue to belong to ordinary search. They are not silently converted into AI evidence or mixed with the typed conversational intent. The next AI UI step must explicitly reconcile mode selection, show normalized conditions, and connect the verified result map. Saved-search/rematch and voice remain incomplete. The illustrative response tests prove client behavior, not production provider availability, source coverage/freshness or latency.
+
+## Validation
+
+Dedicated isolated Playwright configuration covers disabled capability/manual filters, mobile panel and dialog geometry, text privacy, zero results, followup versions, lost response/running replay with zero quota, explicit conflict resync, original-result paging, TOP order/native gallery/external links, rejected request editing, and read-only quota refresh. Screenshots are generated under output/ai-home-*.png and inspected locally. TypeScript, lint, production build and bundle security checks accompany the browser suite. A pinned GitHub Actions workflow runs the same mocked contracts; it starts no application database or paid provider.
+
+## Merge checkpoint
+
+The owner requested that #392 remain open. It remains the main integration vehicle and passed all eleven exact-head workflows. #395 also passed all four workflows, including real PG16/PostGIS/Redis and HTTP/map coverage.
+
+After human review and authorization, the logical order is #392, #393 (offline provider adapter), #394 (disabled HTTP), #395 (map/quota), then this frontend delta. Refresh bases and rerun applicable checks after each parent lands, especially if using squash merges. Do not independently merge old #378–391 alongside the duplicate integrated implementation. No automatic main merge, PR closure or deployment is authorized. It is technically possible to review/merge the disabled foundation before voice and saved-search work is complete; production activation requires its separate completed integration and explicit authorization.
