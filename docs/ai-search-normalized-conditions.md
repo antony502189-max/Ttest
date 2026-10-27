@@ -24,3 +24,7 @@ regressions and exact-head CI are recorded in the dependent draft PR.
 
 No public runtime, microphone, provider, application database, notification,
 deployment or production policy is enabled by this change.
+
+CI also identified CVE-2026-114605 in the inherited dnspython 2.8.0 pin.
+The pin is updated to 2.9.0, the upstream fix:
+https://www.dnspython.org/news/2.9.0/ . No security checks are bypassed.
