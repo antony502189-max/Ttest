@@ -89,6 +89,21 @@ def test_empty_description_and_unreliable_language_stay_explicitly_unknown():
     assert packet(description="+34 612 345 678 owner@example.test").data_status == "insufficient_source_data"
 
 
+@pytest.mark.parametrize("field,value,quote,status", [
+    ("pets_allowed", False, "false", "ready"),
+    ("room_capacity", 2, "2", "ready"),
+    ("furnished", False, "false", "ready"),
+    ("empadronamiento_allowed", True, "true", "insufficient_source_data"),
+    ("pets_allowed", True, "owner@example.test", "insufficient_source_data"),
+])
+def test_typed_structured_evidence_can_replace_missing_description(field, value, quote, status):
+    fact = ProviderFact(field=field, value=value, evidence=EvidenceSpan(
+        source="structured", provider_field="rules.value", quote=quote))
+    result = packet(description="", provider_facts=(fact,))
+    assert result.data_status == status
+    assert result.policy_evidence["pets_allowed"].status == "unknown"
+
+
 def test_input_rejects_oversize_text_and_untyped_provider_payloads():
     with pytest.raises(ValidationError):
         packet(description="a" * 30_001)
@@ -137,3 +152,39 @@ def test_packet_retains_exception_and_species_scope(text, field):
     fact = value.policy_evidence[field]
     assert fact.status == "conditional" and fact.value is None
     assert len(fact.evidence) == 2
+
+
+@pytest.mark.parametrize("tag", ["nav", "footer", "header", "aside", "form", "noscript"])
+def test_nested_hidden_tags_keep_outer_content_hidden(tag):
+    value = f"<{tag}><{tag}>inner</{tag}>DO_NOT_EXPORT</{tag}><p>No pets.</p>"
+    assert clean_evidence_text(value) == "No pets."
+    result = packet(description=value)
+    assert "DO_NOT_EXPORT" not in result.deterministic_json()
+    assert result.policy_evidence["pets_allowed"].value is False
+
+
+def test_different_nested_hidden_tags_close_in_stack_order():
+    value = "<header><nav>inner</nav>private A<footer>private B</footer>private C</header><p>Room text</p>"
+    assert clean_evidence_text(value) == "Room text"
+
+
+@pytest.mark.parametrize("markup", [
+    "<nav><nav>inner</nav>DO_NOT_EXPORT<p>Still private</p>",
+    "<nav><footer>inner</nav>DO_NOT_EXPORT</footer><p>Ambiguous suffix</p>",
+    "<header></footer>DO_NOT_EXPORT</header><p>Ambiguous suffix</p>",
+    "<nav/>DO_NOT_EXPORT<p>Ambiguous suffix</p>",
+    "<form><header/>DO_NOT_EXPORT</form><p>Ambiguous suffix</p>",
+    "<nav><footer>DO_NOT_EXPORT</nav></footer></nav><p>Ambiguous suffix</p>",
+])
+def test_malformed_hidden_markup_fails_closed(markup):
+    assert clean_evidence_text("<p>Public prefix</p>" + markup) == "Public prefix"
+
+
+def test_void_elements_and_stray_closing_tags_do_not_hide_valid_listing_text():
+    assert clean_evidence_text("</nav><p>No pets.<br/>No smoking.</p>") == "No pets.\nNo smoking."
+    assert clean_evidence_text("<nav>private<br/><img src='x'></nav><p>Room text</p>") == "Room text"
+
+
+@pytest.mark.parametrize("tag", ["script", "style", "iframe"])
+def test_raw_text_hidden_elements_do_not_export_markup_looking_content(tag):
+    assert clean_evidence_text(f"<{tag}>private<nav>private</nav></{tag}><p>Room text</p>") == "Room text"

@@ -23,14 +23,19 @@ class QuotaOperation(StrictContract):
     idempotency_key: UUID
     channel: Literal["text", "voice"]
     payload_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    # Computed by orchestration from the complete validated card request.
+    # None remains available for quota-only and future voice callers.
+    filters_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     session_id: UUID
     expected_session_version: int = Field(ge=0, le=2_147_483_647)
     contract: Literal["ai-search.operation.v1"] = "ai-search.operation.v1"
 
     def fingerprint(self) -> str:
         # Exact UTF-8 text or final audio bytes must be hashed by the server.
-        # Key is an identity, not body content. Channel/session/version are bound.
-        body = self.model_dump(mode="json", exclude={"idempotency_key"})
+        # Key is an identity, not body content. Channel/session/version and any
+        # supplied filters are bound. Omitted filters preserve quota-only v1
+        # fingerprints; adding an optional field must not break old receipts.
+        body = self.model_dump(mode="json", exclude={"idempotency_key"}, exclude_none=True)
         return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
