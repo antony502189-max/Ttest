@@ -221,8 +221,15 @@ def request_id_for(request: Request) -> str:
     return candidate if REQUEST_ID_PATTERN.fullmatch(candidate) else str(uuid4())
 
 
+def private_log_path(request: Request) -> str:
+    path = request.url.path
+    return "/api/v1/ai-search/<private>" if path.startswith("/api/v1/ai-search") else path
+
+
 def metric_route_for(request: Request, *, fallback: str = "<unmatched>") -> str:
     """Return a bounded Prometheus route label even before routing completes."""
+    if request.url.path.startswith("/api/v1/ai-search"):
+        return "/api/v1/ai-search/<private>"
     route = request.scope.get("route")
     route_path = getattr(route, "path", None)
     return route_path if isinstance(route_path, str) and route_path else fallback
@@ -252,7 +259,7 @@ app.add_middleware(
     allow_origins=settings.origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-AI-Request"],
     expose_headers=["X-Request-ID", "Retry-After"],
 )
 
@@ -303,7 +310,7 @@ async def request_context(request: Request, call_next):
             extra={
                 "request_id": request_id,
                 "method": request.method,
-                "path": request.url.path,
+                "path": private_log_path(request),
                 "status": 500,
                 "duration_ms": round(duration * 1000, 2),
             },
@@ -329,7 +336,7 @@ async def request_context(request: Request, call_next):
         extra={
             "request_id": request_id,
             "method": request.method,
-            "path": request.url.path,
+            "path": private_log_path(request),
             "status": response.status_code,
             "duration_ms": round(duration * 1000, 2),
         },
@@ -360,7 +367,7 @@ async def request_validation_error(request: Request, exc: RequestValidationError
         extra={
             "request_id": request_id,
             "method": request.method,
-            "path": request.url.path,
+            "path": private_log_path(request),
             "status": 422,
             "error_code": "VALIDATION_ERROR",
             "fields": sorted(field_errors),
@@ -381,9 +388,11 @@ async def request_validation_error(request: Request, exc: RequestValidationError
 async def internal_error(request: Request, exc: Exception):
     request_id = getattr(request.state, "request_id", None) or request_id_for(request)
     UNHANDLED_ERRORS.labels(type(exc).__name__).inc()
-    logger.exception(
+    # Private exception text/tracebacks can contain an unvalidated URL.
+    log_error = logger.error if request.url.path.startswith("/api/v1/ai-search") else logger.exception
+    log_error(
         "unhandled_request_error",
-        extra={"request_id": request_id, "method": request.method, "path": request.url.path},
+        extra={"request_id": request_id, "method": request.method, "path": private_log_path(request)},
     )
     headers = {"X-Request-ID": request_id, **SECURITY_HEADERS}
     if request.url.path.startswith("/api/"):

@@ -64,6 +64,16 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(payload, ensure_ascii=False, default=str)
 
 
+class PrivateAIAccessFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        # Uvicorn's access tuple contains the raw path and query string before
+        # application routing/UUID validation. Application metrics/logs already
+        # record a fixed private category; do not duplicate raw access events.
+        args = record.args
+        return not (isinstance(args, tuple) and len(args) >= 3 and isinstance(args[2], str)
+                    and args[2].startswith("/api/v1/ai-search"))
+
+
 def configure_logging() -> None:
     settings = get_settings()
     handler = logging.StreamHandler(sys.stdout)
@@ -76,6 +86,9 @@ def configure_logging() -> None:
     root.handlers.clear()
     root.addHandler(handler)
     root.setLevel(settings.log_level.upper())
+    access = logging.getLogger("uvicorn.access")
+    if not any(isinstance(value, PrivateAIAccessFilter) for value in access.filters):
+        access.addFilter(PrivateAIAccessFilter())
 
 
 def metrics_payload() -> tuple[bytes, str]:

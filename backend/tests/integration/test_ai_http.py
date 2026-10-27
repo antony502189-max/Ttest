@@ -13,11 +13,12 @@ from app.db.session import SessionLocal
 from app.main import app
 from app.schemas.ai_search_intent import IntentPatch
 from app.services.ai_guest_tokens import GuestPolicy, GuestTokens
+from app.services.ai_http_policy import AIHTTPPolicy
 from app.services.ai_search_attempts import AIAttemptRejected
 from app.services.ai_search_execution import TextSearchExecution
 
 pytestmark = pytest.mark.integration
-HEADERS = {"Origin": "http://testserver", "X-AI-Request": "1"}
+HEADERS = {"Origin": "https://testserver", "X-AI-Request": "1"}
 
 
 class Gate:
@@ -42,7 +43,7 @@ async def active(monkeypatch):
     parser, gate = Parser(), Gate()
     value = AISearchRuntime(query.sessions, query, TextSearchExecution(query.sessions, parser, Gate(), query),
         GuestTokens(key=b"synthetic-http-guest-key-not-secret32", policy=GuestPolicy(ttl_seconds=600)),
-        gate, frozenset({"http://testserver"}), 131_072)
+        gate, frozenset({"https://testserver"}), 131_072, AIHTTPPolicy(10, 5, ()))
     monkeypatch.setattr(app.state, "ai_search_runtime", value, raising=False)
     return value, parser, gate
 

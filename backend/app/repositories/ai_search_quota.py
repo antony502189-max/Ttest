@@ -1,5 +1,6 @@
 """PG quota transactions. Never call providers or hold a connection across inference."""
 
+import math
 from collections.abc import Awaitable, Callable
 from datetime import date, datetime, timedelta
 from uuid import UUID
@@ -25,8 +26,9 @@ SessionCommit = Callable[[AsyncSession, UUID, int], Awaitable[None]]
 class QuotaError(Exception):
     """Stable internal reason code; HTTP mapping belongs to the query API."""
 
-    def __init__(self, code: str):
+    def __init__(self, code: str, retry_after: int = 0):
         self.code = code
+        self.retry_after = retry_after
         super().__init__(code)
 
 
@@ -145,7 +147,7 @@ class QuotaLedger:
                     action="replay" if existing.status in {"succeeded", "failed"} else "inflight",
                     operation=await self._state(session, existing),
                 )
-            day, _ = await madrid_window(session)
+            day, reset = await madrid_window(session)
             await session.execute(
                 insert(AIUsageDay)
                 .values(
@@ -168,7 +170,7 @@ class QuotaLedger:
             existing = await self._request(session, subject, operation.idempotency_key)
             if existing is None:
                 if usage.used + usage.reserved >= usage.quota_limit:
-                    raise QuotaError("QUOTA_EXHAUSTED")
+                    raise QuotaError("QUOTA_EXHAUSTED", max(1, math.ceil((reset - await _now(session)).total_seconds())))
                 now = await _now(session)
                 lease = now + timedelta(seconds=self.policy.reservation_seconds)
                 created = await session.scalar(

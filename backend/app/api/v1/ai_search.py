@@ -1,4 +1,5 @@
 """Disabled-by-default HTTP boundary; application never constructs its runtime."""
+import asyncio
 import hashlib
 from dataclasses import dataclass
 from typing import Annotated, Protocol
@@ -19,6 +20,7 @@ from ...schemas.ai_search_quota import QuotaOperation, QuotaSubject
 from ...schemas.listings import ListingCardSearchRequest
 from ...services.ai_card_cursors import InvalidAICursor
 from ...services.ai_guest_tokens import GuestTokens, InvalidGuestToken
+from ...services.ai_http_policy import HTTP_DEADLINE, AIHTTPPolicy
 from ...services.ai_search_attempts import AIAttemptRejected
 from ...services.ai_search_execution import TextSearchExecution
 from ...services.moderation import enforce_full_access
@@ -42,14 +44,35 @@ class AISearchRuntime:
     http_gate: HTTPGate
     origins: frozenset[str]
     max_body_bytes: int
+    policy: AIHTTPPolicy
 
     def __post_init__(self):
+        if not isinstance(self.policy, AIHTTPPolicy):
+            raise TypeError("explicit HTTP policy required")
         if type(self.max_body_bytes) is not int or not 1024 <= self.max_body_bytes <= 1_048_576:
             raise ValueError("explicit bounded HTTP body policy required")
         if not self.origins or "*" in self.origins:
             raise ValueError("explicit trusted browser origins required")
         if self.cards.sessions is not self.sessions or self.execution.sessions is not self.sessions:
             raise ValueError("runtime must share one owned-session authority")
+
+
+async def bounded_handler(request: Request, handler, deadline: float):
+    active = await runtime(request)
+    if request.method not in {"GET", "HEAD"}:
+        length = request.headers.get("content-length")
+        if length is not None and (int(length) < 0 or int(length) > active.max_body_bytes):
+            raise HTTPException(413, "AI_REQUEST_BODY_TOO_LARGE")
+        body = bytearray()
+        async for chunk in request.stream():
+            if len(body) + len(chunk) > active.max_body_bytes:
+                raise HTTPException(413, "AI_REQUEST_BODY_TOO_LARGE")
+            body.extend(chunk)
+        request._body = bytes(body)
+    result = await handler(request)
+    if asyncio.get_running_loop().time() >= deadline:
+        raise TimeoutError
+    return result
 
 
 class PrivateAIRoute(APIRoute):
@@ -60,27 +83,30 @@ class PrivateAIRoute(APIRoute):
                 scope.set_tag("ai_private", True)
                 scope.add_event_processor(lambda event, hint: None)
                 try:
-                    if request.url.path != "/api/v1/ai-search/capabilities":
-                        active = await runtime(request)
-                        if request.method not in {"GET", "HEAD"}:
-                            length = request.headers.get("content-length")
-                            if length is not None and (int(length) < 0 or int(length) > active.max_body_bytes):
-                                raise HTTPException(413, "AI_REQUEST_BODY_TOO_LARGE")
-                            body = bytearray()
-                            async for chunk in request.stream():
-                                if len(body) + len(chunk) > active.max_body_bytes:
-                                    raise HTTPException(413, "AI_REQUEST_BODY_TOO_LARGE")
-                                body.extend(chunk)
-                            # Reuse Starlette's bounded body cache for FastAPI
-                            # validation, after the fail-closed gate and limit.
-                            request._body = bytes(body)
-                    result = await handler(request)
+                    configured = getattr(request.app.state, "ai_search_runtime", None)
+                    if request.url.path == "/api/v1/ai-search/capabilities":
+                        result = await handler(request)
+                    else:
+                        if not isinstance(configured, AISearchRuntime):
+                            raise HTTPException(503, "AI_SEARCH_DISABLED")
+                        deadline = asyncio.get_running_loop().time() + configured.policy.request_seconds
+                        deadline_token = HTTP_DEADLINE.set(deadline)
+                        try:
+                            async with asyncio.timeout_at(deadline):
+                                result = await bounded_handler(request, handler, deadline)
+                        finally:
+                            HTTP_DEADLINE.reset(deadline_token)
                     result.headers["Cache-Control"] = "no-store"
                     return result
                 except RequestValidationError:
                     # Unknown JSON keys can themselves contain private text.
                     # Do not pass their locations to the shared validation logger.
                     return JSONResponse({"detail": "AI_REQUEST_INVALID"}, 422,
+                                        headers={"Cache-Control": "no-store"})
+                except TimeoutError:
+                    # Commit acknowledgement may be lost. Do not release or
+                    # infer again here; retry the exact operation to read PG.
+                    return JSONResponse({"detail": "AI_REQUEST_TIMEOUT_RETRY_SAME_OPERATION"}, 504,
                                         headers={"Cache-Control": "no-store"})
                 except HTTPException as error:
                     error.headers = {**(error.headers or {}), "Cache-Control": "no-store"}
@@ -89,17 +115,18 @@ class PrivateAIRoute(APIRoute):
                     return JSONResponse({"detail": "AI_GUEST_IDENTITY_INVALID_OR_EXPIRED"}, 401, headers={"Cache-Control": "no-store"})
                 except SessionError as error:
                     code = error.code if error.code in {"SESSION_NOT_FOUND", "SESSION_EXPIRED", "SESSION_VERSION_CONFLICT",
-                        "SESSION_STATE_INVALID", "RESULT_NOT_FOUND", "RESULT_EXPIRED_REQUERY_REQUIRED", "RESULT_STATE_INVALID"} else "AI_SESSION_UNAVAILABLE"
-                    return JSONResponse({"detail": code}, 404 if code in {"SESSION_NOT_FOUND", "RESULT_NOT_FOUND"} else 409,
-                                        headers={"Cache-Control": "no-store"})
+                        "SESSION_STATE_INVALID", "RESULT_NOT_FOUND", "RESULT_EXPIRED_REQUERY_REQUIRED", "RESULT_STATE_INVALID", "SESSION_LIMIT"} else "AI_SESSION_UNAVAILABLE"
+                    return JSONResponse({"detail": code}, 429 if code == "SESSION_LIMIT" else 404 if code in {"SESSION_NOT_FOUND", "RESULT_NOT_FOUND"} else 409,
+                                        headers={"Cache-Control": "no-store", **({"Retry-After": str(error.retry_after)} if error.retry_after else {})})
                 except QuotaError as error:
                     code = error.code if error.code in {"QUOTA_EXHAUSTED", "IDEMPOTENCY_CONFLICT", "CLAIM_REJECTED", "STALE_WORKER"} else "AI_OPERATION_UNAVAILABLE"
                     return JSONResponse({"detail": code}, 429 if code == "QUOTA_EXHAUSTED" else 409,
-                                        headers={"Cache-Control": "no-store"})
+                                        headers={"Cache-Control": "no-store", **({"Retry-After": str(error.retry_after)} if error.retry_after > 0 else {})})
                 except AIAttemptRejected as error:
                     limited = error.code == "ATTEMPT_LIMIT"
                     return JSONResponse({"detail": "ATTEMPT_LIMIT" if limited else "ABUSE_GATE_UNAVAILABLE"},
-                                        429 if limited else 503, headers={"Cache-Control": "no-store"})
+                                        429 if limited else 503, headers={"Cache-Control": "no-store",
+                                        **({"Retry-After": str(error.retry_after)} if limited and error.retry_after > 0 else {})})
                 except InvalidAICursor:
                     return JSONResponse({"detail": "AI_REQUERY_REQUIRED"}, 409, headers={"Cache-Control": "no-store"})
                 except ValueError:
@@ -161,7 +188,7 @@ async def runtime(request: Request) -> AISearchRuntime:
         request.headers.get("origin") not in value.origins or request.headers.get("x-ai-request") != "1"
     ):
         raise HTTPException(403, "AI_ORIGIN_OR_CSRF_REJECTED")
-    address = request.client.host if request.client else "unknown"
+    address = value.policy.address(request)
     await value.http_gate.check(value.guests.ip_key(address, purpose="ai-http"))
     request.state.validated_ai_runtime = value
     return value
@@ -177,12 +204,19 @@ async def subject(request: Request, response: Response, active: AISearchRuntime 
                 raise HTTPException(401, "Authentication required")
             await enforce_full_access(user, connection)
             return QuotaSubject(kind="auth", id=user.id)
+    # Strict guest cookies are supported only behind a same-origin UI/API
+    # reverse proxy. Cross-origin bearer clients retain explicit CORS support.
+    origin = request.headers.get("origin")
+    if request.headers.get("sec-fetch-site") not in {None, "same-origin"} or (
+        origin is not None and origin != str(request.base_url).rstrip("/")
+    ):
+        raise HTTPException(403, "AI_GUEST_SAME_ORIGIN_REQUIRED")
     token = request.cookies.get(COOKIE)
     if token is not None:
         return active.guests.read(token)
     if request.method != "POST" or request.url.path != "/api/v1/ai-search/sessions":
         raise HTTPException(401, "AI_GUEST_IDENTITY_REQUIRED")
-    address = request.client.host if request.client else "unknown"
+    address = active.policy.address(request)
     await active.http_gate.check(active.guests.ip_key(address, purpose="ai-guest-issue"))
     token, owner = active.guests.issue()
     response.set_cookie(COOKIE, token, max_age=active.guests.policy.ttl_seconds, secure=True,
@@ -192,13 +226,15 @@ async def subject(request: Request, response: Response, active: AISearchRuntime 
 
 @router.get("/capabilities")
 async def capabilities(request: Request):
+    # Configuration advertisement only, never a dependency-health probe.
     active = isinstance(getattr(request.app.state, "ai_search_runtime", None), AISearchRuntime)
     return {"text": active, "voice": False, "saved_searches": False}
 
 
 @router.post("/sessions")
 async def create(active: AISearchRuntime = Depends(runtime), owner: QuotaSubject = Depends(subject)):
-    return jsonable_encoder(await active.sessions.create(owner), exclude_none=True)
+    await active.http_gate.check(active.guests.ip_key(f"{owner.kind}:{owner.id}", purpose="ai-session-create"))
+    return jsonable_encoder(await active.sessions.create(owner, max_active=active.policy.max_active_sessions), exclude_none=True)
 
 
 @router.get("/sessions/{session_id}")
@@ -209,7 +245,9 @@ async def get(session_id: UUID, active: AISearchRuntime = Depends(runtime), owne
 @router.post("/sessions/{session_id}/reset")
 async def reset(session_id: UUID, payload: VersionBody, active: AISearchRuntime = Depends(runtime),
                 owner: QuotaSubject = Depends(subject)):
-    return jsonable_encoder(await active.sessions.reset(owner, session_id, payload.expected_version), exclude_none=True)
+    await active.http_gate.check(active.guests.ip_key(f"{owner.kind}:{owner.id}", purpose="ai-session-create"))
+    return jsonable_encoder(await active.sessions.reset(owner, session_id, payload.expected_version,
+                                                       max_active=active.policy.max_active_sessions), exclude_none=True)
 
 
 @router.post("/sessions/{session_id}/cards")
