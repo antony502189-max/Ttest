@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from app.api.v1.ai_search import AISearchRuntime
 from app.main import app, exclude_private_ai_telemetry
 from app.services.ai_guest_tokens import GuestPolicy, GuestTokens, InvalidGuestToken
+from app.services.ai_http_policy import AIHTTPPolicy
 
 
 def test_signed_guest_identity_is_server_minted_bounded_and_policy_bound():
@@ -46,7 +47,7 @@ def test_private_validation_never_exports_body_keys_or_values(monkeypatch, caplo
     sessions = SimpleNamespace()
     guests = GuestTokens(key=b"synthetic-guest-key-not-secret-32", policy=GuestPolicy(ttl_seconds=60))
     active = AISearchRuntime(sessions, SimpleNamespace(sessions=sessions), SimpleNamespace(sessions=sessions),
-                             guests, SimpleNamespace(check=AsyncMock()), frozenset({"https://testserver"}), 4096)
+                             guests, SimpleNamespace(check=AsyncMock()), frozenset({"https://testserver"}), 4096, AIHTTPPolicy(10, 5, ()))
     monkeypatch.setattr(app.state, "ai_search_runtime", active, raising=False)
     token, _ = guests.issue()
     headers = {"Origin": "https://testserver", "X-AI-Request": "1", "Cookie": "ai_search_guest=" + token}

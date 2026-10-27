@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AudioLines, Search } from 'lucide-react'
 import { ApiError } from '@/api/client'
-import { aiCapabilities, aiCardPage, aiResultPage, createAISession, getAIQuota, getAISession, sendAIMessage, type AIMessage, type AISession } from '@/api/ai-search'
+import { aiCapabilities, aiCardPage, aiResultPage, createAISession, getAIQuota, getAISession, sendAIMessage, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
 import { hydrateIncompleteInternalGallery, type ListingCardPage } from '@/api/listings'
 import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
@@ -26,7 +26,7 @@ function AISearchPanel() {
   const [text, setText] = useState('')
   const [session, setSession] = useState<AISession | null>(null)
   const [pending, setPending] = useState<AIMessage | null>(null)
-  const [result, setResult] = useState<{ ref: string; hash: string; page: ListingCardPage } | null>(null)
+  const [result, setResult] = useState<{ ref: string; hash: string; prices: AIBudgetPrice[]; page: ListingCardPage } | null>(null)
   const [remaining, setRemaining] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
@@ -91,7 +91,7 @@ function AISearchPanel() {
       setSession(latest)
       setPending(null)
       if (answer.operation.status === 'succeeded' && answer.operation.receipt && answer.cards) {
-        setResult({ ref: answer.operation.receipt.result_ref, hash: answer.cards.intent_hash, page: aiCardPage(answer.cards) })
+        setResult({ ref: answer.operation.receipt.result_ref, hash: answer.cards.intent_hash, prices: answer.cards.budget_prices ?? [], page: aiCardPage(answer.cards) })
         setText('')
         setNotice('')
       } else {
@@ -125,7 +125,7 @@ function AISearchPanel() {
     try {
       const response = await aiResultPage(result.ref, cursor, controller.signal)
       if (response.intent_hash !== result.hash) throw new Error('Intent changed')
-      if (!controller.signal.aborted) { setResult({ ...result, page: aiCardPage(response) }); setNotice('') }
+      if (!controller.signal.aborted) { setResult({ ...result, prices: response.budget_prices ?? [], page: aiCardPage(response) }); setNotice('') }
     } catch {
       if (!controller.signal.aborted) setNotice('No se pudo cargar la página. Conservamos los últimos resultados.')
     } finally { lock.current = false; if (!controller.signal.aborted) setBusy(false) }
@@ -157,7 +157,14 @@ function AISearchPanel() {
         {mapEnabled ? <Button type="button" variant="outline" aria-pressed={mapVisible} onClick={() => setMapVisible(value => !value)}>{t(mapVisible ? 'Ver lista' : 'Ver mapa')}</Button> : null}
         {!result.page.total ? <p>{t('No encontramos opciones con todas las condiciones confirmadas. Puedes ajustar tu búsqueda.')}</p> : null}
         {mapVisible ? <AIResultMap key={`${result.ref}:${result.hash}`} resultRef={result.ref} intentHash={result.hash} /> : null}
-        <div className="ai-search-dialog__cards">{result.page.items.map(listing => <PropertyCard key={listing.id} listing={listing} />)}</div>
+        <div className="ai-search-dialog__cards">{result.page.items.map(listing => {
+          const price = result.prices.find(value => value.listing_id === listing.id)
+          const periods = { monthly: 'por mes', weekly: 'por semana', nightly: 'por noche' } as const
+          return <div key={listing.id} className="ai-search-dialog__card">
+            {price && periods[price.matched_period] ? <p>{t('Precio confirmado para tu presupuesto')}: {price.matched_amount} € {t(periods[price.matched_period])}</p> : null}
+            <PropertyCard listing={listing} />
+          </div>
+        })}</div>
         <nav aria-label={t('Páginas de resultados')}>
           <Button type="button" variant="outline" disabled={busy || !result.page.previousCursor} onClick={() => void page(result.page.previousCursor!)}>{t('Anterior')}</Button>
           <Button type="button" variant="outline" disabled={busy || !result.page.nextCursor} onClick={() => void page(result.page.nextCursor!)}>{t('Siguiente')}</Button>
