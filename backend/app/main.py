@@ -6,6 +6,7 @@ import re
 from contextlib import asynccontextmanager
 from ipaddress import ip_address
 from time import perf_counter
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 import sentry_sdk  # type: ignore[import-not-found]
@@ -19,6 +20,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from .api.public_pages import router as public_pages_router
 from .api.v1.admin import router as admin_router
+from .api.v1.ai_search import router as ai_search_router
 from .api.v1.auth import router as auth_router
 from .api.v1.commercial_advertisements import router as commercial_advertisements_router
 from .api.v1.favorites import router as favorites_router
@@ -40,6 +42,21 @@ settings = get_settings()
 configure_logging()
 
 
+def exclude_private_ai_telemetry(event, hint):
+    """Never export AI request bodies, frames, breadcrumbs or transcripts."""
+    request = event.get("request") or {}
+    url = request.get("url", "") if isinstance(request, dict) else ""
+    if (event.get("tags") or {}).get("ai_private"):
+        return None
+    if isinstance(url, str):
+        try:
+            if urlsplit(url).path.startswith("/api/v1/ai-search"):
+                return None
+        except ValueError:
+            return event
+    return event
+
+
 def configure_sentry() -> None:
     """Initialize Sentry without widening captured production data."""
     if settings.sentry_dsn:
@@ -49,6 +66,8 @@ def configure_sentry() -> None:
             release=settings.sentry_release or None,
             traces_sample_rate=settings.sentry_traces_sample_rate,
             send_default_pii=False,
+            before_send=exclude_private_ai_telemetry,
+            before_send_transaction=exclude_private_ai_telemetry,
         )
 
 
@@ -406,6 +425,7 @@ async def metrics():
 
 app.include_router(public_pages_router)
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(ai_search_router, prefix="/api/v1")
 app.include_router(commercial_advertisements_router, prefix="/api/v1")
 app.include_router(payments_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")

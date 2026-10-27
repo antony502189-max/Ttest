@@ -17,6 +17,7 @@ from ..schemas.ai_search_quota import QuotaSubject
 from ..schemas.listings import ListingCardSearchRequest, ListingCardSearchResponse
 from ..services.ai_card_cursors import AICardCursors
 from ..services.ai_hard_matching import compile_hard_match
+from .ai_card_values import current_card_values_predicate
 from .ai_fact_pipeline import FactPipeline
 from .ai_hard_matching import hard_match_predicate
 from .ai_query_proofs import current_projection_predicate
@@ -94,7 +95,7 @@ class VerifiedCardSearch:
                                          vocabulary_hash=self.pipeline.vocabulary_hash),
             hard_match_predicate(AiListingSearchFeatures.__table__.c.features, compiled),
         ).correlate(Listing).exists()
-        filtered = apply_search_filters(visible_query(), payload).where(verified)
+        filtered = apply_search_filters(visible_query(), payload).where(verified, current_card_values_predicate(intent))
         cards = await _search_filtered_cards(session, payload, filtered, _cursor_fingerprint(payload))
         cards = cards.model_copy(update={"nextCursor": self.cursors.encode(cards.nextCursor, context),
                                          "previousCursor": self.cursors.encode(cards.previousCursor, context)})

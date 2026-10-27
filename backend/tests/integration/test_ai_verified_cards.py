@@ -7,7 +7,7 @@ from sqlalchemy import func, select, text, update
 from test_listing_gallery_cards import _seed_listing_with_gallery
 
 from app.db.session import SessionLocal
-from app.models import ExternalListingSource, User
+from app.models import ExternalListingSource, Listing, User
 from app.models.ai_search_quota import AIUsageDay
 from app.models.ai_search_session import AISearchSession
 from app.models.moderation import ListingPromotion, ListingRestriction
@@ -177,3 +177,46 @@ async def test_text_execution_uses_real_cards_and_atomic_session_quota_then_safe
     assert replay.replay and replay.operation.receipt == result.operation.receipt
     assert replay.cards.cards.total == 2 and replay.operation.used == 1
     assert parser.calls == gate.calls == 1
+
+
+async def test_verified_fact_budget_cannot_override_current_card_price_currency_from_or_mode():
+    query, subject, session_id, ids, source_ids = await setup("long")
+    pipeline = query.pipeline
+    listing_id, source_id = ids[1], source_ids[1]
+    description = "Monthly EUR600 long"
+    async with SessionLocal() as session:
+        _, authority = await pipeline._authority(session, listing_id, lock=False)
+    request = SourceInput(source_record_id=source_id, canonical_listing_id=listing_id,
+        content_hash=digest({"description": description}), snapshot_hash=authority[source_id].snapshot_hash,
+        schema_version="ai-facts.v1", taxonomy_version="ai-search.v1", extractor_version="test-price.v2")
+    await pipeline.observe(request)
+    claim = await pipeline.claim()
+    observations = []
+    for key, value in (("price", {"kind": "money", "amount": "600", "currency": "EUR", "period": "monthly"}),
+                       ("rental_mode", {"kind": "category", "value": "long"})):
+        observations.append({"fact_id": uuid4(), "key": key, "status": "explicit_allow", "typed_value": value,
+            "qualifiers": {}, "origin": "source_text", "evidence": [
+                {"field": "description", "quote": description, "start": 0, "end": len(description)}]})
+    batch = FactBatch.model_validate({"schema_version": claim.schema_version, "taxonomy_version": claim.taxonomy_version,
+        "batch_id": uuid4(), "canonical_listing_id": listing_id, "source_record_id": source_id,
+        "source_generation": claim.generation, "content_hash": claim.content_hash, "extractor_version": claim.extractor_version,
+        "observed_at": datetime.now(UTC), "source_status": "active", "last_successful_check_at": None,
+        "last_content_change_at": None, "last_check_error_at": None, "facts": observations})
+    await pipeline.complete(claim, batch, {"description": description})
+    assert await QueryProofs(pipeline).prepare(listing_id)
+    async with SessionLocal() as session, session.begin():
+        await session.execute(update(AISearchSession).where(AISearchSession.id == session_id).values(criteria={
+            "budget": {"strength": "hard", "value": {"amount": "700", "currency": "EUR", "period": "monthly"}},
+            "rental_mode": {"strength": "hard", "value": "long"}}))
+    assert (await query.search_owned(subject, session_id, 1, ListingCardSearchRequest())).cards.total == 0
+    async with SessionLocal() as session, session.begin():
+        await session.execute(update(Listing).where(Listing.id == listing_id).values(monthly_price=650))
+    page = await query.search_owned(subject, session_id, 1, ListingCardSearchRequest())
+    assert page.cards.total == 1 and page.cards.items[0].price == 650
+    for changes in ({"source_price_currency": "USD"}, {"source_price_is_from": True}, {"rental_mode": "holiday"}):
+        async with SessionLocal() as session, session.begin():
+            await session.execute(update(Listing).where(Listing.id == listing_id).values(**changes))
+        assert (await query.search_owned(subject, session_id, 1, ListingCardSearchRequest())).cards.total == 0
+        async with SessionLocal() as session, session.begin():
+            await session.execute(update(Listing).where(Listing.id == listing_id).values(
+                source_price_currency=None, source_price_is_from=None, rental_mode="long"))
