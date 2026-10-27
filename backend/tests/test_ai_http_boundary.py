@@ -1,6 +1,10 @@
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.v1.ai_search import AISearchRuntime
 from app.main import app, exclude_private_ai_telemetry
 from app.services.ai_guest_tokens import GuestPolicy, GuestTokens, InvalidGuestToken
 
@@ -36,3 +40,21 @@ def test_ai_telemetry_drops_whole_event_and_transaction_but_preserves_other_rout
         assert exclude_private_ai_telemetry(event, {}) is None
     other = {"request": {"url": "https://example.invalid/api/v1/listings"}}
     assert exclude_private_ai_telemetry(other, {}) is other
+
+
+def test_private_validation_never_exports_body_keys_or_values(monkeypatch, caplog):
+    sessions = SimpleNamespace()
+    guests = GuestTokens(key=b"synthetic-guest-key-not-secret-32", policy=GuestPolicy(ttl_seconds=60))
+    active = AISearchRuntime(sessions, SimpleNamespace(sessions=sessions), SimpleNamespace(sessions=sessions),
+                             guests, SimpleNamespace(check=AsyncMock()), frozenset({"https://testserver"}), 4096)
+    monkeypatch.setattr(app.state, "ai_search_runtime", active, raising=False)
+    token, _ = guests.issue()
+    headers = {"Origin": "https://testserver", "X-AI-Request": "1", "Cookie": "ai_search_guest=" + token}
+    with TestClient(app, base_url="https://testserver") as client:
+        for payload in ({"PRIVATE_BODY_KEY": "PRIVATE_BODY_VALUE"}, {"text": "PRIVATE_BODY_VALUE"}):
+            response = client.post("/api/v1/ai-search/query", json=payload, headers=headers)
+            assert response.status_code == 422
+            assert response.json() == {"detail": "AI_REQUEST_INVALID"}
+            assert response.headers["cache-control"] == "no-store"
+    assert "PRIVATE_BODY" not in caplog.text
+    assert not any(record.message == "request_validation_failed" for record in caplog.records)
