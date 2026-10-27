@@ -10,7 +10,8 @@ from app.services.notifications import _saved_search_payload
 
 
 @pytest.mark.parametrize("filters", [{"ai_intent": {}}, {"aiIntent": {}}, {"ai_search": {}}, {"matcher": "ai.v1"},
-    {"schema_version": "ai-search.v1"}, {"intent_hash": "x"}, {"criteria": {}}, {"other": [{"result_ref": "x"}]}])
+    {"schema_version": "ai-search.v1"}, {"intent_hash": "x"}, {"criteria": {}}, {"other": [{"result_ref": "x"}]},
+    {"balcony": {"strength": "hard", "value": True}}, {"ai": {}}, {"searchIntent": {}}])
 def test_legacy_write_patch_and_import_reject_reserved_ai_metadata(filters):
     with pytest.raises(ValidationError):
         SavedSearchWrite(rentalMode="long", filters=filters)

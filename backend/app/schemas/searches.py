@@ -15,8 +15,9 @@ MAX_FILTER_KEY_LENGTH = 128
 
 def has_ai_metadata(value: object) -> bool:
     """Legacy filters must never smuggle a typed matcher the legacy SQL ignores."""
-    reserved = {"aiintent", "aisearch", "aisearchintent", "intent", "intenthash", "schemaversion",
-                "taxonomyversion", "matcher", "matcherkind", "matcherversion", "sessionid", "resultref", "criteria"}
+    reserved = {"ai", "aiintent", "aisearch", "aisearchintent", "intent", "searchintent", "intenthash", "schemaversion",
+                "taxonomyversion", "matcher", "matcherkind", "matcherversion", "sessionid", "resultref", "criteria",
+                "strength", "expectedversion", "expectedsessionversion"}
     stack = [value]
     nodes = 0
     while stack:

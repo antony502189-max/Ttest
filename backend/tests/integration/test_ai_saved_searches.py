@@ -94,10 +94,19 @@ async def test_rematch_reloads_current_sources_proofs_moderation_and_saved_state
     assert first.status == "matched" and first.delivery_enabled is False
     assert await repo.dry_run_event(subject, saved.id, event_id) == first
     async with SessionLocal.begin() as conn:
+        # Synthetic out-of-order signal with an unauthoritative revision/hash:
+        # a dry run must inspect current proof, never claim it as verified input.
+        later_id = uuid4()
+        conn.add(AiFactRematchEvent(id=later_id, canonical_listing_id=ids[1],
+            feature_revision=events[0].feature_revision + 1, input_hash="b" * 64, created_at=datetime.now(UTC)))
+    assert await repo.dry_run_event(subject, saved.id, later_id) == first
+    assert await repo.dry_run_event(subject, saved.id, event_id) == first
+    async with SessionLocal.begin() as conn:
         # New current source data with no catalog revision bump must invalidate
         # even an old matching event and proof; event hash is not authority.
         await conn.execute(update(ExternalListingSource).where(ExternalListingSource.id == sources[1]).values(raw_payload={"changed": True}))
     assert (await repo.dry_run_event(subject, saved.id, event_id)).status == "not_verified_or_ineligible"
+    assert (await repo.dry_run_event(subject, saved.id, later_id)).status == "not_verified_or_ineligible"
     async with SessionLocal.begin() as conn:
         await conn.execute(update(ExternalListingSource).where(ExternalListingSource.id == sources[1]).values(raw_payload={}))
         conn.add(ListingRestriction(listing_id=ids[1], reason="synthetic", starts_at=datetime.now(UTC) - timedelta(hours=1)))
@@ -110,7 +119,7 @@ async def test_rematch_reloads_current_sources_proofs_moderation_and_saved_state
         await conn.execute(delete(AISearchSession))
     assert (await repo.get(subject, saved.id)).intent_hash == saved.intent_hash
     async with SessionLocal() as conn:
-        assert await conn.scalar(select(func.count()).select_from(AiFactRematchEvent)) == event_count
+        assert await conn.scalar(select(func.count()).select_from(AiFactRematchEvent)) == event_count + 1
         assert await conn.scalar(select(func.count()).select_from(Notification)) == 0
         assert await conn.scalar(select(func.count()).select_from(MailOutbox)) == 0
         assert await conn.scalar(select(func.sum(AIUsageDay.used))) == 1
