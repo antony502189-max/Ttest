@@ -1,23 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
 import { AudioLines, Search } from 'lucide-react'
 import { ApiError } from '@/api/client'
-import { aiCapabilities, aiCardPage, aiResultPage, createAISession, getAIQuota, getAISession, sendAIMessage, type AIMessage, type AISession } from '@/api/ai-search'
+import { aiCapabilities, aiCardPage, aiResultPage, createAISession, getAIQuota, getAIResult, getAISession, sendAIMessage, type AIMessage, type AISession } from '@/api/ai-search'
+import { aiConditionRows, aiModeLabel, type AICommittedIntent } from '@/api/ai-intent'
+import type { RentalMode } from '@/types'
 import { hydrateIncompleteInternalGallery, type ListingCardPage } from '@/api/listings'
 import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
 import { PropertyCard } from '@/components/marketplace'
 import { AIResultMap } from '@/components/ai-result-map'
+import { AIConditions } from '@/components/ai-conditions'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import '@/home-ai-search.css'
 
 // Keying by identity discards private in-memory conversation on login/logout.
-export function HomeAISearch() {
+export function HomeAISearch({ homeMode }: { homeMode: RentalMode }) {
   const { currentUser } = useApp()
-  return <AISearchPanel key={currentUser?.id ?? 'guest'} />
+  return <AISearchPanel key={currentUser?.id ?? 'guest'} homeMode={homeMode} />
 }
 
-function AISearchPanel() {
+function AISearchPanel({ homeMode }: { homeMode: RentalMode }) {
   const { t } = useI18n()
   const [enabled, setEnabled] = useState(false)
   const [mapEnabled, setMapEnabled] = useState(false)
@@ -25,8 +28,9 @@ function AISearchPanel() {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const [session, setSession] = useState<AISession | null>(null)
+  const [modeChoice, setModeChoice] = useState<'' | 'keep' | 'none' | RentalMode>('')
   const [pending, setPending] = useState<AIMessage | null>(null)
-  const [result, setResult] = useState<{ ref: string; hash: string; page: ListingCardPage } | null>(null)
+  const [result, setResult] = useState<{ ref: string; hash: string; committed: AICommittedIntent; page: ListingCardPage } | null>(null)
   const [remaining, setRemaining] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
@@ -65,15 +69,17 @@ function AISearchPanel() {
   }, [visibleItems])
 
   async function submit() {
-    if (lock.current || (!pending && !text.trim())) return
+    if (lock.current || (!pending && (!text.trim() || !modeChoice))) return
     lock.current = true
     setBusy(true)
     setNotice('Buscando opciones con condiciones confirmadas…')
     const controller = new AbortController()
     flight.current = controller
     try {
-      const owned = session ?? await createAISession(controller.signal)
+      const owned = pending || modeChoice === 'keep' ? session! : await createAISession(controller.signal,
+        modeChoice === 'long' || modeChoice === 'holiday' ? modeChoice : undefined)
       setSession(owned)
+      setModeChoice('keep')
       // Retry the exact operation after timeout/commit acknowledgement loss.
       // Never change text, expected version or key until a terminal response.
       const message = pending ?? { idempotency_key: crypto.randomUUID(), session_id: owned.intent.session_id,
@@ -85,13 +91,22 @@ function AISearchPanel() {
         setNotice('La búsqueda sigue en curso. Consulta de nuevo el mismo intento.')
         return
       }
+      // Result metadata is the original committed snapshot, independent of the
+      // latest editable session (including another tab's successful followup).
+      let committed: AICommittedIntent | null = null
+      if (answer.operation.status === 'succeeded' && answer.operation.receipt && answer.cards) {
+        committed = await getAIResult(answer.operation.receipt.result_ref, controller.signal)
+        if (committed.result_ref !== answer.operation.receipt.result_ref || committed.intent_hash !== answer.cards.intent_hash
+          || committed.intent.session_id !== message.session_id || committed.intent.version !== message.expected_version + 1
+          || committed.count !== answer.operation.receipt.count) throw new Error('Result binding mismatch')
+      }
       // Read the authoritative version even for conflicts or a replay winner.
       const latest = await getAISession(message.session_id, controller.signal)
       if (controller.signal.aborted) return
       setSession(latest)
       setPending(null)
-      if (answer.operation.status === 'succeeded' && answer.operation.receipt && answer.cards) {
-        setResult({ ref: answer.operation.receipt.result_ref, hash: answer.cards.intent_hash, page: aiCardPage(answer.cards) })
+      if (answer.operation.status === 'succeeded' && answer.operation.receipt && answer.cards && committed) {
+        setResult({ ref: answer.operation.receipt.result_ref, hash: answer.cards.intent_hash, committed, page: aiCardPage(answer.cards) })
         setText('')
         setNotice('')
       } else {
@@ -143,14 +158,28 @@ function AISearchPanel() {
     </section>
     <DialogContent className="ai-search-dialog">
       <DialogHeader><DialogTitle>{t('Encuentra tu habitación')}</DialogTitle><DialogDescription>{t('Usamos condiciones confirmadas de los anuncios para buscar opciones.')}</DialogDescription></DialogHeader>
+      <label htmlFor="ai-rental-mode">{t('Modo para esta búsqueda')}</label>
+      <select id="ai-rental-mode" value={modeChoice} disabled={busy || pending !== null}
+        onChange={event => setModeChoice(event.target.value as typeof modeChoice)}>
+        <option value="" disabled>{t('Elige cómo usar el modo de alquiler')}</option>
+        {session ? <option value="keep">{t('Conservar las condiciones actuales de IA')}</option> : null}
+        <option value={homeMode}>{t(session ? 'Nueva conversación con el modo de inicio' : 'Usar el modo de inicio')}: {aiModeLabel(homeMode, t)}</option>
+        {(modeChoice === 'long' || modeChoice === 'holiday') && modeChoice !== homeMode
+          ? <option value={modeChoice}>{t('Modo de alquiler')}: {aiModeLabel(modeChoice, t)}</option> : null}
+        <option value="none">{t(session ? 'Nueva conversación sin limitar el modo' : 'Sin limitar el modo de alquiler')}</option>
+      </select>
+      <small>{t('El modo de inicio no cambia una conversación existente. Los demás filtros no se añaden a IA.')}</small>
+      {session ? <AIConditions intent={session.intent} title="Condiciones para el próximo mensaje" /> : null}
       <label htmlFor="ai-search-text">{t(result ? '¿Qué quieres cambiar?' : 'Cuéntanos qué necesitas')}</label>
       <textarea id="ai-search-text" data-i18n-exempt value={text} onChange={event => setText(event.target.value)} disabled={busy || pending !== null}
         maxLength={16000} rows={3} autoComplete="off" spellCheck={false} placeholder={t('Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
-      <Button type="button" className="home-ai-search__action" disabled={busy || (!pending && (!text.trim() || remaining === 0))}
+      <Button type="button" className="home-ai-search__action" disabled={busy || (!pending && (!text.trim() || !modeChoice || remaining === 0
+        || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
         onClick={() => void submit()}>{t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : result ? 'Actualizar búsqueda' : 'Buscar habitaciones')}</Button>
       <div role="status" aria-live="polite">{notice ? t(notice) : null}</div>
       {remaining !== null ? <small>{t('Búsquedas disponibles hoy')}: {remaining}</small> : null}
       {result ? <section aria-label={t('Resultados confirmados')} aria-busy={busy}>
+        <AIConditions intent={result.committed.intent} title="Condiciones de estos resultados" />
         <h3>{result.page.total} {t('opciones con condiciones confirmadas')}</h3>
         <p>{t('Los anuncios y su orden pueden cambiar entre páginas. Actualiza la lista para ver cambios desde el principio.')}</p>
         <Button type="button" variant="outline" disabled={busy} onClick={() => void page()}>{t('Actualizar resultados sin gastar una búsqueda')}</Button>

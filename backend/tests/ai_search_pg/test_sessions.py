@@ -12,7 +12,7 @@ from app.models.ai_search_quota import AISearchRequest, AIUsageDay
 from app.models.ai_search_session import AISearchResult, AISearchSession
 from app.repositories.ai_search_quota import QuotaError, QuotaLedger
 from app.repositories.ai_search_sessions import SearchSessions, SessionError
-from app.schemas.ai_search_intent import IntentPatch
+from app.schemas.ai_search_intent import IntentPatch, SessionCreate
 from app.schemas.ai_search_quota import FailureCode, LeasePolicy, QuotaOperation, QuotaSubject, ResultReceipt
 
 pytestmark = pytest.mark.integration
@@ -84,6 +84,24 @@ async def test_owned_sessions_and_reads_do_not_renew_ttl(store):
             await store.get(other, initial.intent.session_id)
         with pytest.raises(SessionError, match="SESSION_NOT_FOUND"):
             await store.reset(other, initial.intent.session_id, 0)
+
+
+@pytest.mark.parametrize("mode", ["long", "holiday"])
+async def test_explicit_mode_seeds_only_new_session_and_survives_followup(store, pg, mode):
+    subject = QuotaSubject(kind="guest", id=uuid4())
+    original = await store.create(subject)
+    seeded = await store.create(subject, SessionCreate(rental_mode=mode))
+    assert seeded.intent.criteria.model_dump(exclude_none=True) == {"rental_mode": hard(mode)}
+    assert await store.get(subject, seeded.intent.session_id) == seeded
+    assert await store.get(subject, original.intent.session_id) == original
+    assert await usage(pg, subject) == (None, None)
+    _, receipt, state = await complete(store, subject, seeded, {"balcony": hard(False)})
+    assert state.status == "succeeded"
+    committed = await store.result(subject, receipt.result_ref)
+    assert committed.intent.criteria.rental_mode.value == mode
+    assert committed.intent.criteria.balcony.value is False
+    reset = await store.reset(subject, seeded.intent.session_id, 1)
+    assert reset.intent.criteria.model_dump(exclude_none=True) == {}
 
 
 async def test_finalize_never_transfers_guest_session_to_another_subject(store, pg):

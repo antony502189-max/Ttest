@@ -58,3 +58,26 @@ def test_private_validation_never_exports_body_keys_or_values(monkeypatch, caplo
             assert response.headers["cache-control"] == "no-store"
     assert "PRIVATE_BODY" not in caplog.text
     assert not any(record.message == "request_validation_failed" for record in caplog.records)
+
+
+def test_session_creation_accepts_only_explicit_typed_mode_and_legacy_empty_body(monkeypatch):
+    from app.schemas.ai_search_intent import SessionCreate
+    sessions = SimpleNamespace(create=AsyncMock(return_value={"ok": True}))
+    guests = GuestTokens(key=b"synthetic-guest-key-not-secret-32", policy=GuestPolicy(ttl_seconds=60))
+    active = AISearchRuntime(sessions, SimpleNamespace(sessions=sessions), SimpleNamespace(sessions=sessions),
+                             guests, SimpleNamespace(check=AsyncMock()), frozenset({"https://testserver"}), 4096)
+    monkeypatch.setattr(app.state, "ai_search_runtime", active, raising=False)
+    token, owner = guests.issue()
+    headers = {"Origin": "https://testserver", "X-AI-Request": "1", "Cookie": "ai_search_guest=" + token}
+    with TestClient(app, base_url="https://testserver") as client:
+        response = client.post("/api/v1/ai-search/sessions", headers=headers)
+        assert response.status_code == 200
+        sessions.create.assert_awaited_with(owner, None)
+        for mode in ("long", "holiday"):
+            assert client.post("/api/v1/ai-search/sessions", json={"rental_mode": mode}, headers=headers).status_code == 200
+            sessions.create.assert_awaited_with(owner, SessionCreate(rental_mode=mode))
+        calls = sessions.create.await_count
+        for body in ({"rental_mode": "vivienda"}, {"rental_mode": False}, {"criteria": {}}, {"intent_hash": "x"}, {"occupants": 2}):
+            response = client.post("/api/v1/ai-search/sessions", json=body, headers=headers)
+            assert response.status_code == 422 and response.json() == {"detail": "AI_REQUEST_INVALID"}
+        assert sessions.create.await_count == calls

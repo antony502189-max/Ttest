@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from ...repositories.ai_search_quota import QuotaError
 from ...repositories.ai_search_sessions import SearchSessions, SessionError
 from ...repositories.ai_verified_cards import VerifiedCardSearch
+from ...schemas.ai_search_intent import SessionCreate
 from ...schemas.ai_search_quota import QuotaOperation, QuotaSubject
 from ...schemas.listings import ListingCardSearchRequest, ListingMapRequest
 from ...services.ai_card_cursors import InvalidAICursor
@@ -197,8 +198,9 @@ async def capabilities(request: Request):
 
 
 @router.post("/sessions")
-async def create(active: AISearchRuntime = Depends(runtime), owner: QuotaSubject = Depends(subject)):
-    return jsonable_encoder(await active.sessions.create(owner), exclude_none=True)
+async def create(payload: SessionCreate | None = None, active: AISearchRuntime = Depends(runtime),
+                 owner: QuotaSubject = Depends(subject)):
+    return jsonable_encoder(await active.sessions.create(owner, payload), exclude_none=True)
 
 
 @router.get("/sessions/{session_id}")

@@ -11,7 +11,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.ai_search_session import AISearchResult, AISearchSession
-from ..schemas.ai_search_intent import Criteria, IntentPatch, SearchIntent, apply_patch
+from ..schemas.ai_search_intent import Criteria, Criterion, IntentPatch, SearchIntent, SessionCreate, apply_patch
 from ..schemas.ai_search_quota import (
     FailureCode,
     OperationState,
@@ -121,14 +121,20 @@ class SearchSessions:
             raise SessionError("SESSION_EXPIRED")
         return row, self._decode(row)
 
-    async def _create(self, conn: AsyncSession, subject: QuotaSubject) -> SessionSnapshot:
+    async def _create(
+        self, conn: AsyncSession, subject: QuotaSubject, seed: SessionCreate | None = None
+    ) -> SessionSnapshot:
+        seed = SessionCreate() if seed is None else SessionCreate.model_validate(seed.model_dump())
+        criteria = Criteria() if seed.rental_mode is None else Criteria(
+            rental_mode=Criterion(strength="hard", value=seed.rental_mode)
+        )
         now = await _now(conn)
         intent = SearchIntent(
             schema_version="ai-search.v1",
             taxonomy_version="rental.v1",
             session_id=uuid4(),
             version=0,
-            criteria=Criteria(),
+            criteria=criteria,
         )
         expiry = now + timedelta(seconds=self.policy.inactivity_seconds)
         conn.add(
@@ -139,7 +145,7 @@ class SearchSessions:
                 schema_version=intent.schema_version,
                 taxonomy_version=intent.taxonomy_version,
                 version=0,
-                criteria={},
+                criteria=criteria.model_dump(mode="json", exclude_none=True),
                 expires_at=expiry,
                 created_at=now,
                 updated_at=now,
@@ -148,9 +154,9 @@ class SearchSessions:
         await conn.flush()
         return SessionSnapshot(intent=intent, expires_at=expiry)
 
-    async def create(self, subject: QuotaSubject) -> SessionSnapshot:
+    async def create(self, subject: QuotaSubject, seed: SessionCreate | None = None) -> SessionSnapshot:
         async with self.ledger.sessions.begin() as conn:
-            return await self._create(conn, subject)
+            return await self._create(conn, subject, seed)
 
     async def get(self, subject: QuotaSubject, session_id: UUID) -> SessionSnapshot:
         async with self.ledger.sessions() as conn:
