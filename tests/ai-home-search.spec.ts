@@ -205,7 +205,9 @@ test('confirmed cards preserve server TOP order, native gallery recovery and ext
   await page.route(`**/api/v1/ai-search/sessions/${sid}`, route => route.fulfill({ json: snapshot(1) }))
   await page.route('**/api/v1/ai-search/query', route => route.fulfill({ json: {
     operation: { status: 'succeeded', remaining: 2, receipt: { result_ref: ref, count: 2 } },
-    cards: { ...cards(), cards: { ...cards().cards, items: [native, external], total: 2 } },
+    cards: { ...cards(), budget_prices: [{ listing_id: native.id, matched_amount: 200, matched_period: 'weekly',
+      display_amount: 650, display_period: 'monthly', currency: 'EUR', confirmation: 'current_source_proof' }],
+      cards: { ...cards().cards, items: [native, external], total: 2 } },
   } }))
   let recovery = 0
   await page.route(`**/api/v1/listings/${native.id}/images`, route => {
@@ -218,11 +220,13 @@ test('confirmed cards preserve server TOP order, native gallery recovery and ext
   await page.getByLabel('Cuéntanos qué necesitas').fill(requestText)
   await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
   const rows = page.getByRole('dialog').locator('[data-listing-id]')
+  await expect(page.getByText('Precio confirmado para tu presupuesto: 200 € por semana')).toBeVisible()
   await expect(rows).toHaveCount(2)
   await expect(rows.first()).toHaveAttribute('data-listing-id', native.id)
   await expect.poll(() => recovery).toBeGreaterThan(0)
   await expect(rows.first().locator('img').first()).toHaveAttribute('src', /gallery-0/)
   await expect(rows.last().locator('a[href="https://example.org/room"]').first()).toBeVisible()
+  await page.getByRole('dialog').screenshot({ path: 'output/pr394-budget-period-detail.png' })
 })
 
 test('body rejection allows editing without replaying an unreserved operation', async ({ page }) => {
