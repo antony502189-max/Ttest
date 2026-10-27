@@ -12,7 +12,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator, model_validator
 
 from ...repositories.ai_search_quota import QuotaError
 from ...repositories.ai_search_sessions import SearchSessions, SessionError
@@ -283,6 +283,13 @@ class MapView(APIBody):
     east: float = Field(ge=-180, le=180)
     west: float = Field(ge=-180, le=180)
     zoom: float = Field(ge=2, le=21)
+
+    @model_validator(mode="after")
+    def valid_bounds(self):
+        # Validate ordering at the HTTP body boundary too, so invalid viewports
+        # get the same private 422 as other invalid request fields.
+        self.to_request()
+        return self
 
     def to_request(self) -> ListingMapRequest:
         return ListingMapRequest.model_validate(self.model_dump())
