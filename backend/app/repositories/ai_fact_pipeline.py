@@ -362,32 +362,36 @@ class FactPipeline:
             # All following statements see one snapshot, including new-source
             # phantoms. READ ONLY also prevents accidental reuse of write paths.
             await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
-            anchor = await session.get(AiFactCatalog, listing_id)
-            old = await session.get(AiListingSearchFeatures, listing_id)
-            if anchor is None or old is None or anchor.revision != old.feature_revision:
+            return await self._read_current_projection(session, listing_id)
+
+    async def _read_current_projection(self, session: AsyncSession, listing_id: UUID) -> SearchProjection | None:
+        """Internal shared verifier; caller owns a new REPEATABLE READ snapshot."""
+        anchor = await session.get(AiFactCatalog, listing_id)
+        old = await session.get(AiListingSearchFeatures, listing_id)
+        if anchor is None or old is None or anchor.revision != old.feature_revision:
+            return None
+        try:
+            stored = SearchProjection.model_validate_json(json.dumps({
+                column.name: getattr(old, column.name) for column in old.__table__.columns
+            }, default=str))
+            if stored.resolver_version != self.resolver_version:
                 return None
-            try:
-                stored = SearchProjection.model_validate_json(json.dumps({
-                    column.name: getattr(old, column.name) for column in old.__table__.columns
-                }, default=str))
-                if stored.resolver_version != self.resolver_version:
-                    return None
-                visible, authority = await self._authority(session, listing_id, lock=False)
-                batches, input_hash, pending = await self._projection_inputs(session, listing_id, visible, authority)
-                if not visible or pending or input_hash != stored.input_hash:
-                    return None
-                expected = resolve_sources(
-                    canonical_listing_id=listing_id, batches=batches, input_hash=input_hash,
-                    feature_revision=stored.feature_revision, resolver_version=self.resolver_version,
-                    computed_at=stored.computed_at,
-                )
-                # Re-resolve bounded current evidence, not merely metadata: the
-                # projection JSON may have been corrupted without a hash change.
-                return expected if stored == expected else None
-            except ValueError:
-                # Invalid persisted contracts, vocabulary or exceeded bounds are
-                # unavailable evidence. Never repair or silently return old facts.
+            visible, authority = await self._authority(session, listing_id, lock=False)
+            batches, input_hash, pending = await self._projection_inputs(session, listing_id, visible, authority)
+            if not visible or pending or input_hash != stored.input_hash:
                 return None
+            expected = resolve_sources(
+                canonical_listing_id=listing_id, batches=batches, input_hash=input_hash,
+                feature_revision=stored.feature_revision, resolver_version=self.resolver_version,
+                computed_at=stored.computed_at,
+            )
+            # Re-resolve bounded current evidence, not merely metadata: the
+            # projection JSON may have been corrupted without a hash change.
+            return expected if stored == expected else None
+        except ValueError:
+            # Invalid persisted contracts, vocabulary or exceeded bounds are
+            # unavailable evidence. Never repair or silently return old facts.
+            return None
 
     async def reconcile_listing(self, listing_id: UUID) -> int:
         async with self.sessions() as session, session.begin():
