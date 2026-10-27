@@ -34,6 +34,8 @@ export interface MapBounds {
 export interface ResultsMapProps {
   items: MappedListing[]
   serverQuery?: Record<string, unknown>
+  serverSource?: { key: string; load: (viewport: MapBounds & { zoom: number }, signal: AbortSignal) => Promise<ListingMapMarker[]> }
+  independentSearch?: boolean
   selectedId?: string
   highlightedId?: string
   onSelect: (id: string) => void
@@ -94,8 +96,11 @@ function fitListings(map: google.maps.Map, listings: MappedListing[]) {
   })
 }
 
-export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSelect, onHighlight, fullScreen = false, showPreview = true, onBoundsSearch, onPolygonSearch, onDrawingStart, fitResultsKey = 0, initialAction = null, onInitialActionHandled }: ResultsMapProps) {
-  const { filters, mapPolygon, setMapPolygon, clearMapPolygon } = useApp()
+const EMPTY_POLYGON: MapPolygonPoint[] = []
+
+export function ResultsMap({ items, serverQuery, serverSource, independentSearch = false, selectedId, highlightedId, onSelect, onHighlight, fullScreen = false, showPreview = true, onBoundsSearch, onPolygonSearch, onDrawingStart, fitResultsKey = 0, initialAction = null, onInitialActionHandled }: ResultsMapProps) {
+  const { filters, mapPolygon: storedMapPolygon, setMapPolygon, clearMapPolygon } = useApp()
+  const mapPolygon = independentSearch ? EMPTY_POLYGON : storedMapPolygon
   const { language, t } = useI18n()
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
@@ -106,7 +111,9 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   const [serverMarkers, setServerMarkers] = useState<ListingMapMarker[]>([])
   const [selectedDetail, setSelectedDetail] = useState<Listing | null>(null)
   const [serverCoincidentListings, setServerCoincidentListings] = useState<Listing[]>([])
-  const serverQueryKey = serverQuery ? JSON.stringify(serverQuery) : ''
+  const serverQueryKey = serverSource ? JSON.stringify(['source', serverSource.key]) : serverQuery ? JSON.stringify(serverQuery) : ''
+  const serverSourceRef = useRef(serverSource)
+  serverSourceRef.current = serverSource
   const drawingLayerRef = useRef<google.maps.Polygon | google.maps.Polyline | null>(null)
   const vertexMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
   const drawingRef = useRef(false)
@@ -154,7 +161,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   // separate so a remote promotion refresh cannot undo the user's pan/zoom.
   const itemSignature = useMemo(() => items.map((item) => `${item.id}:${item.coordinates.lat}:${item.coordinates.lng}:${getPrimaryPrice(item)}`).join('|'), [items])
   const promotionSignature = useMemo(() => items.map((item) => `${item.id}:${item.promoted ? 'top' : 'normal'}`).join('|'), [items])
-  const selectedAreaSignature = filters.areas.map(canonicalizeZoneId).sort().join('|')
+  const selectedAreaSignature = independentSearch ? '' : filters.areas.map(canonicalizeZoneId).sort().join('|')
   itemsRef.current = items
   selectedIdRef.current = selectedId
   highlightedIdRef.current = highlightedId
@@ -198,6 +205,7 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready || !serverQueryKey) return
+    setServerMarkers([])
     let timer: number | undefined
     let request: AbortController | null = null
     let lastKey = ''
@@ -210,8 +218,17 @@ export function ResultsMap({ items, serverQuery, selectedId, highlightedId, onSe
       lastKey = key
       request?.abort()
       request = new AbortController()
-      void getMapMarkers({ ...JSON.parse(serverQueryKey), ...viewport, zoom }, request.signal).then(setServerMarkers).catch((error) => {
-        if (error?.name !== 'AbortError') setActionAnnouncement('No se pudieron cargar los anuncios del mapa. Mueve el mapa para reintentar.')
+      const signal = request.signal
+      const source = serverSourceRef.current
+      const load = source ? source.load({ ...viewport, zoom }, signal)
+        : getMapMarkers({ ...JSON.parse(serverQueryKey), ...viewport, zoom }, signal)
+      void load.then(markers => {
+        if (!signal.aborted) { setServerMarkers(markers); setActionAnnouncement('') }
+      }).catch(() => {
+        if (!signal.aborted) {
+          setServerMarkers([])
+          setActionAnnouncement('No se pudieron cargar los anuncios del mapa. Mueve el mapa para reintentar.')
+        }
       })
     }
     const schedule = () => { window.clearTimeout(timer); timer = window.setTimeout(loadViewport, 180) }

@@ -6,6 +6,7 @@ import { hydrateIncompleteInternalGallery, type ListingCardPage } from '@/api/li
 import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
 import { PropertyCard } from '@/components/marketplace'
+import { AIResultMap } from '@/components/ai-result-map'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import '@/home-ai-search.css'
@@ -19,6 +20,8 @@ export function HomeAISearch() {
 function AISearchPanel() {
   const { t } = useI18n()
   const [enabled, setEnabled] = useState(false)
+  const [mapEnabled, setMapEnabled] = useState(false)
+  const [mapVisible, setMapVisible] = useState(false)
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const [session, setSession] = useState<AISession | null>(null)
@@ -33,7 +36,7 @@ function AISearchPanel() {
   useEffect(() => {
     const controller = new AbortController()
     void aiCapabilities(controller.signal).then(value => {
-      if (!controller.signal.aborted) setEnabled(value.text === true)
+      if (!controller.signal.aborted) { setEnabled(value.text === true); setMapEnabled(value.map === true) }
     }).catch(() => { /* Ordinary search stays available when capability lookup fails. */ })
     return () => { controller.abort(); flight.current?.abort() }
   }, [])
@@ -149,7 +152,9 @@ function AISearchPanel() {
       {remaining !== null ? <small>{t('Búsquedas disponibles hoy')}: {remaining}</small> : null}
       {result ? <section aria-label={t('Resultados confirmados')} aria-busy={busy}>
         <h3>{result.page.total} {t('opciones con condiciones confirmadas')}</h3>
+        {mapEnabled ? <Button type="button" variant="outline" aria-pressed={mapVisible} onClick={() => setMapVisible(value => !value)}>{t(mapVisible ? 'Ver lista' : 'Ver mapa')}</Button> : null}
         {!result.page.total ? <p>{t('No encontramos opciones con todas las condiciones confirmadas. Puedes ajustar tu búsqueda.')}</p> : null}
+        {mapVisible ? <AIResultMap key={`${result.ref}:${result.hash}`} resultRef={result.ref} intentHash={result.hash} /> : null}
         <div className="ai-search-dialog__cards">{result.page.items.map(listing => <PropertyCard key={listing.id} listing={listing} />)}</div>
         <nav aria-label={t('Páginas de resultados')}>
           <Button type="button" variant="outline" disabled={busy || !result.page.previousCursor} onClick={() => void page(result.page.previousCursor!)}>{t('Anterior')}</Button>

@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
-  testDir: './tests', testMatch: 'ai-home-search.spec.ts', workers: 1,
+  testDir: './tests', testMatch: ['ai-home-search.spec.ts', 'google-maps-final-acceptance.spec.ts'], workers: 1,
   timeout: 45_000, expect: { timeout: 7000 }, reporter: 'list',
   use: { baseURL: 'http://127.0.0.1:4175', trace: 'retain-on-failure' },
   webServer: {

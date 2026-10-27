@@ -1,5 +1,5 @@
 import { api } from '@/api/client'
-import { toCardListing, type ListingCardDto, type ListingCardPage } from '@/api/listings'
+import { toCardListing, type ListingCardDto, type ListingCardPage, type ListingMapMarker } from '@/api/listings'
 
 export type AICapabilities = { text: boolean; map: boolean; voice: boolean; saved_searches: boolean }
 export type AISession = { intent: { session_id: string; version: number }; expires_at: string }
@@ -23,6 +23,10 @@ export async function aiResultPage(ref: string, cursor: string, signal: AbortSig
     method: 'POST', headers, body: JSON.stringify({ search: { limit: 6, cursor } }), signal, cache: 'no-store',
   })
 }
+export const aiResultMap = (ref: string, viewport: { north: number; south: number; east: number; west: number; zoom: number }, signal: AbortSignal) =>
+  api<{ map: { items: ListingMapMarker[] }; intent_hash: string }>(`/ai-search/results/${encodeURIComponent(ref)}/map`, {
+    method: 'POST', headers, body: JSON.stringify({ search: viewport }), signal, cache: 'no-store',
+  })
 export function aiCardPage(response: CardResponse): ListingCardPage {
   const seen = new Set<string>()
   return { ...response.cards, items: response.cards.items.filter(item => {
