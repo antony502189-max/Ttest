@@ -735,6 +735,13 @@ async def search_public_map(session: AsyncSession, payload: ListingMapRequest) -
         "minLongitude": payload.west, "maxLongitude": payload.east,
     })
     filtered = apply_search_filters(visible_query(), bounded)
+    return await _search_filtered_map(session, payload, filtered)
+
+
+async def _search_filtered_map(
+    session: AsyncSession, payload: ListingMapRequest, filtered: Select,
+) -> ListingMapResponse:
+    """Reuse existing markers/clustering after all caller eligibility filters."""
     longitude = ST_X(cast(Listing.location, Geometry("POINT", srid=4326)))
     latitude = ST_Y(cast(Listing.location, Geometry("POINT", srid=4326)))
     max_markers = 300

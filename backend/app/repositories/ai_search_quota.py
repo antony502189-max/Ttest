@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ..models.ai_search_quota import AISearchRequest, AIUsageDay
 from ..schemas.ai_search_quota import (
+    DailyQuotaView,
     FailureCode,
     LeasePolicy,
     OperationState,
@@ -80,6 +81,17 @@ class QuotaLedger:
     def __init__(self, sessions: async_sessionmaker[AsyncSession], policy: LeasePolicy):
         self.sessions = sessions
         self.policy = policy
+
+    async def daily_status(self, subject: QuotaSubject) -> DailyQuotaView:
+        """One read-only Madrid-day snapshot; no row creation, TTL renewal or recovery."""
+        async with self.sessions() as session, session.begin():
+            await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+            day, reset = await madrid_window(session)
+            usage = await session.scalar(select(AIUsageDay).where(*self._day_key(subject, day)))
+            limit = usage.quota_limit if usage is not None else 3 if subject.kind == "guest" else 200
+            used, reserved = (usage.used, usage.reserved) if usage is not None else (0, 0)
+            return DailyQuotaView(madrid_date=day, reset_at=reset, limit=limit, used=used, reserved=reserved,
+                                  remaining=limit - used - reserved)
 
     @staticmethod
     def _key(subject: QuotaSubject, key: UUID):

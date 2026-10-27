@@ -53,7 +53,7 @@ def exclude_private_ai_telemetry(event, hint):
             if urlsplit(url).path.startswith("/api/v1/ai-search"):
                 return None
         except ValueError:
-            return event
+            return None if "/api/v1/ai-search" in url else event
     return event
 
 

@@ -1,16 +1,19 @@
 """Actual HTTP+cookies+ownership+quota+PostGIS cards, with an offline parser."""
 import json
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
+from sqlalchemy import func, select, text, update
 from test_ai_verified_cards import setup
 
 from app.api.v1.ai_search import AISearchRuntime
 from app.db.session import SessionLocal
 from app.main import app
+from app.models.ai_search_quota import AIUsageDay
+from app.models.ai_search_session import AISearchSession
 from app.schemas.ai_search_intent import IntentPatch
 from app.services.ai_guest_tokens import GuestPolicy, GuestTokens
 from app.services.ai_http_policy import AIHTTPPolicy
@@ -62,6 +65,8 @@ async def test_guest_cookie_three_messages_replay_reset_paging_and_owner_isolati
         cookie = created.headers["set-cookie"].lower()
         assert "httponly" in cookie and "secure" in cookie and "samesite=strict" in cookie
         sid = created.json()["intent"]["session_id"]
+        untouched = await first.get("/api/v1/ai-search/quota")
+        assert untouched.status_code == 200 and untouched.json()["remaining"] == 3
         initial = message(sid, 0)
         result = await first.post("/api/v1/ai-search/query", json=initial)
         assert result.status_code == 200, result.text
@@ -79,6 +84,16 @@ async def test_guest_cookie_three_messages_replay_reset_paging_and_owner_isolati
         old_page = await first.post(f"/api/v1/ai-search/results/{receipt}/cards", json={"search": {
             "limit": 1, "cursor": answer["cards"]["cards"]["nextCursor"]}})
         assert old_page.status_code == 200 and old_page.json()["cards"]["total"] == 3, old_page.text
+        metadata = await first.get(f"/api/v1/ai-search/results/{receipt}")
+        assert metadata.status_code == 200 and metadata.json()["intent"]["version"] == 1
+        bounds = {"north": 28.5, "south": 27.5, "east": -16.6, "west": -16.9, "zoom": 14}
+        result_map = await first.post(f"/api/v1/ai-search/results/{receipt}/map", json={"search": bounds})
+        assert result_map.status_code == 200 and len(result_map.json()["map"]["items"]) == 3, result_map.text
+        assert result_map.json()["intent_hash"] == answer["cards"]["intent_hash"]
+        current_map = await first.post(f"/api/v1/ai-search/sessions/{sid}/map", json={"expected_version": 3, "search": bounds})
+        assert current_map.status_code == 200 and len(current_map.json()["map"]["items"]) == 3
+        quota = await first.get("/api/v1/ai-search/quota")
+        assert quota.json()["used"] == 3 and quota.json()["reserved"] == 0
         reset = await first.post(f"/api/v1/ai-search/sessions/{sid}/reset", json={"expected_version": 3})
         assert reset.status_code == 200 and reset.json()["intent"]["session_id"] != sid
         new_sid = reset.json()["intent"]["session_id"]
@@ -138,4 +153,94 @@ async def test_registered_subject_has_auth_quota_and_never_auto_transfers_guest(
         async with SessionLocal() as session, session.begin():
             await session.execute(text("UPDATE users SET blocked=true WHERE id=:id"), {"id": UUID(user["id"])})
         assert (await client.post("/api/v1/ai-search/sessions", headers=headers)).status_code == 401
+        blocked_quota = await client.get("/api/v1/ai-search/quota", headers=headers)
+        assert blocked_quota.status_code == 401 and blocked_quota.headers["cache-control"] == "no-store"
         assert parser.calls == 1
+
+
+MAP_BOUNDS = {"north": 28.5, "south": 27.5, "east": -16.6, "west": -16.9, "zoom": 14}
+
+
+def private_error(response, status, code):
+    assert response.status_code == status, response.text
+    assert response.json() == {"detail": code}
+    assert response.headers["cache-control"] == "no-store"
+
+
+async def test_new_map_metadata_routes_reject_foreign_missing_expired_and_stale_versions(active, register_user):
+    _, parser, _ = active
+    async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as owner, AsyncClient(
+        transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as other:
+        sid = (await owner.post("/api/v1/ai-search/sessions")).json()["intent"]["session_id"]
+        answer = (await owner.post("/api/v1/ai-search/query", json=message(sid, 0))).json()
+        ref = answer["operation"]["receipt"]["result_ref"]
+        routes = [("GET", f"/api/v1/ai-search/results/{ref}", None, "RESULT_NOT_FOUND"),
+                  ("POST", f"/api/v1/ai-search/results/{ref}/map", {"search": MAP_BOUNDS}, "RESULT_NOT_FOUND"),
+                  ("POST", f"/api/v1/ai-search/sessions/{sid}/map",
+                   {"expected_version": 1, "search": MAP_BOUNDS}, "SESSION_NOT_FOUND")]
+        await other.post("/api/v1/ai-search/sessions")
+        for method, path, payload, code in routes:
+            private_error(await other.request(method, path, json=payload), 404, code)
+            private_error(await owner.request(method, path.replace(ref, str(uuid4())).replace(sid, str(uuid4())),
+                                              json=payload), 404, code)
+        # An authenticated identity cannot inherit its own browser's guest data.
+        token, _ = await register_user(other, email="ai-map-isolation@example.org")
+        for method, path, payload, code in routes:
+            private_error(await owner.request(method, path, json=payload, headers={"Authorization": "Bearer " + token}), 404, code)
+        private_error(await owner.post(f"/api/v1/ai-search/sessions/{sid}/map",
+            json={"expected_version": 0, "search": MAP_BOUNDS}), 409, "SESSION_VERSION_CONFLICT")
+        for method, path, payload, _ in routes[1:]:
+            private_error(await owner.request(method, path, json=payload, headers={"Origin": "https://attacker.invalid"}),
+                          403, "AI_ORIGIN_OR_CSRF_REJECTED")
+        async with SessionLocal() as session, session.begin():
+            await session.execute(update(AISearchSession).where(AISearchSession.id == UUID(sid)).values(
+                expires_at=datetime.now(UTC) - timedelta(seconds=1)))
+        for method, path, payload, _ in routes:
+            code = "SESSION_EXPIRED" if "/sessions/" in path else "RESULT_EXPIRED_REQUERY_REQUIRED"
+            private_error(await owner.request(method, path, json=payload), 409, code)
+        assert parser.calls == 1
+
+
+async def test_map_body_rejects_injected_semantics_and_invalid_viewports_at_http_boundary(active):
+    _, parser, _ = active
+    async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as client:
+        sid = (await client.post("/api/v1/ai-search/sessions")).json()["intent"]["session_id"]
+        paths = [(f"/api/v1/ai-search/results/{uuid4()}/map", {}),
+                 (f"/api/v1/ai-search/sessions/{sid}/map", {"expected_version": 0})]
+        invalid = [{"petsAllowed": True}, {"maxPrice": 500}, {"subject_id": str(uuid4())},
+                   {"north": 91}, {"south": -91}, {"east": 181}, {"west": -181},
+                   {"zoom": 1}, {"zoom": 22}, {"north": 27.5}, {"south": 29},
+                   {"east": -16.9}, {"west": 0}, {"zoom": None}, {"north": "NaN"}]
+        for path, base in paths:
+            for change in invalid:
+                private_error(await client.post(path, json=base | {"search": MAP_BOUNDS | change}), 422, "AI_REQUEST_INVALID")
+            private_error(await client.post(path, json=base | {"search": MAP_BOUNDS, "subject_id": str(uuid4())}),
+                          422, "AI_REQUEST_INVALID")
+        for version in (True, "0", -1, 2_147_483_648, None):
+            private_error(await client.post(paths[1][0], json={"expected_version": version, "search": MAP_BOUNDS}),
+                          422, "AI_REQUEST_INVALID")
+        assert parser.calls == 0
+
+
+async def test_quota_http_requires_identity_and_repeated_reads_never_create_rows_or_renew_session(active):
+    runtime, parser, _ = active
+    async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as client:
+        private_error(await client.get("/api/v1/ai-search/quota"), 401, "AI_GUEST_IDENTITY_REQUIRED")
+        for token in ("forged", runtime.guests.issue(now=1)[0]):
+            response = await client.get("/api/v1/ai-search/quota", headers={"Cookie": "ai_search_guest=" + token})
+            private_error(response, 401, "AI_GUEST_IDENTITY_INVALID_OR_EXPIRED")
+            assert "set-cookie" not in response.headers
+        sid = UUID((await client.post("/api/v1/ai-search/sessions")).json()["intent"]["session_id"])
+        async with SessionLocal() as session:
+            before = (await session.execute(select(AISearchSession.expires_at, AISearchSession.updated_at).where(
+                AISearchSession.id == sid))).one()
+            assert await session.scalar(select(func.count()).select_from(AIUsageDay)) == 0
+        for _ in range(3):
+            response = await client.get("/api/v1/ai-search/quota")
+            assert response.status_code == 200 and response.json()["remaining"] == 3
+            assert response.headers["cache-control"] == "no-store" and "set-cookie" not in response.headers
+        async with SessionLocal() as session:
+            assert (await session.execute(select(AISearchSession.expires_at, AISearchSession.updated_at).where(
+                AISearchSession.id == sid))).one() == before
+            assert await session.scalar(select(func.count()).select_from(AIUsageDay)) == 0
+        assert parser.calls == 0
