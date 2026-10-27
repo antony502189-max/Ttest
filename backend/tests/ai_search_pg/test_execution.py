@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from test_sessions import usage
 
 from app.models.ai_search_quota import AIUsageDay
+from app.repositories.ai_search_quota import QuotaError
 from app.repositories.ai_search_sessions import intent_hash
 from app.repositories.ai_verified_cards import VerifiedCardResult
 from app.schemas.ai_search_intent import IntentPatch
@@ -210,3 +211,20 @@ async def test_hash_mismatch_or_paging_cursor_rejected_before_reservation(store,
     assert parser.calls == gate.calls == 0
     async with pg[1]() as session:
         assert await session.scalar(select(func.count()).select_from(AIUsageDay)) == 0
+
+
+@pytest.mark.parametrize("change", [
+    {"rentalMode": "holiday"}, {"maxPrice": 500}, {"sort": "price_asc"},
+    {"favoriteIds": [str(uuid4())]}, {"limit": 1},
+])
+async def test_same_idempotency_key_different_filters_conflicts(store, pg, change):
+    subject, snapshot, parser, gate, query, service = await configured(store)
+    op = operation(snapshot)
+    first = await service.execute(subject, op, "synthetic message", ListingCardSearchRequest())
+    assert first.operation.status == "succeeded"
+    with pytest.raises(QuotaError, match="IDEMPOTENCY_CONFLICT"):
+        await service.execute(subject, op, "synthetic message", ListingCardSearchRequest(**change))
+    replay = await service.execute(subject, op, "synthetic message", ListingCardSearchRequest())
+    assert replay.replay and replay.operation.receipt == first.operation.receipt
+    assert parser.calls == gate.calls == query.calls == query.replays == 1
+    assert await usage(pg, subject) == (1, 0)

@@ -30,6 +30,7 @@ def test_fingerprint_binds_body_channel_session_and_version_but_not_retry_key():
     for update in (
         {"channel": "voice"},
         {"payload_sha256": "a" * 64},
+        {"filters_sha256": "b" * 64},
         {"session_id": uuid4()},
         {"expected_session_version": 1},
     ):

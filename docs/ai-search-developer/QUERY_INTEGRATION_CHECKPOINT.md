@@ -12,6 +12,14 @@ This is the main-based integration vehicle for #387 -> #388 -> #389 -> #390 -> #
 
 All entry points are explicit internal services, not public activation. No default parser/provider/client/background worker/API route is enabled.
 
+## Review corrections
+
+See [PR_392_REVIEW_RESOLUTION.md](PR_392_REVIEW_RESOLUTION.md) for F-01 through
+F-06 fixes, exact replay/pagination contracts, canonical consistency checks,
+bridge coverage and the still-open public release gates R-01 through R-07.
+Historical CI evidence below predates these corrections; the new head requires
+its own required checks before merge.
+
 ## Verified evidence before opening main integration
 
 #391 head f1d38e359573be14f8f0b4ea7a40d52ce4132eff: all4triggered workflows SUCCESS. Combined [40425280443](https://github.com/antony502189-max/Ttest/actions/runs/40425280443):1260unit passed/7skips,500focused cases passed including real PG16/PostGIS/Redis,8real PostGIS cards/gallery/orchestration cases, Ruff/mypy143, complete historical chain and alembic check(no operations). Focused units overlap full unit totals. Payment [40425282004](https://github.com/antony502189-max/Ttest/actions/runs/40425282004), quota [40425280547](https://github.com/antony502189-max/Ttest/actions/runs/40425280547), Security [40425280422](https://github.com/antony502189-max/Ttest/actions/runs/40425280422) success. #388/#389/#390 all4workflows success on their final heads.

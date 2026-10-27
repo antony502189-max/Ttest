@@ -19,7 +19,7 @@ from ..services.ai_card_cursors import AICardCursors
 from ..services.ai_hard_matching import compile_hard_match
 from .ai_fact_pipeline import FactPipeline
 from .ai_hard_matching import hard_match_predicate
-from .ai_query_proofs import current_projection_predicate
+from .ai_query_proofs import current_projection_predicate, proof_population_signature
 from .ai_search_sessions import SearchSessions, SessionError, intent_hash
 from .listings import _cursor_fingerprint, _search_filtered_cards, apply_search_filters, visible_query
 
@@ -80,9 +80,11 @@ class VerifiedCardSearch:
         normalized_hash = intent_hash(intent)
         catalog = await session.scalar(select(CatalogState.version).where(CatalogState.id == 1))
         facts = (await session.execute(select(func.count(), func.coalesce(func.sum(AiFactCatalog.revision), 0)))).one()
+        proofs = await session.scalar(select(proof_population_signature(
+            resolver_version=self.pipeline.resolver_version, vocabulary_hash=self.pipeline.vocabulary_hash)))
         context = digest({"subject": [subject.kind, str(subject.id)], "intent": normalized_hash,
             "filters": _cursor_fingerprint(payload), "catalog": catalog,
-            "facts": [facts[0], str(facts[1])], "resolver": self.pipeline.resolver_version,
+            "facts": [facts[0], str(facts[1])], "proofs": proofs, "resolver": self.pipeline.resolver_version,
             "vocabulary": self.pipeline.vocabulary_hash})
         raw_cursor = self.cursors.decode(payload.cursor, context)
         payload = payload.model_copy(update={"cursor": raw_cursor})

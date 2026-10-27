@@ -16,6 +16,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, model_validator
 
+from ..schemas.ai_evidence_support import SUPPORTED_PROVIDER_FIELDS, has_evidence_text
 from .listing_evidence import EvidenceSpan, PolicyFact, extract_policy_evidence
 
 
@@ -73,10 +74,6 @@ def clean_evidence_text(value: str, *, advertiser_name: str | None = None) -> st
     if advertiser_name and advertiser_name.strip():
         text = re.sub(re.escape(advertiser_name.strip()), "[advertiser]", text, flags=re.IGNORECASE)
     return "\n".join(" ".join(line.split()) for line in text.splitlines() if line.strip()).strip()
-
-
-def has_evidence_text(value: str) -> bool:
-    return bool(re.search(r"\w", re.sub(r"\[(?:contact|advertiser|link|secret)\]", "", value)))
 
 
 class ProviderFact(BaseModel):
@@ -195,6 +192,8 @@ def build_listing_evidence_input(
         source_language=source_language,
         provider_facts=ordered,
         policy_evidence=policies,
-        data_status="ready" if has_evidence_text(description) else "insufficient_source_data",
+        data_status="ready" if has_evidence_text(description) or any(
+            f.field in SUPPORTED_PROVIDER_FIELDS and has_evidence_text(f.evidence.quote) for f in ordered
+        ) else "insufficient_source_data",
         content_hash=digest,
     )

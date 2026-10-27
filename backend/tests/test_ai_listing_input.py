@@ -89,6 +89,21 @@ def test_empty_description_and_unreliable_language_stay_explicitly_unknown():
     assert packet(description="+34 612 345 678 owner@example.test").data_status == "insufficient_source_data"
 
 
+@pytest.mark.parametrize("field,value,quote,status", [
+    ("pets_allowed", False, "false", "ready"),
+    ("room_capacity", 2, "2", "ready"),
+    ("furnished", False, "false", "ready"),
+    ("empadronamiento_allowed", True, "true", "insufficient_source_data"),
+    ("pets_allowed", True, "owner@example.test", "insufficient_source_data"),
+])
+def test_typed_structured_evidence_can_replace_missing_description(field, value, quote, status):
+    fact = ProviderFact(field=field, value=value, evidence=EvidenceSpan(
+        source="structured", provider_field="rules.value", quote=quote))
+    result = packet(description="", provider_facts=(fact,))
+    assert result.data_status == status
+    assert result.policy_evidence["pets_allowed"].status == "unknown"
+
+
 def test_input_rejects_oversize_text_and_untyped_provider_payloads():
     with pytest.raises(ValidationError):
         packet(description="a" * 30_001)
