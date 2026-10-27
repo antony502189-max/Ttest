@@ -10,7 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..core.config import get_settings
 from ..models import DiscardedListing, Favorite, Listing, SavedSearch, SearchHistory, User
 from ..models.moderation import ListingRestriction, UserRestriction
-from ..schemas.searches import GuestStateImport, SavedSearchPatch, SavedSearchResponse, SavedSearchWrite
+from ..schemas.searches import (
+    GuestStateImport,
+    SavedSearchPatch,
+    SavedSearchResponse,
+    SavedSearchWrite,
+    has_ai_metadata,
+)
 from .moderation import active_window, enforce_listing_view_access
 from .rental_price_limit import public_price_limit_clause
 
@@ -206,6 +212,7 @@ async def import_guest_state(payload: GuestStateImport, user: User, session: Asy
         duplicate = await session.scalar(
             select(SavedSearch.id).where(
                 SavedSearch.user_id == user.id,
+                SavedSearch.matcher == "manual.v1",
                 SavedSearch.query == item.query.strip(),
                 SavedSearch.rental_mode == item.rentalMode,
                 SavedSearch.filters == item.filters,
@@ -231,6 +238,8 @@ async def import_guest_state(payload: GuestStateImport, user: User, session: Asy
 
 
 def public_search(search: SavedSearch) -> SavedSearchResponse:
+    if search.matcher != "manual.v1" or search.rental_mode is None or has_ai_metadata(search.filters):
+        raise HTTPException(409, "Saved search matcher unavailable")
     return SavedSearchResponse(
         id=search.id,
         provinceCode=search.province_code,
@@ -249,12 +258,12 @@ async def list_saved_searches(user: User, session: AsyncSession) -> list[SavedSe
     searches = (
         await session.scalars(
             select(SavedSearch)
-            .where(SavedSearch.user_id == user.id)
+            .where(SavedSearch.user_id == user.id, SavedSearch.matcher == "manual.v1")
             .order_by(SavedSearch.created_at.desc())
             .limit(get_settings().max_saved_searches_per_user)
         )
     ).all()
-    return [public_search(search) for search in searches]
+    return [public_search(search) for search in searches if not has_ai_metadata(search.filters)]
 
 
 async def create_saved_search(
@@ -289,10 +298,13 @@ async def update_saved_search(
     session: AsyncSession,
 ) -> SavedSearchResponse:
     search = await session.scalar(
-        select(SavedSearch).where(SavedSearch.id == search_id, SavedSearch.user_id == user.id)
+        select(SavedSearch).where(SavedSearch.id == search_id, SavedSearch.user_id == user.id,
+                                  SavedSearch.matcher == "manual.v1")
     )
     if not search:
         raise HTTPException(404, "Saved search not found")
+    if has_ai_metadata(search.filters):
+        raise HTTPException(409, "Saved search matcher unavailable")
     mapping = {"alertsEnabled": "alerts_enabled", "provinceCode": "province_code"}
     for key, value in payload.model_dump(exclude_unset=True).items():
         if key == "polygon" and value is not None:

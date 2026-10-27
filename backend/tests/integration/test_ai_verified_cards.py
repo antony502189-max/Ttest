@@ -28,13 +28,14 @@ from app.services.ai_card_cursors import InvalidAICursor
 pytestmark = pytest.mark.integration
 
 
-async def setup(rental_mode, *, price=None):
-    vocabulary = FactVocabulary(amenity_codes=frozenset(), catalog_other_codes=frozenset(),
-                               tenant_group_codes=frozenset(), municipality_zones=frozenset())
+async def setup(rental_mode, *, price=None, vocabulary=None):
+    vocabulary = vocabulary or FactVocabulary(amenity_codes=frozenset(), catalog_other_codes=frozenset(),
+                                             tenant_group_codes=frozenset(), municipality_zones=frozenset())
     pipeline = FactPipeline(SessionLocal, FactQueuePolicy(lease_seconds=60, max_attempts=2, retry_delay_seconds=1),
                             vocabulary, resolver_version="test-cards.v1")
     ledger = QuotaLedger(SessionLocal, LeasePolicy(reservation_seconds=60, running_seconds=60, recovery_grace_seconds=30))
-    sessions = SearchSessions(ledger, SessionPolicy(inactivity_seconds=600), IntentVocabulary(frozenset(), frozenset(), frozenset()))
+    sessions = SearchSessions(ledger, SessionPolicy(inactivity_seconds=600), IntentVocabulary(
+        vocabulary.amenity_codes, vocabulary.catalog_other_codes, vocabulary.municipality_zones))
     subject = QuotaSubject(kind="guest", id=uuid4())
     owned = await sessions.create(subject)
     async with SessionLocal() as session, session.begin():

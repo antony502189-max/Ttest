@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 from geoalchemy2 import Geography
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Enum,
@@ -323,12 +324,20 @@ class DiscardedListing(Base):
 
 class SavedSearch(Timestamped, Base):
     __tablename__ = "saved_searches"
+    __table_args__ = (
+        UniqueConstraint("id", "matcher", name="uq_saved_search_matcher"),
+        CheckConstraint("(matcher = 'manual.v1' AND rental_mode IS NOT NULL) OR "
+                        "(matcher <> 'manual.v1' AND rental_mode IS NULL AND query = '' "
+                        "AND filters = '{}'::jsonb AND polygon = '[]'::jsonb AND alerts_enabled = false)",
+                        name="ck_saved_search_matcher_boundary"),
+    )
     province_code: Mapped[str | None] = mapped_column(String(2))
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(120), default="")
     query: Mapped[str] = mapped_column(String(240), default="")
-    rental_mode: Mapped[str] = mapped_column(Enum("long", "holiday", name="rental_mode"))
+    matcher: Mapped[str] = mapped_column(String(32), default="manual.v1", server_default="manual.v1")
+    rental_mode: Mapped[str | None] = mapped_column(Enum("long", "holiday", name="rental_mode"))
     filters: Mapped[dict] = mapped_column(JSONB, default=dict)
     polygon: Mapped[list] = mapped_column(JSONB, default=list)
     alerts_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -447,6 +456,7 @@ from .advertising_waitlist import AdvertisingWaitlist  # noqa: F401
 from .ai_fact_pipeline import AiFactCatalog, AiFactJob, AiFactRematchEvent, AiFactSource  # noqa: F401
 from .ai_listing_facts import AiListingFact, AiListingFactBatch, AiListingSearchFeatures  # noqa: F401
 from .ai_query_proof import AiQueryProof  # noqa: F401
+from .ai_saved_search import AiSavedSearch  # noqa: F401
 from .ai_search_quota import AISearchRequest, AIUsageDay  # noqa: F401
 from .ai_search_session import AISearchResult, AISearchSession  # noqa: F401
 from .commercial_advertisement import CommercialAdvertisement  # noqa: F401

@@ -3,7 +3,7 @@ import math
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..core.config import get_settings
 
@@ -13,9 +13,35 @@ MAX_FILTER_STRING_LENGTH = 1_000
 MAX_FILTER_KEY_LENGTH = 128
 
 
+def has_ai_metadata(value: object) -> bool:
+    """Legacy filters must never smuggle a typed matcher the legacy SQL ignores."""
+    reserved = {"aiintent", "aisearch", "aisearchintent", "intent", "intenthash", "schemaversion",
+                "taxonomyversion", "matcher", "matcherkind", "matcherversion", "sessionid", "resultref", "criteria"}
+    stack = [value]
+    nodes = 0
+    while stack:
+        node = stack.pop()
+        nodes += 1
+        if nodes > 10_000:  # Corrupt persisted containers fail closed too.
+            return True
+        if isinstance(node, dict):
+            for key, item in node.items():
+                if not isinstance(key, str):
+                    return True
+                normalized = key.replace("_", "").replace("-", "").lower()
+                if normalized in reserved or key.lower().startswith("ai_"):
+                    return True
+                stack.append(item)
+        elif isinstance(node, list):
+            stack.extend(node)
+    return False
+
+
 def validate_filter_payload(value: dict | None) -> dict | None:
     if value is None:
         return None
+    if has_ai_metadata(value):
+        raise ValueError("AI metadata is not a manual search filter")
     settings = get_settings()
     nodes = 0
 
@@ -69,6 +95,7 @@ class PolygonPoint(BaseModel):
 
 
 class SavedSearchWrite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     provinceCode: str | None = Field(default=None, pattern=r"^(0[1-9]|[1-4][0-9]|5[0-2])$")
     name: str = Field(default="", max_length=120)
     query: str = Field(default="", max_length=240)
@@ -91,6 +118,7 @@ class SavedSearchWrite(BaseModel):
 
 
 class SavedSearchPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     provinceCode: str | None = Field(default=None, pattern=r"^(0[1-9]|[1-4][0-9]|5[0-2])$")
     name: str | None = Field(default=None, max_length=120)
     query: str | None = Field(default=None, max_length=240)
@@ -125,6 +153,7 @@ class SavedSearchResponse(BaseModel):
 
 
 class GuestStateImport(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     # Older frontend builds stored slug-like listing ids. The service validates
     # and imports only UUIDs that exist in the current database.
     favoriteIds: list[str] = Field(default_factory=list, max_length=500)
