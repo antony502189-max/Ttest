@@ -296,6 +296,15 @@ async def seed(total, chunk=5000):
         log("proof_chunk", lo=lo, hi=hi)
     for base in range(1,total+1,chunk*4):
         await asyncio.gather(*(proof_chunk(lo) for lo in range(base,min(total+1,base+chunk*4),chunk)))
+    checked=[]
+    for n in sorted({2,total//7,total//3,total//2+1,total*2//3,total-1,total}):
+        async with db.connect() as c:
+            identifier=await c.scalar(text("SELECT id FROM r01_entities WHERE n=:n"),{"n":n})
+            stored=await c.scalar(select(AiQueryProof.signature).where(AiQueryProof.canonical_listing_id==identifier))
+            actual=await c.scalar(select(projection_signature(literal(identifier))))
+            assert stored==actual, f"bulk proof mismatch at synthetic ordinal {n}"
+            checked.append(n)
+    save(f"proof-verification-{total}.json",{"actual_production_digest_equal":True,"ordinals":checked})
     async with db.connect() as c:
         await c.execution_options(isolation_level="AUTOCOMMIT")
         await c.execute(text("VACUUM ANALYZE"))
