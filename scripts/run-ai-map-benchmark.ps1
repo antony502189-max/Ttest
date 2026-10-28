@@ -3,26 +3,31 @@ param(
     [int]$Total = 100000,
     [int]$Samples = 200,
     [int]$Candidate = -1,
-    [switch]$BaselineOnly
+    [switch]$BaselineOnly,
+    [ValidateSet('baseline','fanout')][string]$Profile = 'baseline'
 )
 $ErrorActionPreference = 'Stop'
 $labRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$labOutput = Join-Path $labRoot 'output/r01'
+$labOutput = Join-Path $labRoot $(if ($Profile -eq 'fanout') { 'output/r01-fanout' } else { 'output/r01' })
 New-Item -ItemType Directory -Force -Path $labOutput | Out-Null
 # This launcher deliberately supports only this task's private internal lab.
-$labNetwork = docker network inspect codex-r01-20261028 | ConvertFrom-Json
+$labSuffix = if ($Profile -eq 'fanout') { 'fanout-20261028' } else { '20261028' }
+$labNetworkName = "codex-r01-$labSuffix"
+$labDbName = "codex-r01-db-$labSuffix"
+$labNetwork = docker network inspect $labNetworkName | ConvertFrom-Json
 if (-not $labNetwork.Internal -or $labNetwork.Labels.'codex.task' -ne 'r01-synthetic') {
     throw 'Expected the isolated synthetic-only network'
 }
-$labDb = docker inspect codex-r01-db-20261028 | ConvertFrom-Json
+$labDb = docker inspect $labDbName | ConvertFrom-Json
 if ($labDb.Config.Labels.'codex.task' -ne 'r01-synthetic' -or @($labDb.HostConfig.PortBindings.PSObject.Properties).Count -ne 0) {
     throw 'Expected disposable DB without published host ports'
 }
 $labExtra = @()
+if ($Profile -eq 'fanout') { $labExtra += @('--sources','10') }
 $labRevision = git -C $labRoot rev-parse HEAD
 if ($Candidate -ge 0) { $labExtra += @('--candidate', "$Candidate") }
 if ($BaselineOnly) { $labExtra += '--baseline-only' }
-docker run --rm --name codex-r01-runner --network codex-r01-20261028 `
+docker run --rm --name "codex-r01-runner-$Profile" --network $labNetworkName `
     --label codex.task=r01-synthetic --memory 2g --cpus 2 --read-only --tmpfs /tmp `
     -v "${labRoot}:/code:ro" -v "${labOutput}:/results" -w /code/backend `
     -e PYTHONPATH=/code/backend -e PYTHONDONTWRITEBYTECODE=1 -e R01_DISPOSABLE_LAB=synthetic-only -e R01_CODE_REVISION=$labRevision `

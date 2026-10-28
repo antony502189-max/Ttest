@@ -213,21 +213,26 @@ async def initialize(sources):
 
 async def seed(total, chunk=5000):
     template = json.loads((OUT / "template.json").read_text())
-    db = engine(timeout=0)
+    db = engine(pool=4, timeout=0)
     lid = UUID(template["listing"])
     factory = async_sessionmaker(db, expire_on_commit=False)
     pipe = pipeline(factory)
     async with db.connect() as c:
         assert (await c.scalar(text("SELECT data->>'synthetic_only' FROM r01_meta"))) == "true"
-        start = (await c.scalar(text("SELECT coalesce(max(n),0) FROM r01_entities"))) + 1
+        start = await c.scalar(text("SELECT coalesce(min(g),CAST(:total AS bigint)+1) FROM generate_series(1,CAST(:total AS bigint)) g LEFT JOIN r01_entities e ON e.n=g WHERE e.n IS NULL"), {"total":total})
     models = [Listing, ListingRoomDetails, ExternalListingSource, AiFactCatalog, AiListingFactBatch,
         AiFactSource, AiListingFact, AiListingSearchFeatures]
     template_where = {Listing: "t.id=:lid", ListingRoomDetails: "t.listing_id=:lid",
         AiListingFact: "t.batch_id IN (SELECT batch_id FROM ai_fact_sources WHERE canonical_listing_id=:lid)"}
-    for lo in range(start, total + 1, chunk):
+    async def seed_chunk(lo):
         hi = min(total, lo + chunk - 1)
         began = time.perf_counter()
         async with db.begin() as c:
+            present=await c.scalar(text("SELECT count(*) FROM r01_entities WHERE n BETWEEN :lo AND :hi"), {"lo":lo,"hi":hi})
+            if present == hi-lo+1:
+                return
+            if present:
+                raise RuntimeError("partially overlapping seed chunk; inspect fixture before resuming")
             await c.execute(text("INSERT INTO r01_entities SELECT g,r01_uuid('listing',g) FROM generate_series(CAST(:lo AS bigint),CAST(:hi AS bigint)) g"), {"lo": lo, "hi": hi})
             for model in models:
                 table = model.__tablename__
@@ -263,6 +268,8 @@ async def seed(total, chunk=5000):
               WHERE p.canonical_listing_id IN (SELECT id FROM r01_entities WHERE n BETWEEN :lo AND :hi)"""),
                 {"lo": lo, "hi": hi, "resolver": RESOLVER, "vocabulary": pipe.vocabulary_hash})
         log("seed_chunk", lo=lo, hi=hi, seconds=round(time.perf_counter()-began, 3))
+    for base in range(start,total+1,chunk*4):
+        await asyncio.gather(*(seed_chunk(lo) for lo in range(base,min(total+1,base+chunk*4),chunk)))
     async with db.connect() as c:
         await c.execution_options(isolation_level="AUTOCOMMIT")
         await c.execute(text("ANALYZE"))
@@ -274,7 +281,7 @@ async def seed(total, chunk=5000):
         assert await QueryProofs(pipe).prepare(identifier), f"cloned listing {n} failed real verifier"
         async with db.connect() as c:
             assert await c.scalar(select(fixture_signature(literal(identifier)))) == await c.scalar(select(projection_signature(literal(identifier))))
-    for lo in range(1, total+1, chunk):
+    async def proof_chunk(lo):
         hi = min(total, lo+chunk-1)
         async with db.begin() as c:
             entities = text("r01_entities")
@@ -287,6 +294,8 @@ async def seed(total, chunk=5000):
             statement = pg_insert(AiQueryProof).from_select(["canonical_listing_id", "signature", "vocabulary_hash", "resolver_version", "feature_revision"], proof_select)
             await c.execute(statement.on_conflict_do_nothing(), {"lo": lo, "hi": hi})
         log("proof_chunk", lo=lo, hi=hi)
+    for base in range(1,total+1,chunk*4):
+        await asyncio.gather(*(proof_chunk(lo) for lo in range(base,min(total+1,base+chunk*4),chunk)))
     async with db.connect() as c:
         await c.execution_options(isolation_level="AUTOCOMMIT")
         await c.execute(text("VACUUM ANALYZE"))
@@ -294,7 +303,7 @@ async def seed(total, chunk=5000):
         metadata = {"listings": total, "counts_including_template": counts,
             "size_bytes": await c.scalar(text("SELECT pg_database_size(current_database())")),
             "version": await c.scalar(text("SELECT version()")), "postgis": await c.scalar(text("SELECT postgis_full_version()")),
-            "settings": (await c.execute(text("SELECT name,setting,unit FROM pg_settings WHERE name IN ('max_connections','shared_buffers','work_mem','effective_cache_size','max_parallel_workers_per_gather','jit','track_io_timing')"))).mappings().all()}
+            "settings": [dict(row) for row in (await c.execute(text("SELECT name,setting,unit FROM pg_settings WHERE name IN ('max_connections','shared_buffers','work_mem','effective_cache_size','max_parallel_workers_per_gather','jit','track_io_timing')"))).mappings()]}
         save(f"dataset-{total}.json", metadata)
     await db.dispose()
     log("seed_complete", total=total)
