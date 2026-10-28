@@ -29,6 +29,7 @@ function AISearchPanel({ homeMode }: { homeMode: RentalMode }) {
   const [text, setText] = useState('')
   const [session, setSession] = useState<AISession | null>(null)
   const [modeChoice, setModeChoice] = useState<'' | 'keep' | 'none' | RentalMode>('')
+  const [needsConversation, setNeedsConversation] = useState(false)
   const [pending, setPending] = useState<AIMessage | null>(null)
   const [result, setResult] = useState<{ ref: string; hash: string; committed: AICommittedIntent; prices: AIBudgetPrice[]; page: ListingCardPage } | null>(null)
   const [remaining, setRemaining] = useState<number | null>(null)
@@ -69,7 +70,7 @@ function AISearchPanel({ homeMode }: { homeMode: RentalMode }) {
   }, [visibleItems])
 
   async function submit() {
-    if (lock.current || (!pending && (!text.trim() || !modeChoice))) return
+    if (lock.current || needsConversation || (!pending && (!text.trim() || !modeChoice))) return
     lock.current = true
     setBusy(true)
     setNotice('Buscando opciones con condiciones confirmadas…')
@@ -91,29 +92,35 @@ function AISearchPanel({ homeMode }: { homeMode: RentalMode }) {
         setNotice('La búsqueda sigue en curso. Consulta de nuevo el mismo intento.')
         return
       }
-      // Result metadata is the original committed snapshot, independent of the
-      // latest editable session (including another tab's successful followup).
-      let committed: AICommittedIntent | null = null
-      if (answer.operation.status === 'succeeded' && answer.operation.receipt && answer.cards) {
-        committed = await getAIResult(answer.operation.receipt.result_ref, controller.signal)
-        if (committed.result_ref !== answer.operation.receipt.result_ref || committed.intent_hash !== answer.cards.intent_hash
-          || committed.intent.session_id !== message.session_id || committed.intent.version !== message.expected_version + 1
-          || committed.count !== answer.operation.receipt.count) throw new Error('Result binding mismatch')
-      }
-      // Read the authoritative version even for conflicts or a replay winner.
-      const latest = await getAISession(message.session_id, controller.signal)
+
       if (controller.signal.aborted) return
-      setSession(latest)
+      // Settle the durable operation before independently reading result or
+      // editable-session metadata. Failed reads cannot resurrect its replay key.
       setPending(null)
-      if (answer.operation.status === 'succeeded' && answer.operation.receipt && answer.cards && committed) {
-        setResult({ ref: answer.operation.receipt.result_ref, hash: answer.cards.intent_hash, committed,
-          prices: answer.cards.budget_prices ?? [], page: aiCardPage(answer.cards) })
-        setText('')
-        setNotice('')
-      } else {
-        setNotice(answer.operation.failure_code === 'SESSION_VERSION_CONFLICT'
-          ? 'La búsqueda cambió. Revisa tu texto antes de enviarlo de nuevo.'
-          : 'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.')
+      try {
+        if (answer.operation.status === 'succeeded' && answer.operation.receipt && answer.cards) {
+          const committed = await getAIResult(answer.operation.receipt.result_ref, controller.signal)
+          if (committed.result_ref !== answer.operation.receipt.result_ref || committed.intent_hash !== answer.cards.intent_hash
+            || committed.intent.session_id !== message.session_id || committed.intent.version !== message.expected_version + 1
+            || committed.count !== answer.operation.receipt.count) throw new Error('Result binding mismatch')
+          if (controller.signal.aborted) return
+          setResult({ ref: answer.operation.receipt.result_ref, hash: answer.cards.intent_hash, committed,
+            prices: answer.cards.budget_prices ?? [], page: aiCardPage(answer.cards) })
+          setText('')
+          setNotice('')
+        } else {
+          setNotice(answer.operation.failure_code === 'SESSION_VERSION_CONFLICT'
+            ? 'La búsqueda cambió. Revisa tu texto antes de enviarlo de nuevo.'
+            : 'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.')
+        }
+        const latest = await getAISession(message.session_id, controller.signal)
+        if (!controller.signal.aborted) setSession(latest)
+      } catch {
+        if (controller.signal.aborted) return
+        setSession(null)
+        setModeChoice('')
+        setNeedsConversation(true)
+        setNotice('El intento terminó, pero el diálogo no está disponible. Inicia una nueva conversación para continuar.')
       }
     } catch (error) {
       if (controller.signal.aborted) return
@@ -174,9 +181,14 @@ function AISearchPanel({ homeMode }: { homeMode: RentalMode }) {
       <label htmlFor="ai-search-text">{t(result ? '¿Qué quieres cambiar?' : 'Cuéntanos qué necesitas')}</label>
       <textarea id="ai-search-text" data-i18n-exempt value={text} onChange={event => setText(event.target.value)} disabled={busy || pending !== null}
         maxLength={16000} rows={3} autoComplete="off" spellCheck={false} placeholder={t('Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
-      <Button type="button" className="home-ai-search__action" disabled={busy || (!pending && (!text.trim() || !modeChoice || remaining === 0
+      <Button type="button" className="home-ai-search__action" disabled={busy || needsConversation || (!pending && (!text.trim() || !modeChoice || remaining === 0
         || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
         onClick={() => void submit()}>{t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : result ? 'Actualizar búsqueda' : 'Buscar habitaciones')}</Button>
+      {(session || needsConversation) ? <Button type="button" variant="outline" disabled={busy || pending !== null}
+        onClick={() => {
+          if (lock.current || pending) return
+          setSession(null); setNeedsConversation(false); setModeChoice(''); setMapVisible(false); setResult(null); setText(''); setNotice('')
+        }}>{t('Iniciar nueva conversación')}</Button> : null}
       <div role="status" aria-live="polite">{notice ? t(notice) : null}</div>
       {remaining !== null ? <small>{t('Búsquedas disponibles hoy')}: {remaining}</small> : null}
       {result ? <section aria-label={t('Resultados confirmados')} aria-busy={busy}>
