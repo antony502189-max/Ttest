@@ -65,6 +65,18 @@ class VoiceSearchExecution:
 
     async def execute(self, subject: QuotaSubject, key: UUID, session_id: UUID, version: int,
                       audio: bytes, media_type: AudioMedia, payload: ListingCardSearchRequest) -> SearchExecution:
+        # Include pool/reserve/claim, replay reads, cleanup and atomic finalize
+        # in the caller's budget, even without an HTTP wrapper.
+        deadline = asyncio.get_running_loop().time() + self.policy.total_budget_seconds
+        http_deadline = HTTP_DEADLINE.get()
+        if http_deadline is not None:
+            deadline = min(deadline, http_deadline)
+        async with asyncio.timeout_at(deadline):
+            return await self._execute(subject, key, session_id, version, audio, media_type, payload, deadline)
+
+    async def _execute(self, subject: QuotaSubject, key: UUID, session_id: UUID, version: int,
+                       audio: bytes, media_type: AudioMedia, payload: ListingCardSearchRequest,
+                       deadline: float) -> SearchExecution:
         subject = QuotaSubject.model_validate(subject.model_dump())
         if type(audio) is not bytes or not 0 < len(audio) <= self.policy.max_audio_bytes:
             raise ValueError("VOICE_AUDIO_INVALID")
@@ -89,7 +101,6 @@ class VoiceSearchExecution:
         state = await self.ledger.claim(subject, operation)
         phase = FailureCode.BACKEND_FAILURE
         try:
-            deadline = asyncio.get_running_loop().time() + self.policy.total_budget_seconds
             async with asyncio.timeout_at(deadline):
                 current = (await self.sessions.get(subject, session_id)).intent
                 if current.version != version:
@@ -114,21 +125,22 @@ class VoiceSearchExecution:
                 receipt = ResultReceipt(result_ref=uuid4(), count=cards.cards.total)
         except asyncio.CancelledError:
             with suppress(Exception):
-                http_deadline = HTTP_DEADLINE.get()
-                if http_deadline is None:
-                    await self.ledger.release(subject, operation, state.fence, FailureCode.BACKEND_FAILURE)
-                elif asyncio.get_running_loop().time() < http_deadline:
-                    async with asyncio.timeout_at(http_deadline):
+                # Cancellation cleanup gets only the remaining own/HTTP budget.
+                # On expiry leave the durable fence/reservation for recovery.
+                if asyncio.get_running_loop().time() < deadline:
+                    async with asyncio.timeout_at(deadline):
                         await self.ledger.release(subject, operation, state.fence, FailureCode.BACKEND_FAILURE)
-                # Preserve the reviewed request-boundary contract even for an
-                # injected future caller: exhausted HTTP budgets use recovery.
             raise
         except Exception as error:  # noqa: BLE001 - no raw audio/transcript/provider/SQL export
             if isinstance(error, (SessionError, AIAttemptRejected)) and error.code in {code.value for code in FailureCode}:
                 phase = FailureCode(error.code)
+            if asyncio.get_running_loop().time() >= deadline:
+                raise TimeoutError from None
             return SearchExecution(await self.ledger.release(subject, operation, state.fence, phase))
         # Finalize is deliberately outside release/cancellation cleanup: an ack
         # loss may follow committed session+receipt+debit. Retry only replays PG.
+        if asyncio.get_running_loop().time() >= deadline:
+            raise TimeoutError
         completed = await self.sessions.finalize_patch(subject, operation, state.fence, patch, receipt)
         if completed.status != "succeeded" or completed.receipt is None:
             return SearchExecution(completed)

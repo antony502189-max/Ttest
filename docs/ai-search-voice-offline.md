@@ -29,3 +29,11 @@ and mypy (150 source files) passed. The dependent PR records isolated CI evidenc
 Real ASR/provider transport, consent/minimization/retention/DPA, production media
 policy and public capability remain separate activation gates. No live service,
 application database, notification, crawler or deployment was used.
+
+
+Own total deadline includes reserve/claim, replay reads, providers, queries,
+cleanup and atomic finalize; an HTTP deadline can only shorten it. Failure or
+external cancellation cleanup gets only the remaining budget. Exhaustion raises
+TimeoutError (or preserves external CancelledError), leaving the reservation for
+fenced lease recovery and exact-key replay. Finalize timeout/ack uncertainty never
+invokes speculative release. No extra unbounded cleanup allowance is provided.

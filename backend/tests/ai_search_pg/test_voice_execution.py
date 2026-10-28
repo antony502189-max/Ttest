@@ -248,14 +248,16 @@ async def test_reviewed_provider_noop_rejection_preserved_in_combined_voice(stor
 
 async def test_total_monotonic_budget_bounds_query_before_durable_finalize(store, pg, monkeypatch):
     subject, snapshot, _, _, _, query, service = await configured(store)
-    service.policy = service.policy.model_copy(update={"total_budget_seconds": 0.03})
+    service.policy = VoicePolicy.model_validate({**policy().model_dump(), "asr_budget_seconds": 0.1,
+        "intent_budget_seconds": 0.1, "total_budget_seconds": 0.5})
     original = query.query_candidate
     async def late(*args):
-        time.sleep(0.04)  # noqa: ASYNC251 - assert post-synchronous-work deadline
+        time.sleep(0.6)  # noqa: ASYNC251 - assert post-synchronous-work deadline
         return await original(*args)
     monkeypatch.setattr(query, "query_candidate", late)
-    result = await execute(service, subject, snapshot, uuid4())
-    assert result.operation.failure_code == "BACKEND_FAILURE" and await usage(pg, subject) == (0, 0)
+    with pytest.raises(TimeoutError):
+        await execute(service, subject, snapshot, uuid4())
+    assert await usage(pg, subject) == (0, 1)
     assert (await store.get(subject, snapshot.intent.session_id)).intent.version == 0
 
 
@@ -266,12 +268,11 @@ async def test_exhausted_http_deadline_defers_cancellation_cleanup_to_fenced_rec
     key = uuid4()
     release = AsyncMock(wraps=service.ledger.release)
     monkeypatch.setattr(service.ledger, "release", release)
-    token = HTTP_DEADLINE.set(asyncio.get_running_loop().time() - 1)
+    token = HTTP_DEADLINE.set(asyncio.get_running_loop().time() + 0.2)
     try:
         task = asyncio.create_task(execute(service, subject, snapshot, key))
         await asr.started.wait()
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
+        with pytest.raises(TimeoutError):
             await task
     finally:
         HTTP_DEADLINE.reset(token)
@@ -283,3 +284,86 @@ async def test_exhausted_http_deadline_defers_cancellation_cleanup_to_fenced_rec
             recover_after=text("clock_timestamp() - interval '1 second'")))
     await service.ledger.recover(subject, key)
     assert await usage(pg, subject) == (0, 0)
+
+
+@pytest.mark.parametrize("phase", ["asr", "intent", "cancel", "http"])
+async def test_contended_cleanup_is_bounded_and_fenced_recovery_replays(store, pg, phase):
+    subject, snapshot, asr, parser, _, _, service = await configured(store)
+    service.policy = VoicePolicy.model_validate({**policy().model_dump(), "asr_budget_seconds": 0.1,
+        "intent_budget_seconds": 0.1, "total_budget_seconds": 0.4})
+    target = parser if phase == "intent" else asr
+    target.finish = asyncio.Event()
+    key = uuid4()
+    token = HTTP_DEADLINE.set(asyncio.get_running_loop().time() + 0.3) if phase == "http" else None
+    try:
+        task = asyncio.create_task(execute(service, subject, snapshot, key))
+        await target.started.wait()
+        async with pg[1].begin() as blocker:
+            await blocker.execute(select(AIUsageDay).where(AIUsageDay.subject_id == subject.id).with_for_update())
+            if phase in {"cancel", "http"}:
+                task.cancel()
+            # The SQL lock stays held until after bounded task completion.
+            cleanup_started = asyncio.get_running_loop().time()
+            with pytest.raises(asyncio.CancelledError if phase in {"cancel", "http"} else TimeoutError):
+                await asyncio.wait_for(task, 0.8)
+            assert asyncio.get_running_loop().time() - cleanup_started < 0.65
+            assert task.done()
+            assert await usage(pg, subject) == (0, 1)
+    finally:
+        if token is not None:
+            HTTP_DEADLINE.reset(token)
+    assert (await store.get(subject, snapshot.intent.session_id)).intent.version == 0
+    async with pg[1].begin() as conn:
+        await conn.execute(update(AISearchRequest).where(AISearchRequest.idempotency_key == key).values(
+            lease_until=text("clock_timestamp()-interval '31 seconds'"),
+            recover_after=text("clock_timestamp()-interval '1 second'")))
+    from app.schemas.ai_listing_facts import digest
+    from app.schemas.ai_search_quota import ResultReceipt
+    op = QuotaOperation(idempotency_key=key, channel="voice", session_id=snapshot.intent.session_id,
+        expected_session_version=0, payload_sha256=hashlib.sha256(AUDIO).hexdigest(),
+        filters_sha256=digest({"media_type": "audio/wav", "search": ListingCardSearchRequest().model_dump(mode="json")}))
+    async def forbidden_commit(*args):
+        pytest.fail("stale worker cannot mutate session or result")
+    with pytest.raises(QuotaError, match="STALE_WORKER"):
+        await service.ledger.finalize(subject, op, 1, ResultReceipt(result_ref=uuid4(), count=0),
+                                      commit_session=forbidden_commit)
+    await service.ledger.recover(subject, key)
+    before = asr.calls, parser.calls
+    replay = await execute(service, subject, snapshot, key)
+    assert replay.replay and replay.operation.failure_code == "LEASE_EXPIRED"
+    assert (asr.calls, parser.calls) == before
+    assert await usage(pg, subject) == (0, 0)
+    late = await service.ledger.finalize(subject, op, 1, ResultReceipt(result_ref=uuid4(), count=0),
+                                         commit_session=forbidden_commit)
+    assert late.status == "failed" and await usage(pg, subject) == (0, 0)
+
+
+
+@pytest.mark.parametrize("committed", [False, True])
+async def test_finalize_deadline_never_speculatively_releases_ambiguous_debit(store, pg, monkeypatch, committed):
+    from unittest.mock import AsyncMock
+    subject, snapshot, asr, parser, _, _, service = await configured(store)
+    service.policy = VoicePolicy.model_validate({**policy().model_dump(), "asr_budget_seconds": 0.1,
+        "intent_budget_seconds": 0.1, "total_budget_seconds": 0.4})
+    original = store.finalize_patch
+    async def wait_for_ack(*args):
+        if committed:
+            await original(*args)
+        await asyncio.Event().wait()
+    monkeypatch.setattr(store, "finalize_patch", wait_for_ack)
+    release = AsyncMock(wraps=service.ledger.release)
+    monkeypatch.setattr(service.ledger, "release", release)
+    key = uuid4()
+    with pytest.raises(TimeoutError):
+        await execute(service, subject, snapshot, key)
+    release.assert_not_awaited()
+    assert await usage(pg, subject) == ((1, 0) if committed else (0, 1))
+    if not committed:
+        async with pg[1].begin() as conn:
+            await conn.execute(update(AISearchRequest).values(lease_until=text("clock_timestamp()-interval '31 seconds'"),
+                recover_after=text("clock_timestamp()-interval '1 second'")))
+        await service.ledger.recover(subject, key)
+    replay = await execute(service, subject, snapshot, key)
+    assert replay.replay and replay.operation.status == ("succeeded" if committed else "failed")
+    assert asr.calls == parser.calls == 1
+    assert await usage(pg, subject) == ((1, 0) if committed else (0, 0))
