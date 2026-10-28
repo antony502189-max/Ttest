@@ -10,9 +10,11 @@ Capabilities now declare map availability alongside text; all capabilities remai
 
 Validation:3realPG daily-status cases(read-only/no writes, reserve/release/success, auth/guest isolation, Madrid midnight after DST). Existing map/HTTP integration cases extended for markers and clusters after source mutation, compatible promotion flags, permanent blocked owner, wrong owner/version, original-result map/hash/metadata, free quota reads and existing manual map parity. Exact-head full PostGIS CI is required; local cluster has no PostGIS. Ruff/mypy147 and local backend unit suite. No real coverage/freshness/native owner-fact precedence/SQL capacity/browser10s claim.
 
-#392, #393 and #394 were merged into `main` on 2026-10-27. #395 targets that main
-and is the next review checkpoint. #396 (home text panel) and #397 (result map UI)
-remain dependent PRs. This is a source contract, not a deployment or activation.
+#392, #393 and #394 were merged into `main` on 2026-10-27. #395 was also merged
+on 2026-10-27, through commit `e50f96a5f62d0989d9d91c35c001ca35fd6db445`,
+including the R-02–R-07 review corrections. #396 (home text panel) now targets
+`main` and is the next owner review checkpoint; #397 (result map UI) and
+#398–400 remain dependent drafts. This is a source contract, not a deployment or activation.
 Public runtime remains absent. Privacy/provider/freshness/performance gates still
 require separate evidence before public activation.
 

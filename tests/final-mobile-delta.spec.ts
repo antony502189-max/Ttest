@@ -132,6 +132,12 @@ test('DELTA-RESPONSIVE-01 critical routes have no horizontal overflow across the
 })
 
 test('DELTA-DIAGNOSTICS-01 critical mobile routes emit no application errors or failed first-party requests', async ({ page }) => {
+  // This suite runs without an API server. Explicitly model the disabled
+  // capability and let home bootstrap settle before intentionally navigating.
+  await page.route('**/api/v1/ai-search/capabilities', route => route.fulfill({
+    json: { text: false, map: false, voice: false, saved_searches: false },
+  }))
+  const homeCapabilities = () => page.waitForResponse(response => response.url().endsWith('/api/v1/ai-search/capabilities') && response.status() === 200)
   const consoleErrors: string[] = []
   const pageErrors: string[] = []
   const failedFirstParty: string[] = []
@@ -140,16 +146,19 @@ test('DELTA-DIAGNOSTICS-01 critical mobile routes emit no application errors or 
   })
   page.on('pageerror', (error) => pageErrors.push(error.message))
   page.on('requestfailed', (request) => {
+    // StrictMode cleanup and route unmounts intentionally cancel fetches.
+    // Actual connection failures must still fail this diagnostic.
+    if (request.failure()?.errorText === 'net::ERR_ABORTED') return
     if (request.url().startsWith('http://127.0.0.1:4173')) failedFirstParty.push(`${request.method()} ${request.url()}`)
   })
 
-  await readyMobile(page)
+  await Promise.all([homeCapabilities(), readyMobile(page)])
   consoleErrors.length = 0
-  for (const route of ['/#/', '/#/buscar?q=Tenerife', '/#/buscar?q=Tenerife&vista=mapa', '/#/menu']) {
+  for (const route of ['/#/buscar?q=Tenerife', '/#/buscar?q=Tenerife&vista=mapa', '/#/menu']) {
     await page.goto(route)
     await page.locator('.route-loading').waitFor({ state: 'detached' }).catch(() => undefined)
   }
-  await page.goto('/#/mensajes')
+  await Promise.all([homeCapabilities(), page.goto('/#/mensajes')])
   await expect(page).toHaveURL(/#\/$/)
   expect({ consoleErrors, pageErrors, failedFirstParty }).toEqual({ consoleErrors: [], pageErrors: [], failedFirstParty: [] })
 })
