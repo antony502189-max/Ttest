@@ -82,8 +82,13 @@ cap bounds resource use after the 1-second target is already exceeded. A timeout
 is a failed sample, never a successful 5-second response or a measured true
 latency percentile for that unfinished query.
 
-Load scenarios use 200 attempts each, zoom 8/13, and 300/10,000/whole-catalog
-viewports. Retain every attempt and failure. Nearest-rank p50/p95/p99 describe
+Load scenarios request up to 200 attempts each, zoom 8/13, and
+300/10,000/whole-catalog viewports. At 100,000, run the full 200 attempts. At
+500,000 and 1,000,000, stop a scenario after its first full concurrency wave
+if every attempt failed: that already rejects the target, and avoids repeated
+resource saturation with no successful latency samples. Record requested and
+actual sample counts and the early-stop flag. Retain every attempt and failure.
+Nearest-rank p50/p95/p99 describe
 observed completion/error durations including queue time. Error-containing
 scenarios fail acceptance regardless of these quantiles. With 200 attempts,
 p99 is an exploratory tail estimate, insufficient for high-confidence passing

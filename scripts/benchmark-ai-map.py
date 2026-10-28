@@ -396,12 +396,18 @@ async def measure(total, samples, candidate=None, baseline_only=False):
                 for offset in range(0,samples,concurrency):
                     results.extend(await asyncio.gather(*(request(view) for _ in range(min(concurrency,samples-offset)))))
                     captured.clear()
+                    # At the larger scales a wholly failed first wave already
+                    # rejects acceptance. Do not repeatedly saturate the lab to
+                    # manufacture a percentile for unfinished SQL statements.
+                    if total >= 500000 and offset == 0 and all(not r["ok"] for r in results):
+                        break
                 values=sorted(r["ms"] for r in results)
                 assert all(not r["ok"] or r["count"] == count for r in results)
                 def percentile(q, ordered=values):
                     return ordered[min(len(ordered)-1, math.ceil(q*len(ordered))-1)]
                 summary={"total":total,"candidates":count,"zoom":zoom,"concurrency":concurrency,
-                    "samples":len(results),"seconds":time.perf_counter()-start,"failures":sum(not r["ok"] for r in results),
+                    "samples":len(results),"requested_samples":samples,"stopped_after_failed_wave":len(results)<samples,
+                    "seconds":time.perf_counter()-start,"failures":sum(not r["ok"] for r in results),
                     "p50_ms":percentile(.5),"p95_ms":percentile(.95),"p99_ms":percentile(.99),
                     "pass":all(r["ok"] for r in results) and percentile(.95)<=500 and percentile(.99)<=1000,
                     "results":results}
