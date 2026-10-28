@@ -45,6 +45,7 @@ from sqlalchemy.sql.elements import BooleanClauseList
 DSN = "postgresql+asyncpg://r01:r01-synthetic-only@r01-db:5432/r01_synthetic"
 OUT = Path("/results")
 RESOLVER = "r01-synthetic.v1"
+SEED_WRITERS = 8
 
 
 def save(name, value):
@@ -213,7 +214,7 @@ async def initialize(sources):
 
 async def seed(total, chunk=5000):
     template = json.loads((OUT / "template.json").read_text())
-    db = engine(pool=4, timeout=0)
+    db = engine(pool=SEED_WRITERS, timeout=0)
     lid = UUID(template["listing"])
     factory = async_sessionmaker(db, expire_on_commit=False)
     pipe = pipeline(factory)
@@ -268,8 +269,8 @@ async def seed(total, chunk=5000):
               WHERE p.canonical_listing_id IN (SELECT id FROM r01_entities WHERE n BETWEEN :lo AND :hi)"""),
                 {"lo": lo, "hi": hi, "resolver": RESOLVER, "vocabulary": pipe.vocabulary_hash})
         log("seed_chunk", lo=lo, hi=hi, seconds=round(time.perf_counter()-began, 3))
-    for base in range(start,total+1,chunk*4):
-        await asyncio.gather(*(seed_chunk(lo) for lo in range(base,min(total+1,base+chunk*4),chunk)))
+    for base in range(start,total+1,chunk*SEED_WRITERS):
+        await asyncio.gather(*(seed_chunk(lo) for lo in range(base,min(total+1,base+chunk*SEED_WRITERS),chunk)))
     async with db.connect() as c:
         await c.execution_options(isolation_level="AUTOCOMMIT")
         await c.execute(text("ANALYZE"))
@@ -294,8 +295,8 @@ async def seed(total, chunk=5000):
             statement = pg_insert(AiQueryProof).from_select(["canonical_listing_id", "signature", "vocabulary_hash", "resolver_version", "feature_revision"], proof_select)
             await c.execute(statement.on_conflict_do_nothing(), {"lo": lo, "hi": hi})
         log("proof_chunk", lo=lo, hi=hi)
-    for base in range(1,total+1,chunk*4):
-        await asyncio.gather(*(proof_chunk(lo) for lo in range(base,min(total+1,base+chunk*4),chunk)))
+    for base in range(1,total+1,chunk*SEED_WRITERS):
+        await asyncio.gather(*(proof_chunk(lo) for lo in range(base,min(total+1,base+chunk*SEED_WRITERS),chunk)))
     checked=[]
     for n in sorted({2,total//7,total//3,total//2+1,total*2//3,total-1,total}):
         async with db.connect() as c:

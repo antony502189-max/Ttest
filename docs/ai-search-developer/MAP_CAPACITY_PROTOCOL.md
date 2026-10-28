@@ -37,7 +37,8 @@ setup path. Sampled digests must equal the production expression exactly.
 No preparation-time optimization is applied to the map, its predicates or its
 plans. This distinction is necessary when interpreting setup timings.
 
-Bulk setup uses four disjoint writers. The existing per-row listing trigger
+Bulk setup uses disjoint writers (four at 500,000, eight for the final
+1,000,000 setup); this is separate from timed map concurrency. The existing per-row listing trigger
 updates a single catalog-version row and serializes concurrent bulk inserts.
 Only in this disposable fixture phase, suspend that one trigger, then restore
 it in a finally block and advance the catalog version by the inserted-row count.
@@ -72,7 +73,10 @@ Transactions use repeatable-read/read-only. The client has the application's
 30-connection ceiling (10 base + 20 overflow); it preallocates that ceiling to
 avoid confusing connection establishment with SQL work. Measure 50/100/200
 simultaneous client operations, including pool waiting, in separate scenarios.
-Pool wait is separately retained on successful operations. This does not assert
+The retained `pool_ms` is time until the read-only transaction is established:
+checkout plus one SET TRANSACTION round trip, not an exact pool-only timer.
+`query_ms` includes repository SQL/DTO work and error cleanup, not server-only
+execution time; EXPLAIN is the separate server-time evidence. This does not assert
 that PostgreSQL executes 200 statements simultaneously.
 
 For each scale, capture single-request results and exact emitted SQL plans at
