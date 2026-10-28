@@ -329,6 +329,9 @@ def viewport(count, total, zoom):
 
 async def measure(total, samples, candidate=None, baseline_only=False):
     db = engine(pool=30)
+    async with db.connect() as c:
+        assert await c.scalar(text("SELECT data->>'synthetic_only' FROM r01_meta")) == "true"
+        assert await c.scalar(text("SELECT tgenabled FROM pg_trigger WHERE tgname='listings_catalog_version'")) == "O", "setup trigger must be restored before measurements"
     factory = async_sessionmaker(db, expire_on_commit=False)
     pipe = pipeline(factory)
     # Direct _map_intent measures the complete shared map query/DTO path;
@@ -457,7 +460,23 @@ async def main():
     save("runner.json",metadata)
     save(f"runner-{args.phase}-{args.total}.json",metadata)
     if args.phase=="initialize": await initialize(args.sources)
-    elif args.phase=="seed": await seed(args.total)
+    elif args.phase=="seed":
+        control=engine(timeout=0)
+        async with control.begin() as c:
+            assert await c.scalar(text("SELECT data->>'synthetic_only' FROM r01_meta")) == "true"
+            before=await c.scalar(text("SELECT count(*) FROM r01_entities"))
+            await c.execute(text("ALTER TABLE listings DISABLE TRIGGER listings_catalog_version"))
+        log("fixture_trigger_suspended",note="synthetic bulk setup only; restored before measurement")
+        try:
+            await seed(args.total)
+        finally:
+            async with control.begin() as c:
+                await c.execute(text("ALTER TABLE listings ENABLE TRIGGER listings_catalog_version"))
+                after=await c.scalar(text("SELECT count(*) FROM r01_entities"))
+                if after>before:
+                    await c.execute(text("UPDATE catalog_state SET version=version+:added,updated_at=now() WHERE id=1"),{"added":after-before})
+            await control.dispose()
+            log("fixture_trigger_restored",inserted=after-before)
     else: await measure(args.total,args.samples,args.candidate,args.baseline_only)
 
 

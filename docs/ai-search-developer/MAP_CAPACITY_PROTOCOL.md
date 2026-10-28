@@ -37,6 +37,15 @@ setup path. Sampled digests must equal the production expression exactly.
 No preparation-time optimization is applied to the map, its predicates or its
 plans. This distinction is necessary when interpreting setup timings.
 
+Bulk setup uses four disjoint writers. The existing per-row listing trigger
+updates a single catalog-version row and serializes concurrent bulk inserts.
+Only in this disposable fixture phase, suspend that one trigger, then restore
+it in a finally block and advance the catalog version by the inserted-row count.
+Every measurement refuses to run unless the trigger is enabled. All FK/check
+constraints, application indexes and the trigger remain present. No trigger is
+changed in application code or in any application database. Fixture creation
+throughput is not a measurement of real importer throughput.
+
 ## Isolation and resources
 
 Use a fresh PostGIS 16/3.4 container pinned to the same digest as integration CI,
