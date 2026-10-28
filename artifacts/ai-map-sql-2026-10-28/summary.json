@@ -1,0 +1,2196 @@
+{
+  "scales": [
+    {
+      "dataset": {
+        "listings": 100000,
+        "counts_including_template": {
+          "listings": 100001,
+          "listing_room_details": 100001,
+          "external_listing_sources": 200002,
+          "ai_fact_catalogs": 100001,
+          "ai_listing_fact_batches": 200002,
+          "ai_fact_sources": 200002,
+          "ai_listing_facts": 2000020,
+          "ai_listing_search_features": 100001,
+          "ai_query_proofs": 100001
+        },
+        "size_bytes": 2260177379,
+        "version": "PostgreSQL 16.4 (Debian 16.4-1.pgdg110+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 10.2.1-6) 10.2.1 20210110, 64-bit",
+        "postgis": "POSTGIS=\"3.4.3 e365945\" [EXTENSION] PGSQL=\"160\" GEOS=\"3.9.0-CAPI-1.16.2\" PROJ=\"7.2.1 NETWORK_ENABLED=OFF URL_ENDPOINT=https://cdn.proj.org USER_WRITABLE_DIRECTORY=/var/lib/postgresql/.local/share/proj DATABASE_PATH=/usr/share/proj/proj.db\" LIBXML=\"2.9.10\" LIBJSON=\"0.15\" LIBPROTOBUF=\"1.3.3\" WAGYU=\"0.5.0 (Internal)\" TOPOLOGY",
+        "settings": [
+          {
+            "name": "effective_cache_size",
+            "setting": "524288",
+            "unit": "8kB"
+          },
+          {
+            "name": "jit",
+            "setting": "on",
+            "unit": null
+          },
+          {
+            "name": "max_connections",
+            "setting": "260",
+            "unit": null
+          },
+          {
+            "name": "max_parallel_workers_per_gather",
+            "setting": "2",
+            "unit": null
+          },
+          {
+            "name": "shared_buffers",
+            "setting": "131072",
+            "unit": "8kB"
+          },
+          {
+            "name": "track_io_timing",
+            "setting": "on",
+            "unit": null
+          },
+          {
+            "name": "work_mem",
+            "setting": "4096",
+            "unit": "kB"
+          }
+        ]
+      },
+      "baseline": [
+        {
+          "candidates": 0,
+          "zoom": 8,
+          "first_touch": {
+            "ok": true,
+            "pool_ms": 64.96556299998701,
+            "count": 0,
+            "items": 0,
+            "query_ms": 97.31454999996458,
+            "ms": 162.94003699999848
+          }
+        },
+        {
+          "candidates": 0,
+          "zoom": 12,
+          "first_touch": {
+            "ok": true,
+            "pool_ms": 0.929464000137159,
+            "count": 0,
+            "items": 0,
+            "query_ms": 21.171486999946865,
+            "ms": 22.845695000114574
+          }
+        },
+        {
+          "candidates": 0,
+          "zoom": 13,
+          "first_touch": {
+            "ok": true,
+            "pool_ms": 1.0592850001103216,
+            "count": 0,
+            "items": 0,
+            "query_ms": 35.70747499998106,
+            "ms": 37.38976900012858
+          }
+        },
+        {
+          "candidates": 0,
+          "zoom": 21,
+          "first_touch": {
+            "ok": true,
+            "pool_ms": 1.252010999905906,
+            "count": 0,
+            "items": 0,
+            "query_ms": 18.05173000002469,
+            "ms": 19.97447700000521
+          }
+        },
+        {
+          "candidates": 299,
+          "zoom": 8,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.22099000009257,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5017.677192000065,
+            "ms": 5018.901469000184
+          }
+        },
+        {
+          "candidates": 299,
+          "zoom": 12,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.3457790000757086,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5016.527844999928,
+            "ms": 5017.874997000035
+          }
+        },
+        {
+          "candidates": 299,
+          "zoom": 13,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.2779150001733797,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5027.443465000033,
+            "ms": 5028.722442000117
+          }
+        },
+        {
+          "candidates": 299,
+          "zoom": 21,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 2.0533090000753873,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5138.4110179999425,
+            "ms": 5140.465448999976
+          }
+        },
+        {
+          "candidates": 300,
+          "zoom": 8,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.089193000098021,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5018.313777000003,
+            "ms": 5019.404433000091
+          }
+        },
+        {
+          "candidates": 300,
+          "zoom": 12,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.5840370001569681,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5021.637050999971,
+            "ms": 5023.2221900000695
+          }
+        },
+        {
+          "candidates": 300,
+          "zoom": 13,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.4000779999605584,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5021.2837809999655,
+            "ms": 5022.685210999953
+          }
+        },
+        {
+          "candidates": 300,
+          "zoom": 21,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.3860100000329112,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5017.442303000053,
+            "ms": 5018.829406000123
+          }
+        },
+        {
+          "candidates": 301,
+          "zoom": 8,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.2659880001137935,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5022.398955999961,
+            "ms": 5023.666627000011
+          }
+        },
+        {
+          "candidates": 301,
+          "zoom": 12,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.2212780000027124,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5017.675542000006,
+            "ms": 5018.897742000036
+          }
+        },
+        {
+          "candidates": 301,
+          "zoom": 13,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.5313869998863083,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5022.159625000086,
+            "ms": 5023.692354999866
+          }
+        },
+        {
+          "candidates": 301,
+          "zoom": 21,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.2829110000893706,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5020.246072999953,
+            "ms": 5021.530476999942
+          }
+        },
+        {
+          "candidates": 302,
+          "zoom": 8,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.3382839999849239,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5017.699451999988,
+            "ms": 5019.039189000068
+          }
+        },
+        {
+          "candidates": 302,
+          "zoom": 12,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 0.8929790001275251,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5024.933912000051,
+            "ms": 5025.827903000163
+          }
+        },
+        {
+          "candidates": 302,
+          "zoom": 13,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.1321239999233512,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5022.298459000012,
+            "ms": 5023.431614999936
+          }
+        },
+        {
+          "candidates": 302,
+          "zoom": 21,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.4694779999899765,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5018.937640000104,
+            "ms": 5020.408300000099
+          }
+        },
+        {
+          "candidates": 10000,
+          "zoom": 8,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 2.855401000033453,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5016.647320999937,
+            "ms": 5019.5037639998645
+          }
+        },
+        {
+          "candidates": 10000,
+          "zoom": 12,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 0.9484409999913623,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5015.46736399996,
+            "ms": 5016.417007999962
+          }
+        },
+        {
+          "candidates": 10000,
+          "zoom": 13,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.1140930000692606,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5019.220310000037,
+            "ms": 5020.335565000096
+          }
+        },
+        {
+          "candidates": 10000,
+          "zoom": 21,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.0717469999690366,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5018.739736000043,
+            "ms": 5019.812805999891
+          }
+        },
+        {
+          "candidates": 100000,
+          "zoom": 8,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.3900359999752254,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5021.083929000042,
+            "ms": 5022.47517700016
+          }
+        },
+        {
+          "candidates": 100000,
+          "zoom": 12,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.3439940000807837,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5026.029175999838,
+            "ms": 5027.374442000109
+          }
+        },
+        {
+          "candidates": 100000,
+          "zoom": 13,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.4951440000459115,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5021.776377999913,
+            "ms": 5023.272674000054
+          }
+        },
+        {
+          "candidates": 100000,
+          "zoom": 21,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 0.9827700000641926,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5017.440236000084,
+            "ms": 5018.424088000074
+          }
+        }
+      ],
+      "load": [
+        {
+          "total": 100000,
+          "candidates": 300,
+          "zoom": 8,
+          "concurrency": 50,
+          "samples": 200,
+          "seconds": 43.25442132599983,
+          "failures": 200,
+          "p50_ms": 5836.463589999994,
+          "p95_ms": 10936.192489000177,
+          "p99_ms": 11133.973405000006,
+          "pass": false,
+          "error_kinds": {
+            "57014": 200
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 5880.226911000136,
+          "resource_samples": 6,
+          "peak_db_cpu_percent": 779.63,
+          "peak_db_memory_percent_of_8GiB": 39.94
+        },
+        {
+          "total": 100000,
+          "candidates": 300,
+          "zoom": 13,
+          "concurrency": 50,
+          "samples": 200,
+          "seconds": 43.52063249499997,
+          "failures": 200,
+          "p50_ms": 5781.1008609999135,
+          "p95_ms": 11003.120042999853,
+          "p99_ms": 11174.69491099996,
+          "pass": false,
+          "error_kinds": {
+            "57014": 200
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 5953.887857999916,
+          "resource_samples": 7,
+          "peak_db_cpu_percent": 775.73,
+          "peak_db_memory_percent_of_8GiB": 40.75
+        },
+        {
+          "total": 100000,
+          "candidates": 300,
+          "zoom": 8,
+          "concurrency": 100,
+          "samples": 200,
+          "seconds": 41.85831108299999,
+          "failures": 200,
+          "p50_ms": 11154.390463000027,
+          "p95_ms": 20648.310138000168,
+          "p99_ms": 21004.615891999947,
+          "pass": false,
+          "error_kinds": {
+            "57014": 200
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 15591.574708000053,
+          "resource_samples": 7,
+          "peak_db_cpu_percent": 788.81,
+          "peak_db_memory_percent_of_8GiB": 39.64
+        },
+        {
+          "total": 100000,
+          "candidates": 300,
+          "zoom": 13,
+          "concurrency": 100,
+          "samples": 200,
+          "seconds": 41.98515781700007,
+          "failures": 200,
+          "p50_ms": 11028.794237000056,
+          "p95_ms": 20556.66281499998,
+          "p99_ms": 21081.353989000036,
+          "pass": false,
+          "error_kinds": {
+            "57014": 200
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 15466.032240999994,
+          "resource_samples": 6,
+          "peak_db_cpu_percent": 789.41,
+          "peak_db_memory_percent_of_8GiB": 39.63
+        },
+        {
+          "total": 100000,
+          "candidates": 300,
+          "zoom": 8,
+          "concurrency": 200,
+          "samples": 200,
+          "seconds": 32.89042872499999,
+          "failures": 200,
+          "p50_ms": 21379.28551999994,
+          "p95_ms": 32004.55176300011,
+          "p99_ms": 32247.78815900004,
+          "pass": false,
+          "error_kinds": {
+            "57014": 180,
+            "TimeoutError": 20
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 26949.36061600015,
+          "resource_samples": 6,
+          "peak_db_cpu_percent": 787.45,
+          "peak_db_memory_percent_of_8GiB": 39.63
+        },
+        {
+          "total": 100000,
+          "candidates": 300,
+          "zoom": 13,
+          "concurrency": 200,
+          "samples": 200,
+          "seconds": 33.18739778100007,
+          "failures": 200,
+          "p50_ms": 20830.341628000042,
+          "p95_ms": 32696.959091000055,
+          "p99_ms": 33076.20552000003,
+          "pass": false,
+          "error_kinds": {
+            "57014": 180,
+            "TimeoutError": 20
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 27701.7279690001,
+          "resource_samples": 5,
+          "peak_db_cpu_percent": 808.88,
+          "peak_db_memory_percent_of_8GiB": 39.64
+        },
+        {
+          "total": 100000,
+          "candidates": 10000,
+          "zoom": 8,
+          "concurrency": 50,
+          "samples": 200,
+          "seconds": 44.91670680800007,
+          "failures": 200,
+          "p50_ms": 6186.609165999926,
+          "p95_ms": 11092.588329999899,
+          "p99_ms": 11256.857093999997,
+          "pass": false,
+          "error_kinds": {
+            "57014": 200
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 6045.524660999945,
+          "resource_samples": 7,
+          "peak_db_cpu_percent": 801.34,
+          "peak_db_memory_percent_of_8GiB": 39.64
+        },
+        {
+          "total": 100000,
+          "candidates": 10000,
+          "zoom": 13,
+          "concurrency": 50,
+          "samples": 200,
+          "seconds": 43.654222527,
+          "failures": 200,
+          "p50_ms": 6035.261328000161,
+          "p95_ms": 10771.240344000034,
+          "p99_ms": 11029.48613600006,
+          "pass": false,
+          "error_kinds": {
+            "57014": 200
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 5734.857337999983,
+          "resource_samples": 7,
+          "peak_db_cpu_percent": 789.63,
+          "peak_db_memory_percent_of_8GiB": 39.63
+        },
+        {
+          "total": 100000,
+          "candidates": 10000,
+          "zoom": 8,
+          "concurrency": 100,
+          "samples": 200,
+          "seconds": 41.60721313099998,
+          "failures": 200,
+          "p50_ms": 11327.0104180001,
+          "p95_ms": 20549.74104600001,
+          "p99_ms": 20748.650577999797,
+          "pass": false,
+          "error_kinds": {
+            "57014": 200
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 15490.849269000137,
+          "resource_samples": 6,
+          "peak_db_cpu_percent": 781.36,
+          "peak_db_memory_percent_of_8GiB": 39.64
+        },
+        {
+          "total": 100000,
+          "candidates": 10000,
+          "zoom": 13,
+          "concurrency": 100,
+          "samples": 200,
+          "seconds": 41.95508707900012,
+          "failures": 200,
+          "p50_ms": 11181.553315999963,
+          "p95_ms": 20530.696927000008,
+          "p99_ms": 21199.862909000105,
+          "pass": false,
+          "error_kinds": {
+            "57014": 200
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 15471.325949999937,
+          "resource_samples": 7,
+          "peak_db_cpu_percent": 787.82,
+          "peak_db_memory_percent_of_8GiB": 39.64
+        },
+        {
+          "total": 100000,
+          "candidates": 10000,
+          "zoom": 8,
+          "concurrency": 200,
+          "samples": 200,
+          "seconds": 33.08236972000009,
+          "failures": 200,
+          "p50_ms": 21350.066077000065,
+          "p95_ms": 31882.568615999844,
+          "p99_ms": 32949.808468999894,
+          "pass": false,
+          "error_kinds": {
+            "57014": 180,
+            "TimeoutError": 20
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 26877.242475000003,
+          "resource_samples": 5,
+          "peak_db_cpu_percent": 794.91,
+          "peak_db_memory_percent_of_8GiB": 39.64
+        },
+        {
+          "total": 100000,
+          "candidates": 10000,
+          "zoom": 13,
+          "concurrency": 200,
+          "samples": 200,
+          "seconds": 32.76066097100011,
+          "failures": 200,
+          "p50_ms": 20704.976508000072,
+          "p95_ms": 31728.131835000113,
+          "p99_ms": 32692.914098000074,
+          "pass": false,
+          "error_kinds": {
+            "57014": 180,
+            "TimeoutError": 20
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 27299.965599999952,
+          "resource_samples": 6,
+          "peak_db_cpu_percent": 821.16,
+          "peak_db_memory_percent_of_8GiB": 39.63
+        },
+        {
+          "total": 100000,
+          "candidates": 100000,
+          "zoom": 8,
+          "concurrency": 50,
+          "samples": 200,
+          "seconds": 44.384318829999984,
+          "failures": 200,
+          "p50_ms": 6110.917061999999,
+          "p95_ms": 10705.081247999942,
+          "p99_ms": 11013.617030999967,
+          "pass": false,
+          "error_kinds": {
+            "57014": 200
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 5628.731990999995,
+          "resource_samples": 6,
+          "peak_db_cpu_percent": 797.74,
+          "peak_db_memory_percent_of_8GiB": 39.64
+        },
+        {
+          "total": 100000,
+          "candidates": 100000,
+          "zoom": 13,
+          "concurrency": 50,
+          "samples": 200,
+          "seconds": 42.95183593799993,
+          "failures": 200,
+          "p50_ms": 5976.081582999996,
+          "p95_ms": 10574.556469000072,
+          "p99_ms": 10615.670278999914,
+          "pass": false,
+          "error_kinds": {
+            "57014": 200
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 5527.718422999897,
+          "resource_samples": 7,
+          "peak_db_cpu_percent": 789.73,
+          "peak_db_memory_percent_of_8GiB": 40.46
+        },
+        {
+          "total": 100000,
+          "candidates": 100000,
+          "zoom": 8,
+          "concurrency": 100,
+          "samples": 200,
+          "seconds": 41.47225330299989,
+          "failures": 200,
+          "p50_ms": 10753.579861999697,
+          "p95_ms": 20506.44984499968,
+          "p99_ms": 20681.164985000123,
+          "pass": false,
+          "error_kinds": {
+            "57014": 200
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 15453.268807999848,
+          "resource_samples": 7,
+          "peak_db_cpu_percent": 790.35,
+          "peak_db_memory_percent_of_8GiB": 40.33
+        },
+        {
+          "total": 100000,
+          "candidates": 100000,
+          "zoom": 13,
+          "concurrency": 100,
+          "samples": 200,
+          "seconds": 42.5129829980001,
+          "failures": 200,
+          "p50_ms": 11303.986413000075,
+          "p95_ms": 20893.206949999694,
+          "p99_ms": 21195.474228999956,
+          "pass": false,
+          "error_kinds": {
+            "57014": 200
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 15580.159143999936,
+          "resource_samples": 6,
+          "peak_db_cpu_percent": 797.04,
+          "peak_db_memory_percent_of_8GiB": 40.46
+        },
+        {
+          "total": 100000,
+          "candidates": 100000,
+          "zoom": 8,
+          "concurrency": 200,
+          "samples": 200,
+          "seconds": 32.2284150129999,
+          "failures": 200,
+          "p50_ms": 21330.06305500021,
+          "p95_ms": 31885.796394999943,
+          "p99_ms": 32176.617506000184,
+          "pass": false,
+          "error_kinds": {
+            "57014": 180,
+            "TimeoutError": 20
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 26889.0206330002,
+          "resource_samples": 5,
+          "peak_db_cpu_percent": 799.55,
+          "peak_db_memory_percent_of_8GiB": 40.32
+        },
+        {
+          "total": 100000,
+          "candidates": 100000,
+          "zoom": 13,
+          "concurrency": 200,
+          "samples": 200,
+          "seconds": 32.97414187200002,
+          "failures": 200,
+          "p50_ms": 20864.635974000066,
+          "p95_ms": 31651.25315100022,
+          "p99_ms": 32901.01179299972,
+          "pass": false,
+          "error_kinds": {
+            "57014": 180,
+            "TimeoutError": 20
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 27582.88712300009,
+          "resource_samples": 6,
+          "peak_db_cpu_percent": 785.12,
+          "peak_db_memory_percent_of_8GiB": 40.46
+        }
+      ],
+      "completed": true,
+      "cancellation": {
+        "tasks": 20,
+        "elapsed_ms": 197.39240399985647,
+        "remaining_active": 0,
+        "pool_reusable": true
+      }
+    },
+    {
+      "dataset": {
+        "listings": 500000,
+        "counts_including_template": {
+          "listings": 500001,
+          "listing_room_details": 500001,
+          "external_listing_sources": 1000002,
+          "ai_fact_catalogs": 500001,
+          "ai_listing_fact_batches": 1000002,
+          "ai_fact_sources": 1000002,
+          "ai_listing_facts": 10000020,
+          "ai_listing_search_features": 500001,
+          "ai_query_proofs": 500001
+        },
+        "size_bytes": 11132400099,
+        "version": "PostgreSQL 16.4 (Debian 16.4-1.pgdg110+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 10.2.1-6) 10.2.1 20210110, 64-bit",
+        "postgis": "POSTGIS=\"3.4.3 e365945\" [EXTENSION] PGSQL=\"160\" GEOS=\"3.9.0-CAPI-1.16.2\" PROJ=\"7.2.1 NETWORK_ENABLED=OFF URL_ENDPOINT=https://cdn.proj.org USER_WRITABLE_DIRECTORY=/var/lib/postgresql/.local/share/proj DATABASE_PATH=/usr/share/proj/proj.db\" LIBXML=\"2.9.10\" LIBJSON=\"0.15\" LIBPROTOBUF=\"1.3.3\" WAGYU=\"0.5.0 (Internal)\" TOPOLOGY",
+        "settings": [
+          {
+            "name": "effective_cache_size",
+            "setting": "524288",
+            "unit": "8kB"
+          },
+          {
+            "name": "jit",
+            "setting": "on",
+            "unit": null
+          },
+          {
+            "name": "max_connections",
+            "setting": "260",
+            "unit": null
+          },
+          {
+            "name": "max_parallel_workers_per_gather",
+            "setting": "2",
+            "unit": null
+          },
+          {
+            "name": "shared_buffers",
+            "setting": "131072",
+            "unit": "8kB"
+          },
+          {
+            "name": "track_io_timing",
+            "setting": "on",
+            "unit": null
+          },
+          {
+            "name": "work_mem",
+            "setting": "4096",
+            "unit": "kB"
+          }
+        ]
+      },
+      "baseline": [
+        {
+          "candidates": 0,
+          "zoom": 8,
+          "first_touch": {
+            "ok": true,
+            "pool_ms": 2.1822110002176487,
+            "count": 0,
+            "items": 0,
+            "query_ms": 277.13854299963714,
+            "ms": 280.2135380002255
+          }
+        },
+        {
+          "candidates": 0,
+          "zoom": 12,
+          "first_touch": {
+            "ok": true,
+            "pool_ms": 1.1637460002020816,
+            "count": 0,
+            "items": 0,
+            "query_ms": 29.352610999922035,
+            "ms": 31.220673999996507
+          }
+        },
+        {
+          "candidates": 0,
+          "zoom": 13,
+          "first_touch": {
+            "ok": true,
+            "pool_ms": 1.163945999905991,
+            "count": 0,
+            "items": 0,
+            "query_ms": 45.87932599997657,
+            "ms": 47.69856199982314
+          }
+        },
+        {
+          "candidates": 0,
+          "zoom": 21,
+          "first_touch": {
+            "ok": true,
+            "pool_ms": 1.2183440003354917,
+            "count": 0,
+            "items": 0,
+            "query_ms": 27.770649999638408,
+            "ms": 29.657971000233374
+          }
+        },
+        {
+          "candidates": 299,
+          "zoom": 8,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.2592560001394304,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5040.587208000034,
+            "ms": 5041.84820699993
+          }
+        },
+        {
+          "candidates": 299,
+          "zoom": 12,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.0261610000270593,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5020.315002999723,
+            "ms": 5021.34243699993
+          }
+        },
+        {
+          "candidates": 299,
+          "zoom": 13,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.1846669999613368,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5027.804017000108,
+            "ms": 5028.989707000164
+          }
+        },
+        {
+          "candidates": 299,
+          "zoom": 21,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.3541029998123122,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5125.341196000136,
+            "ms": 5126.696240999991
+          }
+        },
+        {
+          "candidates": 300,
+          "zoom": 8,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 0.9814300001380616,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5028.169169999728,
+            "ms": 5029.1517229998135
+          }
+        },
+        {
+          "candidates": 300,
+          "zoom": 12,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.0856889998649422,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5014.693055999942,
+            "ms": 5015.779846999976
+          }
+        },
+        {
+          "candidates": 300,
+          "zoom": 13,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.119744999868999,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5029.47255700019,
+            "ms": 5030.59326399989
+          }
+        },
+        {
+          "candidates": 300,
+          "zoom": 21,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.3678230002369673,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5017.564850999861,
+            "ms": 5018.933626000035
+          }
+        },
+        {
+          "candidates": 301,
+          "zoom": 8,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 2.2808569997323502,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5021.262102000037,
+            "ms": 5023.543780999717
+          }
+        },
+        {
+          "candidates": 301,
+          "zoom": 12,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.0304689999429684,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5017.803919000016,
+            "ms": 5018.83534999979
+          }
+        },
+        {
+          "candidates": 301,
+          "zoom": 13,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.218185000197991,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5014.288801000021,
+            "ms": 5015.508018000219
+          }
+        },
+        {
+          "candidates": 301,
+          "zoom": 21,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.3506299997061433,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5015.6580590000885,
+            "ms": 5017.010042000038
+          }
+        },
+        {
+          "candidates": 302,
+          "zoom": 8,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.1250679999648128,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5017.639320999933,
+            "ms": 5018.765351000184
+          }
+        },
+        {
+          "candidates": 302,
+          "zoom": 12,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.946318000136671,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5018.697301999964,
+            "ms": 5020.645103000334
+          }
+        },
+        {
+          "candidates": 302,
+          "zoom": 13,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.3235949995760166,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5022.217360000013,
+            "ms": 5023.542227999769
+          }
+        },
+        {
+          "candidates": 302,
+          "zoom": 21,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.2714109998341883,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5014.315874000204,
+            "ms": 5015.588277000006
+          }
+        },
+        {
+          "candidates": 10000,
+          "zoom": 8,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.7701070000839536,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5016.69829299999,
+            "ms": 5018.469621999884
+          }
+        },
+        {
+          "candidates": 10000,
+          "zoom": 12,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.3195050000831543,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5020.333188999757,
+            "ms": 5021.6539459997875
+          }
+        },
+        {
+          "candidates": 10000,
+          "zoom": 13,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.0503140001674183,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5016.194902999814,
+            "ms": 5017.246159000024
+          }
+        },
+        {
+          "candidates": 10000,
+          "zoom": 21,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.3379850001911109,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5017.056378999769,
+            "ms": 5018.396228000256
+          }
+        },
+        {
+          "candidates": 500000,
+          "zoom": 8,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.03882200028238,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5024.036897999849,
+            "ms": 5025.076731999889
+          }
+        },
+        {
+          "candidates": 500000,
+          "zoom": 12,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 0.9458340000492171,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5029.341117000058,
+            "ms": 5030.287843000224
+          }
+        },
+        {
+          "candidates": 500000,
+          "zoom": 13,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.5046470002744172,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5024.297885999658,
+            "ms": 5025.803675000134
+          }
+        },
+        {
+          "candidates": 500000,
+          "zoom": 21,
+          "first_touch": {
+            "ok": false,
+            "pool_ms": 1.3765359999524662,
+            "error": "DBAPIError",
+            "detail": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.QueryCanceledError'>: canceling statement due to statement timeout",
+            "sqlstate": "57014",
+            "query_ms": 5022.9577340001015,
+            "ms": 5024.3355319998955
+          }
+        }
+      ],
+      "load": [
+        {
+          "total": 500000,
+          "candidates": 300,
+          "zoom": 8,
+          "concurrency": 50,
+          "samples": 50,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": true,
+          "seconds": 17.537545290000253,
+          "failures": 50,
+          "p50_ms": 14253.723627,
+          "p95_ms": 17340.56424299979,
+          "p99_ms": 17527.87272100022,
+          "pass": false,
+          "error_kinds": {
+            "57014": 50
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 11946.852691999993,
+          "resource_samples": 3,
+          "peak_db_cpu_percent": 780.35,
+          "peak_db_memory_percent_of_8GiB": 92.8
+        },
+        {
+          "total": 500000,
+          "candidates": 300,
+          "zoom": 13,
+          "concurrency": 50,
+          "samples": 50,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": true,
+          "seconds": 16.018777431000217,
+          "failures": 50,
+          "p50_ms": 11396.977620000143,
+          "p95_ms": 15790.099274999648,
+          "p99_ms": 15994.690308999907,
+          "pass": false,
+          "error_kinds": {
+            "57014": 50
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 10726.651294000021,
+          "resource_samples": 2,
+          "peak_db_cpu_percent": 784.67,
+          "peak_db_memory_percent_of_8GiB": 91.47
+        },
+        {
+          "total": 500000,
+          "candidates": 300,
+          "zoom": 8,
+          "concurrency": 100,
+          "samples": 100,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": true,
+          "seconds": 31.428845982999974,
+          "failures": 100,
+          "p50_ms": 20862.05323000013,
+          "p95_ms": 31258.47237800008,
+          "p99_ms": 31401.336133000314,
+          "pass": false,
+          "error_kinds": {
+            "57014": 100
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 26191.171478999877,
+          "resource_samples": 5,
+          "peak_db_cpu_percent": 797.5,
+          "peak_db_memory_percent_of_8GiB": 92.37
+        },
+        {
+          "total": 500000,
+          "candidates": 300,
+          "zoom": 13,
+          "concurrency": 100,
+          "samples": 100,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": true,
+          "seconds": 30.206155853999917,
+          "failures": 100,
+          "p50_ms": 20065.739807000227,
+          "p95_ms": 29029.383901000074,
+          "p99_ms": 29749.053901000025,
+          "pass": false,
+          "error_kinds": {
+            "57014": 100
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 23647.034203999738,
+          "resource_samples": 5,
+          "peak_db_cpu_percent": 789.2,
+          "peak_db_memory_percent_of_8GiB": 93.3
+        },
+        {
+          "total": 500000,
+          "candidates": 300,
+          "zoom": 8,
+          "concurrency": 200,
+          "samples": 200,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": false,
+          "seconds": 34.029943598000045,
+          "failures": 200,
+          "p50_ms": 21730.79424300022,
+          "p95_ms": 31992.50835399971,
+          "p99_ms": 33696.41815900013,
+          "pass": false,
+          "error_kinds": {
+            "57014": 169,
+            "TimeoutError": 31
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 26993.618176999917,
+          "resource_samples": 5,
+          "peak_db_cpu_percent": 787.41,
+          "peak_db_memory_percent_of_8GiB": 92.65
+        },
+        {
+          "total": 500000,
+          "candidates": 300,
+          "zoom": 13,
+          "concurrency": 200,
+          "samples": 200,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": false,
+          "seconds": 34.12648225099974,
+          "failures": 200,
+          "p50_ms": 21359.30472300015,
+          "p95_ms": 33251.874102999864,
+          "p99_ms": 33456.06032999967,
+          "pass": false,
+          "error_kinds": {
+            "57014": 177,
+            "TimeoutError": 23
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 28242.84658100032,
+          "resource_samples": 6,
+          "peak_db_cpu_percent": 789.02,
+          "peak_db_memory_percent_of_8GiB": 92.31
+        },
+        {
+          "total": 500000,
+          "candidates": 10000,
+          "zoom": 8,
+          "concurrency": 50,
+          "samples": 50,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": true,
+          "seconds": 11.154212727000413,
+          "failures": 50,
+          "p50_ms": 6018.194798999957,
+          "p95_ms": 11122.981282000183,
+          "p99_ms": 11129.673684999943,
+          "pass": false,
+          "error_kinds": {
+            "57014": 50
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 6079.885482999998,
+          "resource_samples": 1,
+          "peak_db_cpu_percent": 775.12,
+          "peak_db_memory_percent_of_8GiB": 91.58
+        },
+        {
+          "total": 500000,
+          "candidates": 10000,
+          "zoom": 13,
+          "concurrency": 50,
+          "samples": 50,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": true,
+          "seconds": 11.209544072999961,
+          "failures": 50,
+          "p50_ms": 6126.477323000017,
+          "p95_ms": 11083.271476000391,
+          "p99_ms": 11191.886431000057,
+          "pass": false,
+          "error_kinds": {
+            "57014": 50
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 6058.166677000372,
+          "resource_samples": 2,
+          "peak_db_cpu_percent": 798.41,
+          "peak_db_memory_percent_of_8GiB": 91.58
+        },
+        {
+          "total": 500000,
+          "candidates": 10000,
+          "zoom": 8,
+          "concurrency": 100,
+          "samples": 100,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": true,
+          "seconds": 21.060191341000063,
+          "failures": 100,
+          "p50_ms": 11264.575269000034,
+          "p95_ms": 20447.475984999983,
+          "p99_ms": 20980.11993099999,
+          "pass": false,
+          "error_kinds": {
+            "57014": 100
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 15375.74242599976,
+          "resource_samples": 3,
+          "peak_db_cpu_percent": 775.64,
+          "peak_db_memory_percent_of_8GiB": 91.58
+        },
+        {
+          "total": 500000,
+          "candidates": 10000,
+          "zoom": 13,
+          "concurrency": 100,
+          "samples": 100,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": true,
+          "seconds": 21.540754490999916,
+          "failures": 100,
+          "p50_ms": 11567.666834999727,
+          "p95_ms": 21373.12490300019,
+          "p99_ms": 21487.011174000145,
+          "pass": false,
+          "error_kinds": {
+            "57014": 100
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 16351.321080000162,
+          "resource_samples": 4,
+          "peak_db_cpu_percent": 787.31,
+          "peak_db_memory_percent_of_8GiB": 91.58
+        },
+        {
+          "total": 500000,
+          "candidates": 10000,
+          "zoom": 8,
+          "concurrency": 200,
+          "samples": 200,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": false,
+          "seconds": 32.740743329,
+          "failures": 200,
+          "p50_ms": 21147.928976000003,
+          "p95_ms": 31799.85860700026,
+          "p99_ms": 32636.638532000234,
+          "pass": false,
+          "error_kinds": {
+            "57014": 180,
+            "TimeoutError": 20
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 26764.941501000067,
+          "resource_samples": 5,
+          "peak_db_cpu_percent": 792.15,
+          "peak_db_memory_percent_of_8GiB": 91.59
+        },
+        {
+          "total": 500000,
+          "candidates": 10000,
+          "zoom": 13,
+          "concurrency": 200,
+          "samples": 200,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": false,
+          "seconds": 33.02143775700006,
+          "failures": 200,
+          "p50_ms": 22204.252815000018,
+          "p95_ms": 32745.23746299974,
+          "p99_ms": 32944.85542199982,
+          "pass": false,
+          "error_kinds": {
+            "57014": 180,
+            "TimeoutError": 20
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 27706.728901000133,
+          "resource_samples": 5,
+          "peak_db_cpu_percent": 784.15,
+          "peak_db_memory_percent_of_8GiB": 91.59
+        },
+        {
+          "total": 500000,
+          "candidates": 500000,
+          "zoom": 8,
+          "concurrency": 50,
+          "samples": 50,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": true,
+          "seconds": 11.442985636999765,
+          "failures": 50,
+          "p50_ms": 6318.206101000214,
+          "p95_ms": 11239.897183999801,
+          "p99_ms": 11415.863176999665,
+          "pass": false,
+          "error_kinds": {
+            "57014": 50
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 6213.913949000016,
+          "resource_samples": 2,
+          "peak_db_cpu_percent": 793.5,
+          "peak_db_memory_percent_of_8GiB": 91.58
+        },
+        {
+          "total": 500000,
+          "candidates": 500000,
+          "zoom": 13,
+          "concurrency": 50,
+          "samples": 50,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": true,
+          "seconds": 11.00275510900019,
+          "failures": 50,
+          "p50_ms": 5985.466255000119,
+          "p95_ms": 10962.095326000053,
+          "p99_ms": 10985.049531000186,
+          "pass": false,
+          "error_kinds": {
+            "57014": 50
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 5892.618440000206,
+          "resource_samples": 2,
+          "peak_db_cpu_percent": 776.72,
+          "peak_db_memory_percent_of_8GiB": 90.73
+        },
+        {
+          "total": 500000,
+          "candidates": 500000,
+          "zoom": 8,
+          "concurrency": 100,
+          "samples": 100,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": true,
+          "seconds": 20.903703650999887,
+          "failures": 100,
+          "p50_ms": 11134.910635000324,
+          "p95_ms": 20384.81358600029,
+          "p99_ms": 20782.881266000004,
+          "pass": false,
+          "error_kinds": {
+            "57014": 100
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 15355.26695200042,
+          "resource_samples": 3,
+          "peak_db_cpu_percent": 783.01,
+          "peak_db_memory_percent_of_8GiB": 90.09
+        },
+        {
+          "total": 500000,
+          "candidates": 500000,
+          "zoom": 13,
+          "concurrency": 100,
+          "samples": 100,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": true,
+          "seconds": 21.29892431899998,
+          "failures": 100,
+          "p50_ms": 11225.596313000096,
+          "p95_ms": 21113.3114270001,
+          "p99_ms": 21213.430045999758,
+          "pass": false,
+          "error_kinds": {
+            "57014": 100
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 16048.611038000217,
+          "resource_samples": 3,
+          "peak_db_cpu_percent": 785.1,
+          "peak_db_memory_percent_of_8GiB": 90.81
+        },
+        {
+          "total": 500000,
+          "candidates": 500000,
+          "zoom": 8,
+          "concurrency": 200,
+          "samples": 200,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": false,
+          "seconds": 32.785796550000214,
+          "failures": 200,
+          "p50_ms": 21162.44831599988,
+          "p95_ms": 31798.504043999856,
+          "p99_ms": 32693.177676000232,
+          "pass": false,
+          "error_kinds": {
+            "57014": 180,
+            "TimeoutError": 20
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 26769.000904999757,
+          "resource_samples": 6,
+          "peak_db_cpu_percent": 803.63,
+          "peak_db_memory_percent_of_8GiB": 90.21
+        },
+        {
+          "total": 500000,
+          "candidates": 500000,
+          "zoom": 13,
+          "concurrency": 200,
+          "samples": 200,
+          "requested_samples": 200,
+          "stopped_after_failed_wave": false,
+          "seconds": 32.221522281000034,
+          "failures": 200,
+          "p50_ms": 21211.506951000047,
+          "p95_ms": 31892.320604999895,
+          "p99_ms": 32091.72865699975,
+          "pass": false,
+          "error_kinds": {
+            "57014": 180,
+            "TimeoutError": 20
+          },
+          "successful_p95_ms": null,
+          "successful_p99_ms": null,
+          "pool_p95_ms": 26843.48137300003,
+          "resource_samples": 5,
+          "peak_db_cpu_percent": 789.73,
+          "peak_db_memory_percent_of_8GiB": 90.64
+        }
+      ],
+      "completed": true,
+      "cancellation": {
+        "tasks": 20,
+        "elapsed_ms": 253.8975840002422,
+        "remaining_active": 0,
+        "pool_reusable": true
+      }
+    }
+  ],
+  "latency_note": "Completion/error durations include pool waiting. Error-containing scenarios fail; censored SQL samples are not successful query latencies.",
+  "resources": {
+    "samples": 539,
+    "peak_db_cpu_percent": 827.24,
+    "peak_db_memory_percent_of_8GiB": 93.3,
+    "first": {
+      "at": "2026-10-28T06:59:06.1984872Z",
+      "db": {
+        "BlockIO": "228MB / 345MB",
+        "CPUPerc": "0.00%",
+        "Container": "codex-r01-db-20261028",
+        "ID": "7ac15b057322",
+        "MemPerc": "3.03%",
+        "MemUsage": "248.6MiB / 8GiB",
+        "Name": "codex-r01-db-20261028",
+        "NetIO": "1.14MB / 4.19MB",
+        "PIDs": "6"
+      }
+    },
+    "last": {
+      "at": "2026-10-28T07:55:46.9227562Z",
+      "db": {
+        "BlockIO": "28.1GB / 223GB",
+        "CPUPerc": "71.35%",
+        "Container": "codex-r01-db-20261028",
+        "ID": "7ac15b057322",
+        "MemPerc": "75.72%",
+        "MemUsage": "6.058GiB / 8GiB",
+        "Name": "codex-r01-db-20261028",
+        "NetIO": "26.9MB / 13.2MB",
+        "PIDs": "1"
+      }
+    }
+  },
+  "plans": [
+    {
+      "file": "plan-1000-0-z12-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-0-z13-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-0-z21-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-0-z8-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-1000-z12-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-1000-z13-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-1000-z13-1.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-1000-z21-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-1000-z8-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-299-z12-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-299-z13-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-299-z21-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-299-z8-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-300-z12-0.json",
+      "actual_execution_ms": 1242.714,
+      "actual_planning_ms": 2.42,
+      "shared_hits": 1226188,
+      "shared_reads": 0
+    },
+    {
+      "file": "plan-1000-300-z13-0.json",
+      "actual_execution_ms": 1262.104,
+      "actual_planning_ms": 2.941,
+      "shared_hits": 1226188,
+      "shared_reads": 0
+    },
+    {
+      "file": "plan-1000-300-z21-0.json",
+      "actual_execution_ms": 1296.919,
+      "actual_planning_ms": 2.337,
+      "shared_hits": 1226188,
+      "shared_reads": 0
+    },
+    {
+      "file": "plan-1000-300-z8-0.json",
+      "actual_execution_ms": 1375.693,
+      "actual_planning_ms": 2.72,
+      "shared_hits": 1226188,
+      "shared_reads": 0
+    },
+    {
+      "file": "plan-1000-301-z12-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-301-z13-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-301-z13-1.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-301-z21-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-301-z21-1.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-301-z8-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-302-z12-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-302-z13-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-302-z13-1.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-302-z21-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-302-z21-1.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-1000-302-z8-0.json",
+      "analyze_error": "TypeError",
+      "has_estimated_plan": false
+    },
+    {
+      "file": "plan-100000-0-z12-0.json",
+      "actual_execution_ms": 0.418,
+      "actual_planning_ms": 3.03,
+      "shared_hits": 1,
+      "shared_reads": 0
+    },
+    {
+      "file": "plan-100000-0-z13-0.json",
+      "actual_execution_ms": 0.292,
+      "actual_planning_ms": 3.028,
+      "shared_hits": 1,
+      "shared_reads": 0
+    },
+    {
+      "file": "plan-100000-0-z21-0.json",
+      "actual_execution_ms": 0.173,
+      "actual_planning_ms": 2.55,
+      "shared_hits": 1,
+      "shared_reads": 0
+    },
+    {
+      "file": "plan-100000-0-z8-0.json",
+      "actual_execution_ms": 0.18,
+      "actual_planning_ms": 3.305,
+      "shared_hits": 1,
+      "shared_reads": 0
+    },
+    {
+      "file": "plan-100000-10000-z12-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-10000-z13-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-10000-z21-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-10000-z8-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-100000-z12-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-100000-z13-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-100000-z21-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-100000-z8-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-299-z12-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-299-z13-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-299-z21-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-299-z8-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-300-z12-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-300-z13-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-300-z21-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-300-z8-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-301-z12-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-301-z13-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-301-z21-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-301-z8-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-302-z12-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-302-z13-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-302-z21-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-100000-302-z8-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-0-z12-0.json",
+      "actual_execution_ms": 0.275,
+      "actual_planning_ms": 2.713,
+      "shared_hits": 1,
+      "shared_reads": 0
+    },
+    {
+      "file": "plan-500000-0-z13-0.json",
+      "actual_execution_ms": 0.248,
+      "actual_planning_ms": 3.022,
+      "shared_hits": 1,
+      "shared_reads": 0
+    },
+    {
+      "file": "plan-500000-0-z21-0.json",
+      "actual_execution_ms": 0.286,
+      "actual_planning_ms": 3.186,
+      "shared_hits": 1,
+      "shared_reads": 0
+    },
+    {
+      "file": "plan-500000-0-z8-0.json",
+      "actual_execution_ms": 0.194,
+      "actual_planning_ms": 2.525,
+      "shared_hits": 1,
+      "shared_reads": 0
+    },
+    {
+      "file": "plan-500000-10000-z12-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-10000-z13-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-10000-z21-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-10000-z8-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-299-z12-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-299-z13-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-299-z21-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-299-z8-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-300-z12-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-300-z13-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-300-z21-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-300-z8-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-301-z12-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-301-z13-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-301-z21-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-301-z8-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-302-z12-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-302-z13-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-302-z21-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-302-z8-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-500000-z12-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-500000-z13-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-500000-z21-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    },
+    {
+      "file": "plan-500000-500000-z8-0.json",
+      "analyze_error": "QueryCanceledError",
+      "has_estimated_plan": true
+    }
+  ],
+  "termination": {
+    "large_db_stopped": true,
+    "interrupted_target": 1000000,
+    "reason": "User requested stopping large tests and fixing the SQL first",
+    "catalog_trigger_restored": true,
+    "seeded_rows_at_stop": 900000,
+    "completed_scales": [
+      100000,
+      500000
+    ],
+    "million_scale_measured": false,
+    "stopped_utc": "2026-10-28T08:07:14.8648368Z"
+  }
+}

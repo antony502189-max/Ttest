@@ -103,10 +103,11 @@ def observations():
 def fixture_signature(listing_id):
     """Equivalent digest for FAST bulk fixture certification only.
 
-    The measured map still uses the unmodified production expression. Its OR
-    authority predicate scans the whole source PK once per candidate. For
-    setup only, select the identical ID set with an indexable UNION. Assert
-    exact digest equality on sampled rows before accepting the dataset.
+    Historical baseline runs used the OR authority expression. For their setup
+    only, select the identical ID set with an indexable UNION. Once production
+    uses the same indexed access, this traversal leaves it unchanged. Actual
+    measured source hashes distinguish those revisions. Assert exact digest
+    equality on sampled rows before accepting the dataset.
     """
     def replace(node):
         if not isinstance(node, BooleanClauseList) or node.operator is not operators.or_:

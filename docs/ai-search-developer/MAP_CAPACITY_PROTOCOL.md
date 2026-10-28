@@ -4,6 +4,14 @@ Authorized workload (2026-10-28): 100,000, 500,000 and 1,000,000 listings;
 10 source providers; 20 facts/listing; 50, 100 and 200 concurrent map requests;
 p95 <= 500 ms and p99 <= 1,000 ms. Only synthetic data in isolated infrastructure.
 
+The owner subsequently stopped the large experiment and requested fixing the
+identified SQL first. Historical 100k/500k measurements are complete; 1m setup
+was interrupted at 900k and no 1m load measurement exists. Do not restart that
+large workload as part of the SQL correction. The application now selects
+authority IDs with the same indexed UNION used by the fixture optimization;
+the historical timings describe the earlier OR expression. Validate correctness
+with small regressions and agree a lighter workload separately.
+
 ## Architectural meaning
 
 A fact is one row of `ai_listing_facts`: a typed observation, scope, status,
@@ -19,9 +27,10 @@ records per listing, selected from ten synthetic providers. This preserves 20
 observations total rather than silently multiplying them by ten. The fixture
 uses all key families except availability; its query has one broad hard pets
 criterion, exercising the full proof digest while keeping candidate selectivity
-low. A separate ten-source-record profile splits the same 20 observations two
-per record to investigate source fan-out. It is an additional stress profile,
-not a claim that every real listing has ten independent source records.
+low. The optional ten-source-record profile splits the same 20 observations
+two per record to investigate source fan-out. It was not run after the owner
+stopped the experiment. It is not a claim that every real listing has ten
+independent source records.
 
 Rows are generated from a template published and verified by the actual
 `FactPipeline.complete` and `QueryProofs.prepare` implementations. The writer
