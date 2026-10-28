@@ -8,12 +8,12 @@ from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
 from pydantic import Field
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.ai_search_quota import AISearchRequest
 from ..models.ai_search_session import AISearchResult, AISearchSession, AISessionCommand
-from ..schemas.ai_search_intent import Criteria, IntentPatch, SearchIntent, apply_patch
+from ..schemas.ai_search_intent import Criteria, Criterion, IntentPatch, SearchIntent, SessionCreate, apply_patch
 from ..schemas.ai_search_quota import (
     FailureCode,
     OperationState,
@@ -124,7 +124,13 @@ class SearchSessions:
             raise SessionError("SESSION_EXPIRED")
         return row, self._decode(row)
 
-    async def _create(self, conn: AsyncSession, subject: QuotaSubject, *, max_active: int | None = None) -> SessionSnapshot:
+    async def _create(
+        self, conn: AsyncSession, subject: QuotaSubject, seed: SessionCreate | None = None, *, max_active: int | None = None
+    ) -> SessionSnapshot:
+        seed = SessionCreate() if seed is None else SessionCreate.model_validate(seed.model_dump())
+        criteria = Criteria() if seed.rental_mode is None else Criteria(
+            rental_mode=Criterion(strength="hard", value=seed.rental_mode)
+        )
         if max_active is not None and (type(max_active) is not int or max_active < 1):
             raise ValueError("explicit positive active session bound required")
         await conn.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
@@ -142,7 +148,7 @@ class SearchSessions:
             taxonomy_version="rental.v1",
             session_id=uuid4(),
             version=0,
-            criteria=Criteria(),
+            criteria=criteria,
         )
         expiry = now + timedelta(seconds=self.policy.inactivity_seconds)
         conn.add(
@@ -153,7 +159,7 @@ class SearchSessions:
                 schema_version=intent.schema_version,
                 taxonomy_version=intent.taxonomy_version,
                 version=0,
-                criteria={},
+                criteria=criteria.model_dump(mode="json", exclude_none=True),
                 expires_at=expiry,
                 created_at=now,
                 updated_at=now,
@@ -164,7 +170,7 @@ class SearchSessions:
 
     async def _command(self, conn: AsyncSession, subject: QuotaSubject, key: UUID | None,
                        action: str, source_id: UUID | None = None,
-                       expected_version: int | None = None) -> SessionSnapshot | None:
+                       expected_version: int | None = None, seed_mode: str | None = None) -> SessionSnapshot | None:
         # One lock order for create/reset, including legacy callers. Serialize
         # before reading either command or source row to avoid cap/lock races.
         await conn.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
@@ -176,7 +182,7 @@ class SearchSessions:
         command = await conn.get(AISessionCommand, (subject.kind, subject.id, key))
         if command is None:
             return None
-        if (command.action, command.source_id, command.expected_version) != (action, source_id, expected_version):
+        if (command.action, command.source_id, command.expected_version, command.seed_mode) != (action, source_id, expected_version, seed_mode):
             raise SessionError("SESSION_COMMAND_CONFLICT")
         row, intent = await self._read(conn, subject, command.result_id)
         return SessionSnapshot(intent=intent, expires_at=row.expires_at)
@@ -184,20 +190,21 @@ class SearchSessions:
     @staticmethod
     def _remember(conn: AsyncSession, subject: QuotaSubject, key: UUID | None,
                   snapshot: SessionSnapshot, action: str, source_id: UUID | None = None,
-                  expected_version: int | None = None) -> None:
+                  expected_version: int | None = None, seed_mode: str | None = None) -> None:
         if key is not None:
             conn.add(AISessionCommand(subject_kind=subject.kind, subject_id=subject.id,
                 idempotency_key=key, action=action, source_id=source_id, expected_version=expected_version,
-                result_id=snapshot.intent.session_id))
+                result_id=snapshot.intent.session_id, seed_mode=seed_mode))
 
-    async def create(self, subject: QuotaSubject, *, max_active: int | None = None,
+    async def create(self, subject: QuotaSubject, seed: SessionCreate | None = None, *, max_active: int | None = None,
                      idempotency_key: UUID | None = None) -> SessionSnapshot:
         async with self.ledger.sessions.begin() as conn:
-            replay = await self._command(conn, subject, idempotency_key, "create")
+            seed = SessionCreate() if seed is None else SessionCreate.model_validate(seed.model_dump())
+            replay = await self._command(conn, subject, idempotency_key, "create", seed_mode=seed.rental_mode)
             if replay is not None:
                 return replay
-            snapshot = await self._create(conn, subject, max_active=max_active)
-            self._remember(conn, subject, idempotency_key, snapshot, "create")
+            snapshot = await self._create(conn, subject, seed, max_active=max_active)
+            self._remember(conn, subject, idempotency_key, snapshot, "create", seed_mode=seed.rental_mode)
             return snapshot
 
     async def get(self, subject: QuotaSubject, session_id: UUID) -> SessionSnapshot:
@@ -205,13 +212,14 @@ class SearchSessions:
             row, intent = await self._read(conn, subject, session_id)
             return SessionSnapshot(intent=intent, expires_at=row.expires_at)
 
-    async def reset(self, subject: QuotaSubject, session_id: UUID, expected_version: int, *, max_active: int | None = None,
+    async def reset(self, subject: QuotaSubject, session_id: UUID, expected_version: int, *, seed: SessionCreate | None = None, max_active: int | None = None,
                     idempotency_key: UUID | None = None) -> SessionSnapshot:
         """Explicit caller command only. Never inferred from missing patch fields."""
         if type(expected_version) is not int or not 0 <= expected_version <= 2_147_483_647:
             raise ValueError("a bounded expected version is required")
         async with self.ledger.sessions.begin() as conn:
-            replay = await self._command(conn, subject, idempotency_key, "reset", session_id, expected_version)
+            seed = SessionCreate() if seed is None else SessionCreate.model_validate(seed.model_dump())
+            replay = await self._command(conn, subject, idempotency_key, "reset", session_id, expected_version, seed.rental_mode)
             if replay is not None:
                 return replay
             row, _ = await self._read(conn, subject, session_id, lock=True, allow_expired=True)
@@ -221,8 +229,8 @@ class SearchSessions:
             row.expires_at = row.updated_at
             row.closed_at = row.updated_at
             # New identity; old requests can never resurrect or mutate it.
-            snapshot = await self._create(conn, subject, max_active=max_active)
-            self._remember(conn, subject, idempotency_key, snapshot, "reset", session_id, expected_version)
+            snapshot = await self._create(conn, subject, seed, max_active=max_active)
+            self._remember(conn, subject, idempotency_key, snapshot, "reset", session_id, expected_version, seed.rental_mode)
             return snapshot
 
     async def cleanup_unused(self, *, older_than: datetime, limit: int) -> int:
@@ -244,7 +252,14 @@ class SearchSessions:
                 (AISessionCommand.source_id == AISearchSession.id)).exists()
             ids = list(await conn.scalars(select(AISearchSession.id).where(
                 AISearchSession.expires_at <= older_than, AISearchSession.version == 0,
-                AISearchSession.criteria == {}, ~referenced, ~results, ~commands,
+                # Only exact initial shapes created by this schema are abandoned
+                # seeds. Arbitrary nonempty or edited conversations are retained.
+                AISearchSession.schema_version == "ai-search.v1",
+                AISearchSession.taxonomy_version == "rental.v1",
+                or_(AISearchSession.criteria == {}, *(
+                    AISearchSession.criteria == {"rental_mode": {"strength": "hard", "value": mode}}
+                    for mode in ("long", "holiday")
+                )), ~referenced, ~results, ~commands,
             ).order_by(AISearchSession.expires_at, AISearchSession.id).limit(limit).with_for_update(skip_locked=True)))
             if ids:
                 await conn.execute(delete(AISearchSession).where(AISearchSession.id.in_(ids)))

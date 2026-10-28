@@ -37,7 +37,7 @@ def test_browser_guest_cookie_roundtrip_preflight_and_external_site_rejection():
     def document():
         return HTMLResponse("<!doctype html><title>Local AI contract</title>")
     class Sessions:
-        async def create(self, owner, *, max_active):
+        async def create(self, owner, seed=None, *, max_active):
             return {"session_id": str(uuid4()), "owner": str(owner.id)}
         async def get(self, owner, session_id):
             return {"session_id": str(session_id), "owner": str(owner.id)}

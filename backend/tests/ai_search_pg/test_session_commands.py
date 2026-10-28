@@ -18,7 +18,8 @@ pytestmark = pytest.mark.integration
 
 @pytest.mark.parametrize("action", ["create", "reset"])
 @pytest.mark.parametrize("cap", [1, 2])
-async def test_committed_lifecycle_lost_ack_replays_one_owned_session(store, pg, monkeypatch, action, cap):
+@pytest.mark.parametrize("mode", [None, "long", "holiday"])
+async def test_committed_lifecycle_lost_ack_replays_one_owned_session(store, pg, monkeypatch, action, cap, mode):
     owner, snapshot, *_rest, token = await recovery_runtime(store, monkeypatch, cap=cap)
     # Starting create uses a fresh owner with no occupied slots.
     if action == "create":
@@ -36,6 +37,8 @@ async def test_committed_lifecycle_lost_ack_replays_one_owned_session(store, pg,
     monkeypatch.setattr(store, action, lost_ack)
     path = "/api/v1/ai-search/sessions" + (f"/{snapshot.intent.session_id}/reset" if action == "reset" else "")
     payload = {"idempotency_key": str(key)} | ({"expected_version": 0} if action == "reset" else {})
+    if mode:
+        payload["rental_mode"] = mode
     async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers={
         "Origin": "https://testserver", "X-AI-Request": "1", "Cookie": "ai_search_guest=" + token}) as client:
         assert (await client.post(path, json=payload)).status_code == 503
@@ -43,6 +46,10 @@ async def test_committed_lifecycle_lost_ack_replays_one_owned_session(store, pg,
         assert all(answer.status_code == 200 for answer in answers)
         ids = {answer.json()["intent"]["session_id"] for answer in answers}
         assert len(ids) == 1
+        assert answers[0].json()["intent"]["criteria"] == (
+            {"rental_mode": {"strength": "hard", "value": mode}} if mode else {})
+        changed = await client.post(path, json={**payload, "rental_mode": "holiday" if mode != "holiday" else "long"})
+        assert changed.status_code == 409 and changed.json()["detail"] == "SESSION_COMMAND_CONFLICT"
         async with pg[1]() as conn:
             assert await conn.scalar(select(func.count()).select_from(AISearchSession).where(
                 AISearchSession.subject_id == owner.id, AISearchSession.closed_at.is_(None))) == 1

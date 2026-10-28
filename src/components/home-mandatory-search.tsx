@@ -134,7 +134,7 @@ export function HomeMandatorySearch() {
       <RentalTypeSwitch home />
     </div>
 
-    <HomeAISearch />
+    <HomeAISearch homeMode={rentalMode} />
 
     <fieldset className="mandatory-choice-group">
       <legend>{t('¿Para quién buscas?')}</legend>

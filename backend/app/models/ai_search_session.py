@@ -76,6 +76,7 @@ class AISessionCommand(Base):
     __tablename__ = "ai_session_commands"
     __table_args__ = (
         CheckConstraint("subject_kind IN ('guest', 'auth')", name="ck_ai_command_subject"),
+        CheckConstraint("seed_mode IS NULL OR seed_mode IN ('long', 'holiday')", name="ck_ai_command_seed"),
         CheckConstraint("(action = 'create' AND source_id IS NULL AND expected_version IS NULL) OR "
                         "(action = 'reset' AND source_id IS NOT NULL AND expected_version IS NOT NULL AND expected_version >= 0)",
                         name="ck_ai_command_action"),
@@ -84,6 +85,7 @@ class AISessionCommand(Base):
     subject_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
     idempotency_key: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
     action: Mapped[str] = mapped_column(String(6))
+    seed_mode: Mapped[str | None] = mapped_column(String(7))
     source_id: Mapped[UUID | None] = mapped_column(ForeignKey("ai_search_sessions.id"))
     expected_version: Mapped[int | None] = mapped_column(Integer)
     result_id: Mapped[UUID] = mapped_column(ForeignKey("ai_search_sessions.id"))

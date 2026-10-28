@@ -2,7 +2,7 @@
 import asyncio
 import hashlib
 from dataclasses import dataclass
-from typing import Annotated, Protocol
+from typing import Annotated, Literal, Protocol
 from urllib.parse import urlsplit
 from uuid import UUID
 
@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator, m
 from ...repositories.ai_search_quota import QuotaError
 from ...repositories.ai_search_sessions import SearchSessions, SessionError
 from ...repositories.ai_verified_cards import VerifiedCardSearch
+from ...schemas.ai_search_intent import SessionCreate
 from ...schemas.ai_search_quota import QuotaOperation, QuotaSubject
 from ...schemas.listings import ListingCardSearchRequest, ListingMapRequest
 from ...services.ai_card_cursors import InvalidAICursor
@@ -179,7 +180,8 @@ class MessageBody(APIBody):
 
 
 class CreateBody(APIBody):
-    idempotency_key: UUID
+    idempotency_key: UUID | None = None
+    rental_mode: Literal["long", "holiday"] | None = None
 
 
 class VersionBody(APIBody):
@@ -188,6 +190,7 @@ class VersionBody(APIBody):
 
 class ResetBody(VersionBody):
     idempotency_key: UUID | None = None
+    rental_mode: Literal["long", "holiday"] | None = None
 
 
 class PageBody(VersionBody):
@@ -265,8 +268,8 @@ async def identity(owner: QuotaSubject = Depends(subject)):
 @router.post("/sessions")
 async def create(payload: CreateBody | None = None, active: AISearchRuntime = Depends(runtime), owner: QuotaSubject = Depends(subject)):
     await active.http_gate.check(active.guests.ip_key(f"{owner.kind}:{owner.id}", purpose="ai-session-create"))
-    return jsonable_encoder(await active.sessions.create(owner, max_active=active.policy.max_active_sessions,
-        **({"idempotency_key": payload.idempotency_key} if payload else {})), exclude_none=True)
+    return jsonable_encoder(await active.sessions.create(owner, SessionCreate(rental_mode=payload.rental_mode) if payload else None, max_active=active.policy.max_active_sessions,
+        **({"idempotency_key": payload.idempotency_key} if payload and payload.idempotency_key else {})), exclude_none=True)
 
 
 @router.get("/sessions/{session_id}")
@@ -280,7 +283,8 @@ async def reset(session_id: UUID, payload: ResetBody, active: AISearchRuntime = 
     await active.http_gate.check(active.guests.ip_key(f"{owner.kind}:{owner.id}", purpose="ai-session-create"))
     return jsonable_encoder(await active.sessions.reset(owner, session_id, payload.expected_version,
                                                        max_active=active.policy.max_active_sessions,
-                                                       **({"idempotency_key": payload.idempotency_key} if payload.idempotency_key else {})), exclude_none=True)
+                                                       seed=SessionCreate(rental_mode=payload.rental_mode),
+                                                       idempotency_key=payload.idempotency_key), exclude_none=True)
 
 
 @router.post("/sessions/{session_id}/cards")

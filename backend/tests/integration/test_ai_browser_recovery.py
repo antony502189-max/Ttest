@@ -75,6 +75,7 @@ async def test_real_http_browser_recovers_without_stranded_session(active, monke
                 await page.add_init_script("localStorage.setItem('112233:language:v1','es'); localStorage.setItem('112233:mobile-onboarding:v1','done:refreshable')")
                 await page.goto(origin + "/#/")
                 await page.get_by_role("button", name="Escribir mi búsqueda").click()
+                await page.locator("#ai-rental-mode").select_option("none")
                 await page.locator("#ai-search-text").fill("Una habitación con mi perro")
                 if phase == "guest-query":
                     # Bootstrap ownership, then corrupt it immediately before query.

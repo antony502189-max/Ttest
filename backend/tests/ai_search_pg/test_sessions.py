@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -12,7 +13,7 @@ from app.models.ai_search_quota import AISearchRequest, AIUsageDay
 from app.models.ai_search_session import AISearchResult, AISearchSession
 from app.repositories.ai_search_quota import QuotaError, QuotaLedger
 from app.repositories.ai_search_sessions import SearchSessions, SessionError
-from app.schemas.ai_search_intent import IntentPatch
+from app.schemas.ai_search_intent import IntentPatch, SessionCreate
 from app.schemas.ai_search_quota import FailureCode, LeasePolicy, QuotaOperation, QuotaSubject, ResultReceipt
 
 pytestmark = pytest.mark.integration
@@ -84,6 +85,32 @@ async def test_owned_sessions_and_reads_do_not_renew_ttl(store):
             await store.get(other, initial.intent.session_id)
         with pytest.raises(SessionError, match="SESSION_NOT_FOUND"):
             await store.reset(other, initial.intent.session_id, 0)
+
+
+@pytest.mark.parametrize("mode", ["long", "holiday"])
+async def test_explicit_mode_seeds_only_new_session_and_survives_followup(store, pg, mode):
+    subject = QuotaSubject(kind="guest", id=uuid4())
+    original = await store.create(subject)
+    seeded = await store.create(subject, SessionCreate(rental_mode=mode))
+    assert seeded.intent.criteria.model_dump(exclude_none=True) == {"rental_mode": hard(mode)}
+    assert await store.get(subject, seeded.intent.session_id) == seeded
+    assert await store.get(subject, original.intent.session_id) == original
+    assert await usage(pg, subject) == (None, None)
+    _, receipt, state = await complete(store, subject, seeded, {"balcony": hard(False)})
+    assert state.status == "succeeded"
+    committed = await store.result(subject, receipt.result_ref)
+    assert committed.intent.criteria.rental_mode.value == mode
+    assert committed.intent.criteria.balcony.value is False
+    reset = await store.reset(subject, seeded.intent.session_id, 1)
+    assert reset.intent.criteria.model_dump(exclude_none=True) == {}
+
+
+async def test_explicit_mode_does_not_bypass_reviewed_active_session_bound(store):
+    subject = QuotaSubject(kind="guest", id=uuid4())
+    first = await store.create(subject, SessionCreate(rental_mode="holiday"), max_active=1)
+    with pytest.raises(SessionError, match="SESSION_LIMIT"):
+        await store.create(subject, SessionCreate(rental_mode="long"), max_active=1)
+    assert await store.get(subject, first.intent.session_id) == first
 
 
 async def test_finalize_never_transfers_guest_session_to_another_subject(store, pg):
@@ -409,3 +436,58 @@ async def test_expiry_is_checked_after_waiting_for_session_row_lock(store, pg):
     result = await task
     assert result.failure_code == "SESSION_EXPIRED"
     assert await usage(pg, subject) == (0, 0)
+
+
+async def test_unused_seed_cleanup_retains_audit_results_edits_and_locks(store, pg):
+    subject = QuotaSubject(kind="guest", id=uuid4())
+    seeds = [await store.create(subject, SessionCreate(rental_mode=mode)) for mode in (None, "long", "holiday")]
+    kept = []
+    # Reserved, running, failed and succeeded requests all remain audit references.
+    for status in ("reserved", "running", "failed", "succeeded"):
+        initial = await store.create(subject, SessionCreate(rental_mode="long"))
+        op = operation(initial)
+        await store.ledger.reserve(subject, op)
+        if status != "reserved":
+            await store.ledger.claim(subject, op)
+        if status == "failed":
+            await store.ledger.release(subject, op, 1, FailureCode.BACKEND_FAILURE)
+        elif status == "succeeded":
+            await store.finalize_patch(subject, op, 1, patch(initial, {"balcony": hard(False)}),
+                                       ResultReceipt(result_ref=uuid4(), count=0))
+        kept.append(initial.intent.session_id)
+    # Isolate the NOT EXISTS result guard from the version/request guards.
+    audit_session = await store.create(subject)
+    async with pg[1].begin() as conn:
+        await conn.execute(update(AISearchSession).where(AISearchSession.id == kept[-1]).values(
+            version=0, criteria={"rental_mode": hard("long")}))
+        # Synthetic alternate audit binding keeps the request intact while
+        # making only the result reference protect the original version-0 row.
+        await conn.execute(update(AISearchRequest).where(AISearchRequest.session_id == kept[-1]).values(
+            session_id=audit_session.intent.session_id))
+    kept.append(audit_session.intent.session_id)
+    for criteria, version in [({"balcony": hard(False)}, 0), ({"rental_mode": hard("long")}, 1),
+                              ({"rental_mode": {"strength": "soft", "value": "long"}}, 0),
+                              ({"rental_mode": hard("holiday"), "terrace": hard(True)}, 0)]:
+        initial = await store.create(subject)
+        kept.append(initial.intent.session_id)
+        async with pg[1].begin() as conn:
+            await conn.execute(update(AISearchSession).where(AISearchSession.id == kept[-1]).values(
+                criteria=criteria, version=version))
+    cutoff = datetime.now(UTC) - timedelta(seconds=10)
+    async with pg[1].begin() as conn:
+        await conn.execute(update(AISearchSession).values(expires_at=cutoff - timedelta(seconds=1)))
+    active = await store.create(subject, SessionCreate(rental_mode="holiday"))
+    kept.append(active.intent.session_id)
+    locked_id = seeds[1].intent.session_id
+    async with pg[1].begin() as blocker:
+        await blocker.execute(select(AISearchSession).where(AISearchSession.id == locked_id).with_for_update())
+        assert await store.cleanup_unused(older_than=cutoff, limit=1) == 1
+        assert await store.cleanup_unused(older_than=cutoff, limit=100) == 1
+        assert await store.cleanup_unused(older_than=cutoff, limit=100) == 0
+    assert await store.cleanup_unused(older_than=cutoff, limit=100) == 1
+    assert await store.cleanup_unused(older_than=cutoff, limit=100) == 0
+    async with pg[1]() as conn:
+        assert set(await conn.scalars(select(AISearchSession.id))) == set(kept)
+        assert await conn.scalar(select(func.count()).select_from(AISearchRequest)) == 4
+        assert await conn.scalar(select(func.count()).select_from(AISearchResult)) == 1
+    assert await usage(pg, subject) == (1, 2)

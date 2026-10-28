@@ -322,6 +322,7 @@ async def test_ui_asgi_bridge_recovers_expired_terminal_receipt(active, monkeypa
             await page.add_init_script("localStorage.setItem('112233:language:v1','es'); localStorage.setItem('112233:mobile-onboarding:v1','done:refreshable')")
             await page.goto(frontend + "/#/")
             await page.get_by_role("button", name="Escribir mi búsqueda").click()
+            await page.locator("#ai-rental-mode").select_option("none")
             await page.locator("#ai-search-text").fill("Una habitación con mi perro")
             await page.get_by_role("button", name="Buscar habitaciones", exact=True).click()
             retry = page.get_by_role("button", name="Comprobar el mismo intento")
@@ -334,6 +335,7 @@ async def test_ui_asgi_bridge_recovers_expired_terminal_receipt(active, monkeypa
             assert parser.calls == 1
             assert (await client.get("/api/v1/ai-search/quota")).json()["used"] == 1
             await page.get_by_role("button", name="Iniciar nueva conversación").click()
+            await page.locator("#ai-rental-mode").select_option("keep")
             await expect(page.get_by_role("button", name="Buscar habitaciones", exact=True)).to_be_enabled()
         finally:
             await browser.close()
