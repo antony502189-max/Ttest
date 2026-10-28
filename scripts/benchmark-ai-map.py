@@ -1,0 +1,441 @@
+"""Offline R-01 experiment. Run only in the private disposable Docker lab.
+
+No provider, worker, public runtime or HTTP registration is constructed.
+Bulk fixtures are derived from real pipeline-validated templates, then sampled
+through the real verifier. SQL comes from the actual map implementation.
+"""
+from __future__ import annotations
+
+import argparse
+import asyncio
+import hashlib
+import importlib.metadata
+import json
+import math
+import os
+import platform
+import time
+from datetime import UTC, datetime
+from pathlib import Path
+from uuid import UUID, uuid4
+
+from app.models import ExternalListingSource, Listing, User
+from app.models.ai_fact_pipeline import AiFactCatalog, AiFactSource
+from app.models.ai_listing_facts import (
+    AiListingFact,
+    AiListingFactBatch,
+    AiListingSearchFeatures,
+)
+from app.models.ai_query_proof import AiQueryProof
+from app.models.room_details import ListingRoomDetails
+from app.repositories.ai_fact_pipeline import FactPipeline
+from app.repositories.ai_fact_snapshots import source_snapshot_hash
+from app.repositories.ai_query_proofs import QueryProofs, projection_signature
+from app.repositories.ai_verified_cards import VerifiedCardSearch
+from app.repositories.listings import point
+from app.schemas.ai_fact_pipeline import FactQueuePolicy, SourceInput
+from app.schemas.ai_listing_facts import FactBatch, FactVocabulary, digest
+from app.schemas.ai_search_intent import SearchIntent
+from app.schemas.listings import ListingMapRequest
+from sqlalchemy import event, func, literal, select, text, update
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.sql import operators, visitors
+from sqlalchemy.sql.elements import BooleanClauseList
+
+DSN = "postgresql+asyncpg://r01:r01-synthetic-only@r01-db:5432/r01_synthetic"
+OUT = Path("/results")
+RESOLVER = "r01-synthetic.v1"
+
+
+def save(name, value):
+    OUT.mkdir(exist_ok=True)
+    (OUT / name).write_text(json.dumps(value, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+
+
+def log(kind, **data):
+    value = {"at": datetime.now(UTC).isoformat(), "kind": kind, **data}
+    print(json.dumps(value, default=str), flush=True)
+    with (OUT / "progress.jsonl").open("a", encoding="utf-8") as f:
+        f.write(json.dumps(value, default=str) + "\n")
+
+
+def engine(pool=1, timeout=5000):
+    # Fixed lab hostname/database; no CLI/environment override to application DBs.
+    if os.environ.get("R01_DISPOSABLE_LAB") != "synthetic-only":
+        raise RuntimeError("explicit isolated-lab marker required")
+    return create_async_engine(DSN, pool_size=pool, max_overflow=0, pool_timeout=30,
+        connect_args={"server_settings": {"statement_timeout": str(timeout),
+            "lock_timeout": "1000", "application_name": "codex-r01-synthetic"}})
+
+
+def pipeline(factory):
+    vocab = FactVocabulary(amenity_codes=frozenset({"wifi"}), catalog_other_codes=frozenset(),
+        tenant_group_codes=frozenset({"students"}), municipality_zones=frozenset())
+    return FactPipeline(factory, FactQueuePolicy(lease_seconds=600, max_attempts=2, retry_delay_seconds=1),
+        vocab, resolver_version=RESOLVER)
+
+
+def observations():
+    def value(key, typed, qualifiers=None, status="explicit_allow"):
+        return {"fact_id": uuid4(), "key": key, "status": status, "typed_value": typed,
+            "qualifiers": qualifiers or {}, "origin": "source_text", "evidence": [
+                {"field": "description", "quote": "Synthetic fixture", "start": 0, "end": 17}]}
+    policy = lambda: {"kind": "policy", "allowed": True}
+    boolean = lambda: {"kind": "boolean", "value": True}
+    quantity = lambda n, unit="persons": {"kind": "quantity", "value": n, "unit": unit}
+    return [value("pets", policy()), value("smoking", policy(), {"smoking_scope": "indoors"}),
+        value("couples", policy()), value("children", policy()),
+        value("tenant_groups", policy(), {"tenant_group": "students"}),
+        value("capacity_total", quantity(2), {"inventory_scope": "rented_unit"}),
+        value("current_room_residents", quantity(0), {"inventory_scope": "rented_unit"}),
+        value("available_spots", quantity(2), {"inventory_scope": "rented_unit"}),
+        value("price", {"kind": "money", "amount": "725", "currency": "EUR", "period": "monthly"}),
+        value("deposit", {"kind": "money", "amount": "100", "currency": "EUR", "period": "one_off"}),
+        *[value(k, boolean()) for k in ("furnished", "bills_included", "balcony", "terrace")],
+        value("amenity", boolean(), {"amenity_code": "wifi"}),
+        value("rental_mode", {"kind": "category", "value": "long"}),
+        value("accommodation", {"kind": "category", "value": "room"}),
+        value("geography", {"kind": "geography", "province_code": "38", "municipality_code": "38001"}),
+        value("minimum_stay", quantity(1, "months")), value("maximum_stay", quantity(12, "months"))]
+
+
+def fixture_signature(listing_id):
+    """Equivalent digest for FAST bulk fixture certification only.
+
+    The measured map still uses the unmodified production expression. Its OR
+    authority predicate scans the whole source PK once per candidate. For
+    setup only, select the identical ID set with an indexable UNION. Assert
+    exact digest equality on sampled rows before accepting the dataset.
+    """
+    def replace(node):
+        if not isinstance(node, BooleanClauseList) or node.operator is not operators.or_:
+            return None
+        clauses = list(node.clauses)
+        if len(clauses) != 2 or getattr(clauses[0].left, "name", None) != "canonical_listing_id":
+            return None
+        _, right = clauses
+        if getattr(right.left, "name", None) != "id" or right.operator is not operators.in_op:
+            return None
+        current = ExternalListingSource.__table__.alias()
+        ids = select(current.c.id).where(current.c.canonical_listing_id == listing_id).correlate_except(current)
+        return right.left.in_(ids.union(right.right.element))
+    return visitors.replacement_traverse(projection_signature(listing_id), {}, replace)
+
+
+async def initialize(sources):
+    if sources not in (2, 10):
+        raise ValueError("20 observations are split across 2 or 10 records")
+    # Environment is replaced by the launcher, not loaded from a project .env.
+    process = await asyncio.create_subprocess_exec("python", "-m", "alembic", "upgrade", "head", cwd="/code/backend")
+    if await process.wait():
+        raise RuntimeError("lab migration failed")
+    db = engine(timeout=60000)
+    factory = async_sessionmaker(db, expire_on_commit=False)
+    pipe = pipeline(factory)
+    async with db.begin() as c:
+        await c.execute(text("CREATE EXTENSION IF NOT EXISTS pg_stat_statements"))
+        await c.execute(text("CREATE TABLE r01_entities (n bigint PRIMARY KEY, id uuid UNIQUE NOT NULL)"))
+        await c.execute(text("CREATE TABLE r01_ids (old text PRIMARY KEY, kind text, slot int)"))
+        await c.execute(text("CREATE TABLE r01_meta (data jsonb NOT NULL)"))
+        await c.execute(text("INSERT INTO r01_meta VALUES (:v)"), {"v": json.dumps({"synthetic_only": True, "sources": sources})})
+        await c.execute(text("""CREATE FUNCTION r01_uuid(k text, n bigint, s int DEFAULT 0) RETURNS uuid
+            LANGUAGE sql IMMUTABLE AS $$ SELECT md5(k || ':' || n::text || ':' || s::text)::uuid $$"""))
+        await c.execute(text("""CREATE FUNCTION r01_rewrite(v jsonb, n bigint) RETURNS jsonb LANGUAGE plpgsql AS $$
+            DECLARE r record; t text := v::text; BEGIN
+            FOR r IN SELECT * FROM r01_ids LOOP t := replace(t, r.old, r01_uuid(r.kind,n,r.slot)::text); END LOOP;
+            RETURN t::jsonb; END $$"""))
+        await c.execute(text("""CREATE FUNCTION r01_new(v uuid, n bigint) RETURNS uuid LANGUAGE sql STABLE AS $$
+            SELECT r01_uuid(kind,n,slot) FROM r01_ids WHERE old=v::text $$"""))
+        await c.execute(text("""CREATE FUNCTION r01_canonical(v jsonb) RETURNS text LANGUAGE plpgsql IMMUTABLE AS $$
+            DECLARE t text; BEGIN
+            IF jsonb_typeof(v) = 'object' THEN
+              SELECT '{' || coalesce(string_agg(to_jsonb(key)::text || ':' || r01_canonical(value), ',' ORDER BY key COLLATE "C"),'') || '}' INTO t FROM jsonb_each(v);
+            ELSIF jsonb_typeof(v) = 'array' THEN
+              SELECT '[' || coalesce(string_agg(r01_canonical(value), ',' ORDER BY ordinal),'') || ']' INTO t FROM jsonb_array_elements(v) WITH ORDINALITY AS e(value,ordinal);
+            ELSE t := v::text; END IF; RETURN t; END $$"""))
+    now = datetime.now(UTC)
+    async with factory() as s, s.begin():
+        owner = User(email="r01@example.invalid", password_hash="unused", name="Synthetic Owner", role="host", initials="SO", email_verified=True)
+        s.add(owner)
+        await s.flush()
+        listing = Listing(owner_user_id=owner.id, title="Synthetic load fixture", city="Adeje", area="Synthetic",
+            approximate_address="Synthetic only", rental_mode="long", monthly_price=725,
+            room_capacity=2, location=point(-16.95, 28.05), status="published", published_at=now,
+            deposit_amount=100, minimum_stay_months=1, bills_included=True, furnished=True)
+        s.add(listing)
+        await s.flush()
+        s.add(ListingRoomDetails(listing_id=listing.id, room_capacity_v2=2, current_room_residents=0, rental_unit="room"))
+        rows = []
+        for slot in range(sources):
+            row = ExternalListingSource(source_name=f"synth-{slot}", external_id=f"template-{slot}",
+                source_url=f"https://example.invalid/template/{slot}", canonical_listing_id=listing.id,
+                fingerprint=digest(f"source-{slot}"), raw_payload={"synthetic": True}, normalized_payload={},
+                current_status="active", last_success_at=now, content_updated_at=now)
+            s.add(row)
+            rows.append(row)
+        await s.flush()
+        lid, source_ids = listing.id, [r.id for r in rows]
+    facts = observations()
+    assert len(facts) == 20
+    for slot, source_id in enumerate(source_ids):
+        async with factory() as s:
+            _, authority = await pipe._authority(s, lid, lock=False)
+        fields = {"description": "Synthetic fixture"}
+        await pipe.observe(SourceInput(source_record_id=source_id, canonical_listing_id=lid,
+            content_hash=digest(fields), snapshot_hash=authority[source_id].snapshot_hash,
+            schema_version="ai-facts.v1", taxonomy_version="ai-search.v1", extractor_version=RESOLVER))
+        claim = await pipe.claim()
+        batch = FactBatch.model_validate({"batch_id": uuid4(), "canonical_listing_id": lid,
+            "source_record_id": source_id, "source_generation": claim.generation,
+            "content_hash": claim.content_hash, "schema_version": claim.schema_version,
+            "taxonomy_version": claim.taxonomy_version, "extractor_version": claim.extractor_version,
+            "observed_at": datetime.now(UTC), "source_status": "active", "last_successful_check_at": None,
+            "last_content_change_at": None, "last_check_error_at": None, "facts": facts[slot::sources]})
+        await pipe.complete(claim, batch, fields)
+    assert await QueryProofs(pipe).prepare(lid), "real template verifier rejected fixture"
+    async with factory() as s, s.begin():
+        mappings = [(str(lid), "listing", 0)]
+        for slot, source in enumerate((await s.scalars(select(AiFactSource).where(AiFactSource.canonical_listing_id == lid).order_by(AiFactSource.source_record_id))).all()):
+            mappings += [(str(source.source_record_id), "source", slot), (str(source.batch_id), "batch", slot)]
+        stored = (await s.scalars(select(AiListingFact).where(AiListingFact.batch_id.in_(
+            select(AiFactSource.batch_id).where(AiFactSource.canonical_listing_id == lid))).order_by(AiListingFact.key))).all()
+        assert len(stored) == 20
+        for i, fact in enumerate(stored):
+            # complete() replaces extractor IDs with deterministic job IDs.
+            mappings.append((str(fact.id), "fact", i))
+        for old, kind, slot in mappings:
+            await s.execute(text("INSERT INTO r01_ids VALUES (:old,:kind,:slot)"), {"old": old, "kind": kind, "slot": slot})
+    save("template.json", {"listing": lid, "vocabulary_hash": pipe.vocabulary_hash, "sources": sources,
+        "observations": 20, "verified_by": "FactPipeline.complete + QueryProofs.prepare"})
+    await db.dispose()
+    log("initialized", sources=sources)
+
+
+async def seed(total, chunk=5000):
+    template = json.loads((OUT / "template.json").read_text())
+    db = engine(timeout=0)
+    lid = UUID(template["listing"])
+    factory = async_sessionmaker(db, expire_on_commit=False)
+    pipe = pipeline(factory)
+    async with db.connect() as c:
+        assert (await c.scalar(text("SELECT data->>'synthetic_only' FROM r01_meta"))) == "true"
+        start = (await c.scalar(text("SELECT coalesce(max(n),0) FROM r01_entities"))) + 1
+    models = [Listing, ListingRoomDetails, ExternalListingSource, AiFactCatalog, AiListingFactBatch,
+        AiFactSource, AiListingFact, AiListingSearchFeatures]
+    template_where = {Listing: "t.id=:lid", ListingRoomDetails: "t.listing_id=:lid",
+        AiListingFact: "t.batch_id IN (SELECT batch_id FROM ai_fact_sources WHERE canonical_listing_id=:lid)"}
+    for lo in range(start, total + 1, chunk):
+        hi = min(total, lo + chunk - 1)
+        began = time.perf_counter()
+        async with db.begin() as c:
+            await c.execute(text("INSERT INTO r01_entities SELECT g,r01_uuid('listing',g) FROM generate_series(CAST(:lo AS bigint),CAST(:hi AS bigint)) g"), {"lo": lo, "hi": hi})
+            for model in models:
+                table = model.__tablename__
+                condition = template_where.get(model, "t.canonical_listing_id=:lid")
+                extra = "jsonb_build_object('canonical_listing_id',r01_uuid('listing',g))"
+                if model is Listing:
+                    extra = "jsonb_build_object('id',r01_uuid('listing',g),'location',ST_SetSRID(ST_MakePoint(-16.9+((g-1)%1000)*0.0001,28+((g-1)/1000)*0.0001),4326)::geography)"
+                elif model is ListingRoomDetails:
+                    extra = "jsonb_build_object('listing_id',r01_uuid('listing',g))"
+                elif model is ExternalListingSource:
+                    extra += " || jsonb_build_object('id',r01_new(t.id,g),'external_id',g::text||'-'||t.external_id,'source_url','https://example.invalid/'||g::text||'/'||t.external_id,'source_name','synth-'||((g + (SELECT slot FROM r01_ids WHERE old=t.id::text))%10)::text)"
+                elif model is AiListingFactBatch:
+                    extra += " || jsonb_build_object('id',r01_new(t.id,g),'source_record_id',r01_new(t.source_record_id,g))"
+                elif model is AiFactSource:
+                    extra += " || jsonb_build_object('source_record_id',r01_new(t.source_record_id,g),'batch_id',r01_new(t.batch_id,g))"
+                elif model is AiListingFact:
+                    extra = "jsonb_build_object('id',r01_new(t.id,g),'batch_id',r01_new(t.batch_id,g))"
+                elif model is AiListingSearchFeatures:
+                    extra += " || jsonb_build_object('features',r01_rewrite(t.features,g))"
+                await c.execute(text(f"INSERT INTO {table} SELECT (filled.row).* FROM {table} t CROSS JOIN generate_series(CAST(:lo AS bigint),CAST(:hi AS bigint)) g CROSS JOIN LATERAL (SELECT jsonb_populate_record(NULL::{table},to_jsonb(t) || {extra}) AS row OFFSET 0) filled WHERE {condition}"), {"lo": lo, "hi": hi, "lid": lid})
+            snapshot = select(ExternalListingSource.id.label("id"), source_snapshot_hash().label("hash")).where(
+                ExternalListingSource.canonical_listing_id.in_(select(text("id")).select_from(text("r01_entities")).where(text("n BETWEEN :lo AND :hi")))).subquery()
+            await c.execute(update(AiFactSource).where(AiFactSource.source_record_id == snapshot.c.id).values(snapshot_hash=snapshot.c.hash), {"lo": lo, "hi": hi})
+            # Same input manifest as _projection_inputs. The canonical JSON
+            # encoder matches Python digest; sampled real verifier checks this.
+            await c.execute(text("""UPDATE ai_listing_search_features p SET input_hash=encode(sha256(convert_to(r01_canonical(
+              jsonb_build_object('inputs',(SELECT jsonb_agg(jsonb_build_object(
+                'source',s.source_record_id::text,'active',true,'fingerprint',s.source_fingerprint,'snapshot',s.snapshot_hash,
+                'canonical',s.canonical_listing_id::text,'generation',s.generation,'hash',s.content_hash,
+                'batch',s.batch_id::text,'schema',s.schema_version,'taxonomy',s.taxonomy_version,'extractor',s.extractor_version)
+                ORDER BY s.source_record_id::text) FROM ai_fact_sources s WHERE s.canonical_listing_id=p.canonical_listing_id),
+                'visible',true,'pending',false,'resolver',CAST(:resolver AS text),'vocabulary',CAST(:vocabulary AS text))), 'UTF8')),'hex')
+              WHERE p.canonical_listing_id IN (SELECT id FROM r01_entities WHERE n BETWEEN :lo AND :hi)"""),
+                {"lo": lo, "hi": hi, "resolver": RESOLVER, "vocabulary": pipe.vocabulary_hash})
+        log("seed_chunk", lo=lo, hi=hi, seconds=round(time.perf_counter()-began, 3))
+    async with db.connect() as c:
+        await c.execution_options(isolation_level="AUTOCOMMIT")
+        await c.execute(text("ANALYZE"))
+    # Verify actual production Python resolver/hash/card-value checks BEFORE
+    # bulk certification, not merely the fact that rows exist.
+    for n in sorted({1, total//2, total}):
+        async with db.connect() as c:
+            identifier = await c.scalar(text("SELECT id FROM r01_entities WHERE n=:n"), {"n": n})
+        assert await QueryProofs(pipe).prepare(identifier), f"cloned listing {n} failed real verifier"
+        async with db.connect() as c:
+            assert await c.scalar(select(fixture_signature(literal(identifier)))) == await c.scalar(select(projection_signature(literal(identifier))))
+    for lo in range(1, total+1, chunk):
+        hi = min(total, lo+chunk-1)
+        async with db.begin() as c:
+            entities = text("r01_entities")
+            proof_select = select(Listing.id, fixture_signature(Listing.id), literal(pipe.vocabulary_hash),
+                literal(RESOLVER), AiListingSearchFeatures.feature_revision).join(
+                    AiListingSearchFeatures, AiListingSearchFeatures.canonical_listing_id == Listing.id).where(
+                    Listing.id.in_(select(text("id")).select_from(entities).where(text("n BETWEEN :lo AND :hi"))),
+                    ~select(AiQueryProof.canonical_listing_id).where(AiQueryProof.canonical_listing_id == Listing.id).exists())
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+            statement = pg_insert(AiQueryProof).from_select(["canonical_listing_id", "signature", "vocabulary_hash", "resolver_version", "feature_revision"], proof_select)
+            await c.execute(statement.on_conflict_do_nothing(), {"lo": lo, "hi": hi})
+        log("proof_chunk", lo=lo, hi=hi)
+    async with db.connect() as c:
+        await c.execution_options(isolation_level="AUTOCOMMIT")
+        await c.execute(text("VACUUM ANALYZE"))
+        counts = {m.__tablename__: await c.scalar(select(func.count()).select_from(m)) for m in models+[AiQueryProof]}
+        metadata = {"listings": total, "counts_including_template": counts,
+            "size_bytes": await c.scalar(text("SELECT pg_database_size(current_database())")),
+            "version": await c.scalar(text("SELECT version()")), "postgis": await c.scalar(text("SELECT postgis_full_version()")),
+            "settings": (await c.execute(text("SELECT name,setting,unit FROM pg_settings WHERE name IN ('max_connections','shared_buffers','work_mem','effective_cache_size','max_parallel_workers_per_gather','jit','track_io_timing')"))).mappings().all()}
+        save(f"dataset-{total}.json", metadata)
+    await db.dispose()
+    log("seed_complete", total=total)
+
+
+def viewport(count, total, zoom):
+    if count == 0:
+        return ListingMapRequest(west=-17.5, east=-17.4, south=27.9, north=28.1, zoom=zoom)
+    if count <= 302:
+        return ListingMapRequest(west=-16.90001, east=-16.9+(count-0.5)*0.0001, south=27.99999, north=28.00001, zoom=zoom)
+    return ListingMapRequest(west=-16.90001, east=-16.79999, south=27.99999,
+        north=28+((min(count,total)-1)//1000+0.5)*0.0001, zoom=zoom)
+
+
+async def measure(total, samples, candidate=None, baseline_only=False):
+    db = engine(pool=30)
+    factory = async_sessionmaker(db, expire_on_commit=False)
+    pipe = pipeline(factory)
+    # Direct _map_intent measures the complete shared map query/DTO path;
+    # HTTP/session overhead is explicitly excluded. Pool waits are included.
+    query = VerifiedCardSearch.__new__(VerifiedCardSearch)
+    query.pipeline = pipe
+    intent = SearchIntent.model_validate_json(json.dumps({"schema_version": "ai-search.v1", "taxonomy_version": "rental.v1", "session_id": str(uuid4()), "version": 1,
+        "criteria": {"pets": {"strength": "hard", "value": [{"species": "dog", "size": "small", "count": 1}]}}}))
+    captured = []
+    @event.listens_for(db.sync_engine, "before_cursor_execute")
+    def capture(conn, cursor, statement, parameters, context, executemany):
+        if statement.lstrip().upper().startswith("SELECT") and "listings" in statement:
+            captured.append((statement, parameters))
+    async def request(view):
+        start = time.perf_counter()
+        result = {"ok": False}
+        after_pool = None
+        try:
+            async with factory() as s, s.begin():
+                await s.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+                after_pool = time.perf_counter()
+                result["pool_ms"] = (after_pool-start)*1000
+                value = await query._map_intent(s, intent, view)
+                result.update(ok=True, count=sum(getattr(item,"count",1) for item in value.map.items), items=len(value.map.items),
+                    pool_ms=(after_pool-start)*1000, query_ms=(time.perf_counter()-after_pool)*1000)
+        except Exception as error:  # noqa: BLE001 -- retain every failed load sample
+            result.update(error=type(error).__name__, detail=str(error).splitlines()[0][:180],
+                sqlstate=getattr(getattr(error,"orig",None),"sqlstate",None))
+            if after_pool is not None:
+                result["query_ms"] = (time.perf_counter()-after_pool)*1000
+        result["ms"] = (time.perf_counter()-start)*1000
+        return result
+    records = []
+    for count in ([candidate] if candidate is not None else sorted({0,299,300,301,302,min(10000,total),total})):
+        for zoom in (8,12,13,21):
+            view = viewport(count,total,zoom)
+            captured.clear()
+            first = await request(view)
+            # Untimed correctness must hold for every successful request.
+            if first["ok"]:
+                assert first["count"] == count, (count, zoom, first)
+            records.append({"candidates": count, "zoom": zoom, "first_touch": first})
+            save(f"baseline-{total}.json",records)
+            log("baseline", total=total,candidates=count,zoom=zoom,result=first)
+            # Explain uses precisely the emitted SQL/binds via asyncpg driver.
+            for index,(statement,parameters) in enumerate(list(captured)):
+                try:
+                    async with db.connect() as c:
+                        await c.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+                        raw = await c.get_raw_connection()
+                        plan = await raw.driver_connection.fetchval("EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) "+statement,*parameters)
+                    save(f"plan-{total}-{count}-z{zoom}-{index}.json",json.loads(plan) if isinstance(plan,str) else plan)
+                except Exception as error:  # noqa: BLE001 -- timeout evidence is part of the result
+                    failure={"analyze_error":type(error).__name__,"detail":str(error)[:250]}
+                    async with db.connect() as c:
+                        await c.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+                        raw=await c.get_raw_connection()
+                        estimate=await raw.driver_connection.fetchval("EXPLAIN (FORMAT JSON) "+statement,*parameters)
+                        failure["estimated_plan_without_execution"]=json.loads(estimate) if isinstance(estimate,str) else estimate
+                    save(f"plan-{total}-{count}-z{zoom}-{index}.json",failure)
+            captured.clear()
+    if baseline_only:
+        await db.dispose()
+        return
+    warmed = await asyncio.gather(*(db.connect() for _ in range(30)))
+    await asyncio.gather(*(connection.close() for connection in warmed))
+    scenarios=[]
+    for count in sorted({300,min(10000,total),total}):
+        for concurrency in (50,100,200):
+            for zoom in (8,13):
+                view=viewport(count,total,zoom)
+                results=[]
+                start=time.perf_counter()
+                for offset in range(0,samples,concurrency):
+                    results.extend(await asyncio.gather(*(request(view) for _ in range(min(concurrency,samples-offset)))))
+                    captured.clear()
+                values=sorted(r["ms"] for r in results)
+                assert all(not r["ok"] or r["count"] == count for r in results)
+                def percentile(q, ordered=values):
+                    return ordered[min(len(ordered)-1, math.ceil(q*len(ordered))-1)]
+                summary={"total":total,"candidates":count,"zoom":zoom,"concurrency":concurrency,
+                    "samples":len(results),"seconds":time.perf_counter()-start,"failures":sum(not r["ok"] for r in results),
+                    "p50_ms":percentile(.5),"p95_ms":percentile(.95),"p99_ms":percentile(.99),
+                    "pass":all(r["ok"] for r in results) and percentile(.95)<=500 and percentile(.99)<=1000,
+                    "results":results}
+                scenarios.append(summary)
+                save(f"load-{total}.json",scenarios)
+                log("load",**{k:v for k,v in summary.items() if k!="results"})
+    # Cancellation is real driver cancellation; confirm no active query remains.
+    tasks=[asyncio.create_task(request(viewport(total,total,z))) for z in (8,13)*10]
+    await asyncio.sleep(.1)
+    start=time.perf_counter()
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks,return_exceptions=True)
+    async with db.connect() as c:
+        active=await c.scalar(text("SELECT count(*) FROM pg_stat_activity WHERE application_name='codex-r01-synthetic' AND state='active' AND pid<>pg_backend_pid()"))
+    save(f"cancellation-{total}.json",{"tasks":len(tasks),"elapsed_ms":(time.perf_counter()-start)*1000,"remaining_active":active,
+        "pool_reusable":(await request(viewport(0,total,8)))["ok"]})
+    await db.dispose()
+
+
+async def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument("phase",choices=["initialize","seed","measure"])
+    parser.add_argument("--sources",type=int,default=2)
+    parser.add_argument("--total",type=int,default=100000)
+    parser.add_argument("--samples",type=int,default=200)
+    parser.add_argument("--candidate",type=int)
+    parser.add_argument("--baseline-only",action="store_true")
+    args=parser.parse_args()
+    OUT.mkdir(exist_ok=True)
+    metadata={"python":platform.python_version(),"platform":platform.platform(),"sql_timeout_ms":5000,
+        "pool":30,"mode":"closed-loop repository map path; excludes HTTP/session", "source":"/code", "synthetic_only":True,
+        "code_revision":os.environ.get("R01_CODE_REVISION"),"phase":args.phase,"total":args.total,
+        "dependencies":{name:importlib.metadata.version(name) for name in ("SQLAlchemy","asyncpg","pydantic","geoalchemy2","psycopg")},
+        "source_hashes":{name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in (
+            "/code/scripts/benchmark-ai-map.py","/code/backend/app/repositories/ai_verified_cards.py",
+            "/code/backend/app/repositories/ai_query_proofs.py","/code/backend/app/repositories/listings.py")}}
+    save("runner.json",metadata)
+    save(f"runner-{args.phase}-{args.total}.json",metadata)
+    if args.phase=="initialize": await initialize(args.sources)
+    elif args.phase=="seed": await seed(args.total)
+    else: await measure(args.total,args.samples,args.candidate,args.baseline_only)
+
+
+if __name__=="__main__":
+    asyncio.run(main())
