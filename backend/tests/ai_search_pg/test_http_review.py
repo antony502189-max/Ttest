@@ -59,7 +59,7 @@ async def test_subject_session_bound_is_atomic_and_cleanup_is_explicit_and_bound
 
 @pytest.mark.parametrize("phase", ["parser", "query", "before_commit", "after_commit"])
 async def test_http_timeout_has_phase_safe_release_rollback_or_replay(store, pg, monkeypatch, phase):
-    subject, snapshot, parser, gate, query, execution = await configured(store)
+    _subject, snapshot, parser, gate, query, execution = await configured(store)
     started = asyncio.Event()
     async def block():
         started.set()
@@ -135,7 +135,7 @@ async def test_quota_exhaustion_carries_database_madrid_retry_after(store, pg):
 
 
 async def recovery_runtime(store, monkeypatch, *, cap=1):
-    subject, snapshot, parser, gate, query, execution = await configured(store)
+    _subject, snapshot, parser, gate, query, execution = await configured(store)
     guests = GuestTokens(key=b"synthetic-guest-key-not-secret-32", policy=GuestPolicy(ttl_seconds=600))
     token, owner = guests.issue()
     async with store.ledger.sessions.begin() as conn:
@@ -148,7 +148,7 @@ async def recovery_runtime(store, monkeypatch, *, cap=1):
 
 
 async def test_lost_ack_expired_success_returns_durable_receipt_without_cards(store, pg, monkeypatch):
-    owner, snapshot, parser, gate, query, execution, token = await recovery_runtime(store, monkeypatch)
+    owner, snapshot, parser, gate, query, _execution, token = await recovery_runtime(store, monkeypatch)
     real_finalize = store.finalize_patch
     async def lost_ack(*args, **kwargs):
         await real_finalize(*args, **kwargs)
@@ -223,3 +223,30 @@ async def test_invalid_guest_cookie_is_deleted_then_explicit_create_passes_issua
         # A malformed cookie on create also only clears it; it never mints in place.
         denied = await client.post("/api/v1/ai-search/sessions", headers={"Cookie": "ai_search_guest=forged"})
         assert denied.status_code == 401 and "Max-Age=0" in denied.headers["set-cookie"]
+
+
+async def test_shared_quota_rejection_has_no_operation_and_next_day_restores_capacity(store, pg, monkeypatch):
+    from app.repositories import ai_search_quota
+    from app.schemas.listings import ListingCardSearchRequest
+    owner, snapshot, _parser, _gate, _query, execution, token = await recovery_runtime(store, monkeypatch)
+    headers = {"Origin": "https://testserver", "X-AI-Request": "1", "Cookie": "ai_search_guest=" + token}
+    async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=headers) as stale_tab:
+        assert (await stale_tab.get("/api/v1/ai-search/quota")).json()["remaining"] == 3
+        for _ in range(3):
+            current = await store.get(owner, snapshot.intent.session_id)
+            await execution.execute(owner, operation(current), "synthetic message", ListingCardSearchRequest())
+        op = operation(await store.get(owner, snapshot.intent.session_id))
+        payload = {"idempotency_key": str(op.idempotency_key), "session_id": str(op.session_id),
+                   "expected_version": 3, "text": "synthetic message"}
+        denied = await stale_tab.post("/api/v1/ai-search/query", json=payload)
+        assert denied.status_code == 429 and denied.json()["detail"] == "QUOTA_EXHAUSTED"
+        async with pg[1]() as conn:
+            assert await conn.scalar(select(func.count()).select_from(AISearchRequest).where(
+                AISearchRequest.idempotency_key == op.idempotency_key)) == 0
+        real_window = ai_search_quota.madrid_window
+        async def tomorrow(conn, at=None):
+            return await real_window(conn, datetime.now(UTC) + timedelta(days=1))
+        monkeypatch.setattr(ai_search_quota, "madrid_window", tomorrow)
+        assert (await stale_tab.get("/api/v1/ai-search/quota")).json()["remaining"] == 3
+        payload["idempotency_key"] = str(uuid4())
+        assert (await stale_tab.post("/api/v1/ai-search/query", json=payload)).json()["operation"]["status"] == "succeeded"

@@ -278,7 +278,7 @@ async def test_expired_replay_receipt_survives_real_verified_card_access_denial(
         assert quota["used"] == 1 and quota["reserved"] == 0
 
 
-async def test_browser_recovers_real_expired_terminal_receipt(active, monkeypatch):
+async def test_ui_asgi_bridge_recovers_expired_terminal_receipt(active, monkeypatch):
     # Run with a local Vite frontend: AI_UI_TEST_URL=http://127.0.0.1:4176.
     # Browser API requests go through ASGI and real PostGIS/ledger, without
     # synthetic query/session responses or any external provider traffic.
@@ -292,49 +292,48 @@ async def test_browser_recovers_real_expired_terminal_receipt(active, monkeypatc
     runtime, parser, _gate = active
     real_finalize = runtime.sessions.finalize_patch
     async def expire_after_commit(*args, **kwargs):
-        completed = await real_finalize(*args, **kwargs)
+        await real_finalize(*args, **kwargs)
         async with SessionLocal.begin() as conn:
             await conn.execute(update(AISearchSession).where(AISearchSession.id == args[1].session_id).values(
                 expires_at=datetime.now(UTC) - timedelta(seconds=1)))
         raise OSError("synthetic lost acknowledgement")
     monkeypatch.setattr(runtime.sessions, "finalize_patch", expire_after_commit)
-    async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as client:
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch()
-            try:
-                page = await browser.new_page()
-                requests = []
-                async def forward(route):
-                    request = route.request
-                    url = urlsplit(request.url)
-                    if url.hostname != "127.0.0.1":
-                        return await route.abort()
-                    if url.path.startswith("/api/v1/ai-search/"):
-                        if url.path.endswith("/query"):
-                            requests.append(request.post_data_json)
-                        response = await client.request(request.method, url.path, content=request.post_data,
-                            headers={"Content-Type": "application/json"})
-                        return await route.fulfill(status=response.status_code, body=response.content,
-                                                   content_type="application/json")
-                    if url.path.startswith("/api/"):
-                        return await route.fulfill(status=404, json={"detail": "Not found"})
-                    await route.continue_()
-                await page.route("**/*", forward)
-                await page.add_init_script("localStorage.setItem('112233:language:v1','es'); localStorage.setItem('112233:mobile-onboarding:v1','done:refreshable')")
-                await page.goto(frontend + "/#/")
-                await page.get_by_role("button", name="Escribir mi búsqueda").click()
-                await page.locator("#ai-search-text").fill("Una habitación con mi perro")
-                await page.get_by_role("button", name="Buscar habitaciones", exact=True).click()
-                retry = page.get_by_role("button", name="Comprobar el mismo intento")
-                await expect(retry).to_be_enabled()
-                await retry.click()
-                await expect(page.get_by_role("button", name="Iniciar nueva conversación")).to_be_enabled()
-                await expect(retry).to_have_count(0)
-                await expect(page.locator("#ai-search-text")).to_have_value("Una habitación con mi perro")
-                assert len(requests) == 2 and requests[0] == requests[1]
-                assert parser.calls == 1
-                assert (await client.get("/api/v1/ai-search/quota")).json()["used"] == 1
-                await page.get_by_role("button", name="Iniciar nueva conversación").click()
-                await expect(page.get_by_role("button", name="Buscar habitaciones", exact=True)).to_be_enabled()
-            finally:
-                await browser.close()
+    async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as client, async_playwright() as pw:
+        browser = await pw.chromium.launch()
+        try:
+            page = await browser.new_page()
+            requests = []
+            async def forward(route):
+                request = route.request
+                url = urlsplit(request.url)
+                if url.hostname != "127.0.0.1":
+                    return await route.abort()
+                if url.path.startswith("/api/v1/ai-search/"):
+                    if url.path.endswith("/query"):
+                        requests.append(request.post_data_json)
+                    response = await client.request(request.method, url.path, content=request.post_data,
+                        headers={"Content-Type": "application/json"})
+                    return await route.fulfill(status=response.status_code, body=response.content,
+                                               content_type="application/json")
+                if url.path.startswith("/api/"):
+                    return await route.fulfill(status=404, json={"detail": "Not found"})
+                await route.continue_()
+            await page.route("**/*", forward)
+            await page.add_init_script("localStorage.setItem('112233:language:v1','es'); localStorage.setItem('112233:mobile-onboarding:v1','done:refreshable')")
+            await page.goto(frontend + "/#/")
+            await page.get_by_role("button", name="Escribir mi búsqueda").click()
+            await page.locator("#ai-search-text").fill("Una habitación con mi perro")
+            await page.get_by_role("button", name="Buscar habitaciones", exact=True).click()
+            retry = page.get_by_role("button", name="Comprobar el mismo intento")
+            await expect(retry).to_be_enabled()
+            await retry.click()
+            await expect(page.get_by_role("button", name="Iniciar nueva conversación")).to_be_enabled()
+            await expect(retry).to_have_count(0)
+            await expect(page.locator("#ai-search-text")).to_have_value("Una habitación con mi perro")
+            assert len(requests) == 2 and requests[0] == requests[1]
+            assert parser.calls == 1
+            assert (await client.get("/api/v1/ai-search/quota")).json()["used"] == 1
+            await page.get_by_role("button", name="Iniciar nueva conversación").click()
+            await expect(page.get_by_role("button", name="Buscar habitaciones", exact=True)).to_be_enabled()
+        finally:
+            await browser.close()

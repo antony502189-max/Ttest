@@ -1,29 +1,52 @@
-# Исправления замечаний PR #402
+# PR #402: исправления повторного ревью и проверка
 
-Все десять пунктов отчёта от 28 октября 2026 года обработаны.
+Повторное ревью относится к `4ec8868779293877d27520d96e7a3d8802ee5de0`. На том коммите backend CI действительно был красным: четыре новых Ruff-ошибки. Прежний локальный отчёт не заменял backend lint и GitHub Actions и не подтверждал готовность к merge.
 
-| Пункт | Исправление |
+## Исправления повторного ревью
+
+| Замечание | Изменение и проверка |
 |---|---|
-| PR402-01 | Повтор завершённой операции возвращает durable operation/receipt и отдельный cards_error, когда исходные карточки недоступны. Pending снимается только после terminal payload; произвольный HTTP 409 этого не делает. Проверки владения и срока действия карточек сохранены. |
-| PR402-02 | Подтверждённая утрата сессии/гостевой идентичности отделена от временных ошибок. При 503/429/обрыве сети/таймауте сохраняются session, draft и результаты; доступна повторная синхронизация версии. |
-| PR402-03 | Живой диалог заменяется через атомарный серверный reset с expected_version. Проверены лимиты 1 и 2 при четырёх последовательных reset. Ошибка сервера сохраняет состояние интерфейса. |
-| PR402-04 | Сервер удаляет невалидный guest-cookie ответом 401. Следующее явное создание проходит прежние origin/HTTP/IP issuance/session gates. GET не выдаёт новую идентичность. Проверены подделанная подпись и истёкший TTL. |
-| PR402-05 | При expiry или замене диалога старые карточки сохраняются, навигация отключается с пояснением. Отказ первой попытки пагинации также отключает последующие. |
-| PR402-06 | Создание нового диалога сохраняет черновик и предыдущие результаты в памяти, включая ошибки создания/reset. Следующий успешный поиск заменяет результаты. |
-| PR402-07 | Обновление сессии выполняется независимо от terminal операции. Можно читать карточки, перелистывать доступные результаты и редактировать черновик; действия, требующие актуальной версии, ждут синхронизации. |
-| PR402-08 | Актуальная квота читается при открытии окна независимо от наличия session id. Авторитетный ответ сервера после смены дня разблокирует поиск. |
-| PR402-09 | Моки используют реальные пары 409/SESSION_EXPIRED, 404/SESSION_NOT_FOUND, 401/AI_GUEST_IDENTITY_INVALID_OR_EXPIRED. |
-| PR402-10 | Добавлены негативные browser contracts, PostgreSQL/ASGI проверки receipt/debit/reset/guest renewal, тест с настоящим VerifiedCardSearch и связанный браузерный сценарий через реальный ASGI/PostGIS. |
+| NEW-01 | Устранены неиспользуемые переменные и вложенный async with. Выполнены полные `ruff check app tests`, `mypy app` и backend unit tests. |
+| NEW-02 | Точные гостевые 401 на query освобождают pending старого владельца, сохраняют draft/cards и открывают явное создание нового диалога. Новый owner не получает старый operation key. Есть UI и настоящий HTTP/browser тесты. |
+| NEW-03 | Reset получает неизменяемый idempotency key. Таблица ai_session_commands атомарно хранит принадлежащий владельцу receipt source/version → result session. Повторы, в том числе параллельные после commit/lost ACK, возвращают тот же диалог при cap=1/2. |
+| NEW-04 | Create получает такой же durable receipt. Отдельный POST identity подтверждает cookie до создания сессии. Keyed create без подтверждённой идентичности отклоняется до транзакции: даже expiry между bootstrap/create не оставляет невидимый диалог. |
+| NEW-05 | Только 429 QUOTA_EXHAUSTED завершает не зарезервированный pending, устанавливает remaining=0 и оставляет редактирование доступным. Проверены устаревшая квота другой вкладки и следующее суточное окно. Неопределённые 409/429/503/таймауты сохраняют ключ. |
+| NEW-06 | AI_REQUERY_REQUIRED и intent-hash mismatch отключают только старую пагинацию с предложением повторить поиск. Черновик, карточки и пригодный диалог сохраняются. |
+| NEW-07 | Добавлен настоящий same-origin HTTP сервер с frontend и PostGIS. Chromium сам передаёт Cookie/Origin/CSRF и обрабатывает Set-Cookie. Проверяются Secure/HttpOnly/Path/SameSite, удаление и повторная выдача cookie. ASGI-подмена заголовков отсутствует. |
+| NEW-08 | Добавлены PG/HTTP lost-ACK тесты отдельно для create/reset/query, конкуренция lifecycle retries, owner/fingerprint isolation, expiry, quota rejection/rollover, query 401 и stale cursors. Настоящие browser HTTP тесты включены в combined CI. |
+| NEW-09 | cards_error/RESULT_NOT_FOUND больше не означает автоматически потерю диалога: UI запрашивает его актуальную версию. Backend диагностирует RESULT_NOT_FOUND фиксированным кодом без текста/идентификаторов пользователя. |
+| NEW-10 | Этот отчёт заменяет прежние утверждения о готовности. Итоговый точный SHA и результаты GitHub Actions указываются в описании PR после проверки того же HEAD. Локальные результаты и CI разделены. |
 
-Дополнительно при реальном интеграционном запуске исправлен порядок присвоения lease в FactPipeline.claim: чтение DB clock выполняется до изменения status, чтобы autoflush не записывал running без lease.
+## Протокол и миграция
 
-## Проверки
+Новая additive-миграция `0072_ai_session_commands` сохраняет history при downgrade. Receipt ограничен owner + UUID key, видом команды, исходной сессией и expected_version; другой payload даёт SESSION_COMMAND_CONFLICT. Другой owner не читает и не меняет чужую сессию. На повторе сохраняются проверки срока действия, HTTP/IP/session gates. Receipt не хранит пользовательский текст; quota ledger и debit не меняются.
 
-- TypeScript, lint/i18n и production build прошли; общий lint имеет существующие предупреждения, сборка предупреждает о размере bundle.
-- 24 различных Playwright browser contracts прошли (полный исходный расширенный набор из 22 и два добавленных сценария отдельно; затронутые expiry/reset сценарии перепроверены после последней правки).
-- AI Search PostgreSQL suite и HTTP boundary/review: 172 passed, 1 skipped.
-- Реальный PostGIS/HTTP: 8 passed, включая браузер → ASGI → PostgreSQL. Парсер офлайн; внешние AI-провайдеры не вызываются.
+Create/reset сериализуются одной блокировкой владельца в едином порядке; новый диалог и receipt коммитятся одной транзакцией. При неоднозначной ошибке UI сохраняет source/version/key в памяти. Cleanup не удаляет сессии, на которые ссылаются durable команды. Старый no-body create и reset без ключа совместимы; новый интерфейс всегда использует keyed-команды и identity bootstrap.
 
-Браузерный интеграционный тест запускается с AI_UI_TEST_URL=http://127.0.0.1:4176 и изолированным локальным Vite в mock mode. Без этой явной настройки он пропускается; остальные реальные HTTP/PG тесты не зависят от браузера.
+## Воспроизводимые проверки
 
-Изменения подготовлены в отдельной рабочей копии PR. Production не развёртывался.
+Из `backend/` с отдельным loopback PostgreSQL/PostGIS `ttest_test`:
+
+```text
+ruff check app tests
+mypy app
+pytest -q -m 'not integration'
+alembic upgrade head
+alembic check
+pytest -q tests/ai_search_pg tests/ai_facts_pg tests/ai_http_browser/test_ai_http_browser.py
+pytest -q tests/integration/test_ai_http.py tests/integration/test_ai_browser_recovery.py
+```
+
+Для PG-наборов задаются AI_QUOTA_TEST_DATABASE_URL, AI_FACTS_TEST_DATABASE_URL; Redis gate тест использует отдельную Redis DB 15. Для настоящих HTTP/browser тестов AI_HTTP_BROWSER_TEST=1, AI_UI_DIST_PATH указывает на dist после изолированной frontend mock-сборки. Parser офлайн, внешние AI-провайдеры не включаются.
+
+```text
+node node_modules/typescript/bin/tsc -b --pretty false
+node node_modules/oxlint/bin/oxlint
+node scripts/check-i18n-source.mjs
+node node_modules/vite/bin/vite.js build
+node node_modules/@playwright/test/cli.js test --config playwright.ai-search.config.ts
+```
+
+Локально прошли 1362 backend unit-теста (15 штатных skips), 31 frontend browser contract и 4 настоящих browser HTTP/PostGIS сценария. ASGI HTTP suite также проверен. Старый необязательный UI→ASGI bridge требует AI_UI_TEST_URL и без него пропускается; он не является проверкой браузерных cookie. Полные результаты обязательных CI на финальном HEAD являются отдельным merge gate; статус skipped не считается pass.
+
+Production не развёртывался; слияние выполняется отдельно после подтверждения CI.

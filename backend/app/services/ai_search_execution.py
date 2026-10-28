@@ -6,6 +6,7 @@ Clarification and background-alert business policies are deliberately absent.
 """
 import asyncio
 import hashlib
+import logging
 import math
 from contextlib import suppress
 from dataclasses import dataclass
@@ -142,5 +143,7 @@ class TextSearchExecution:
         except SessionError as error:
             if error.code not in {"RESULT_EXPIRED_REQUERY_REQUIRED", "RESULT_NOT_FOUND", "SESSION_EXPIRED", "SESSION_NOT_FOUND"}:
                 raise
+            if error.code == "RESULT_NOT_FOUND":
+                logging.getLogger(__name__).warning("ai_result_unavailable", extra={"code": error.code})
             return SearchExecution(state, replay=replay, cards_error=error.code)
         return SearchExecution(state, cards, replay=replay)

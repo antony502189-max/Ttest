@@ -12,6 +12,7 @@ async function setup(page: Page, enabled = true) {
   await page.route('**/*', route => {
     const url = new URL(route.request().url())
     if (url.hostname !== '127.0.0.1') return route.abort()
+    if (url.pathname === '/api/v1/ai-search/identity') return route.fulfill({ json: { ready: true } })
     if (url.pathname === '/api/v1/ai-search/capabilities') return route.fulfill({ json: { text: enabled, map: enabled, voice: false, saved_searches: false } })
     if (url.pathname.startsWith('/api/v1/media/')) return route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#eff5e5"/></svg>' })
     if (url.pathname.startsWith('/api/')) return route.fulfill({ status: 404, json: { detail: 'Not found' } })
@@ -343,7 +344,7 @@ for (const expireOn of ['refresh', 'page', 'receipt'] as const) {
     await page.locator('#ai-search-text').fill(requestText)
     await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
     if (expireOn === 'page') await page.getByRole('button', { name: 'Siguiente', exact: true }).click()
-    await expect(page.getByText('El intento terminó, pero el diálogo no está disponible.', { exact: false })).toBeVisible()
+    await expect(page.getByText(expireOn === 'refresh' ? 'El intento terminó, pero el diálogo no está disponible.' : 'Los resultados ya no están disponibles.', { exact: false })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Iniciar nueva conversación' })).toBeEnabled()
     await expect(page.getByRole('button', { name: 'Comprobar el mismo intento' })).toHaveCount(0)
     if (expireOn !== 'receipt') {
@@ -361,7 +362,8 @@ test('explicit live resets use current version, preserve draft and cards, and su
   await page.route('**/api/v1/ai-search/sessions', route => { creates++; return route.fulfill({ json: snapshot(0) }) })
   await page.route(`**/api/v1/ai-search/sessions/${sid}`, route => route.fulfill({ json: snapshot(1) }))
   await page.route('**/api/v1/ai-search/sessions/*/reset', route => {
-    expect(route.request().postDataJSON()).toEqual({ expected_version: resets === 0 ? 1 : 0 })
+    expect(route.request().postDataJSON()).toMatchObject({ expected_version: resets === 0 ? 1 : 0 })
+    expect(route.request().postDataJSON().idempotency_key).toBeTruthy()
     resets++
     if (resets === 3) return route.fulfill({ status: 429, json: { detail: 'SESSION_LIMIT' } })
     return route.fulfill({ json: { ...snapshot(0), intent: { session_id: nextSid, version: 0 } } })
@@ -450,4 +452,98 @@ test('an ambiguous HTTP 409 preserves the exact pending operation', async ({ pag
   await page.getByRole('button', { name: 'Comprobar el mismo intento' }).click()
   await expect.poll(() => messages.length).toBe(2)
   expect(messages[1]).toEqual(messages[0])
+})
+
+
+for (const code of ['AI_GUEST_IDENTITY_INVALID_OR_EXPIRED', 'AI_GUEST_IDENTITY_REQUIRED']) {
+  test(`query 401 ${code} releases old-owner pending and keeps editable draft`, async ({ page }) => {
+    await setup(page)
+    const sent: Record<string, unknown>[] = []
+    let creates = 0
+    await page.route('**/api/v1/ai-search/sessions', route => route.fulfill({ json: {
+      ...snapshot(0), intent: { session_id: `${sid.slice(0, -1)}${++creates}`, version: 0 },
+    } }))
+    await page.route('**/api/v1/ai-search/sessions/*', route => route.fulfill({ json: snapshot(1) }))
+    await page.route('**/api/v1/ai-search/query', route => {
+      sent.push(route.request().postDataJSON())
+      return sent.length === 1 ? route.fulfill({ status: 401, json: { detail: code } })
+        : route.fulfill({ json: { operation: { status: 'succeeded', remaining: 2, receipt: { result_ref: ref, count: 0 } }, cards: cards() } })
+    })
+    await page.goto('/#/')
+    await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
+    await page.locator('#ai-search-text').fill(requestText)
+    await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+    await expect(page.locator('#ai-search-text')).toBeEnabled()
+    await expect(page.locator('#ai-search-text')).toHaveValue(requestText)
+    await expect(page.getByRole('button', { name: 'Comprobar el mismo intento' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Iniciar nueva conversación' }).click()
+    await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+    await expect.poll(() => sent.length).toBe(2)
+    expect(sent[1].session_id).not.toBe(sent[0].session_id)
+    expect(sent[1].idempotency_key).not.toBe(sent[0].idempotency_key)
+  })
+}
+
+test('hard quota rejection releases unreserved pending and recovers on authoritative rollover', async ({ page }) => {
+  await setup(page)
+  let remaining = 3
+  let messages = 0
+  await page.route('**/api/v1/ai-search/quota', route => route.fulfill({ json: { remaining } }))
+  await page.route('**/api/v1/ai-search/sessions', route => route.fulfill({ json: snapshot(0) }))
+  await page.route('**/api/v1/ai-search/query', route => {
+    messages++; remaining = 0
+    return route.fulfill({ status: 429, json: { detail: 'QUOTA_EXHAUSTED' } })
+  })
+  await page.goto('/#/')
+  await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
+  await page.locator('#ai-search-text').fill(requestText)
+  await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+  await expect(page.locator('#ai-search-text')).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Iniciar nueva conversación' })).toBeEnabled()
+  await expect(page.getByText('Búsquedas disponibles hoy: 0')).toBeVisible()
+  await page.getByRole('button', { name: 'Volver a los filtros' }).click()
+  remaining = 3
+  await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
+  await expect(page.getByRole('button', { name: 'Buscar habitaciones', exact: true })).toBeEnabled()
+  expect(messages).toBe(1)
+})
+
+for (const problem of ['AI_REQUERY_REQUIRED', 'RESULT_NOT_FOUND', 'hash-mismatch']) {
+  test(`paging ${problem} invalidates only results and preserves live conversation`, async ({ page }) => {
+    await setup(page)
+    await page.route('**/api/v1/ai-search/sessions', route => route.fulfill({ json: snapshot(0) }))
+    await page.route(`**/api/v1/ai-search/sessions/${sid}`, route => route.fulfill({ json: snapshot(1) }))
+    await page.route('**/api/v1/ai-search/query', route => route.fulfill({ json: {
+      operation: { status: 'succeeded', remaining: 2, receipt: { result_ref: ref, count: 0 } }, cards: cards('old-cursor'),
+    } }))
+    await page.route(`**/api/v1/ai-search/results/${ref}/cards`, route => problem === 'hash-mismatch'
+      ? route.fulfill({ json: { ...cards('bad-cursor'), intent_hash: 'another-intent' } })
+      : route.fulfill({ status: problem === 'RESULT_NOT_FOUND' ? 404 : 409, json: { detail: problem } }))
+    await page.goto('/#/')
+    await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
+    await page.locator('#ai-search-text').fill(requestText)
+    await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+    await page.locator('#ai-search-text').fill('Con balcón')
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Siguiente', exact: true })).toBeDisabled()
+    await expect(page.getByText('Los resultados ya no están disponibles.', { exact: false })).toBeVisible()
+    await expect(page.locator('#ai-search-text')).toHaveValue('Con balcón')
+    await expect(page.getByRole('button', { name: 'Actualizar búsqueda', exact: true })).toBeEnabled()
+  })
+}
+
+test('missing cards on terminal receipt resyncs a live session instead of discarding it', async ({ page }) => {
+  await setup(page)
+  await page.route('**/api/v1/ai-search/sessions', route => route.fulfill({ json: snapshot(0) }))
+  await page.route(`**/api/v1/ai-search/sessions/${sid}`, route => route.fulfill({ json: snapshot(5) }))
+  await page.route('**/api/v1/ai-search/query', route => route.fulfill({ json: {
+    operation: { status: 'succeeded', remaining: 2, receipt: { result_ref: ref, count: 0 } }, cards: null, cards_error: 'RESULT_NOT_FOUND',
+  } }))
+  await page.goto('/#/')
+  await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
+  await page.locator('#ai-search-text').fill(requestText)
+  await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+  await expect(page.getByText('Los resultados ya no están disponibles.', { exact: false })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Buscar habitaciones', exact: true })).toBeEnabled()
+  await expect(page.locator('#ai-search-text')).toHaveValue(requestText)
 })

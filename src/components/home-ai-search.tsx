@@ -34,6 +34,8 @@ function AISearchPanel() {
   const [notice, setNotice] = useState('')
   const flight = useRef<AbortController | null>(null)
   const lock = useRef(false)
+  const command = useRef<{ key: string; source: AISession | null } | null>(null)
+  const [changingSession, setChangingSession] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -68,12 +70,40 @@ function AISearchPanel() {
 
   function unavailable(error: unknown) {
     return error instanceof ApiError && (
-      (error.status === 409 && ['SESSION_EXPIRED', 'RESULT_EXPIRED_REQUERY_REQUIRED'].includes(error.message)) ||
-      (error.status === 404 && ['SESSION_NOT_FOUND', 'RESULT_NOT_FOUND'].includes(error.message)) ||
+      (error.status === 409 && error.message === 'SESSION_EXPIRED') ||
+      (error.status === 404 && error.message === 'SESSION_NOT_FOUND') ||
       (error.status === 401 && ['AI_GUEST_IDENTITY_INVALID_OR_EXPIRED', 'AI_GUEST_IDENTITY_REQUIRED'].includes(error.message)))
   }
 
+  function guestIdentityLost(error: unknown) {
+    return error instanceof ApiError && error.status === 401 &&
+      ['AI_GUEST_IDENTITY_INVALID_OR_EXPIRED', 'AI_GUEST_IDENTITY_REQUIRED'].includes(error.message)
+  }
+
+  function staleResults() {
+    setPagingAvailable(false)
+    setNotice('Los resultados ya no están disponibles. Repite la búsqueda para obtener páginas nuevas.')
+  }
+
+  function forgetCommand() {
+    command.current = null
+    setChangingSession(false)
+  }
+
+  async function changeSession(source: AISession | null, signal: AbortSignal) {
+    // Preserve exact key, source and version through ambiguous HTTP failures.
+    const attempt = command.current ?? { key: crypto.randomUUID(), source }
+    command.current = attempt
+    setChangingSession(true)
+    const fresh = attempt.source
+      ? await resetAISession(attempt.source, attempt.key, signal)
+      : await createAISession(attempt.key, signal)
+    forgetCommand()
+    return fresh
+  }
+
   function lostConversation() {
+    forgetCommand()
     setNeedsConversation(true)
     setNeedsSync(false)
     setPagingAvailable(false)
@@ -108,9 +138,7 @@ function AISearchPanel() {
     const controller = new AbortController()
     flight.current = controller
     try {
-      const fresh = session && !needsConversation
-        ? await resetAISession(session, controller.signal)
-        : await createAISession(controller.signal)
+      const fresh = await changeSession(session && !needsConversation ? session : null, controller.signal)
       if (controller.signal.aborted) return
       setSession(fresh)
       setNeedsConversation(false)
@@ -120,7 +148,8 @@ function AISearchPanel() {
     } catch (error) {
       if (controller.signal.aborted) return
       if (unavailable(error)) lostConversation()
-      else if (error instanceof ApiError && error.message === 'SESSION_VERSION_CONFLICT' && session) {
+      else if (error instanceof ApiError && ['SESSION_VERSION_CONFLICT', 'SESSION_COMMAND_CONFLICT'].includes(error.message) && session) {
+        forgetCommand()
         void refreshSession(session.intent.session_id)
       } else setNotice(error instanceof ApiError && error.message === 'SESSION_LIMIT'
         ? 'Hay demasiadas conversaciones activas. Conservamos tu texto y resultados. Inténtalo más tarde.'
@@ -132,14 +161,14 @@ function AISearchPanel() {
   }
 
   async function submit() {
-    if (lock.current || needsConversation || needsSync || syncingSession || (!pending && !text.trim())) return
+    if (lock.current || (changingSession && session !== null) || needsConversation || needsSync || syncingSession || (!pending && !text.trim())) return
     lock.current = true
     setBusy(true)
     setNotice('Buscando opciones con condiciones confirmadas…')
     const controller = new AbortController()
     flight.current = controller
     try {
-      const owned = session ?? await createAISession(controller.signal)
+      const owned = session ?? await changeSession(null, controller.signal)
       setSession(owned)
       // Retry the exact operation after timeout/commit acknowledgement loss.
       // Never change text, expected version or key until a terminal response.
@@ -166,23 +195,31 @@ function AISearchPanel() {
           ? 'La búsqueda cambió. Revisa tu texto antes de enviarlo de nuevo.'
           : 'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.')
       }
-      if (answer.cards_error) {
-        // Terminal receipt is authoritative even when its cards have expired.
-        lostConversation()
-      } else {
-        // Independent read phase; version-sensitive actions wait for sync.
-        void refreshSession(message.session_id)
-      }
+      // Missing cards do not prove the editable conversation disappeared.
+      if (answer.cards_error) staleResults()
+      // Independent read phase; version-sensitive actions wait for sync.
+      void refreshSession(message.session_id)
     } catch (error) {
       if (controller.signal.aborted) return
-      if (error instanceof ApiError && [413, 422].includes(error.status)) {
+      if (guestIdentityLost(error)) {
+        // Authentication failed before reservation. An old owner cannot be
+        // replayed under a renewed guest identity; keep only draft/results.
+        setPending(null)
+        lostConversation()
+      } else if (error instanceof ApiError && error.status === 429 && error.message === 'QUOTA_EXHAUSTED') {
+        // Only this exact code proves reserve rejected before inserting a row.
+        setPending(null)
+        setRemaining(0)
+        setNotice('Has alcanzado el límite diario. Puedes usar la búsqueda con filtros.')
+      } else if (error instanceof ApiError && [413, 422].includes(error.status)) {
         // HTTP body/schema rejection happens before operation reservation.
         setPending(null)
         setNotice('Acorta o revisa el texto antes de enviarlo de nuevo.')
+      } else if (command.current) {
+        if (unavailable(error)) lostConversation()
+        else setNotice('No se pudo iniciar una nueva conversación. Conservamos tu texto y resultados.')
       } else {
-        setNotice(error instanceof ApiError && error.message === 'QUOTA_EXHAUSTED'
-          ? 'Has alcanzado el límite diario. Puedes usar la búsqueda con filtros.'
-          : 'No se pudo confirmar el resultado. Reintenta el mismo intento para comprobar su estado.')
+        setNotice('No se pudo confirmar el resultado. Reintenta el mismo intento para comprobar su estado.')
       }
     } finally {
       lock.current = false
@@ -198,12 +235,15 @@ function AISearchPanel() {
     flight.current = controller
     try {
       const response = await aiResultPage(result.ref, cursor, controller.signal)
-      if (response.intent_hash !== result.hash) throw new Error('Intent changed')
+      if (response.intent_hash !== result.hash) throw new ApiError(409, 'AI_REQUERY_REQUIRED')
       if (!controller.signal.aborted) { setResult({ ...result, prices: response.budget_prices ?? [], page: aiCardPage(response) }); setNotice('') }
     } catch (error) {
       if (!controller.signal.aborted) {
         if (unavailable(error)) lostConversation()
-        else setNotice('No se pudo cargar la página. Conservamos los últimos resultados.')
+        else if (error instanceof ApiError && ['AI_REQUERY_REQUIRED', 'RESULT_NOT_FOUND', 'RESULT_EXPIRED_REQUERY_REQUIRED'].includes(error.message)) {
+          staleResults()
+          if (error.message !== 'AI_REQUERY_REQUIRED' && session) void refreshSession(session.intent.session_id)
+        } else setNotice('No se pudo cargar la página. Conservamos los últimos resultados.')
       }
     } finally { lock.current = false; if (!controller.signal.aborted) setBusy(false) }
   }
@@ -223,9 +263,9 @@ function AISearchPanel() {
       <label htmlFor="ai-search-text">{t(result ? '¿Qué quieres cambiar?' : 'Cuéntanos qué necesitas')}</label>
       <textarea id="ai-search-text" data-i18n-exempt value={text} onChange={event => setText(event.target.value)} disabled={busy || pending !== null}
         maxLength={16000} rows={3} autoComplete="off" spellCheck={false} placeholder={t('Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
-      <Button type="button" className="home-ai-search__action" disabled={busy || syncingSession || needsSync || needsConversation || (!pending && (!text.trim() || remaining === 0))}
+      <Button type="button" className="home-ai-search__action" disabled={busy || (changingSession && session !== null) || syncingSession || needsSync || needsConversation || (!pending && (!text.trim() || remaining === 0))}
         onClick={() => void submit()}>{t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : result ? 'Actualizar búsqueda' : 'Buscar habitaciones')}</Button>
-      {(session || needsConversation) ? <Button type="button" variant="outline" disabled={busy || syncingSession || needsSync || pending !== null}
+      {(session || needsConversation || changingSession) ? <Button type="button" variant="outline" disabled={busy || syncingSession || needsSync || pending !== null}
         onClick={() => void newConversation()}>{t('Iniciar nueva conversación')}</Button> : null}
       {needsSync && session ? <Button type="button" variant="outline" disabled={syncingSession || busy}
         onClick={() => void refreshSession(session.intent.session_id, true)}>{t('Reintentar sincronización')}</Button> : null}

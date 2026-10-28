@@ -124,7 +124,7 @@ class PrivateAIRoute(APIRoute):
                     return result
                 except SessionError as error:
                     code = error.code if error.code in {"SESSION_NOT_FOUND", "SESSION_EXPIRED", "SESSION_VERSION_CONFLICT",
-                        "SESSION_STATE_INVALID", "RESULT_NOT_FOUND", "RESULT_EXPIRED_REQUERY_REQUIRED", "RESULT_STATE_INVALID", "SESSION_LIMIT"} else "AI_SESSION_UNAVAILABLE"
+                        "SESSION_STATE_INVALID", "SESSION_COMMAND_CONFLICT", "RESULT_NOT_FOUND", "RESULT_EXPIRED_REQUERY_REQUIRED", "RESULT_STATE_INVALID", "SESSION_LIMIT"} else "AI_SESSION_UNAVAILABLE"
                     return JSONResponse({"detail": code}, 429 if code == "SESSION_LIMIT" else 404 if code in {"SESSION_NOT_FOUND", "RESULT_NOT_FOUND"} else 409,
                                         headers={"Cache-Control": "no-store", **({"Retry-After": str(error.retry_after)} if error.retry_after else {})})
                 except QuotaError as error:
@@ -178,8 +178,16 @@ class MessageBody(APIBody):
     search: AICardView = Field(default_factory=AICardView)
 
 
+class CreateBody(APIBody):
+    idempotency_key: UUID
+
+
 class VersionBody(APIBody):
     expected_version: Annotated[int, Field(strict=True, ge=0, le=2_147_483_647)]
+
+
+class ResetBody(VersionBody):
+    idempotency_key: UUID | None = None
 
 
 class PageBody(VersionBody):
@@ -223,8 +231,15 @@ async def subject(request: Request, response: Response, active: AISearchRuntime 
     token = request.cookies.get(COOKIE)
     if token is not None:
         return active.guests.read(token)
-    if request.method != "POST" or request.url.path != "/api/v1/ai-search/sessions":
+    if request.method != "POST" or request.url.path not in {"/api/v1/ai-search/sessions", "/api/v1/ai-search/identity"}:
         raise HTTPException(401, "AI_GUEST_IDENTITY_REQUIRED")
+    # Keyed creates require an already acknowledged browser identity. If its
+    # cookie expires between bootstrap and create, fail before any transaction
+    # instead of committing under a newly minted, unacknowledged owner.
+    if request.url.path == "/api/v1/ai-search/sessions":
+        body = await request.body()
+        if body:
+            raise HTTPException(401, "AI_GUEST_IDENTITY_REQUIRED")
     address = active.policy.address(request)
     await active.http_gate.check(active.guests.ip_key(address, purpose="ai-guest-issue"))
     token, owner = active.guests.issue()
@@ -240,10 +255,18 @@ async def capabilities(request: Request):
     return {"text": active, "map": active, "voice": False, "saved_searches": False}
 
 
+@router.post("/identity")
+async def identity(owner: QuotaSubject = Depends(subject)):
+    # Bootstrap browser ownership before any session transaction. A lost cookie
+    # acknowledgement here cannot strand a newly committed session.
+    return {"ready": True}
+
+
 @router.post("/sessions")
-async def create(active: AISearchRuntime = Depends(runtime), owner: QuotaSubject = Depends(subject)):
+async def create(payload: CreateBody | None = None, active: AISearchRuntime = Depends(runtime), owner: QuotaSubject = Depends(subject)):
     await active.http_gate.check(active.guests.ip_key(f"{owner.kind}:{owner.id}", purpose="ai-session-create"))
-    return jsonable_encoder(await active.sessions.create(owner, max_active=active.policy.max_active_sessions), exclude_none=True)
+    return jsonable_encoder(await active.sessions.create(owner, max_active=active.policy.max_active_sessions,
+        **({"idempotency_key": payload.idempotency_key} if payload else {})), exclude_none=True)
 
 
 @router.get("/sessions/{session_id}")
@@ -252,11 +275,12 @@ async def get(session_id: UUID, active: AISearchRuntime = Depends(runtime), owne
 
 
 @router.post("/sessions/{session_id}/reset")
-async def reset(session_id: UUID, payload: VersionBody, active: AISearchRuntime = Depends(runtime),
+async def reset(session_id: UUID, payload: ResetBody, active: AISearchRuntime = Depends(runtime),
                 owner: QuotaSubject = Depends(subject)):
     await active.http_gate.check(active.guests.ip_key(f"{owner.kind}:{owner.id}", purpose="ai-session-create"))
     return jsonable_encoder(await active.sessions.reset(owner, session_id, payload.expected_version,
-                                                       max_active=active.policy.max_active_sessions), exclude_none=True)
+                                                       max_active=active.policy.max_active_sessions,
+                                                       **({"idempotency_key": payload.idempotency_key} if payload.idempotency_key else {})), exclude_none=True)
 
 
 @router.post("/sessions/{session_id}/cards")

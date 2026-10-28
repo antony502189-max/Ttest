@@ -14,9 +14,15 @@ export type AIExecution = {
 
 const headers = { 'X-AI-Request': '1' }
 export const aiCapabilities = (signal: AbortSignal) => api<AICapabilities>('/ai-search/capabilities', { signal, cache: 'no-store' })
-export const createAISession = (signal: AbortSignal) => api<AISession>('/ai-search/sessions', { method: 'POST', headers, signal, cache: 'no-store' })
-export const resetAISession = (session: AISession, signal: AbortSignal) => api<AISession>(`/ai-search/sessions/${encodeURIComponent(session.intent.session_id)}/reset`, {
-  method: 'POST', headers, body: JSON.stringify({ expected_version: session.intent.version }), signal, cache: 'no-store',
+export async function createAISession(key: string, signal: AbortSignal) {
+  // Establish ownership before any session transaction can commit. Lost
+  // bootstrap responses cannot strand a session behind a missing cookie.
+  await api('/ai-search/identity', { method: 'POST', headers, signal, cache: 'no-store' })
+  return api<AISession>('/ai-search/sessions', { method: 'POST', headers,
+    body: JSON.stringify({ idempotency_key: key }), signal, cache: 'no-store' })
+}
+export const resetAISession = (session: AISession, key: string, signal: AbortSignal) => api<AISession>(`/ai-search/sessions/${encodeURIComponent(session.intent.session_id)}/reset`, {
+  method: 'POST', headers, body: JSON.stringify({ expected_version: session.intent.version, idempotency_key: key }), signal, cache: 'no-store',
 })
 export const getAISession = (id: string, signal: AbortSignal) => api<AISession>(`/ai-search/sessions/${encodeURIComponent(id)}`, { signal, cache: 'no-store' })
 export const getAIQuota = (signal: AbortSignal) => api<{ remaining: number }>('/ai-search/quota', { signal, cache: 'no-store' })
