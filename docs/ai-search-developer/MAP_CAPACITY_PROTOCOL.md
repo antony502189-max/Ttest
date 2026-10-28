@@ -115,7 +115,8 @@ experiment report. From a clean source checkout with no .env:
 # Grow the same synthetic catalog, analyze and repeat at 500000 and 1000000.
 ```
 
-The private runner uses the local `ttest-backend:latest` dependency image while
-importing all project code from the read-only checkout. Record that image's
-immutable local ID; do not infer its dependency versions from the tag. Running
+The private runner resolves the local `ttest-backend:latest` dependency image
+once, pins its immutable ID in the results directory and uses that ID for later
+phases while importing all project code from the read-only checkout. Record
+that image ID; do not infer its dependency versions from the tag. Running
 this protocol does not approve an activation or a production configuration.

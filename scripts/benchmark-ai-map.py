@@ -440,7 +440,7 @@ async def main():
     OUT.mkdir(exist_ok=True)
     metadata={"python":platform.python_version(),"platform":platform.platform(),"sql_timeout_ms":5000,
         "pool":30,"mode":"closed-loop repository map path; excludes HTTP/session", "source":"/code", "synthetic_only":True,
-        "code_revision":os.environ.get("R01_CODE_REVISION"),"phase":args.phase,"total":args.total,
+        "code_revision":os.environ.get("R01_CODE_REVISION"),"dependency_image_id":os.environ.get("R01_IMAGE_ID"),"phase":args.phase,"total":args.total,
         "dependencies":{name:importlib.metadata.version(name) for name in ("SQLAlchemy","asyncpg","pydantic","geoalchemy2","psycopg")},
         "source_hashes":{name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in (
             "/code/scripts/benchmark-ai-map.py","/code/backend/app/repositories/ai_verified_cards.py",
