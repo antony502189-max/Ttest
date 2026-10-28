@@ -6,6 +6,7 @@ import ast
 import json
 import math
 from collections import Counter
+from datetime import datetime, timedelta
 from pathlib import Path
 
 
@@ -16,6 +17,17 @@ def percentile(values, q):
 
 def summarize(root):
     result={"scales":[],"latency_note":"Completion/error durations include pool waiting. Error-containing scenarios fail; censored SQL samples are not successful query latencies."}
+    resource_samples=[]
+    resources=root/"resources.jsonl"
+    if resources.exists():
+        resource_samples=[json.loads(line.lstrip("\ufeff")) for line in resources.read_text(encoding="utf-8").splitlines() if line.strip()]
+    completions={}
+    progress=root/"progress.jsonl"
+    if progress.exists():
+        for line in progress.read_text(encoding="utf-8").splitlines():
+            item=json.loads(line)
+            if item["kind"]=="load":
+                completions[(item["total"],item["candidates"],item["zoom"],item["concurrency"])]=datetime.fromisoformat(item["at"])
     for size in (100000,500000,1000000):
         dataset_path=root/f"dataset-{size}.json"
         if not dataset_path.exists():
@@ -36,14 +48,20 @@ def summarize(root):
                 summary.update(error_kinds=dict(errors),successful_p95_ms=percentile(successful,.95),
                     successful_p99_ms=percentile(successful,.99),
                     pool_p95_ms=percentile([r["pool_ms"] for r in attempts if "pool_ms" in r],.95))
+                end=completions.get((size,case["candidates"],case["zoom"],case["concurrency"]))
+                if end:
+                    window=[s for s in resource_samples if end-timedelta(seconds=case["seconds"])<=datetime.fromisoformat(s["at"])<=end]
+                    summary["resource_samples"]=len(window)
+                    if window:
+                        summary["peak_db_cpu_percent"]=max(float(s["db"]["CPUPerc"].rstrip("%")) for s in window)
+                        summary["peak_db_memory_percent_of_8GiB"]=max(float(s["db"]["MemPerc"].rstrip("%")) for s in window)
                 data["load"].append(summary)
         path=root/f"cancellation-{size}.json"
         if path.exists():
             data["cancellation"]=json.loads(path.read_text(encoding="utf-8"))
         result["scales"].append(data)
-    resources=root/"resources.jsonl"
-    if resources.exists():
-        samples=[json.loads(line.lstrip("\ufeff")) for line in resources.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if resource_samples:
+        samples=resource_samples
         result["resources"]={"samples":len(samples),"peak_db_cpu_percent":max(float(s["db"]["CPUPerc"].rstrip("%")) for s in samples),
             "peak_db_memory_percent_of_8GiB":max(float(s["db"]["MemPerc"].rstrip("%")) for s in samples),
             "first":samples[0],"last":samples[-1]}
