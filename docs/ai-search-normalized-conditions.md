@@ -43,4 +43,3 @@ Committed-result metadata is validated separately from the editable session. Its
 failure cannot resurrect a terminal pending message or discard an editable draft;
 cards keep their previous valid labels, and the session is synchronized independently.
 An explicit new conversation preserves draft/cards and requires a fresh mode choice.
-
