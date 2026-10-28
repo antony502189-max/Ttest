@@ -48,7 +48,7 @@ async def pg():
         async with engine.begin() as conn:
 
             def migrate(sync):
-                for filename in ("0067_ai_search_quota.py", "0068_ai_search_sessions.py"):
+                for filename in ("0067_ai_search_quota.py", "0068_ai_search_sessions.py", "0072_ai_session_commands.py"):
                     path = Path(__file__).parents[2] / "alembic/versions" / filename
                     spec = importlib.util.spec_from_file_location("ai_migration", path)
                     module = importlib.util.module_from_spec(spec)

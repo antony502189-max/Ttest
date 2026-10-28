@@ -6,6 +6,13 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'Los resultados ya no están disponibles. Repite la búsqueda para obtener páginas nuevas.': { ru: 'Результаты больше недоступны. Повторите поиск, чтобы получить новые страницы.', en: 'These results are no longer available. Repeat the search to get new pages.' },
+  'Reintentar sincronización': { ru: 'Повторить синхронизацию', en: 'Retry synchronization' },
+  'No se pudo actualizar el diálogo. Conservamos tu búsqueda. Reintenta la sincronización.': { ru: 'Не удалось обновить диалог. Поиск сохранён. Повторите синхронизацию.', en: 'Could not update the conversation. Your search is saved. Retry synchronization.' },
+  'Nueva conversación lista. Conservamos los resultados anteriores hasta tu próxima búsqueda.': { ru: 'Новый диалог готов. Предыдущие результаты останутся до следующего поиска.', en: 'New conversation ready. Previous results stay until your next search.' },
+  'Hay demasiadas conversaciones activas. Conservamos tu texto y resultados. Inténtalo más tarde.': { ru: 'Слишком много активных диалогов. Текст и результаты сохранены. Попробуйте позже.', en: 'Too many active conversations. Your text and results are saved. Try again later.' },
+  'No se pudo iniciar una nueva conversación. Conservamos tu texto y resultados.': { ru: 'Не удалось начать новый диалог. Текст и результаты сохранены.', en: 'Could not start a new conversation. Your text and results are saved.' },
+  'Los resultados anteriores siguen visibles. Inicia una nueva búsqueda para ver más páginas.': { ru: 'Предыдущие результаты сохранены. Для просмотра других страниц запустите новый поиск.', en: 'Previous results remain visible. Start a new search to see more pages.' },
   'Búsqueda con IA': { ru: 'Поиск с ИИ', en: 'AI search' },
   'Acorta o revisa el texto antes de enviarlo de nuevo.': { ru: 'Сократите или проверьте текст перед повторной отправкой.', en: 'Shorten or review the text before sending it again.' },
   '¿No sabes por dónde empezar?': { ru: 'Не знаете, с чего начать?', en: 'Not sure where to start?' },
@@ -23,6 +30,8 @@ const translations: Record<string, Translation> = {
   'Comprobar el mismo intento': { ru: 'Проверить этот запрос', en: 'Check the same attempt' },
   'Buscando opciones con condiciones confirmadas…': { ru: 'Ищем варианты с подтверждёнными условиями…', en: 'Searching for options with confirmed conditions…' },
   'La búsqueda sigue en curso. Consulta de nuevo el mismo intento.': { ru: 'Поиск ещё выполняется. Проверьте этот же запрос повторно.', en: 'The search is still running. Check the same attempt again.' },
+  'Iniciar nueva conversación': { ru: 'Начать новый диалог', en: 'Start a new conversation' },
+  'El intento terminó, pero el diálogo no está disponible. Inicia una nueva conversación para continuar.': { ru: 'Попытка завершена, но диалог недоступен. Начните новый диалог, чтобы продолжить.', en: 'The attempt finished, but the conversation is unavailable. Start a new conversation to continue.' },
   'La búsqueda cambió. Revisa tu texto antes de enviarlo de nuevo.': { ru: 'Условия поиска изменились. Проверьте текст перед повторной отправкой.', en: 'The search changed. Review your text before sending it again.' },
   'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.': { ru: 'Этот запрос не выполнен. Проверьте текст и отправьте заново.', en: 'This attempt did not complete. Review the text and try again.' },
   'Has alcanzado el límite diario. Puedes usar la búsqueda con filtros.': { ru: 'Дневной лимит исчерпан. Можно продолжить поиск с фильтрами.', en: 'You have reached the daily limit. You can use the search filters.' },

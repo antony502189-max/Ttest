@@ -116,7 +116,10 @@ async def test_origin_cookie_gate_and_client_authority_fields_fail_closed(active
         sid = created.json()["intent"]["session_id"]
         for cookie in ("forged", runtime.guests.issue(now=1)[0]):
             result = await client.get(f"/api/v1/ai-search/sessions/{sid}", headers={"Cookie": "ai_search_guest=" + cookie})
-            assert result.status_code == 401 and "set-cookie" not in result.headers
+            assert result.status_code == 401 and "Max-Age=0" in result.headers["set-cookie"]
+        # Invalid-cookie responses now clear the jar. Renew explicitly before
+        # testing unrelated body/schema authority with a valid identity.
+        sid = (await client.post("/api/v1/ai-search/sessions")).json()["intent"]["session_id"]
         oversized = await client.post("/api/v1/ai-search/query", content=b"x" * 131_073,
                                       headers={"Content-Type": "application/json"})
         assert oversized.status_code == 413 and parser.calls == 0
@@ -229,7 +232,7 @@ async def test_quota_http_requires_identity_and_repeated_reads_never_create_rows
         for token in ("forged", runtime.guests.issue(now=1)[0]):
             response = await client.get("/api/v1/ai-search/quota", headers={"Cookie": "ai_search_guest=" + token})
             private_error(response, 401, "AI_GUEST_IDENTITY_INVALID_OR_EXPIRED")
-            assert "set-cookie" not in response.headers
+            assert "Max-Age=0" in response.headers["set-cookie"]
         sid = UUID((await client.post("/api/v1/ai-search/sessions")).json()["intent"]["session_id"])
         async with SessionLocal() as session:
             before = (await session.execute(select(AISearchSession.expires_at, AISearchSession.updated_at).where(
@@ -244,3 +247,93 @@ async def test_quota_http_requires_identity_and_repeated_reads_never_create_rows
                 AISearchSession.id == sid))).one() == before
             assert await session.scalar(select(func.count()).select_from(AIUsageDay)) == 0
         assert parser.calls == 0
+
+
+async def test_expired_replay_receipt_survives_real_verified_card_access_denial(active, monkeypatch):
+    runtime, parser, _gate = active
+    original = runtime.sessions.finalize_patch
+    async def lost_ack(*args, **kwargs):
+        await original(*args, **kwargs)
+        raise OSError("synthetic acknowledgement loss")
+    monkeypatch.setattr(runtime.sessions, "finalize_patch", lost_ack)
+    async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as client:
+        sid = (await client.post("/api/v1/ai-search/sessions")).json()["intent"]["session_id"]
+        payload = message(sid, 0)
+        assert (await client.post("/api/v1/ai-search/query", json=payload)).status_code == 503
+        async with SessionLocal.begin() as conn:
+            await conn.execute(update(AISearchSession).where(AISearchSession.id == UUID(sid)).values(
+                expires_at=datetime.now(UTC) - timedelta(seconds=1)))
+        for _ in range(2):
+            response = await client.post("/api/v1/ai-search/query", json=payload)
+            assert response.status_code == 200, response.text
+            answer = response.json()
+            assert answer["operation"]["status"] == "succeeded"
+            assert answer["operation"]["receipt"]["count"] == 3
+            assert answer["cards"] is None and answer["cards_error"] == "RESULT_EXPIRED_REQUERY_REQUIRED"
+        ref = answer["operation"]["receipt"]["result_ref"]
+        private_error(await client.post(f"/api/v1/ai-search/results/{ref}/cards", json={}),
+                      409, "RESULT_EXPIRED_REQUERY_REQUIRED")
+        assert parser.calls == 1
+        quota = (await client.get("/api/v1/ai-search/quota")).json()
+        assert quota["used"] == 1 and quota["reserved"] == 0
+
+
+async def test_ui_asgi_bridge_recovers_expired_terminal_receipt(active, monkeypatch):
+    # Run with a local Vite frontend: AI_UI_TEST_URL=http://127.0.0.1:4176.
+    # Browser API requests go through ASGI and real PostGIS/ledger, without
+    # synthetic query/session responses or any external provider traffic.
+    import os
+    from urllib.parse import urlsplit
+    frontend = os.getenv("AI_UI_TEST_URL")
+    if not frontend:
+        pytest.skip("set AI_UI_TEST_URL to an isolated local frontend")
+    assert urlsplit(frontend).hostname == "127.0.0.1"
+    from playwright.async_api import async_playwright, expect
+    runtime, parser, _gate = active
+    real_finalize = runtime.sessions.finalize_patch
+    async def expire_after_commit(*args, **kwargs):
+        await real_finalize(*args, **kwargs)
+        async with SessionLocal.begin() as conn:
+            await conn.execute(update(AISearchSession).where(AISearchSession.id == args[1].session_id).values(
+                expires_at=datetime.now(UTC) - timedelta(seconds=1)))
+        raise OSError("synthetic lost acknowledgement")
+    monkeypatch.setattr(runtime.sessions, "finalize_patch", expire_after_commit)
+    async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as client, async_playwright() as pw:
+        browser = await pw.chromium.launch()
+        try:
+            page = await browser.new_page()
+            requests = []
+            async def forward(route):
+                request = route.request
+                url = urlsplit(request.url)
+                if url.hostname != "127.0.0.1":
+                    return await route.abort()
+                if url.path.startswith("/api/v1/ai-search/"):
+                    if url.path.endswith("/query"):
+                        requests.append(request.post_data_json)
+                    response = await client.request(request.method, url.path, content=request.post_data,
+                        headers={"Content-Type": "application/json"})
+                    return await route.fulfill(status=response.status_code, body=response.content,
+                                               content_type="application/json")
+                if url.path.startswith("/api/"):
+                    return await route.fulfill(status=404, json={"detail": "Not found"})
+                await route.continue_()
+            await page.route("**/*", forward)
+            await page.add_init_script("localStorage.setItem('112233:language:v1','es'); localStorage.setItem('112233:mobile-onboarding:v1','done:refreshable')")
+            await page.goto(frontend + "/#/")
+            await page.get_by_role("button", name="Escribir mi búsqueda").click()
+            await page.locator("#ai-search-text").fill("Una habitación con mi perro")
+            await page.get_by_role("button", name="Buscar habitaciones", exact=True).click()
+            retry = page.get_by_role("button", name="Comprobar el mismo intento")
+            await expect(retry).to_be_enabled()
+            await retry.click()
+            await expect(page.get_by_role("button", name="Iniciar nueva conversación")).to_be_enabled()
+            await expect(retry).to_have_count(0)
+            await expect(page.locator("#ai-search-text")).to_have_value("Una habitación con mi perro")
+            assert len(requests) == 2 and requests[0] == requests[1]
+            assert parser.calls == 1
+            assert (await client.get("/api/v1/ai-search/quota")).json()["used"] == 1
+            await page.get_by_role("button", name="Iniciar nueva conversación").click()
+            await expect(page.get_by_role("button", name="Buscar habitaciones", exact=True)).to_be_enabled()
+        finally:
+            await browser.close()
