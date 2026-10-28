@@ -331,7 +331,7 @@ async def measure(total, samples, candidate=None, baseline_only=False):
     db = engine(pool=30)
     async with db.connect() as c:
         assert await c.scalar(text("SELECT data->>'synthetic_only' FROM r01_meta")) == "true"
-        assert await c.scalar(text("SELECT tgenabled FROM pg_trigger WHERE tgname='listings_catalog_version'")) == "O", "setup trigger must be restored before measurements"
+        assert await c.scalar(text("SELECT tgenabled::text FROM pg_trigger WHERE tgname='listings_catalog_version'")) == "O", "setup trigger must be restored before measurements"
     factory = async_sessionmaker(db, expire_on_commit=False)
     pipe = pipeline(factory)
     # Direct _map_intent measures the complete shared map query/DTO path;
