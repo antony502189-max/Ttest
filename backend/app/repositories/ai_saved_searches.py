@@ -112,7 +112,7 @@ class RegisteredAISearches:
             await self._active(conn, subject)
             if await saved_search_count(subject.id, conn) >= get_settings().max_saved_searches_per_user:
                 raise SavedAIError("SAVED_SEARCH_LIMIT")
-            committed = await self.sessions.result(subject, result_ref)
+            committed = await self.sessions.result_in_transaction(conn, subject, result_ref)
             copied = SavedIntent(schema_version=committed.intent.schema_version,
                 taxonomy_version=committed.intent.taxonomy_version, criteria=committed.intent.criteria)
             self.sessions.vocabulary.validate(copied.criteria)

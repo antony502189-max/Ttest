@@ -454,7 +454,7 @@ test('result metadata hash mismatch never labels or replaces previous cards', as
   await expect(page.getByRole('button', { name: 'Comprobar el mismo intento' })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Resultados confirmados', exact: true })).toHaveCount(0)
 })
-for (const terminal of ['expired', 'guest-expired', 'replayed-success'] as const) {
+for (const terminal of ['expired', 'guest-expired', 'replayed-success', 'result-expired'] as const) {
   test(`terminal ${terminal} settles before expired session refresh and permits explicit new identity`, async ({ page }) => {
     await setup(page)
     const nextSid = '00000000-0000-4000-8000-000000000099'
@@ -470,11 +470,11 @@ for (const terminal of ['expired', 'guest-expired', 'replayed-success'] as const
     await page.route(`**/api/v1/ai-search/sessions/${nextSid}`, route => route.fulfill({ json: {
       ...snapshot(1), intent: { ...snapshot(1).intent, session_id: nextSid },
     } }))
-    await page.route(`**/api/v1/ai-search/results/${ref}`, route => route.fulfill({ json: { result_ref: ref, count: 0, intent_hash: 'original-intent', intent: { ...intent(1), session_id: creates === 1 ? sid : nextSid } } }))
+    await page.route(`**/api/v1/ai-search/results/${ref}`, route => terminal === 'result-expired' && creates === 1 ? route.fulfill({ status: 409, json: { detail: 'RESULT_EXPIRED_REQUERY_REQUIRED' } }) : route.fulfill({ json: { result_ref: ref, count: 0, intent_hash: 'original-intent', intent: { ...intent(1), session_id: creates === 1 ? sid : nextSid } } }))
     await page.route('**/api/v1/ai-search/query', route => {
       messages.push(route.request().postDataJSON())
       if (terminal === 'replayed-success' && messages.length === 1) return route.abort('failed')
-      const success = terminal === 'replayed-success' || creates === 2
+      const success = terminal === 'replayed-success' || terminal === 'result-expired' || creates === 2
       return route.fulfill({ json: { operation: { status: success ? 'succeeded' : 'failed',
         failure_code: success ? null : 'SESSION_EXPIRED', remaining: 2,
         receipt: success ? { result_ref: ref, count: 0 } : null }, cards: success ? cards() : null } })

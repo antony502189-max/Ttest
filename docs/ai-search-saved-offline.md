@@ -44,3 +44,9 @@ counts and links are recorded in the dependent draft PR after CI completes.
 Rollout prerequisite: deploy all legacy guards before allowing any AI saved
 writes. Old binaries are not claimed to understand AI snapshots. Public runtime
 and delivery remain disabled, so this change does not perform that rollout.
+
+
+Snapshot save reads the original owned result on its existing collection-lock
+transaction connection, through the same schema/vocabulary/hash/session checks
+as ordinary result reads. It requires one checkout and supports pool_size=1 with
+max_overflow=0; increasing pool capacity is not a correctness prerequisite.

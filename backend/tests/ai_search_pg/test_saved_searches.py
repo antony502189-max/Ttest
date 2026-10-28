@@ -5,6 +5,7 @@ matcher parity are tested separately in integration/test_ai_saved_searches.py.
 """
 import asyncio
 import importlib.util
+from contextlib import AsyncExitStack
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -13,8 +14,9 @@ import pytest
 import pytest_asyncio
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import delete, event, func, select, text, update
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from test_sessions import complete
 
 from app.models import SavedSearch
@@ -200,3 +202,92 @@ async def test_concurrent_ai_and_manual_saves_share_existing_collection_limit(sa
     assert sum(isinstance(item, (SavedAIError, HTTPException)) for item in results) == 1
     async with pg[1]() as conn:
         assert await conn.scalar(select(func.count()).select_from(SavedSearch).where(SavedSearch.user_id == owner.id)) == 1
+
+
+@pytest_asyncio.fixture
+async def small_saved_store(saved_store, pg, monkeypatch, request):
+    owner, initial, receipt = await registered(saved_store, pg)
+    async with pg[1]() as conn:
+        schema = await conn.scalar(text("select current_schema()"))
+    size = request.param
+    engine = create_async_engine(pg[1].kw["bind"].url, pool_size=size, max_overflow=0, pool_timeout=0.5,
+        connect_args={"server_settings": {"search_path": schema}})
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    monkeypatch.setattr(saved_store.sessions.ledger, "sessions", maker)
+    repository = RegisteredAISearches(saved_store.sessions, SimpleNamespace(sessions=maker))
+    try:
+        yield repository, owner, initial, receipt, maker, engine, size
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.parametrize("small_saved_store", [1, 2], indirect=True)
+async def test_save_uses_one_checkout_even_with_minimum_or_saturated_pool(small_saved_store):
+    repository, owner, _, receipt, _, engine, size = small_saved_store
+    checkouts = []
+    event.listen(engine.sync_engine, "checkout", lambda *args: checkouts.append(1))
+    async with AsyncExitStack() as stack:
+        if size == 2:
+            await stack.enter_async_context(engine.connect())  # Occupy every connection except one.
+        before = len(checkouts)
+        saved = await asyncio.wait_for(repository.save(owner, receipt.result_ref), 2)
+        assert len(checkouts) - before == 1
+    assert saved.intent.criteria.balcony.value is False
+    assert await repository.get(owner, saved.id) == saved
+
+
+@pytest.mark.parametrize("small_saved_store", [1, 2], indirect=True)
+async def test_concurrent_small_pool_ai_and_manual_collection_cap_is_atomic(small_saved_store, monkeypatch):
+    from fastapi import HTTPException
+
+    from app.core.config import get_settings
+    repository, owner, _, receipt, maker, _, _ = small_saved_store
+    # First prove concurrent valid saves succeed when the pool is saturated by
+    # save transactions themselves (rather than masking pool failures as caps).
+    saved = await asyncio.wait_for(asyncio.gather(*(repository.save(owner, receipt.result_ref) for _ in range(3))), 4)
+    assert len({value.id for value in saved}) == 3
+    async with maker.begin() as conn:
+        await conn.execute(delete(SavedSearch).where(SavedSearch.user_id == owner.id))
+    monkeypatch.setattr(get_settings(), "max_saved_searches_per_user", 1)
+    async def manual():
+        async with maker() as conn:
+            return await create_saved_search(SavedSearchWrite(rentalMode="long"), SimpleNamespace(id=owner.id), conn)
+    outcomes = await asyncio.wait_for(asyncio.gather(repository.save(owner, receipt.result_ref),
+        repository.save(owner, receipt.result_ref), manual(), return_exceptions=True), 4)
+    assert sum(not isinstance(item, Exception) for item in outcomes) == 1
+    failures = [value for value in outcomes if isinstance(value, Exception)]
+    assert len(failures) == 2
+    assert all(isinstance(value, (SavedAIError, HTTPException)) for value in failures)
+    async with maker() as conn:
+        assert await conn.scalar(select(func.count()).select_from(SavedSearch).where(SavedSearch.user_id == owner.id)) == 1
+
+
+@pytest.mark.parametrize("small_saved_store", [1], indirect=True)
+@pytest.mark.parametrize("failure", ["foreign", "expired", "blocked", "deleted", "hash", "schema", "binding"])
+async def test_same_connection_result_read_preserves_all_guards(small_saved_store, failure):
+    from app.models.ai_search_session import AISearchResult
+    repository, owner, initial, receipt, maker, _, _ = small_saved_store
+    caller = owner
+    async with maker.begin() as conn:
+        if failure == "foreign":
+            caller = QuotaSubject(kind="auth", id=uuid4())
+            await conn.execute(text("INSERT INTO users(id) VALUES (:id)"), {"id": caller.id})
+        elif failure == "expired":
+            await conn.execute(update(AISearchSession).where(AISearchSession.id == initial.intent.session_id).values(
+                expires_at=text("clock_timestamp()-interval '1 second'")))
+        elif failure in {"blocked", "deleted"}:
+            await conn.execute(text("UPDATE users SET " + ("blocked=true" if failure == "blocked" else "deleted_at=now()")
+                + " WHERE id=:id"), {"id": owner.id})
+        else:
+            row = await conn.scalar(select(AISearchResult).where(AISearchResult.id == receipt.result_ref))
+            if failure == "hash":
+                row.intent_hash = "0" * 64
+            elif failure == "schema":
+                row.intent = {**row.intent, "schema_version": "future"}
+            else:
+                row.session_version += 1
+    with pytest.raises((SessionError, SavedAIError)):
+        await repository.save(caller, receipt.result_ref)
+    async with maker() as conn:
+        assert await conn.scalar(select(func.count()).select_from(SavedSearch).where(SavedSearch.user_id == owner.id)) == 0
+        assert await conn.scalar(select(func.count()).select_from(AISearchRequest)) == 1

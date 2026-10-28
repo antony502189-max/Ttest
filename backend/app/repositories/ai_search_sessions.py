@@ -287,30 +287,38 @@ class SearchSessions:
         binding. This table contains no cards or invented matching evidence.
         """
         async with self.ledger.sessions() as conn:
-            row = await conn.scalar(
-                select(AISearchResult).where(
-                    AISearchResult.id == result_ref,
-                    AISearchResult.subject_kind == subject.kind,
-                    AISearchResult.subject_id == subject.id,
-                )
+            return await self.result_in_transaction(conn, subject, result_ref)
+
+    async def result_in_transaction(self, conn: AsyncSession, subject: QuotaSubject, result_ref: UUID) -> CommittedIntent:
+        """Same owned/schema/hash/session checks using the caller's connection.
+
+        Collection writes must not hold their lock while acquiring another pool
+        connection. The original read API delegates here so guards cannot drift.
+        """
+        row = await conn.scalar(
+            select(AISearchResult).where(
+                AISearchResult.id == result_ref,
+                AISearchResult.subject_kind == subject.kind,
+                AISearchResult.subject_id == subject.id,
             )
-            if row is None:
-                raise SessionError("RESULT_NOT_FOUND")
-            try:
-                await self._read(conn, subject, row.session_id)
-            except SessionError as error:
-                raise SessionError("RESULT_EXPIRED_REQUERY_REQUIRED") from error
-            try:
-                intent = SearchIntent.model_validate_json(json.dumps(row.intent))
-                self.vocabulary.validate(intent.criteria)
-            except (ValueError, TypeError) as error:
-                raise SessionError("RESULT_STATE_INVALID") from error
-            if (
-                intent.session_id != row.session_id
-                or intent.version != row.session_version
-                or intent_hash(intent) != row.intent_hash
-            ):
-                raise SessionError("RESULT_STATE_INVALID")
-            return CommittedIntent(
-                result_ref=row.id, count=row.result_count, intent=intent, intent_hash=row.intent_hash
-            )
+        )
+        if row is None:
+            raise SessionError("RESULT_NOT_FOUND")
+        try:
+            await self._read(conn, subject, row.session_id)
+        except SessionError as error:
+            raise SessionError("RESULT_EXPIRED_REQUERY_REQUIRED") from error
+        try:
+            intent = SearchIntent.model_validate_json(json.dumps(row.intent))
+            self.vocabulary.validate(intent.criteria)
+        except (ValueError, TypeError) as error:
+            raise SessionError("RESULT_STATE_INVALID") from error
+        if (
+            intent.session_id != row.session_id
+            or intent.version != row.session_version
+            or intent_hash(intent) != row.intent_hash
+        ):
+            raise SessionError("RESULT_STATE_INVALID")
+        return CommittedIntent(
+            result_ref=row.id, count=row.result_count, intent=intent, intent_hash=row.intent_hash
+        )
