@@ -16,7 +16,7 @@ pytestmark = pytest.mark.integration
 
 def test_linear_combined_schema_matches_all_ai_models(pg):
     engine, _ = pg
-    names = ("0067_ai_search_quota", "0068_ai_search_sessions", "0069_ai_listing_facts", "0070_ai_fact_pipeline", "0071_ai_query_proofs")
+    names = ("0067_ai_search_quota", "0068_ai_search_sessions", "0069_ai_listing_facts", "0070_ai_fact_pipeline", "0071_ai_query_proofs", "0072_ai_session_commands")
     previous = "0066_complimentary_ads"
     modules = []
     for name in names:
@@ -39,7 +39,7 @@ def test_linear_combined_schema_matches_all_ai_models(pg):
             for table in Base.metadata.tables.values():
                 if table.name.startswith("ai_"):
                     table.to_metadata(metadata)
-            assert len(metadata.tables) == 12
+            assert len(metadata.tables) == 13
             assert set(inspect(connection).get_table_names()) == set(metadata.tables)
             assert compare_metadata(MigrationContext.configure(connection, opts={"compare_type": True}), metadata) == []
             for table in metadata.tables.values():

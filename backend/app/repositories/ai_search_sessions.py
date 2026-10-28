@@ -12,7 +12,7 @@ from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.ai_search_quota import AISearchRequest
-from ..models.ai_search_session import AISearchResult, AISearchSession
+from ..models.ai_search_session import AISearchResult, AISearchSession, AISessionCommand
 from ..schemas.ai_search_intent import Criteria, IntentPatch, SearchIntent, apply_patch
 from ..schemas.ai_search_quota import (
     FailureCode,
@@ -162,20 +162,58 @@ class SearchSessions:
         await conn.flush()
         return SessionSnapshot(intent=intent, expires_at=expiry)
 
-    async def create(self, subject: QuotaSubject, *, max_active: int | None = None) -> SessionSnapshot:
+    async def _command(self, conn: AsyncSession, subject: QuotaSubject, key: UUID | None,
+                       action: str, source_id: UUID | None = None,
+                       expected_version: int | None = None) -> SessionSnapshot | None:
+        # One lock order for create/reset, including legacy callers. Serialize
+        # before reading either command or source row to avoid cap/lock races.
+        await conn.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+                           {"key": f"ai-session-create:{subject.kind}:{subject.id}"})
+        if key is None:
+            return None
+        if not isinstance(key, UUID):
+            raise TypeError("UUID session command key required")
+        command = await conn.get(AISessionCommand, (subject.kind, subject.id, key))
+        if command is None:
+            return None
+        if (command.action, command.source_id, command.expected_version) != (action, source_id, expected_version):
+            raise SessionError("SESSION_COMMAND_CONFLICT")
+        row, intent = await self._read(conn, subject, command.result_id)
+        return SessionSnapshot(intent=intent, expires_at=row.expires_at)
+
+    @staticmethod
+    def _remember(conn: AsyncSession, subject: QuotaSubject, key: UUID | None,
+                  snapshot: SessionSnapshot, action: str, source_id: UUID | None = None,
+                  expected_version: int | None = None) -> None:
+        if key is not None:
+            conn.add(AISessionCommand(subject_kind=subject.kind, subject_id=subject.id,
+                idempotency_key=key, action=action, source_id=source_id, expected_version=expected_version,
+                result_id=snapshot.intent.session_id))
+
+    async def create(self, subject: QuotaSubject, *, max_active: int | None = None,
+                     idempotency_key: UUID | None = None) -> SessionSnapshot:
         async with self.ledger.sessions.begin() as conn:
-            return await self._create(conn, subject, max_active=max_active)
+            replay = await self._command(conn, subject, idempotency_key, "create")
+            if replay is not None:
+                return replay
+            snapshot = await self._create(conn, subject, max_active=max_active)
+            self._remember(conn, subject, idempotency_key, snapshot, "create")
+            return snapshot
 
     async def get(self, subject: QuotaSubject, session_id: UUID) -> SessionSnapshot:
         async with self.ledger.sessions() as conn:
             row, intent = await self._read(conn, subject, session_id)
             return SessionSnapshot(intent=intent, expires_at=row.expires_at)
 
-    async def reset(self, subject: QuotaSubject, session_id: UUID, expected_version: int, *, max_active: int | None = None) -> SessionSnapshot:
+    async def reset(self, subject: QuotaSubject, session_id: UUID, expected_version: int, *, max_active: int | None = None,
+                    idempotency_key: UUID | None = None) -> SessionSnapshot:
         """Explicit caller command only. Never inferred from missing patch fields."""
         if type(expected_version) is not int or not 0 <= expected_version <= 2_147_483_647:
             raise ValueError("a bounded expected version is required")
         async with self.ledger.sessions.begin() as conn:
+            replay = await self._command(conn, subject, idempotency_key, "reset", session_id, expected_version)
+            if replay is not None:
+                return replay
             row, _ = await self._read(conn, subject, session_id, lock=True, allow_expired=True)
             if row.closed_at is not None or row.version != expected_version:
                 raise SessionError("SESSION_VERSION_CONFLICT")
@@ -183,7 +221,9 @@ class SearchSessions:
             row.expires_at = row.updated_at
             row.closed_at = row.updated_at
             # New identity; old requests can never resurrect or mutate it.
-            return await self._create(conn, subject, max_active=max_active)
+            snapshot = await self._create(conn, subject, max_active=max_active)
+            self._remember(conn, subject, idempotency_key, snapshot, "reset", session_id, expected_version)
+            return snapshot
 
     async def cleanup_unused(self, *, older_than: datetime, limit: int) -> int:
         """Explicit offline retention cutoff only; no worker or default policy.
@@ -199,9 +239,12 @@ class SearchSessions:
                 raise ValueError("retention cutoff cannot be in the future")
             referenced = select(AISearchRequest.idempotency_key).where(AISearchRequest.session_id == AISearchSession.id).exists()
             results = select(AISearchResult.id).where(AISearchResult.session_id == AISearchSession.id).exists()
+            commands = select(AISessionCommand.idempotency_key).where(
+                (AISessionCommand.result_id == AISearchSession.id) |
+                (AISessionCommand.source_id == AISearchSession.id)).exists()
             ids = list(await conn.scalars(select(AISearchSession.id).where(
                 AISearchSession.expires_at <= older_than, AISearchSession.version == 0,
-                AISearchSession.criteria == {}, ~referenced, ~results,
+                AISearchSession.criteria == {}, ~referenced, ~results, ~commands,
             ).order_by(AISearchSession.expires_at, AISearchSession.id).limit(limit).with_for_update(skip_locked=True)))
             if ids:
                 await conn.execute(delete(AISearchSession).where(AISearchSession.id.in_(ids)))
