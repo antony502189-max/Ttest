@@ -23,6 +23,8 @@ const translations: Record<string, Translation> = {
   'Comprobar el mismo intento': { ru: 'Проверить этот запрос', en: 'Check the same attempt' },
   'Buscando opciones con condiciones confirmadas…': { ru: 'Ищем варианты с подтверждёнными условиями…', en: 'Searching for options with confirmed conditions…' },
   'La búsqueda sigue en curso. Consulta de nuevo el mismo intento.': { ru: 'Поиск ещё выполняется. Проверьте этот же запрос повторно.', en: 'The search is still running. Check the same attempt again.' },
+  'Iniciar nueva conversación': { ru: 'Начать новый диалог', en: 'Start a new conversation' },
+  'El intento terminó, pero el diálogo no está disponible. Inicia una nueva conversación para continuar.': { ru: 'Попытка завершена, но диалог недоступен. Начните новый диалог, чтобы продолжить.', en: 'The attempt finished, but the conversation is unavailable. Start a new conversation to continue.' },
   'La búsqueda cambió. Revisa tu texto antes de enviarlo de nuevo.': { ru: 'Условия поиска изменились. Проверьте текст перед повторной отправкой.', en: 'The search changed. Review your text before sending it again.' },
   'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.': { ru: 'Этот запрос не выполнен. Проверьте текст и отправьте заново.', en: 'This attempt did not complete. Review the text and try again.' },
   'Has alcanzado el límite diario. Puedes usar la búsqueda con filtros.': { ru: 'Дневной лимит исчерпан. Можно продолжить поиск с фильтрами.', en: 'You have reached the daily limit. You can use the search filters.' },

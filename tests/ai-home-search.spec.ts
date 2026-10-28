@@ -213,3 +213,55 @@ test('reopening reads current quota without creating a session or charging anoth
   expect(sessions).toBe(1)
   expect(messages).toBe(1)
 })
+
+for (const terminal of ['expired', 'guest-expired', 'replayed-success'] as const) {
+  test(`terminal ${terminal} settles before expired session refresh and permits explicit new identity`, async ({ page }) => {
+    await setup(page)
+    const nextSid = '00000000-0000-4000-8000-000000000099'
+    const messages: Record<string, unknown>[] = []
+    let creates = 0
+    await page.route('**/api/v1/ai-search/sessions', route => {
+      creates++
+      return route.fulfill({ json: { ...snapshot(0), intent: { ...snapshot(0).intent, session_id: creates === 1 ? sid : nextSid } } })
+    })
+    await page.route(`**/api/v1/ai-search/sessions/${sid}`, route => route.fulfill({
+      status: terminal === 'guest-expired' ? 404 : 409, json: { detail: 'SESSION_EXPIRED' },
+    }))
+    await page.route(`**/api/v1/ai-search/sessions/${nextSid}`, route => route.fulfill({ json: {
+      ...snapshot(1), intent: { ...snapshot(1).intent, session_id: nextSid },
+    } }))
+    await page.route('**/api/v1/ai-search/query', route => {
+      messages.push(route.request().postDataJSON())
+      if (terminal === 'replayed-success' && messages.length === 1) return route.abort('failed')
+      const success = terminal === 'replayed-success' || creates === 2
+      return route.fulfill({ json: { operation: { status: success ? 'succeeded' : 'failed',
+        failure_code: success ? null : 'SESSION_EXPIRED', remaining: 2,
+        receipt: success ? { result_ref: ref, count: 0 } : null }, cards: success ? cards() : null } })
+    })
+    await page.goto('/#/')
+    await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
+    await page.getByLabel('Cuéntanos qué necesitas').fill(requestText)
+    await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+    if (terminal === 'replayed-success') {
+      await expect(page.getByRole('button', { name: 'Iniciar nueva conversación' })).toBeDisabled()
+      await page.getByRole('button', { name: 'Comprobar el mismo intento' }).click()
+      expect(messages[1]).toEqual(messages[0])
+    }
+    await expect(page.getByText('El intento terminó, pero el diálogo no está disponible.', { exact: false })).toBeVisible()
+    await expect(page.locator('#ai-search-text')).toBeEnabled()
+    await expect(page.getByRole('button', { name: 'Comprobar el mismo intento' })).toHaveCount(0)
+    expect(creates).toBe(1)
+    if (terminal === 'replayed-success') await expect(page.getByRole('region', { name: 'Resultados confirmados' })).toBeVisible()
+    await page.getByRole('button', { name: 'Iniciar nueva conversación' }).click()
+    await expect(page.locator('#ai-search-text')).toHaveValue('')
+    await page.getByLabel('Cuéntanos qué necesitas').fill('Una búsqueda nueva')
+    await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+    await expect.poll(() => creates).toBe(2)
+    await expect.poll(() => messages.length).toBe(terminal === 'replayed-success' ? 3 : 2)
+    const fresh = messages.at(-1)!
+    expect(fresh.session_id).toBe(nextSid)
+    expect(fresh.expected_version).toBe(0)
+    expect(fresh.idempotency_key).not.toBe(messages[0].idempotency_key)
+    expect(fresh.text).toBe('Una búsqueda nueva')
+  })
+}
