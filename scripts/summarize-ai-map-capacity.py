@@ -87,6 +87,23 @@ def main():
     args=parser.parse_args()
     result=summarize(args.root)
     (args.root/"summary.json").write_text(json.dumps(result,indent=2,ensure_ascii=False),encoding="utf-8")
+    control_description="Фактический контрольный план малого набора сохраняется отдельно от больших estimated-only планов."
+    control_path=args.root/"plan-1000-300-z8-0.json"
+    if control_path.exists():
+        control=json.loads(control_path.read_text(encoding="utf-8"))
+        if isinstance(control,list):
+            def authorities(node):
+                found=[node] if node.get("Relation Name")=="external_listing_sources" else []
+                return found+[item for child in node.get("Plans",[]) for item in authorities(child)]
+            nodes=authorities(control[0]["Plan"])
+            if nodes:
+                node=max(nodes,key=lambda n:n.get("Actual Loops",0))
+                control_description=(f"В фактическом плане контрольного набора на 1000 объявлений и 300 кандидатов "
+                    f"`{node.get('Index Name',node['Node Type'])}` просматривался {node.get('Actual Loops')} раз: "
+                    f"по {node.get('Actual Rows')} строки результата и {node.get('Rows Removed by Filter')} отброшенных строк. "
+                    f"Этот узел дал {node.get('Shared Hit Blocks')} shared-hit обращений, весь запрос — "
+                    f"{control[0]['Plan'].get('Shared Hit Blocks')}. Execution Time: {control[0].get('Execution Time')} мс. "
+                    "Это обращения к страницам в памяти, не число физических чтений с диска.")
     lines=["# R-01: синтетическая нагрузка AI-карты", "",
         "Критерии: p95 ≤ 500 мс, p99 ≤ 1000 мс; 50/100/200 одновременных запросов; 100 000/500 000/1 000 000 объявлений.", "",
         "**Статус:** " + ("все три основных масштаба завершены." if len(result["scales"])==3 and all(s["completed"] for s in result["scales"]) else "промежуточные результаты; не все масштабы завершены."), "",
@@ -113,9 +130,10 @@ def main():
             p95=[c['p95_ms']/1000 for c in cases]
             p99=[c['p99_ms']/1000 for c in cases]
             pools=[c['pool_p95_ms']/1000 for c in cases if c['pool_p95_ms'] is not None]
-            lines.append(f"| {scale['dataset']['listings']:,} | {concurrency} | {sum(c['failures'] for c in cases)} / {sum(c['samples'] for c in cases)} | {min(p95):.2f}–{max(p95):.2f} | {min(p99):.2f}–{max(p99):.2f} | {max(pools):.2f} |")
+            pool_label=f"{max(pools):.2f}" if pools else "нет данных"
+            lines.append(f"| {scale['dataset']['listings']:,} | {concurrency} | {sum(c['failures'] for c in cases)} / {sum(c['samples'] for c in cases)} | {min(p95):.2f}–{max(p95):.2f} | {min(p99):.2f}–{max(p99):.2f} | {pool_label} |")
     lines += ["", "`pool_ms` включает получение соединения и round trip SET TRANSACTION; это не чистый таймер очереди. `query_ms` включает repository SQL/DTO и завершение ошибочной транзакции; серверное время отдельно видно только в фактическом EXPLAIN.", "", "## Узкие места и рекомендации", "",
-        "1. **Выбор authority-источников масштабируется с общим каталогом.** В фактическом плане контрольного набора на 1000 объявлений и 300 кандидатов `external_listing_sources_pkey` просматривался 600 раз: по 2 строки результата и 2000 отброшенных строк. Этот узел дал 1 195 224 shared-hit обращения, весь запрос — 1 226 188. Execution Time: 1375,693 мс. Это обращения к страницам в памяти, не число физических чтений с диска. Рекомендуется индексируемое объединение ID текущих и ранее известных источников с сохранением remap/delete fail-closed семантики. Эквивалентный UNION используется только для подготовки fixture, равенство digest проверяется; приложение этим экспериментом не оптимизировано.", "",
+        "1. **Выбор authority-источников масштабируется с общим каталогом.** " + control_description + " Рекомендуется индексируемое объединение ID текущих и ранее известных источников с сохранением remap/delete fail-closed семантики. Эквивалентный UNION используется только для подготовки fixture, равенство digest проверяется; приложение этим экспериментом не оптимизировано.", "",
         "2. **Повторная дорогая проверка.** На zoom ≥13 при более чем 300 совпадениях сначала выполняется probe на 301 строку, затем агрегат. В отдельных планах сам signature также вычисляется повторно при join. После изменения доступа к источникам проверить число фактических выполнений и возможность однократного вычисления на уже ограниченных кандидатах. Не переносить проверки после LIMIT/агрегации: это нарушит корректность и приватность.", "",
         "3. **Очередь тяжёлых запросов.** Лимит пула 30 не ограничивает число ожидающих клиентских операций. Нужен отдельный измеренный admission/concurrency budget для карты, своевременная отмена старого viewport и ограниченная очередь. Простое увеличение пула создаст больше конкурентной работы с тем же дорогим SQL. Быстрые отказы не должны считаться выполнением SLO успешного поиска.", "",
         "4. **После первого SQL-исправления повторить всю матрицу.** Широкие viewport всё равно пересчитывают proof для каждого кандидата. Если бюджет остаётся недостижим, рассмотреть атомарно инвалидируемые версии/проекции и агрегаты на пути записи; обязательны все изменения источников, canonical/room data, фактов, batch и remap/delete. Замена текущих проверок на TTL или доверие старому proof без такого контракта небезопасна.", "",

@@ -31,6 +31,9 @@ $labDb = docker inspect $labDbName | ConvertFrom-Json
 if ($labDb.Config.Labels.'codex.task' -ne 'r01-synthetic' -or @($labDb.HostConfig.PortBindings.PSObject.Properties).Count -ne 0) {
     throw 'Expected disposable DB without published host ports'
 }
+if ($labDb.HostConfig.NanoCpus -ne 8000000000 -or $labDb.HostConfig.Memory -ne 8589934592) {
+    throw 'Expected the recorded 8 CPU / 8 GiB DB lab limits'
+}
 $labExtra = @()
 if ($Profile -eq 'fanout') { $labExtra += @('--sources','10') }
 $labRevision = git -C $labRoot rev-parse HEAD
