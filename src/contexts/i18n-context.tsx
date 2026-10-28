@@ -6,6 +6,12 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'Reintentar sincronización': { ru: 'Повторить синхронизацию', en: 'Retry synchronization' },
+  'No se pudo actualizar el diálogo. Conservamos tu búsqueda. Reintenta la sincronización.': { ru: 'Не удалось обновить диалог. Поиск сохранён. Повторите синхронизацию.', en: 'Could not update the conversation. Your search is saved. Retry synchronization.' },
+  'Nueva conversación lista. Conservamos los resultados anteriores hasta tu próxima búsqueda.': { ru: 'Новый диалог готов. Предыдущие результаты останутся до следующего поиска.', en: 'New conversation ready. Previous results stay until your next search.' },
+  'Hay demasiadas conversaciones activas. Conservamos tu texto y resultados. Inténtalo más tarde.': { ru: 'Слишком много активных диалогов. Текст и результаты сохранены. Попробуйте позже.', en: 'Too many active conversations. Your text and results are saved. Try again later.' },
+  'No se pudo iniciar una nueva conversación. Conservamos tu texto y resultados.': { ru: 'Не удалось начать новый диалог. Текст и результаты сохранены.', en: 'Could not start a new conversation. Your text and results are saved.' },
+  'Los resultados anteriores siguen visibles. Inicia una nueva búsqueda para ver más páginas.': { ru: 'Предыдущие результаты сохранены. Для просмотра других страниц запустите новый поиск.', en: 'Previous results remain visible. Start a new search to see more pages.' },
   'Búsqueda con IA': { ru: 'Поиск с ИИ', en: 'AI search' },
   'Acorta o revisa el texto antes de enviarlo de nuevo.': { ru: 'Сократите или проверьте текст перед повторной отправкой.', en: 'Shorten or review the text before sending it again.' },
   '¿No sabes por dónde empezar?': { ru: 'Не знаете, с чего начать?', en: 'Not sure where to start?' },

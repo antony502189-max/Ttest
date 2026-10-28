@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AudioLines, Search } from 'lucide-react'
 import { ApiError } from '@/api/client'
-import { aiCapabilities, aiCardPage, aiResultPage, createAISession, getAIQuota, getAISession, sendAIMessage, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
+import { aiCapabilities, aiCardPage, aiResultPage, createAISession, getAIQuota, getAISession, resetAISession, sendAIMessage, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
 import { hydrateIncompleteInternalGallery, type ListingCardPage } from '@/api/listings'
 import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
@@ -27,6 +27,10 @@ function AISearchPanel() {
   const [result, setResult] = useState<{ ref: string; hash: string; prices: AIBudgetPrice[]; page: ListingCardPage } | null>(null)
   const [remaining, setRemaining] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
+  const [syncingSession, setSyncingSession] = useState(false)
+  const [needsSync, setNeedsSync] = useState(false)
+  const [pagingAvailable, setPagingAvailable] = useState(true)
+  const syncFlight = useRef<AbortController | null>(null)
   const [notice, setNotice] = useState('')
   const flight = useRef<AbortController | null>(null)
   const lock = useRef(false)
@@ -36,12 +40,12 @@ function AISearchPanel() {
     void aiCapabilities(controller.signal).then(value => {
       if (!controller.signal.aborted) setEnabled(value.text === true)
     }).catch(() => { /* Ordinary search stays available when capability lookup fails. */ })
-    return () => { controller.abort(); flight.current?.abort() }
+    return () => { controller.abort(); flight.current?.abort(); syncFlight.current?.abort() }
   }, [])
 
   const ownedSessionId = session?.intent.session_id
   useEffect(() => {
-    if (!open || !ownedSessionId || busy) return
+    if (!open || busy) return
     const controller = new AbortController()
     void getAIQuota(controller.signal).then(quota => {
       if (!controller.signal.aborted) setRemaining(quota.remaining)
@@ -62,8 +66,73 @@ function AISearchPanel() {
     return () => controller.abort()
   }, [visibleItems])
 
+  function unavailable(error: unknown) {
+    return error instanceof ApiError && (
+      (error.status === 409 && ['SESSION_EXPIRED', 'RESULT_EXPIRED_REQUERY_REQUIRED'].includes(error.message)) ||
+      (error.status === 404 && ['SESSION_NOT_FOUND', 'RESULT_NOT_FOUND'].includes(error.message)) ||
+      (error.status === 401 && ['AI_GUEST_IDENTITY_INVALID_OR_EXPIRED', 'AI_GUEST_IDENTITY_REQUIRED'].includes(error.message)))
+  }
+
+  function lostConversation() {
+    setNeedsConversation(true)
+    setNeedsSync(false)
+    setPagingAvailable(false)
+    setNotice('El intento terminó, pero el diálogo no está disponible. Inicia una nueva conversación para continuar.')
+  }
+
+  async function refreshSession(id: string, clearNotice = false) {
+    syncFlight.current?.abort()
+    const controller = new AbortController()
+    syncFlight.current = controller
+    setSyncingSession(true)
+    setNeedsSync(true)
+    try {
+      const latest = await getAISession(id, controller.signal)
+      if (controller.signal.aborted) return
+      setSession(latest)
+      setNeedsSync(false)
+      if (clearNotice) setNotice('')
+    } catch (error) {
+      if (controller.signal.aborted) return
+      if (unavailable(error)) lostConversation()
+      else setNotice('No se pudo actualizar el diálogo. Conservamos tu búsqueda. Reintenta la sincronización.')
+    } finally {
+      if (!controller.signal.aborted) setSyncingSession(false)
+    }
+  }
+
+  async function newConversation() {
+    if (lock.current || pending || syncingSession || needsSync) return
+    lock.current = true
+    setBusy(true)
+    const controller = new AbortController()
+    flight.current = controller
+    try {
+      const fresh = session && !needsConversation
+        ? await resetAISession(session, controller.signal)
+        : await createAISession(controller.signal)
+      if (controller.signal.aborted) return
+      setSession(fresh)
+      setNeedsConversation(false)
+      setPagingAvailable(false)
+      setNotice(result ? 'Nueva conversación lista. Conservamos los resultados anteriores hasta tu próxima búsqueda.' : '')
+      // Draft and cards stay in memory, including when server transition fails.
+    } catch (error) {
+      if (controller.signal.aborted) return
+      if (unavailable(error)) lostConversation()
+      else if (error instanceof ApiError && error.message === 'SESSION_VERSION_CONFLICT' && session) {
+        void refreshSession(session.intent.session_id)
+      } else setNotice(error instanceof ApiError && error.message === 'SESSION_LIMIT'
+        ? 'Hay demasiadas conversaciones activas. Conservamos tu texto y resultados. Inténtalo más tarde.'
+        : 'No se pudo iniciar una nueva conversación. Conservamos tu texto y resultados.')
+    } finally {
+      lock.current = false
+      if (!controller.signal.aborted) setBusy(false)
+    }
+  }
+
   async function submit() {
-    if (lock.current || needsConversation || (!pending && !text.trim())) return
+    if (lock.current || needsConversation || needsSync || syncingSession || (!pending && !text.trim())) return
     lock.current = true
     setBusy(true)
     setNotice('Buscando opciones con condiciones confirmadas…')
@@ -88,6 +157,7 @@ function AISearchPanel() {
       // session has expired. Only ambiguous responses retain the replay key.
       setPending(null)
       if (answer.operation.status === 'succeeded' && answer.operation.receipt && answer.cards) {
+        setPagingAvailable(true)
         setResult({ ref: answer.operation.receipt.result_ref, hash: answer.cards.intent_hash, prices: answer.cards.budget_prices ?? [], page: aiCardPage(answer.cards) })
         setText('')
         setNotice('')
@@ -96,15 +166,12 @@ function AISearchPanel() {
           ? 'La búsqueda cambió. Revisa tu texto antes de enviarlo de nuevo.'
           : 'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.')
       }
-      try {
-        // Refresh editable state separately; never relabel original results.
-        const latest = await getAISession(message.session_id, controller.signal)
-        if (!controller.signal.aborted) setSession(latest)
-      } catch {
-        if (controller.signal.aborted) return
-        setSession(null)
-        setNeedsConversation(true)
-        setNotice('El intento terminó, pero el diálogo no está disponible. Inicia una nueva conversación para continuar.')
+      if (answer.cards_error) {
+        // Terminal receipt is authoritative even when its cards have expired.
+        lostConversation()
+      } else {
+        // Independent read phase; version-sensitive actions wait for sync.
+        void refreshSession(message.session_id)
       }
     } catch (error) {
       if (controller.signal.aborted) return
@@ -124,7 +191,7 @@ function AISearchPanel() {
   }
 
   async function page(cursor: string) {
-    if (lock.current || !result) return
+    if (lock.current || !result || !pagingAvailable) return
     lock.current = true
     setBusy(true)
     const controller = new AbortController()
@@ -133,8 +200,11 @@ function AISearchPanel() {
       const response = await aiResultPage(result.ref, cursor, controller.signal)
       if (response.intent_hash !== result.hash) throw new Error('Intent changed')
       if (!controller.signal.aborted) { setResult({ ...result, prices: response.budget_prices ?? [], page: aiCardPage(response) }); setNotice('') }
-    } catch {
-      if (!controller.signal.aborted) setNotice('No se pudo cargar la página. Conservamos los últimos resultados.')
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        if (unavailable(error)) lostConversation()
+        else setNotice('No se pudo cargar la página. Conservamos los últimos resultados.')
+      }
     } finally { lock.current = false; if (!controller.signal.aborted) setBusy(false) }
   }
 
@@ -153,13 +223,13 @@ function AISearchPanel() {
       <label htmlFor="ai-search-text">{t(result ? '¿Qué quieres cambiar?' : 'Cuéntanos qué necesitas')}</label>
       <textarea id="ai-search-text" data-i18n-exempt value={text} onChange={event => setText(event.target.value)} disabled={busy || pending !== null}
         maxLength={16000} rows={3} autoComplete="off" spellCheck={false} placeholder={t('Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
-      <Button type="button" className="home-ai-search__action" disabled={busy || needsConversation || (!pending && (!text.trim() || remaining === 0))}
+      <Button type="button" className="home-ai-search__action" disabled={busy || syncingSession || needsSync || needsConversation || (!pending && (!text.trim() || remaining === 0))}
         onClick={() => void submit()}>{t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : result ? 'Actualizar búsqueda' : 'Buscar habitaciones')}</Button>
-      {(session || needsConversation) ? <Button type="button" variant="outline" disabled={busy || pending !== null}
-        onClick={() => {
-          if (lock.current || pending) return
-          setSession(null); setNeedsConversation(false); setResult(null); setText(''); setNotice('')
-        }}>{t('Iniciar nueva conversación')}</Button> : null}
+      {(session || needsConversation) ? <Button type="button" variant="outline" disabled={busy || syncingSession || needsSync || pending !== null}
+        onClick={() => void newConversation()}>{t('Iniciar nueva conversación')}</Button> : null}
+      {needsSync && session ? <Button type="button" variant="outline" disabled={syncingSession || busy}
+        onClick={() => void refreshSession(session.intent.session_id, true)}>{t('Reintentar sincronización')}</Button> : null}
+      {result && !pagingAvailable ? <p>{t('Los resultados anteriores siguen visibles. Inicia una nueva búsqueda para ver más páginas.')}</p> : null}
       <div role="status" aria-live="polite">{notice ? t(notice) : null}</div>
       {remaining !== null ? <small>{t('Búsquedas disponibles hoy')}: {remaining}</small> : null}
       {result ? <section aria-label={t('Resultados confirmados')} aria-busy={busy}>
@@ -174,8 +244,8 @@ function AISearchPanel() {
           </div>
         })}</div>
         <nav aria-label={t('Páginas de resultados')}>
-          <Button type="button" variant="outline" disabled={busy || !result.page.previousCursor} onClick={() => void page(result.page.previousCursor!)}>{t('Anterior')}</Button>
-          <Button type="button" variant="outline" disabled={busy || !result.page.nextCursor} onClick={() => void page(result.page.nextCursor!)}>{t('Siguiente')}</Button>
+          <Button type="button" variant="outline" disabled={busy || !pagingAvailable || !result.page.previousCursor} onClick={() => void page(result.page.previousCursor!)}>{t('Anterior')}</Button>
+          <Button type="button" variant="outline" disabled={busy || !pagingAvailable || !result.page.nextCursor} onClick={() => void page(result.page.nextCursor!)}>{t('Siguiente')}</Button>
         </nav>
       </section> : null}
       <Button type="button" variant="ghost" onClick={() => setOpen(false)}>{t('Volver a los filtros')}</Button>

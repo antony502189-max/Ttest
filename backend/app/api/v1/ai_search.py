@@ -115,7 +115,13 @@ class PrivateAIRoute(APIRoute):
                     error.headers = {**(error.headers or {}), "Cache-Control": "no-store"}
                     raise
                 except InvalidGuestToken:
-                    return JSONResponse({"detail": "AI_GUEST_IDENTITY_INVALID_OR_EXPIRED"}, 401, headers={"Cache-Control": "no-store"})
+                    result = JSONResponse({"detail": "AI_GUEST_IDENTITY_INVALID_OR_EXPIRED"}, 401,
+                                          headers={"Cache-Control": "no-store"})
+                    # Do not issue a new identity implicitly. An explicit create
+                    # must still pass origin, HTTP and guest-issuance IP gates.
+                    result.delete_cookie(COOKIE, path="/api/v1/ai-search", secure=True,
+                                         httponly=True, samesite="strict")
+                    return result
                 except SessionError as error:
                     code = error.code if error.code in {"SESSION_NOT_FOUND", "SESSION_EXPIRED", "SESSION_VERSION_CONFLICT",
                         "SESSION_STATE_INVALID", "RESULT_NOT_FOUND", "RESULT_EXPIRED_REQUERY_REQUIRED", "RESULT_STATE_INVALID", "SESSION_LIMIT"} else "AI_SESSION_UNAVAILABLE"
