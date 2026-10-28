@@ -10,13 +10,21 @@ export type AIBudgetPrice = { listing_id: string; matched_amount: number; matche
 type CardResponse = { budget_prices?: AIBudgetPrice[]; cards: { items: ListingCardDto[]; total: number; nextCursor: string | null; previousCursor: string | null }; intent_hash: string }
 export type AIExecution = {
   operation: { status: 'reserved' | 'running' | 'succeeded' | 'failed'; failure_code: string | null; remaining: number; receipt: { result_ref: string; count: number } | null }
+  cards_error?: string | null
   cards: CardResponse | null
 }
 
 const headers = { 'X-AI-Request': '1' }
 export const aiCapabilities = (signal: AbortSignal) => api<AICapabilities>('/ai-search/capabilities', { signal, cache: 'no-store' })
-export const createAISession = (signal: AbortSignal, rentalMode?: RentalMode) => api<AISession>('/ai-search/sessions', {
-  method: 'POST', headers, body: JSON.stringify(rentalMode ? { rental_mode: rentalMode } : {}), signal, cache: 'no-store',
+export async function createAISession(key: string, signal: AbortSignal, rentalMode?: RentalMode) {
+  // Establish ownership before any session transaction can commit. Lost
+  // bootstrap responses cannot strand a session behind a missing cookie.
+  await api('/ai-search/identity', { method: 'POST', headers, signal, cache: 'no-store' })
+  return api<AISession>('/ai-search/sessions', { method: 'POST', headers,
+    body: JSON.stringify({ idempotency_key: key, ...(rentalMode ? { rental_mode: rentalMode } : {}) }), signal, cache: 'no-store' })
+}
+export const resetAISession = (session: AISession, key: string, signal: AbortSignal, rentalMode?: RentalMode) => api<AISession>(`/ai-search/sessions/${encodeURIComponent(session.intent.session_id)}/reset`, {
+  method: 'POST', headers, body: JSON.stringify({ expected_version: session.intent.version, idempotency_key: key, ...(rentalMode ? { rental_mode: rentalMode } : {}) }), signal, cache: 'no-store',
 })
 export const getAISession = (id: string, signal: AbortSignal) => api<AISession>(`/ai-search/sessions/${encodeURIComponent(id)}`, { signal, cache: 'no-store' })
 export const getAIResult = (ref: string, signal: AbortSignal) => api<AICommittedIntent>(`/ai-search/results/${encodeURIComponent(ref)}`, { signal, cache: 'no-store' })

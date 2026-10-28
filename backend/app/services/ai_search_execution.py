@@ -6,6 +6,7 @@ Clarification and background-alert business policies are deliberately absent.
 """
 import asyncio
 import hashlib
+import logging
 import math
 from contextlib import suppress
 from dataclasses import dataclass
@@ -42,6 +43,7 @@ class SearchExecution:
     operation: OperationState
     cards: VerifiedCardResult | None = None
     replay: bool = False
+    cards_error: str | None = None
 
 
 class TextSearchExecution:
@@ -84,7 +86,7 @@ class TextSearchExecution:
             state = reservation.operation
             cards = None
             if state.status == "succeeded" and state.receipt is not None:
-                cards = await self.query.query_result(subject, state.receipt.result_ref, payload)
+                return await self._terminal_result(subject, state, payload, replay=reservation.action == "replay")
             return SearchExecution(state, cards, replay=reservation.action == "replay")
         state = await self.ledger.claim(subject, operation)
         phase = FailureCode.BACKEND_FAILURE
@@ -128,5 +130,20 @@ class TextSearchExecution:
             return SearchExecution(completed)
         # The terminal receipt can be an earlier winner after a concurrent replay.
         if completed.receipt.result_ref != receipt.result_ref:
-            cards = await self.query.query_result(subject, completed.receipt.result_ref, payload)
+            return await self._terminal_result(subject, completed, payload, replay=True)
         return SearchExecution(completed, cards)
+
+    async def _terminal_result(self, subject: QuotaSubject, state: OperationState,
+                               payload: ListingCardSearchRequest, *, replay: bool) -> SearchExecution:
+        # The owned ledger receipt proves completion independently of card TTL.
+        # Card access still uses the full original ownership/expiry checks.
+        assert state.status == "succeeded" and state.receipt is not None
+        try:
+            cards = await self.query.query_result(subject, state.receipt.result_ref, payload)
+        except SessionError as error:
+            if error.code not in {"RESULT_EXPIRED_REQUERY_REQUIRED", "RESULT_NOT_FOUND", "SESSION_EXPIRED", "SESSION_NOT_FOUND"}:
+                raise
+            if error.code == "RESULT_NOT_FOUND":
+                logging.getLogger(__name__).warning("ai_result_unavailable", extra={"code": error.code})
+            return SearchExecution(state, replay=replay, cards_error=error.code)
+        return SearchExecution(state, cards, replay=replay)
