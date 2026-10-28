@@ -28,7 +28,7 @@ from app.services.ai_card_cursors import InvalidAICursor
 pytestmark = pytest.mark.integration
 
 
-async def setup(rental_mode, *, price=None):
+async def setup(rental_mode, *, price=None, count=4, positions=None):
     vocabulary = FactVocabulary(amenity_codes=frozenset(), catalog_other_codes=frozenset(),
                                tenant_group_codes=frozenset(), municipality_zones=frozenset())
     pipeline = FactPipeline(SessionLocal, FactQueuePolicy(lease_seconds=60, max_attempts=2, retry_delay_seconds=1),
@@ -45,7 +45,11 @@ async def setup(rental_mode, *, price=None):
                      initials="SH", email_verified=True)
         session.add(owner)
         await session.flush()
-        listings = [await _seed_listing_with_gallery(session, owner, rental_mode, str(i)) for i in range(4)]
+        listings = [await _seed_listing_with_gallery(session, owner, rental_mode, str(i)) for i in range(count)]
+        if positions is not None:
+            from app.repositories.listings import point
+            for listing, (longitude, latitude) in zip(listings, positions, strict=True):
+                listing.location = point(longitude, latitude)
         if price is not None:
             for listing in listings:
                 listing.monthly_price = price
@@ -97,10 +101,18 @@ async def setup(rental_mode, *, price=None):
 
 
 @pytest.mark.parametrize("rental_mode", ["long", "holiday"])
-async def test_existing_cards_top_gallery_and_both_cursor_directions(rental_mode):
+async def test_existing_cards_top_gallery_and_both_cursor_directions(rental_mode, monkeypatch):
+    from app.repositories import ai_verified_cards
+    original = ai_verified_cards.compile_hard_match
+    calls = []
+    def compile_once(intent, vocabulary):
+        calls.append(intent)
+        return original(intent, vocabulary)
+    monkeypatch.setattr(ai_verified_cards, "compile_hard_match", compile_once)
     query, subject, session_id, ids, _ = await setup(rental_mode)
     payload = ListingCardSearchRequest(rentalMode=rental_mode, sort="price_asc", limit=1)
     first = await query.search_owned(subject, session_id, 1, payload)
+    assert len(calls) == 1
     assert first.cards.total == 3 and first.cards.items[0].id == str(ids[1])
     assert first.cards.items[0].promoted and len(first.cards.items[0].imageUrls) == 5
     assert first.cards.items[0].coverImageUrl == first.cards.items[0].imageUrls[0]
@@ -370,6 +382,66 @@ async def test_ai_map_uses_same_guards_before_markers_clusters_and_public_visibi
     async with SessionLocal() as session, session.begin():
         await session.execute(update(User).values(blocked=True))
     assert not (await query.map_owned(subject, session_id, 1, payload)).map.items
+
+
+async def test_dense_ai_map_thresholds_edges_and_live_proof_changes(record_property):
+    import asyncio
+    import json
+    from time import perf_counter
+
+    from app.schemas.listings import ListingMapRequest
+
+    bounds = {"north": 28.5, "south": 27.5, "east": -16.6, "west": -16.9}
+    center = (-16.733, 28.061)
+    # Inclusive viewport edges occupy all four extreme cells; the rest share
+    # one center cell. Row zero has incompatible pets and must never count.
+    positions = [center, (-16.9, 27.5), (-16.6, 27.5), (-16.9, 28.5), (-16.6, 28.5)] + [center] * 298
+    query, subject, sid, ids, source_ids = await setup("long", count=303, positions=positions)
+    timings = []
+    original_hash = None
+
+    async def read(zoom, expected):
+        nonlocal original_hash
+        started = perf_counter()
+        result = await query.map_owned(subject, sid, 1, ListingMapRequest(**bounds, zoom=zoom))
+        timings.append({"valid": len(expected), "zoom": zoom, "seconds": round(perf_counter() - started, 6)})
+        original_hash = original_hash or result.intent_hash
+        assert result.intent_hash == original_hash
+        if zoom >= 13 and len(expected) <= 300:
+            assert {item.id for item in result.map.items} == {str(value) for value in expected}
+            assert all(item.type == "listing" for item in result.map.items)
+            assert {item.id for item in result.map.items if item.promoted} == ({str(ids[1])} & {str(i) for i in expected})
+        else:
+            assert all(item.type == "cluster" for item in result.map.items)
+            assert sum(item.count for item in result.map.items) == len(expected)
+        return result
+
+    for count in (302, 301, 300, 299, 0):
+        async with SessionLocal() as session, session.begin():
+            await session.execute(update(Listing).where(Listing.id.in_(ids)).values(status="published"))
+            await session.execute(update(Listing).where(Listing.id.in_(ids[count + 1:])).values(status="draft"))
+        expected = ids[1:count + 1]
+        for zoom in (8, 12, 13, 21):
+            result = await read(zoom, expected)
+            if count and (zoom < 13 or count > 300):
+                cells = {item.id: item for item in result.map.items}
+                assert set(cells) == {"0:0", "19:0", "0:19", "19:19", "11:11"}
+                assert cells["0:0"].count == 1 and cells["0:0"].promoted
+                assert not any(item.promoted for key, item in cells.items() if key != "0:0")
+
+    # Same intent, changed live catalog: invalidate many sources and proofs,
+    # hide another group, then alternate/concurrently read marker and cluster
+    # modes. Filtering must precede both the 301 probe and full aggregation.
+    async with SessionLocal() as session, session.begin():
+        await session.execute(update(Listing).where(Listing.id.in_(ids)).values(status="published"))
+        await session.execute(update(ExternalListingSource).where(ExternalListingSource.id.in_(source_ids[1:102])).values(
+            raw_payload={"changed": True}))
+        await session.execute(update(Listing).where(Listing.id.in_(ids[102:202])).values(status="draft"))
+        await session.execute(delete(AiQueryProof).where(AiQueryProof.canonical_listing_id.in_(ids[202:252])))
+    results = await asyncio.gather(*(read(zoom, ids[252:]) for zoom in (8, 21, 12, 13)))
+    assert not any(item.promoted for result in results for item in result.map.items)
+    # Synthetic timing evidence only: no production latency/SLO assertion.
+    record_property("synthetic_map_timings", json.dumps(timings))
 
 
 @pytest.mark.parametrize("mode,period,column,display", [("long", "weekly", "weekly_price", 725),
