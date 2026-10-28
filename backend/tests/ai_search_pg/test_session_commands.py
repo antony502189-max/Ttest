@@ -91,3 +91,21 @@ async def test_keyed_create_without_acknowledged_identity_cannot_strand_a_sessio
             assert await conn.scalar(select(func.count()).select_from(AISearchSession)) == before
         assert (await client.post("/api/v1/ai-search/identity")).status_code == 200
         assert (await client.post("/api/v1/ai-search/sessions", json=payload)).status_code == 200
+
+
+async def test_failed_reset_rolls_back_source_close_and_receipt_then_same_key_can_retry(store, pg):
+    owner = QuotaSubject(kind="auth", id=uuid4())
+    source = await store.create(owner, max_active=2)
+    other = await store.create(owner, max_active=2)
+    key = uuid4()
+    with pytest.raises(SessionError, match="SESSION_LIMIT"):
+        await store.reset(owner, source.intent.session_id, 0, max_active=1, idempotency_key=key)
+    assert await store.get(owner, source.intent.session_id) == source
+    async with pg[1]() as conn:
+        assert await conn.get(AISessionCommand, (owner.kind, owner.id, key)) is None
+    async with pg[1].begin() as conn:
+        await conn.execute(update(AISearchSession).where(AISearchSession.id == other.intent.session_id).values(
+            expires_at=datetime.now(UTC) - timedelta(seconds=1)))
+    fresh = await store.reset(owner, source.intent.session_id, 0, max_active=1, idempotency_key=key)
+    assert fresh.intent.session_id != source.intent.session_id
+    assert await store.reset(owner, source.intent.session_id, 0, max_active=1, idempotency_key=key) == fresh

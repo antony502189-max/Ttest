@@ -547,3 +547,60 @@ test('missing cards on terminal receipt resyncs a live session instead of discar
   await expect(page.getByRole('button', { name: 'Buscar habitaciones', exact: true })).toBeEnabled()
   await expect(page.locator('#ai-search-text')).toHaveValue(requestText)
 })
+
+
+test('lost reset acknowledgement blocks old paging and preserves the lifecycle key', async ({ page }) => {
+  await setup(page)
+  const attempts: Record<string, unknown>[] = []
+  await page.route('**/api/v1/ai-search/sessions', route => route.fulfill({ json: snapshot(0) }))
+  await page.route(`**/api/v1/ai-search/sessions/${sid}`, route => route.fulfill({ json: snapshot(1) }))
+  await page.route('**/api/v1/ai-search/query', route => route.fulfill({ json: {
+    operation: { status: 'succeeded', remaining: 2, receipt: { result_ref: ref, count: 0 } }, cards: cards('old-cursor'),
+  } }))
+  await page.route(`**/api/v1/ai-search/sessions/${sid}/reset`, route => {
+    attempts.push(route.request().postDataJSON())
+    return attempts.length === 1 ? route.abort('failed') : route.fulfill({ json: {
+      ...snapshot(0), intent: { session_id: 'recovered-session', version: 0 },
+    } })
+  })
+  await page.goto('/#/')
+  await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
+  await page.locator('#ai-search-text').fill(requestText)
+  await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+  const reset = page.getByRole('button', { name: 'Iniciar nueva conversación' })
+  await expect(reset).toBeEnabled()
+  await page.locator('#ai-search-text').fill('Con balcón')
+  await reset.click()
+  await expect(page.getByText('No se pudo iniciar una nueva conversación.', { exact: false })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Siguiente', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Actualizar búsqueda', exact: true })).toBeDisabled()
+  await reset.click()
+  await expect(page.getByText('Nueva conversación lista.', { exact: false })).toBeVisible()
+  expect(attempts[1]).toEqual(attempts[0])
+  await expect(page.locator('#ai-search-text')).toHaveValue('Con balcón')
+})
+
+test('unsettled query blocks stale paging but its exact replay remains available', async ({ page }) => {
+  await setup(page)
+  const messages: unknown[] = []
+  await page.route('**/api/v1/ai-search/sessions', route => route.fulfill({ json: snapshot(0) }))
+  await page.route(`**/api/v1/ai-search/sessions/${sid}`, route => route.fulfill({ json: snapshot(1) }))
+  await page.route('**/api/v1/ai-search/query', route => {
+    messages.push(route.request().postDataJSON())
+    return route.fulfill({ json: { operation: { status: messages.length === 1 ? 'succeeded' : 'running', remaining: 2,
+      receipt: messages.length === 1 ? { result_ref: ref, count: 0 } : null }, cards: messages.length === 1 ? cards('old-cursor') : null } })
+  })
+  await page.goto('/#/')
+  await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
+  await page.locator('#ai-search-text').fill(requestText)
+  await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Iniciar nueva conversación' })).toBeEnabled()
+  await page.locator('#ai-search-text').fill('Con balcón')
+  await page.getByRole('button', { name: 'Actualizar búsqueda', exact: true }).click()
+  const replay = page.getByRole('button', { name: 'Comprobar el mismo intento' })
+  await expect(replay).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Siguiente', exact: true })).toBeDisabled()
+  await replay.click()
+  await expect.poll(() => messages.length).toBe(3)
+  expect(messages[2]).toEqual(messages[1])
+})

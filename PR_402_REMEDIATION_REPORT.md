@@ -47,6 +47,8 @@ node node_modules/vite/bin/vite.js build
 node node_modules/@playwright/test/cli.js test --config playwright.ai-search.config.ts
 ```
 
-Локально прошли 1362 backend unit-теста (15 штатных skips), 31 frontend browser contract и 4 настоящих browser HTTP/PostGIS сценария. ASGI HTTP suite также проверен. Старый необязательный UI→ASGI bridge требует AI_UI_TEST_URL и без него пропускается; он не является проверкой браузерных cookie. Полные результаты обязательных CI на финальном HEAD являются отдельным merge gate; статус skipped не считается pass.
+Локально прошли 1362 backend unit-теста (15 штатных skips), 33 frontend browser contract и 4 настоящих browser HTTP/PostGIS сценария. ASGI HTTP suite также проверен. Старый необязательный UI→ASGI bridge требует AI_UI_TEST_URL и без него пропускается; он не является проверкой браузерных cookie. Полные результаты обязательных CI на финальном HEAD являются отдельным merge gate; статус skipped не считается pass.
 
 Production не развёртывался; слияние выполняется отдельно после подтверждения CI.
+
+Дополнительная самопроверка: пагинация блокируется при pending query и при неподтверждённом create/reset, чтобы ошибка старых карточек не могла стереть recovery key. Проверен rollback закрытия исходной сессии и записи receipt при SESSION_LIMIT, затем успешный повтор того же ключа.

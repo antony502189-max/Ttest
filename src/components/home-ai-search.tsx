@@ -161,7 +161,7 @@ function AISearchPanel() {
   }
 
   async function submit() {
-    if (lock.current || (changingSession && session !== null) || needsConversation || needsSync || syncingSession || (!pending && !text.trim())) return
+    if (lock.current || (!pending && ((changingSession && session !== null) || needsConversation || needsSync || syncingSession || !text.trim()))) return
     lock.current = true
     setBusy(true)
     setNotice('Buscando opciones con condiciones confirmadas…')
@@ -228,7 +228,7 @@ function AISearchPanel() {
   }
 
   async function page(cursor: string) {
-    if (lock.current || !result || !pagingAvailable) return
+    if (lock.current || changingSession || pending || !result || !pagingAvailable) return
     lock.current = true
     setBusy(true)
     const controller = new AbortController()
@@ -263,7 +263,7 @@ function AISearchPanel() {
       <label htmlFor="ai-search-text">{t(result ? '¿Qué quieres cambiar?' : 'Cuéntanos qué necesitas')}</label>
       <textarea id="ai-search-text" data-i18n-exempt value={text} onChange={event => setText(event.target.value)} disabled={busy || pending !== null}
         maxLength={16000} rows={3} autoComplete="off" spellCheck={false} placeholder={t('Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
-      <Button type="button" className="home-ai-search__action" disabled={busy || (changingSession && session !== null) || syncingSession || needsSync || needsConversation || (!pending && (!text.trim() || remaining === 0))}
+      <Button type="button" className="home-ai-search__action" disabled={busy || (!pending && ((changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || remaining === 0))}
         onClick={() => void submit()}>{t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : result ? 'Actualizar búsqueda' : 'Buscar habitaciones')}</Button>
       {(session || needsConversation || changingSession) ? <Button type="button" variant="outline" disabled={busy || syncingSession || needsSync || pending !== null}
         onClick={() => void newConversation()}>{t('Iniciar nueva conversación')}</Button> : null}
@@ -284,8 +284,8 @@ function AISearchPanel() {
           </div>
         })}</div>
         <nav aria-label={t('Páginas de resultados')}>
-          <Button type="button" variant="outline" disabled={busy || !pagingAvailable || !result.page.previousCursor} onClick={() => void page(result.page.previousCursor!)}>{t('Anterior')}</Button>
-          <Button type="button" variant="outline" disabled={busy || !pagingAvailable || !result.page.nextCursor} onClick={() => void page(result.page.nextCursor!)}>{t('Siguiente')}</Button>
+          <Button type="button" variant="outline" disabled={busy || changingSession || pending !== null || !pagingAvailable || !result.page.previousCursor} onClick={() => void page(result.page.previousCursor!)}>{t('Anterior')}</Button>
+          <Button type="button" variant="outline" disabled={busy || changingSession || pending !== null || !pagingAvailable || !result.page.nextCursor} onClick={() => void page(result.page.nextCursor!)}>{t('Siguiente')}</Button>
         </nav>
       </section> : null}
       <Button type="button" variant="ghost" onClick={() => setOpen(false)}>{t('Volver a los filtros')}</Button>
