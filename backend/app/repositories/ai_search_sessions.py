@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
 from pydantic import Field
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.ai_search_quota import AISearchRequest
@@ -207,7 +207,14 @@ class SearchSessions:
             results = select(AISearchResult.id).where(AISearchResult.session_id == AISearchSession.id).exists()
             ids = list(await conn.scalars(select(AISearchSession.id).where(
                 AISearchSession.expires_at <= older_than, AISearchSession.version == 0,
-                AISearchSession.criteria == {}, ~referenced, ~results,
+                # Only exact initial shapes created by this schema are abandoned
+                # seeds. Arbitrary nonempty or edited conversations are retained.
+                AISearchSession.schema_version == "ai-search.v1",
+                AISearchSession.taxonomy_version == "rental.v1",
+                or_(AISearchSession.criteria == {}, *(
+                    AISearchSession.criteria == {"rental_mode": {"strength": "hard", "value": mode}}
+                    for mode in ("long", "holiday")
+                )), ~referenced, ~results,
             ).order_by(AISearchSession.expires_at, AISearchSession.id).limit(limit).with_for_update(skip_locked=True)))
             if ids:
                 await conn.execute(delete(AISearchSession).where(AISearchSession.id.in_(ids)))
