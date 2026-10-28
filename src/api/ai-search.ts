@@ -1,5 +1,5 @@
 import { api } from '@/api/client'
-import { toCardListing, type ListingCardDto, type ListingCardPage } from '@/api/listings'
+import { toCardListing, type ListingCardDto, type ListingCardPage, type ListingMapMarker } from '@/api/listings'
 
 export type AICapabilities = { text: boolean; map: boolean; voice: boolean; saved_searches: boolean }
 export type AISession = { intent: { session_id: string; version: number }; expires_at: string }
@@ -29,11 +29,15 @@ export const getAIQuota = (signal: AbortSignal) => api<{ remaining: number }>('/
 export const sendAIMessage = (message: AIMessage, signal: AbortSignal) => api<AIExecution>('/ai-search/query', {
   method: 'POST', headers, body: JSON.stringify({ ...message, search: { limit: 6 } }), signal, cache: 'no-store',
 })
-export async function aiResultPage(ref: string, cursor: string, signal: AbortSignal) {
+export async function aiResultPage(ref: string, cursor: string | undefined, signal: AbortSignal) {
   return api<CardResponse>(`/ai-search/results/${encodeURIComponent(ref)}/cards`, {
     method: 'POST', headers, body: JSON.stringify({ search: { limit: 6, cursor } }), signal, cache: 'no-store',
   })
 }
+export const aiResultMap = (ref: string, viewport: { north: number; south: number; east: number; west: number; zoom: number }, signal: AbortSignal) =>
+  api<{ map: { items: ListingMapMarker[] }; intent_hash: string }>(`/ai-search/results/${encodeURIComponent(ref)}/map`, {
+    method: 'POST', headers, body: JSON.stringify({ search: viewport }), signal, cache: 'no-store',
+  })
 export function aiCardPage(response: CardResponse): ListingCardPage {
   const seen = new Set<string>()
   return { ...response.cards, items: response.cards.items.filter(item => {

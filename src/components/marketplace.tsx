@@ -1134,6 +1134,8 @@ export function FilterSidebar({
 export function MapView(props: {
   items: MappedListing[];
   serverQuery?: Record<string, unknown>;
+  serverSource?: import("@/components/map-view").ResultsMapProps['serverSource'];
+  independentSearch?: boolean;
   selectedId?: string;
   highlightedId?: string;
   onSelect: (id: string) => void;

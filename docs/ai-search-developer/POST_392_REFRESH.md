@@ -1,0 +1,11 @@
+# Dependent stack refresh after #392 — 2026-10-27
+
+The owner merged #392 as dd3c8d53c7098d2c5b0db2d0b376921d09e9a9a1. Its final review commits a5032483, 2372c2af and 3db07f7d are now inherited by #393–397. Earlier statements that #392 is held open describe historical checkpoints, not current status.
+
+#393 now targets main directly. Its complete delta against merged main is three files: the offline-only DeepSeek adapter, its fake-HTTP tests and report. #394 still targets #393; #395 targets #394; #396 targets #395; #397 targets #396. Branches were advanced with ordinary merge commits, without rewriting published commits, migration history or main. Two append/import conflicts in card integration tests retain both review regressions and the later HTTP/map cases.
+
+The refreshed stack preserves query-proof.v2, proof-population cursor binding, canonical inventory checks, current-card economic guards, legacy quota fingerprint compatibility and request-filter idempotency binding. The new UI exposes the reviewed live-keyset pagination contract: listings/order can change, and the user can refresh from the first page using the original result reference without another inference or quota debit. The browser contract verifies both signed-cursor paging and cursor-free refresh through the same result endpoint.
+
+Local validation after refresh: 1312 backend unit tests passed, 15 platform/opt-in skips; Ruff and mypy (148 modules) passed; 16 browser contracts passed including five ordinary-map regressions. Additional isolated PostgreSQL and refreshed exact-head GitHub Actions evidence must be recorded separately; old green workflow runs do not prove the new heads. Application runtime remains absent, with no provider, public AI activation, application database, crawling or deployment.
+
+The next merge candidate is #393 only after its refreshed main-target checks and human review. Do not merge the whole stack or duplicate #378–391. After each authorized parent merge, refresh the next base and checks against actual main before declaring it ready. Voice/ASR, normalized-condition display and explicit mode reconciliation, saved-search/rematch, approved privacy/freshness/retention and representative performance remain work.

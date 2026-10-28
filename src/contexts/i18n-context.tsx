@@ -6,6 +6,8 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'Los anuncios y su orden pueden cambiar entre páginas. Actualiza la lista para ver cambios desde el principio.': { ru: 'Объявления и их порядок могут меняться между страницами. Обновите список, чтобы увидеть изменения с начала.', en: 'Listings and their order can change between pages. Refresh the list to see changes from the beginning.' },
+  'Actualizar resultados sin gastar una búsqueda': { ru: 'Обновить результаты без списания поиска', en: 'Refresh results without spending a search' },
   'Los resultados ya no están disponibles. Repite la búsqueda para obtener páginas nuevas.': { ru: 'Результаты больше недоступны. Повторите поиск, чтобы получить новые страницы.', en: 'These results are no longer available. Repeat the search to get new pages.' },
   'Reintentar sincronización': { ru: 'Повторить синхронизацию', en: 'Retry synchronization' },
   'No se pudo actualizar el diálogo. Conservamos tu búsqueda. Reintenta la sincronización.': { ru: 'Не удалось обновить диалог. Поиск сохранён. Повторите синхронизацию.', en: 'Could not update the conversation. Your search is saved. Retry synchronization.' },
