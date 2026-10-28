@@ -309,7 +309,14 @@ async def seed(total, chunk=5000):
         await c.execution_options(isolation_level="AUTOCOMMIT")
         await c.execute(text("VACUUM ANALYZE"))
         counts = {m.__tablename__: await c.scalar(select(func.count()).select_from(m)) for m in models+[AiQueryProof]}
+        for model in models+[AiQueryProof]:
+            multiplier = (20 if model is AiListingFact else template["sources"] if model in (
+                ExternalListingSource,AiFactSource,AiListingFactBatch) else 1)
+            assert counts[model.__tablename__] == (total+1)*multiplier, f"wrong fixture row count for {model.__tablename__}"
+        provider_count=await c.scalar(select(func.count(func.distinct(ExternalListingSource.source_name))))
+        assert provider_count == 10
         metadata = {"listings": total, "counts_including_template": counts,
+            "distinct_providers":provider_count,"observations_per_listing":20,"source_records_per_listing":template["sources"],
             "size_bytes": await c.scalar(text("SELECT pg_database_size(current_database())")),
             "version": await c.scalar(text("SELECT version()")), "postgis": await c.scalar(text("SELECT postgis_full_version()")),
             "settings": [dict(row) for row in (await c.execute(text("SELECT name,setting,unit FROM pg_settings WHERE name IN ('max_connections','shared_buffers','work_mem','effective_cache_size','max_parallel_workers_per_gather','jit','track_io_timing')"))).mappings()]}
