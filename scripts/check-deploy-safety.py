@@ -2,10 +2,18 @@
 """Static fail-closed assertions for the production release transaction."""
 
 import ast
+import re
 from pathlib import Path
 
 SCRIPT = Path("deploy/deploy-release.sh")
 text = SCRIPT.read_text(encoding="utf-8")
+
+# Production rollback switches binaries while retaining the expand-only schema
+# stamp. A DDL downgrade would strand retained objects on the next upgrade.
+for path in (SCRIPT, Path("deploy/rollback-release.sh"), Path("docker-compose.production.yml")):
+    source = path.read_text(encoding="utf-8").replace("\\\n", " ")
+    if re.search(r"\balembic\b[^\n;&|]*\bdowngrade\b", source):
+        raise SystemExit(f"production must never run Alembic downgrade: {path}")
 
 for command in ("deduplicate_listings", "repair_listing_galleries"):
     if command in text:

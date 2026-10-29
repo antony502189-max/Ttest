@@ -1,6 +1,7 @@
 import json
 import math
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -13,9 +14,50 @@ MAX_FILTER_STRING_LENGTH = 1_000
 MAX_FILTER_KEY_LENGTH = 128
 
 
+class SavedAISummary(BaseModel):
+    id: UUID
+    matcher: Literal["ai.v1"] = "ai.v1"
+    name: str
+    revision: int
+    enabled: bool
+
+
+class SavedAIPage(BaseModel):
+    items: list[SavedAISummary]
+    next_cursor: UUID | None
+    collection_count: int
+
+
+def has_ai_metadata(value: object) -> bool:
+    """Legacy filters must never smuggle a typed matcher the legacy SQL ignores."""
+    reserved = {"ai", "aiintent", "aisearch", "aisearchintent", "intent", "searchintent", "intenthash", "schemaversion",
+                "taxonomyversion", "matcher", "matcherkind", "matcherversion", "sessionid", "resultref", "criteria",
+                "strength", "expectedversion", "expectedsessionversion"}
+    stack = [value]
+    nodes = 0
+    while stack:
+        node = stack.pop()
+        nodes += 1
+        if nodes > 10_000:  # Corrupt persisted containers fail closed too.
+            return True
+        if isinstance(node, dict):
+            for key, item in node.items():
+                if not isinstance(key, str):
+                    return True
+                normalized = key.replace("_", "").replace("-", "").lower()
+                if normalized in reserved or key.lower().startswith("ai_"):
+                    return True
+                stack.append(item)
+        elif isinstance(node, list):
+            stack.extend(node)
+    return False
+
+
 def validate_filter_payload(value: dict | None) -> dict | None:
     if value is None:
         return None
+    if has_ai_metadata(value):
+        raise ValueError("AI metadata is not a manual search filter")
     settings = get_settings()
     nodes = 0
 
@@ -68,7 +110,18 @@ class PolygonPoint(BaseModel):
     lng: float = Field(ge=-180, le=180)
 
 
-class SavedSearchWrite(BaseModel):
+class ManualSearchBody(BaseModel):
+    @model_validator(mode="before")
+    @classmethod
+    def reject_ai_metadata(cls, value):
+        # Preserve historical handling of unrelated legacy extension fields,
+        # but never silently ignore a caller's matcher/typed-intent metadata.
+        if has_ai_metadata(value):
+            raise ValueError("AI metadata is not a manual saved search")
+        return value
+
+
+class SavedSearchWrite(ManualSearchBody):
     provinceCode: str | None = Field(default=None, pattern=r"^(0[1-9]|[1-4][0-9]|5[0-2])$")
     name: str = Field(default="", max_length=120)
     query: str = Field(default="", max_length=240)
@@ -90,7 +143,7 @@ class SavedSearchWrite(BaseModel):
         return validate_filter_payload(value) or {}
 
 
-class SavedSearchPatch(BaseModel):
+class SavedSearchPatch(ManualSearchBody):
     provinceCode: str | None = Field(default=None, pattern=r"^(0[1-9]|[1-4][0-9]|5[0-2])$")
     name: str | None = Field(default=None, max_length=120)
     query: str | None = Field(default=None, max_length=240)
@@ -124,7 +177,7 @@ class SavedSearchResponse(BaseModel):
     updatedAt: datetime | None
 
 
-class GuestStateImport(BaseModel):
+class GuestStateImport(ManualSearchBody):
     # Older frontend builds stored slug-like listing ids. The service validates
     # and imports only UUIDs that exist in the current database.
     favoriteIds: list[str] = Field(default_factory=list, max_length=500)

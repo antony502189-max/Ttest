@@ -14,6 +14,7 @@ from ..models import Favorite, Listing, Notification, SavedSearch, User
 from ..repositories.listings import apply_search_filters, visible_query
 from ..schemas.listings import ListingSearchRequest
 from ..schemas.notifications import NotificationPage, NotificationResponse
+from ..schemas.searches import has_ai_metadata
 from .mail import enqueue_mail, frontend_link
 from .rental_price_limit import listing_price_allowed
 
@@ -148,6 +149,9 @@ def _saved_search_payload(search: SavedSearch) -> ListingSearchRequest | None:
     that saved search and must never abort listing publication/import.
     """
     try:
+        if (getattr(search, "matcher", None) != "manual.v1" or not isinstance(search.filters, dict)
+                or has_ai_metadata(search.filters)):
+            return None
         filters = search.filters if isinstance(search.filters, dict) else {}
         min_stay = filters.get("minStay", "Cualquiera")
         current_residents = filters.get("currentResidents", "Cualquiera")
@@ -255,7 +259,8 @@ async def notify_saved_search_matches(session: AsyncSession, listing: Listing) -
     rows = (await session.execute(
         select(SavedSearch, User)
         .join(User, User.id == SavedSearch.user_id)
-        .where(SavedSearch.alerts_enabled.is_(True), User.deleted_at.is_(None), User.blocked.is_(False))
+        .where(SavedSearch.matcher == "manual.v1", SavedSearch.alerts_enabled.is_(True),
+               User.deleted_at.is_(None), User.blocked.is_(False))
     )).all()
     for search, recipient in rows:
         if recipient.id == listing.owner_user_id:

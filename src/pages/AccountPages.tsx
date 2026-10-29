@@ -1,4 +1,5 @@
 import { OwnerAddressForm } from '@/components/owner-address';
+import { SavedAISearches } from '@/components/saved-ai-searches';
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowLeft,
@@ -250,6 +251,7 @@ export function SavedSearchesPage() {
               </Button>
             </div>
           )}
+          <SavedAISearches />
         </section>
         <aside
           className="recent-searches"

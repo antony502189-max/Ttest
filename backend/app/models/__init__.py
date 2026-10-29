@@ -328,6 +328,7 @@ class SavedSearch(Timestamped, Base):
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(120), default="")
     query: Mapped[str] = mapped_column(String(240), default="")
+    matcher: Mapped[str] = mapped_column(String(32), default="manual.v1", server_default="manual.v1")
     rental_mode: Mapped[str] = mapped_column(Enum("long", "holiday", name="rental_mode"))
     filters: Mapped[dict] = mapped_column(JSONB, default=dict)
     polygon: Mapped[list] = mapped_column(JSONB, default=list)
@@ -447,6 +448,7 @@ from .advertising_waitlist import AdvertisingWaitlist  # noqa: F401
 from .ai_fact_pipeline import AiFactCatalog, AiFactJob, AiFactRematchEvent, AiFactSource  # noqa: F401
 from .ai_listing_facts import AiListingFact, AiListingFactBatch, AiListingSearchFeatures  # noqa: F401
 from .ai_query_proof import AiQueryProof  # noqa: F401
+from .ai_saved_search import AiSavedSearch, AiSavedSearchCommand  # noqa: F401
 from .ai_search_quota import AISearchRequest, AIUsageDay  # noqa: F401
 from .ai_search_session import AISearchResult, AISearchSession, AISessionCommand  # noqa: F401
 from .commercial_advertisement import CommercialAdvertisement  # noqa: F401

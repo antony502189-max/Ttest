@@ -68,6 +68,7 @@ async def test_duplicate_notification_does_not_enqueue_another_email() -> None:
 
 def test_saved_search_alerts_use_the_canonical_search_dto() -> None:
     search = SimpleNamespace(
+        matcher="manual.v1",
         id=uuid4(),
         query="Adeje",
         rental_mode="long",
@@ -99,6 +100,7 @@ def test_saved_search_alerts_use_the_canonical_search_dto() -> None:
 
 def test_saved_search_defaults_and_removed_filters_do_not_become_hidden_constraints() -> None:
     search = SimpleNamespace(
+        matcher="manual.v1",
         id=uuid4(),
         query="Tenerife",
         rental_mode="long",
@@ -143,6 +145,7 @@ def test_saved_search_defaults_and_removed_filters_do_not_become_hidden_constrai
 )
 def test_malformed_legacy_saved_search_filters_are_skipped_without_raising(filters) -> None:
     search = SimpleNamespace(
+        matcher="manual.v1",
         id=uuid4(),
         query="Adeje",
         rental_mode="long",
@@ -155,6 +158,7 @@ def test_malformed_legacy_saved_search_filters_are_skipped_without_raising(filte
 
 def test_malformed_saved_search_polygon_is_skipped_without_broadening() -> None:
     search = SimpleNamespace(
+        matcher="manual.v1",
         id=uuid4(),
         query="Adeje",
         rental_mode="long",
