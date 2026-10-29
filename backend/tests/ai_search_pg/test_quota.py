@@ -12,7 +12,7 @@ from sqlalchemy import MetaData, func, select, text, update
 from sqlalchemy.exc import IntegrityError
 
 from app.models.ai_search_quota import AISearchRequest, AIUsageDay
-from app.models.ai_search_session import AISearchResult, AISearchSession
+from app.models.ai_search_session import AISearchResult, AISearchSession, AISessionCommand
 from app.repositories.ai_search_quota import QuotaError, QuotaLedger, SessionVersionConflict, madrid_window
 from app.schemas.ai_search_quota import FailureCode, LeasePolicy, QuotaOperation, QuotaSubject, ResultReceipt
 from app.services.ai_search_attempts import AIAttemptGate, AIAttemptRejected
@@ -342,7 +342,7 @@ async def test_bounded_reconciler(pg):
 async def test_actual_migration_matches_models(pg):
     async with pg[1]() as conn:
         metadata = MetaData()
-        for model in (AIUsageDay, AISearchRequest, AISearchSession, AISearchResult):
+        for model in (AIUsageDay, AISearchRequest, AISearchSession, AISearchResult, AISessionCommand):
             model.__table__.to_metadata(metadata)
 
         def compare(sync):

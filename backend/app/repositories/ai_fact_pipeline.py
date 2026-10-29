@@ -169,8 +169,11 @@ class FactPipeline:
             if job.attempts >= self.policy.max_attempts:
                 job.status, job.lease_until, job.failure_code = "failed", None, "ATTEMPTS_EXHAUSTED"
                 return None
+            # Read the DB clock before dirtying status: SQLAlchemy may autoflush
+            # this SELECT, and running rows must already carry a lease.
+            lease_until = await _now(session) + timedelta(seconds=self.policy.lease_seconds)
             job.status, job.fence, job.attempts = "running", job.fence + 1, job.attempts + 1
-            job.lease_until = await _now(session) + timedelta(seconds=self.policy.lease_seconds)
+            job.lease_until = lease_until
             job.failure_code = None
             return FactJobClaim.model_validate({
                 **{field: getattr(job, field) for field in SourceInput.model_fields},
