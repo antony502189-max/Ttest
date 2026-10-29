@@ -15,7 +15,13 @@ from ..schemas.ai_search_quota import FailureCode, QuotaOperation, QuotaSubject,
 from ..schemas.listings import ListingCardSearchRequest
 from .ai_http_policy import HTTP_DEADLINE
 from .ai_search_attempts import AIAttemptRejected
-from .ai_search_execution import AttemptGate, CandidateCardQuery, IntentPatchParser, SearchExecution
+from .ai_search_execution import (
+    AttemptGate,
+    CandidateCardQuery,
+    IntentPatchParser,
+    SearchExecution,
+    terminal_search_result,
+)
 
 AudioMedia = Literal["audio/wav", "audio/webm", "audio/ogg", "audio/mp4"]
 
@@ -96,7 +102,7 @@ class VoiceSearchExecution:
             state = reservation.operation
             cards = None
             if state.status == "succeeded" and state.receipt is not None:
-                cards = await self.query.query_result(subject, state.receipt.result_ref, payload)
+                return await terminal_search_result(self.query, subject, state, payload, replay=reservation.action == "replay")
             return SearchExecution(state, cards, replay=reservation.action == "replay")
         state = await self.ledger.claim(subject, operation)
         phase = FailureCode.BACKEND_FAILURE
@@ -145,5 +151,5 @@ class VoiceSearchExecution:
         if completed.status != "succeeded" or completed.receipt is None:
             return SearchExecution(completed)
         if completed.receipt.result_ref != receipt.result_ref:
-            cards = await self.query.query_result(subject, completed.receipt.result_ref, payload)
+            return await terminal_search_result(self.query, subject, completed, payload, replay=True)
         return SearchExecution(completed, cards)

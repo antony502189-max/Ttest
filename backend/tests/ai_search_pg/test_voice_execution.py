@@ -13,7 +13,9 @@ from test_execution import Gate, Parser, Query, card_request_mutations
 from test_sessions import usage
 
 from app.models.ai_search_quota import AISearchRequest, AIUsageDay
+from app.models.ai_search_session import AISearchSession
 from app.repositories.ai_search_quota import QuotaError
+from app.repositories.ai_search_sessions import SessionError
 from app.schemas.ai_search_quota import QuotaOperation, QuotaSubject
 from app.schemas.listings import ListingCardSearchRequest
 from app.services.ai_http_policy import HTTP_DEADLINE
@@ -181,6 +183,57 @@ async def test_ack_loss_replays_committed_operation_without_second_asr_or_releas
     retry = await execute(service, subject, snapshot, key)
     assert retry.replay and retry.operation.status == "succeeded"
     assert asr.calls == parser.calls == 1 and await usage(pg, subject) == (1, 0)
+
+
+@pytest.mark.parametrize("code", ["RESULT_EXPIRED_REQUERY_REQUIRED", "RESULT_NOT_FOUND", "SESSION_EXPIRED", "SESSION_NOT_FOUND"])
+async def test_committed_voice_replay_retains_receipt_when_cards_unavailable(store, pg, monkeypatch, code):
+    subject, snapshot, asr, parser, gate, query, service = await configured(store)
+    key = uuid4()
+    first = await execute(service, subject, snapshot, key)
+    async def unavailable(*args):
+        raise SessionError(code)
+    monkeypatch.setattr(query, "query_result", unavailable)
+    replay = await execute(service, subject, snapshot, key)
+    assert replay.replay and replay.operation.status == "succeeded"
+    assert replay.operation.receipt == first.operation.receipt
+    assert replay.cards is None and replay.cards_error == code
+    assert asr.calls == parser.calls == gate.calls == query.calls == 1
+    assert await usage(pg, subject) == (1, 0)
+
+
+async def test_voice_replay_propagates_unexpected_card_errors(store, pg, monkeypatch):
+    subject, snapshot, asr, parser, _, query, service = await configured(store)
+    key = uuid4()
+    await execute(service, subject, snapshot, key)
+    async def unavailable(*args):
+        raise SessionError("RESULT_CORRUPT")
+    monkeypatch.setattr(query, "query_result", unavailable)
+    with pytest.raises(SessionError, match="RESULT_CORRUPT"):
+        await execute(service, subject, snapshot, key)
+    assert asr.calls == parser.calls == 1 and await usage(pg, subject) == (1, 0)
+
+
+async def test_lost_voice_ack_then_real_session_expiry_recovers_receipt(store, pg, monkeypatch):
+    subject, snapshot, asr, parser, gate, query, service = await configured(store)
+    finalize = store.finalize_patch
+    async def ack_lost(*args):
+        await finalize(*args)
+        raise OSError("synthetic lost acknowledgement")
+    monkeypatch.setattr(store, "finalize_patch", ack_lost)
+    key = uuid4()
+    with pytest.raises(OSError):
+        await execute(service, subject, snapshot, key)
+    async with pg[1].begin() as conn:
+        await conn.execute(update(AISearchSession).where(AISearchSession.id == snapshot.intent.session_id).values(
+            expires_at=text("clock_timestamp() - interval '1 second'")))
+    replay = await execute(service, subject, snapshot, key)
+    assert replay.replay and replay.operation.status == "succeeded"
+    assert replay.operation.receipt.count == query.total
+    assert replay.cards is None and replay.cards_error == "RESULT_EXPIRED_REQUERY_REQUIRED"
+    with pytest.raises(SessionError, match="RESULT_EXPIRED_REQUERY_REQUIRED"):
+        await store.result(subject, replay.operation.receipt.result_ref)
+    assert asr.calls == parser.calls == gate.calls == query.calls == 1
+    assert await usage(pg, subject) == (1, 0)
 
 
 async def test_lease_expiry_fences_late_worker_and_recovery_releases(store, pg):
