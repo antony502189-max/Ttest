@@ -149,3 +149,45 @@ once, pins its immutable ID in the results directory and uses that ID for later
 phases while importing all project code from the read-only checkout. Record
 that image ID; do not infer its dependency versions from the tag. Running
 this protocol does not approve an activation or a production configuration.
+
+## Toolchain review corrections (2026-10-29)
+
+The launcher rejects staged, unstaged and untracked checkout changes before
+Docker. It exports the selected commit with `git archive`, mounts that separate
+snapshot read-only, and records the commit, `checkout_clean`, source mode and
+archive SHA-256 in runner metadata. Ignored files and subsequent checkout edits
+are excluded from execution. Git, archive extraction and Docker inspection
+failures stop the launcher. Direct Python invocation is labelled
+`unverified-direct`; it is not an immutable-commit replication.
+
+Both entry points reject invalid numeric input before infrastructure actions:
+total1..1,000,000, samples1..200, candidate0..total. Candidate and BaselineOnly
+require measure; a candidate-specific probe requires BaselineOnly because the
+load phase always executes its full matrix. These bounds do not authorize large
+runs. The owner's stop instruction remains in force.
+
+Reports derive source/observation counts from dataset metadata. For older
+archives without explicit profile fields, exact row-count ratios identify the
+profile; ambiguous or inconsistent counts are rejected. A template contributes
+2 or10 sources and20 observations, so fanout subtraction and prose reflect10
+sources rather than a hardcoded baseline. The raw historical archive is unchanged.
+
+Measurement completion requires every expected load scenario, nonempty samples
+matching declared counts (including recorded failed-wave stopping), and a
+successful cancellation/pool-reuse check. Completed dataset creation alone is
+insufficient. COMPLETE describes protocol completion, not a passing latency SLO.
+Stop-marker claims are compared with these files and produce INCONSISTENT when
+they disagree; otherwise partial histories are INCOMPLETE.
+
+The monitor validates container name/task label/network and any existing output
+template against baseline/fanout before collecting samples. It writes start,
+sample, error and stop events to resources.jsonl, with sanitized error categories.
+After three consecutive failures by default it exits nonzero; a recovery resets
+that counter. Reports expose missing/degraded/unknown/complete resource quality,
+including malformed records, observed gaps and mixed profiles/containers. Legacy
+archives without monitor lifecycle events have unknown completeness.
+
+Small toolchain regressions use fake Docker and temporary Git repositories,
+including real PowerShell execution when pwsh/PowerShell is installed. They do
+not start the synthetic lab. Run `python -m pytest -q
+backend/tests/test_ai_map_toolchain.py backend/tests/test_ai_map_benchmark_safety.py`.

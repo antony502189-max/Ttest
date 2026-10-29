@@ -7,6 +7,7 @@ import json
 import math
 from collections import Counter
 from datetime import datetime, timedelta
+from itertools import pairwise
 from pathlib import Path
 
 
@@ -15,12 +16,97 @@ def percentile(values, q):
     return ordered[min(len(ordered)-1,math.ceil(q*len(ordered))-1)] if ordered else None
 
 
+def normalize_dataset(dataset):
+    size = dataset["listings"]
+    counts = dataset["counts_including_template"]
+    if type(size) is not int or size < 1:
+        raise ValueError("invalid dataset size")
+    # The original retained metadata predates the explicit profile fields.
+    # Infer only from exact whole-dataset counts, never assume baseline.
+    sources = dataset.get("source_records_per_listing")
+    if sources is None:
+        sources, remainder = divmod(counts["external_listing_sources"], size + 1)
+        if remainder:
+            raise ValueError("invalid dataset source counts")
+    observations = dataset.get("observations_per_listing")
+    if observations is None:
+        observations, remainder = divmod(counts["ai_listing_facts"], size + 1)
+        if remainder:
+            raise ValueError("invalid dataset observation counts")
+    if type(sources) is not int or sources not in {2, 10} or type(observations) is not int or observations != 20:
+        raise ValueError("invalid dataset profile")
+    for field, multiplier in (("external_listing_sources", sources), ("ai_listing_facts", observations)):
+        if type(counts[field]) is not int or counts[field] != (size + 1) * multiplier:
+            raise ValueError(f"invalid dataset count: {field}")
+    dataset.update(source_records_per_listing=sources, observations_per_listing=observations)
+    return dataset
+
+
+def resource_series(root):
+    samples, events, invalid = [], [], 0
+    path = root / "resources.jsonl"
+    for line in path.read_text(encoding="utf-8-sig").splitlines() if path.exists() else []:
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+            timestamp = datetime.fromisoformat(row["at"])
+            if timestamp.tzinfo is None:
+                raise ValueError("missing timezone")
+            if "db" in row:
+                cpu = float(row["db"]["CPUPerc"].removesuffix("%"))
+                memory = float(row["db"]["MemPerc"].removesuffix("%"))
+                if not math.isfinite(cpu) or cpu < 0 or not math.isfinite(memory) or not 0 <= memory <= 100:
+                    raise ValueError("invalid resource percentages")
+                samples.append(row)
+            else:
+                events.append(row)
+        except (ValueError, TypeError, KeyError, AttributeError):
+            invalid += 1
+    starts = [row for row in events if row.get("kind") == "monitor-start"]
+    stops = [row for row in events if row.get("kind") == "monitor-stop"]
+    errors = sum(row.get("kind") == "monitor-error" for row in events)
+    interval = starts[-1].get("interval_seconds", 5) if starts else 5
+    if not isinstance(interval, (float, int)) or not math.isfinite(interval) or interval <= 0:
+        interval, invalid = 5, invalid + 1
+    timeline = ([starts[0]] if starts else []) + samples + ([stops[-1]] if stops else [])
+    durations = [(datetime.fromisoformat(b["at"]) - datetime.fromisoformat(a["at"])).total_seconds()
+                 for a, b in pairwise(timeline)]
+    gaps = sum(duration > 2.5 * interval for duration in durations)
+    invalid += sum(duration < 0 for duration in durations)
+    profiles = {row["profile"] for row in samples + events if row.get("profile")}
+    containers = {row["container"] for row in samples + events if row.get("container")}
+    status = ("degraded" if errors or invalid or gaps or len(profiles) > 1 or len(containers) > 1 or
+              any(row.get("status") == "failed" for row in stops) else
+              "missing" if not samples else "unknown" if not starts else
+              "complete" if stops and stops[-1].get("status") == "stopped" else "degraded")
+    return samples, {"status": status, "samples": len(samples), "errors": errors,
+                     "invalid_records": invalid, "gaps": gaps, "profiles": sorted(profiles)}
+
+
+def measurement_complete(size, cases, cancellation):
+    expected = {(count, concurrency, zoom) for count in {min(300, size), min(10000, size), size}
+                for concurrency in (50, 100, 200) for zoom in (8, 13)}
+    found = set()
+    for case in cases:
+        key = (case["candidates"], case["concurrency"], case["zoom"])
+        attempts = case["results"]
+        requested = case.get("requested_samples", case["samples"])
+        failed_wave = (size >= 500000 and case.get("stopped_after_failed_wave") is True and
+                       len(attempts) >= min(case["concurrency"], requested) and all(not r["ok"] for r in attempts))
+        if (key in found or case["total"] != size or not attempts or case["samples"] != len(attempts) or
+                requested < 1 or len(attempts) > requested or (len(attempts) != requested and not failed_wave) or
+                case["failures"] != sum(not r["ok"] for r in attempts)):
+            return False
+        found.add(key)
+    return (found == expected and cancellation.get("remaining_active") == 0 and
+            cancellation.get("pool_reusable") is True and cancellation.get("tasks", 0) > 0)
+
+
 def summarize(root):
     result={"scales":[],"latency_note":"Completion/error durations include pool waiting. Error-containing scenarios fail; censored SQL samples are not successful query latencies."}
-    resource_samples=[]
-    resources=root/"resources.jsonl"
-    if resources.exists():
-        resource_samples=[json.loads(line.lstrip("\ufeff")) for line in resources.read_text(encoding="utf-8").splitlines() if line.strip()]
+    resource_samples, result["monitoring"] = resource_series(root)
+    result["warnings"] = []
     completions={}
     progress=root/"progress.jsonl"
     if progress.exists():
@@ -32,15 +118,19 @@ def summarize(root):
         dataset_path=root/f"dataset-{size}.json"
         if not dataset_path.exists():
             continue
-        dataset=json.loads(dataset_path.read_text(encoding="utf-8"))
+        dataset=normalize_dataset(json.loads(dataset_path.read_text(encoding="utf-8")))
+        if dataset["listings"] != size:
+            raise ValueError("dataset size disagrees with filename")
         dataset["settings"]=[ast.literal_eval(v) if isinstance(v,str) else v for v in dataset["settings"]]
-        data={"dataset":dataset,"baseline":[],"load":[],"completed":(root/f"cancellation-{size}.json").exists()}
+        data={"dataset":dataset,"baseline":[],"load":[],"completed":False}
+        raw_cases = []
         path=root/f"baseline-{size}.json"
         if path.exists():
             data["baseline"]=json.loads(path.read_text(encoding="utf-8"))
         path=root/f"load-{size}.json"
         if path.exists():
-            for case in json.loads(path.read_text(encoding="utf-8")):
+            raw_cases = json.loads(path.read_text(encoding="utf-8"))
+            for case in raw_cases:
                 attempts=case["results"]
                 successful=[r["ms"] for r in attempts if r["ok"]]
                 errors=Counter(r.get("sqlstate") or r.get("error") for r in attempts if not r["ok"])
@@ -59,6 +149,8 @@ def summarize(root):
         path=root/f"cancellation-{size}.json"
         if path.exists():
             data["cancellation"]=json.loads(path.read_text(encoding="utf-8"))
+        data["completed"] = measurement_complete(size, raw_cases, data.get("cancellation", {}))
+        data["dataset_complete"] = True
         result["scales"].append(data)
     if resource_samples:
         samples=resource_samples
@@ -78,6 +170,15 @@ def summarize(root):
             plans.append({"file":path.name,"analyze_error":content.get("analyze_error",content.get("error")),
                 "has_estimated_plan":bool(content.get("estimated_plan_without_execution"))})
     result["plans"]=plans
+    result["completed_scales"] = [scale["dataset"]["listings"] for scale in result["scales"] if scale["completed"]]
+    stop_path = root / "experiment-stop.json"
+    if stop_path.exists():
+        result["termination"] = json.loads(stop_path.read_text(encoding="utf-8-sig"))
+        declared = result["termination"].get("completed_scales")
+        if declared is not None and declared != result["completed_scales"]:
+            result["warnings"].append("Stop marker completed_scales disagree with validated measurement files")
+    result["status"] = ("INCONSISTENT" if result["warnings"] else
+                        "COMPLETE" if result["completed_scales"] == [100000, 500000, 1000000] else "INCOMPLETE")
     return result
 
 
@@ -86,9 +187,6 @@ def main():
     parser.add_argument("root",type=Path)
     args=parser.parse_args()
     result=summarize(args.root)
-    stop_path=args.root/"experiment-stop.json"
-    if stop_path.exists():
-        result["termination"]=json.loads(stop_path.read_text(encoding="utf-8-sig"))
     (args.root/"summary.json").write_text(json.dumps(result,indent=2,ensure_ascii=False),encoding="utf-8")
     control_description="Фактический контрольный план малого набора сохраняется отдельно от больших estimated-only планов."
     control_path=args.root/"plan-1000-300-z8-0.json"
@@ -109,20 +207,30 @@ def main():
                     "Это обращения к страницам в памяти, не число физических чтений с диска.")
     lines=["# R-01: синтетическая нагрузка AI-карты", "",
         "Критерии: p95 ≤ 500 мс, p99 ≤ 1000 мс; 50/100/200 одновременных запросов; 100 000/500 000/1 000 000 объявлений.", "",
-        "**Статус:** " + ("большой прогон остановлен по запросу пользователя; завершены 100 и 500 тысяч. Миллион не проверен: наполнение остановлено на 900 тысячах, нагрузочные результаты для него отсутствуют." if "termination" in result else "все три основных масштаба завершены." if len(result["scales"])==3 and all(s["completed"] for s in result["scales"]) else "промежуточные результаты; не все масштабы завершены."), "",
-        "**Версия:** ниже приведены результаты исходного SQL до исправления выбора authority-источников. Они не характеризуют скорость исправленной версии.", "",
+        "**Статус:** " + result["status"] + "; завершённые измерения: " +
+            (", ".join(f"{size:,}" for size in result["completed_scales"]) or "нет") + ".", "",
+        "Остановка: " + str(result.get("termination", {}).get("reason", "не зарегистрирована")) + ".", "",
+        "Диагностика: " + ("; ".join(result["warnings"]) or "противоречий stop-marker не найдено") + ".", "",
+        "Мониторинг ресурсов: " + json.dumps(result["monitoring"], ensure_ascii=False) + ".", "",
+        "**Версия:** точная ревизия и source hashes находятся в runner*.json; при отсутствии этих метаданных версия не установлена. Исторический архив 2026-10-28 относится к исходному OR SQL и не характеризует скорость исправленной версии.", "",
         "**Решение по производительности:** " + ("критерии не выполнены." if any(not c["pass"] for s in result["scales"] for c in s["load"]) else "данных для решения пока недостаточно."), "",
         "## Что измерялось", "",
         "Настоящий repository-путь `_map_intent`: SQL, проверка proof и построение маркеров/кластеров. HTTP, авторизация сессии, TLS и внешний rate gate исключены. Рабочие базы и реальные провайдеры не использовались.", "",
-        "10 синтетических провайдеров; на объявление — две записи источника, суммарно 20 типизированных наблюдений с evidence и 20 совместимых resolved features. Это не 20 фильтров и не 20 наблюдений на каждый из десяти источников. Данные минимальные, все активные и совместимые; география — плотная детерминированная сетка. Это стресс-профиль, а не распределение реального каталога.", "",
-        "PostgreSQL 16.4 / PostGIS 3.4.3; DB: 8 CPU, 8 GiB RAM, shared_buffers 1 GiB, work_mem 4 MiB; driver: 2 CPU, 2 GiB. Пул — максимум 30 соединений, клиентских операций — 50/100/200. Полные версии, ограничения и хеши исходников сохранены в JSON.", "",
+        "\n\n".join(f"Набор {scale['dataset']['listings']:,}: "
+            f"{scale['dataset']['source_records_per_listing']} записей источника на объявление; "
+            f"{scale['dataset']['observations_per_listing']} наблюдений суммарно, без умножения на число источников. "
+            f"Профиль: {'fanout' if scale['dataset']['source_records_per_listing'] == 10 else 'baseline'}."
+            for scale in result["scales"]) or "Наборы данных отсутствуют.", "",
+        "Версии DB из dataset: " + "; ".join(f"{scale['dataset']['listings']:,}: {scale['dataset'].get('version', 'неизвестна')}; {scale['dataset'].get('postgis', 'неизвестна')}" for scale in result["scales"]) + ". Лимиты протокола: DB 8 CPU/8 GiB, driver 2 CPU/2 GiB, пул30; настройки DB сохранены в dataset JSON.", "",
         "Тайм-аут SQL — 5 секунд (в приложении по умолчанию 60 секунд), ожидание пула — 30 секунд. Тайм-ауты означают провал, не успешный ответ за 5 секунд. Цифры ниже — время возврата результата **или ошибки**, включая очередь; при ошибках это не p95/p99 успешно выполненного SQL. Успешные p95/p99 отдельно сохранены в summary.json, при отсутствии успехов они null.", "",
         "## Масштабы", "", "| Объявлений | Записей источников | Наблюдений | Размер DB, GiB | Сценариев | Ошибок / попыток | Завершён |", "|---:|---:|---:|---:|---:|---:|:---:|"]
     for scale in result["scales"]:
         d=scale["dataset"]
         counts=d["counts_including_template"]
-        lines.append(f"| {d['listings']:,} | {counts['external_listing_sources']-2:,} | {counts['ai_listing_facts']-20:,} | {d['size_bytes']/1024**3:.2f} | {len(scale['load'])} | {sum(c['failures'] for c in scale['load'])} / {sum(c['samples'] for c in scale['load'])} | {'да' if scale['completed'] else 'нет'} |")
-    lines += ["", "Из количества строк вычтен один вынесенный за viewport шаблон (2 источника / 20 наблюдений); размер DB включает шаблон, индексы и все таблицы миграций.", "",
+        lines.append(f"| {d['listings']:,} | {counts['external_listing_sources']-d['source_records_per_listing']:,} | {counts['ai_listing_facts']-d['observations_per_listing']:,} | {d['size_bytes']/1024**3:.2f} | {len(scale['load'])} | {sum(c['failures'] for c in scale['load'])} / {sum(c['samples'] for c in scale['load'])} | {'да' if scale['completed'] else 'нет'} |")
+    lines += ["", "\n\n".join(f"Набор {scale['dataset']['listings']:,}: вычтен один вынесенный за viewport шаблон "
+            f"({scale['dataset']['source_records_per_listing']} источников / {scale['dataset']['observations_per_listing']} наблюдений)."
+            for scale in result["scales"]), "Размер DB включает шаблон, индексы и все таблицы миграций.", "",
         "## Параллельная нагрузка", "",
         "Диапазоны ниже объединяют viewport на 300 / 10 000 / весь каталог и zoom 8/13; каждый отдельный сценарий сохранён в JSON. На 100 тысячах — 200 попыток на сценарий. На 500 тысячах и миллионе полностью неуспешная первая волна останавливает сценарий; фактическое число попыток сохранено. Это достаточное основание отклонить бюджет, но не оценка успешного p99 и не длительный soak-тест.", "",
         "| Каталог | Одновременно | Ошибок / попыток | p95 возврата результата/ошибки, с | p99 возврата результата/ошибки, с | p95 до SQL карты: pool + SET, с (макс.) |", "|---:|---:|---:|---:|---:|---:|"]
@@ -146,7 +254,8 @@ def main():
     for scale in result["scales"]:
         if "cancellation" in scale:
             c=scale['cancellation']
-            lines.append(f"| {scale['dataset']['listings']:,} | {c['tasks']} | {c['elapsed_ms']:.1f} | {c['remaining_active']} | {'да' if c['pool_reusable'] else 'нет'} |")
+            elapsed = f"{c['elapsed_ms']:.1f}" if isinstance(c.get('elapsed_ms'), (int, float)) else "нет данных"
+            lines.append(f"| {scale['dataset']['listings']:,} | {c.get('tasks', 'нет данных')} | {elapsed} | {c.get('remaining_active', 'нет данных')} | {'да' if c.get('pool_reusable') is True else 'нет'} |")
     lines += ["", "## Границы вывода", "",
         "Это closed-loop repository-тест в Docker/WSL на одной машине, не end-to-end HTTP-сертификация и не нагрузка production. Подготовка и VACUUM прогревают кэш: результаты не обозначаются OS-cold. На ошибочных/прерванных EXPLAIN сохранён явно estimated-only план, без выдуманного фактического времени. В каждом JSON указан точный source hash и версия зависимостей. 200 попыток дают лишь предварительный хвост; меньшая полностью неуспешная волна доказывает провал, но не точный p99 успешной работы.", "",
         "Исходные планы, попытки, счётчики, параметры DB, resource samples и проверки digest сохранены в evidence. Подробный воспроизводимый протокол: [MAP_CAPACITY_PROTOCOL.md](MAP_CAPACITY_PROTOCOL.md). R-01 остаётся блокирующим публичную активацию до исправления и повторного успешного измерения; отключённый фундамент может рассматриваться отдельно."]

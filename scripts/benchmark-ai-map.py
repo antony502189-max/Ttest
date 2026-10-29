@@ -287,7 +287,7 @@ async def seed(total, chunk=5000):
         await c.execute(text("ANALYZE"))
     # Verify actual production Python resolver/hash/card-value checks BEFORE
     # bulk certification, not merely the fact that rows exist.
-    for n in sorted({1, total//2, total}):
+    for n in sorted({1, max(1,total//2), total}):
         async with db.connect() as c:
             identifier = await c.scalar(text("SELECT id FROM r01_entities WHERE n=:n"), {"n": n})
         assert await QueryProofs(pipe).prepare(identifier), f"cloned listing {n} failed real verifier"
@@ -309,7 +309,7 @@ async def seed(total, chunk=5000):
     for base in range(1,total+1,chunk*SEED_WRITERS):
         await asyncio.gather(*(proof_chunk(lo) for lo in range(base,min(total+1,base+chunk*SEED_WRITERS),chunk)))
     checked=[]
-    for n in sorted({2,total//7,total//3,total//2+1,total*2//3,total-1,total}):
+    for n in sorted(n for n in {2,total//7,total//3,total//2+1,total*2//3,total-1,total} if 1 <= n <= total):
         async with db.connect() as c:
             identifier=await c.scalar(text("SELECT id FROM r01_entities WHERE n=:n"),{"n":n})
             stored=await c.scalar(select(AiQueryProof.signature).where(AiQueryProof.canonical_listing_id==identifier))
@@ -326,7 +326,7 @@ async def seed(total, chunk=5000):
                 ExternalListingSource,AiFactSource,AiListingFactBatch) else 1)
             assert counts[model.__tablename__] == (total+1)*multiplier, f"wrong fixture row count for {model.__tablename__}"
         provider_count=await c.scalar(select(func.count(func.distinct(ExternalListingSource.source_name))))
-        assert provider_count == 10
+        assert provider_count == min(10,total+template["sources"])
         metadata = {"listings": total, "counts_including_template": counts,
             "distinct_providers":provider_count,"observations_per_listing":20,"source_records_per_listing":template["sources"],
             "size_bytes": await c.scalar(text("SELECT pg_database_size(current_database())")),
@@ -384,7 +384,7 @@ async def measure(total, samples, candidate=None, baseline_only=False):
         result["ms"] = (time.perf_counter()-start)*1000
         return result
     records = []
-    for count in ([candidate] if candidate is not None else sorted({0,299,300,301,302,min(10000,total),total})):
+    for count in ([candidate] if candidate is not None else sorted({0,*(min(n,total) for n in (299,300,301,302,10000)),total})):
         for zoom in (8,12,13,21):
             view = viewport(count,total,zoom)
             captured.clear()
@@ -418,7 +418,7 @@ async def measure(total, samples, candidate=None, baseline_only=False):
     warmed = await asyncio.gather(*(db.connect() for _ in range(30)))
     await asyncio.gather(*(connection.close() for connection in warmed))
     scenarios=[]
-    for count in sorted({300,min(10000,total),total}):
+    for count in sorted({min(300,total),min(10000,total),total}):
         for concurrency in (50,100,200):
             for zoom in (8,13):
                 view=viewport(count,total,zoom)
@@ -433,6 +433,8 @@ async def measure(total, samples, candidate=None, baseline_only=False):
                     if total >= 500000 and offset == 0 and all(not r["ok"] for r in results):
                         break
                 values=sorted(r["ms"] for r in results)
+                if not values:
+                    raise RuntimeError("load scenario produced no samples")
                 assert all(not r["ok"] or r["count"] == count for r in results)
                 def percentile(q, ordered=values):
                     return ordered[min(len(ordered)-1, math.ceil(q*len(ordered))-1)]
@@ -459,20 +461,36 @@ async def measure(total, samples, candidate=None, baseline_only=False):
     await db.dispose()
 
 
-async def main():
+def parse_args(argv=None):
     parser=argparse.ArgumentParser()
     parser.add_argument("phase",choices=["initialize","seed","measure"])
-    parser.add_argument("--sources",type=int,default=2)
+    parser.add_argument("--sources",type=int,choices=(2,10),default=2)
     parser.add_argument("--total",type=int,default=100000)
     parser.add_argument("--samples",type=int,default=200)
     parser.add_argument("--candidate",type=int)
     parser.add_argument("--baseline-only",action="store_true")
-    args=parser.parse_args()
+    args=parser.parse_args(argv)
+    if not 1 <= args.total <= 1000000 or not 1 <= args.samples <= 200:
+        parser.error("--total must be 1..1000000 and --samples must be 1..200; large runs still require separate approval")
+    if args.candidate is not None and not 0 <= args.candidate <= args.total:
+        parser.error("--candidate must be between zero and --total")
+    if (args.candidate is not None or args.baseline_only) and args.phase != "measure":
+        parser.error("--candidate and --baseline-only require the measure phase")
+    if args.candidate is not None and not args.baseline_only:
+        parser.error("--candidate requires --baseline-only (load always uses the full matrix)")
+    return args
+
+
+async def main():
+    args=parse_args()
     validate_lab_environment()
     OUT.mkdir(exist_ok=True)
     metadata={"python":platform.python_version(),"platform":platform.platform(),"sql_timeout_ms":5000,
         "pool":30,"mode":"closed-loop repository map path; excludes HTTP/session", "source":"/code", "synthetic_only":True,
         "code_revision":os.environ.get("R01_CODE_REVISION"),"dependency_image_id":os.environ.get("R01_IMAGE_ID"),"phase":args.phase,"total":args.total,
+        "source_provenance":{"mode":os.environ.get("R01_SOURCE_MODE","unverified-direct"),
+            "checkout_clean":os.environ.get("R01_CHECKOUT_CLEAN")=="true",
+            "archive_sha256":os.environ.get("R01_SOURCE_ARCHIVE_SHA256")},
         "dependencies":{name:importlib.metadata.version(name) for name in ("SQLAlchemy","asyncpg","pydantic","geoalchemy2","psycopg")},
         "source_hashes":{name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in (
             "/code/scripts/benchmark-ai-map.py","/code/backend/app/repositories/ai_verified_cards.py",
