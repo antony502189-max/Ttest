@@ -31,8 +31,17 @@ def upgrade():
         sa.CheckConstraint("jsonb_typeof(criteria) = 'object' AND octet_length(criteria::text) <= 65536",
                            name="ck_ai_saved_criteria"))
     op.create_index("ix_ai_saved_searches_user_id", "ai_saved_searches", ["user_id"])
+    op.create_table("ai_saved_search_commands",
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column("idempotency_key", postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column("fingerprint", sa.String(64), nullable=False),
+        sa.Column("saved_search_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE", name="fk_ai_saved_command_owner"),
+        sa.ForeignKeyConstraint(["saved_search_id"], ["ai_saved_searches.saved_search_id"],
+                                ondelete="SET NULL", name="fk_ai_saved_command_snapshot"),
+        sa.CheckConstraint("fingerprint ~ '^[0-9a-f]{64}$'", name="ck_ai_saved_command_hash"))
 
 
 def downgrade():
     # Binary rollback preserves snapshots in a table old binaries never query.
-    pass
+    raise RuntimeError("SCHEMA_DOWNGRADE_DISABLED: roll back the binary and retain the current Alembic stamp")

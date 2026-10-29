@@ -13,6 +13,8 @@ from ..models.ai_saved_search import AiSavedSearch
 from ..models.moderation import ListingRestriction, UserRestriction
 from ..schemas.searches import (
     GuestStateImport,
+    SavedAIPage,
+    SavedAISummary,
     SavedSearchPatch,
     SavedSearchResponse,
     SavedSearchWrite,
@@ -163,6 +165,19 @@ async def saved_search_count(user_id: UUID, session: AsyncSession) -> int:
     value = await session.scalar(select(func.count()).select_from(SavedSearch).where(SavedSearch.user_id == user_id))
     ai_value = await session.scalar(select(func.count()).select_from(AiSavedSearch).where(AiSavedSearch.user_id == user_id))
     return int(value or 0) + int(ai_value or 0)
+
+
+async def list_saved_ai_summaries(user: User, session: AsyncSession, *, after: UUID | None, limit: int) -> SavedAIPage:
+    # Metadata management does not instantiate AI runtime or interpret criteria.
+    # Pagination is independent of the creation cap, including rollback overcap.
+    query = select(AiSavedSearch).where(AiSavedSearch.user_id == user.id)
+    if after is not None:
+        query = query.where(AiSavedSearch.saved_search_id > after)
+    rows = list(await session.scalars(query.order_by(AiSavedSearch.saved_search_id).limit(limit + 1)))
+    items = [SavedAISummary(id=row.saved_search_id, name=row.name, revision=row.revision, enabled=row.enabled)
+             for row in rows[:limit]]
+    return SavedAIPage(items=items, next_cursor=items[-1].id if len(rows) > limit else None,
+                       collection_count=await saved_search_count(user.id, session))
 
 
 async def import_guest_state(payload: GuestStateImport, user: User, session: AsyncSession) -> None:

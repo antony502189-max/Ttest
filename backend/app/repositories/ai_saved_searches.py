@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..core.config import get_settings
 from ..models import Listing, User
 from ..models.ai_fact_pipeline import AiFactRematchEvent
-from ..models.ai_saved_search import AiSavedSearch
+from ..models.ai_saved_search import AiSavedSearch, AiSavedSearchCommand
 from ..models.moderation import UserRestriction
 from ..schemas.ai_listing_facts import digest
 from ..schemas.ai_search_intent import Criteria, SearchIntent
@@ -18,7 +18,7 @@ from ..schemas.ai_search_quota import QuotaSubject, StrictContract
 from ..services.moderation import active_window
 from ..services.search_state import lock_saved_searches, saved_search_count
 from .ai_fact_pipeline import FactPipeline
-from .ai_search_sessions import SearchSessions
+from .ai_search_sessions import IntentVocabulary, SearchSessions
 from .ai_verified_cards import verified_intent_predicate
 from .listings import visible_query
 
@@ -36,6 +36,8 @@ class SavedIntent(StrictContract):
 
 class SavedAISnapshot(StrictContract):
     id: UUID
+    matcher: Literal["ai.v1"] = "ai.v1"
+    name: str = Field(max_length=120)
     revision: int = Field(ge=1)
     enabled: bool
     intent: SavedIntent = Field(repr=False)
@@ -75,16 +77,25 @@ class RegisteredAISearches:
         if owner is None:
             raise SavedAIError("REGISTERED_USER_UNAVAILABLE")
 
+    def _validate_criteria(self, criteria: Criteria) -> None:
+        try:
+            self.sessions.vocabulary.validate(criteria)
+            vocabulary = self.pipeline.vocabulary
+            IntentVocabulary(vocabulary.amenity_codes, vocabulary.catalog_other_codes,
+                             vocabulary.municipality_zones).validate(criteria)
+        except (ValueError, TypeError, AttributeError):
+            raise SavedAIError("SAVED_AI_STATE_INVALID") from None
+
     def _decode(self, child: AiSavedSearch) -> SavedAISnapshot:
         try:
             if child.matcher != "ai.v1":
                 raise ValueError("hybrid matcher")
             intent = SavedIntent.model_validate_json(json.dumps({"schema_version": child.schema_version,
                 "taxonomy_version": child.taxonomy_version, "criteria": child.criteria}))
-            self.sessions.vocabulary.validate(intent.criteria)
+            self._validate_criteria(intent.criteria)
             if digest(intent.model_dump(mode="json", exclude_none=True)) != child.intent_hash:
                 raise ValueError("snapshot mismatch")
-            return SavedAISnapshot(id=child.saved_search_id, revision=child.revision, enabled=child.enabled,
+            return SavedAISnapshot(id=child.saved_search_id, name=child.name, revision=child.revision, enabled=child.enabled,
                                    intent=intent, intent_hash=child.intent_hash)
         except (ValueError, TypeError):
             raise SavedAIError("SAVED_AI_STATE_INVALID") from None
@@ -98,21 +109,32 @@ class RegisteredAISearches:
             raise SavedAIError("SAVED_AI_NOT_FOUND")
         return result, self._decode(result)
 
-    async def save(self, subject: QuotaSubject, result_ref: UUID, *, name: str = "") -> SavedAISnapshot:
+    async def save(self, subject: QuotaSubject, result_ref: UUID, *, idempotency_key: UUID, name: str = "") -> SavedAISnapshot:
         """Explicit save of an owned committed result; no caller criteria/hash accepted."""
         subject = self._subject(subject)
         if type(name) is not str or len(name) > 120:
             raise SavedAIError("SAVED_AI_NAME_INVALID")
+        if not isinstance(idempotency_key, UUID) or not isinstance(result_ref, UUID):
+            raise SavedAIError("SAVED_AI_COMMAND_INVALID")
+        name = name.strip()
+        fingerprint = digest({"result_ref": str(result_ref), "name": name})
         async with self.connections.begin() as conn:
             # Same collection lock and existing total limit as manual saves/import.
             await lock_saved_searches(subject.id, conn)
             await self._active(conn, subject)
+            command = await conn.get(AiSavedSearchCommand, (subject.id, idempotency_key))
+            if command is not None:
+                if command.fingerprint != fingerprint:
+                    raise SavedAIError("SAVED_AI_IDEMPOTENCY_CONFLICT")
+                if command.saved_search_id is None:
+                    raise SavedAIError("SAVED_AI_DELETED")
+                return (await self._read(conn, subject, command.saved_search_id))[1]
             if await saved_search_count(subject.id, conn) >= get_settings().max_saved_searches_per_user:
                 raise SavedAIError("SAVED_SEARCH_LIMIT")
             committed = await self.sessions.result_in_transaction(conn, subject, result_ref)
             copied = SavedIntent(schema_version=committed.intent.schema_version,
                 taxonomy_version=committed.intent.taxonomy_version, criteria=committed.intent.criteria)
-            self.sessions.vocabulary.validate(copied.criteria)
+            self._validate_criteria(copied.criteria)
             saved_id = uuid4()
             child = AiSavedSearch(saved_search_id=saved_id, user_id=subject.id, name=name.strip(),
                 matcher="ai.v1", revision=1, enabled=True,
@@ -121,12 +143,26 @@ class RegisteredAISearches:
                 intent_hash=digest(copied.model_dump(mode="json", exclude_none=True)))
             conn.add(child)
             await conn.flush()
+            conn.add(AiSavedSearchCommand(user_id=subject.id, idempotency_key=idempotency_key,
+                fingerprint=fingerprint, saved_search_id=saved_id))
+            await conn.flush()
             return self._decode(child)
 
     async def get(self, subject: QuotaSubject, saved_id: UUID) -> SavedAISnapshot:
         subject = self._subject(subject)
         async with self.connections() as conn:
             return (await self._read(conn, subject, saved_id))[1]
+
+    async def list_for_user(self, subject: QuotaSubject, *, after: UUID | None = None, limit: int = 100) -> list[SavedAISnapshot]:
+        subject = self._subject(subject)
+        if type(limit) is not int or not 1 <= limit <= 100 or (after is not None and not isinstance(after, UUID)):
+            raise SavedAIError("SAVED_AI_PAGE_INVALID")
+        async with self.connections() as conn:
+            await self._active(conn, subject)
+            query = select(AiSavedSearch).where(AiSavedSearch.user_id == subject.id)
+            if after is not None:
+                query = query.where(AiSavedSearch.saved_search_id > after)
+            return [self._decode(row) for row in await conn.scalars(query.order_by(AiSavedSearch.saved_search_id).limit(limit))]
 
     async def set_enabled(self, subject: QuotaSubject, saved_id: UUID, revision: int, enabled: bool) -> SavedAISnapshot:
         subject = self._subject(subject)

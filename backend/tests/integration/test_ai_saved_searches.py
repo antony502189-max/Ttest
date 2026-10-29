@@ -51,7 +51,7 @@ async def saved_result(query, repo, subject, criteria):
         expected_session_version=0, payload_sha256=hashlib.sha256(b"synthetic").hexdigest())
     answer = await service.execute(subject, operation, "synthetic", ListingCardSearchRequest())
     assert answer.operation.status == "succeeded"
-    return await repo.save(subject, answer.operation.receipt.result_ref), answer.operation.receipt.result_ref
+    return await repo.save(subject, answer.operation.receipt.result_ref, idempotency_key=uuid4()), answer.operation.receipt.result_ref
 
 
 async def test_every_hard_criterion_has_card_map_saved_dryrun_parity_without_extra_debit():

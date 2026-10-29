@@ -1,6 +1,7 @@
 import json
 import math
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -11,6 +12,20 @@ MAX_FILTER_DEPTH = 8
 MAX_FILTER_CONTAINER_ITEMS = 100
 MAX_FILTER_STRING_LENGTH = 1_000
 MAX_FILTER_KEY_LENGTH = 128
+
+
+class SavedAISummary(BaseModel):
+    id: UUID
+    matcher: Literal["ai.v1"] = "ai.v1"
+    name: str
+    revision: int
+    enabled: bool
+
+
+class SavedAIPage(BaseModel):
+    items: list[SavedAISummary]
+    next_cursor: UUID | None
+    collection_count: int
 
 
 def has_ai_metadata(value: object) -> bool:

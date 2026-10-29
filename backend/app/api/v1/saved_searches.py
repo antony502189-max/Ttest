@@ -1,20 +1,33 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...db.session import get_session
 from ...models import User
-from ...schemas.searches import SavedSearchPatch, SavedSearchResponse, SavedSearchWrite
+from ...schemas.searches import SavedAIPage, SavedSearchPatch, SavedSearchResponse, SavedSearchWrite
 from ...services.search_state import (
     create_saved_search,
     delete_saved_search,
+    list_saved_ai_summaries,
     list_saved_searches,
     update_saved_search,
 )
 from ..dependencies import current_user
 
 router = APIRouter(prefix="/saved-searches", tags=["saved searches"])
+
+
+@router.get("/ai", response_model=SavedAIPage)
+async def list_saved_ai_route(
+    response: Response,
+    after: UUID | None = None,
+    limit: int = Query(default=100, ge=1, le=100),
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    response.headers["Cache-Control"] = "private, no-store"
+    return await list_saved_ai_summaries(user, session, after=after, limit=limit)
 
 
 @router.get("", response_model=list[SavedSearchResponse])

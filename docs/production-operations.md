@@ -163,3 +163,16 @@ For regression acceptance, separately open the public mobile UI and inspect the 
 ### Documentation status and change separation
 
 The runbooks in `docs/` describe the current source contract. A docs-only commit in GitHub is **not** automatically deployed to production. This manual prohibits broad source-import scope enabling, removal sweeps, database/media cleanup and stateful image migrations as side effects of a routine documentation or frontend release. See [release checklist](release-checklist.md), [deployment](deployment.md), [external import](external-import.md) and [troubleshooting](troubleshooting.md).
+# AI saved-search rollback and recovery (PR400)
+
+Use `deploy/rollback-release.sh` to switch binaries. Do not run Alembic downgrade
+or edit the database revision stamp for expand-only migrations. Migration0074
+refuses schema downgrade; production CI checks deploy/rollback/Compose for a
+downgrade command. On re-deploy, retain the stamp and run ordinary upgrade.
+Physical restoration uses a separately verified backup/restore runbook.
+
+Old binaries count manual saved searches only. After upgrade, if manual+AI rows
+exceed the current cap, retain all data, list and delete owned AI rows through
+the paginated collection management route/UI, and reject new saves until below
+the cap. No automatic pruning. AI creation and notification delivery remain off
+during rollback; collection management does not activate them.

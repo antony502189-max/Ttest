@@ -23,6 +23,7 @@ from ..models import (
     SearchHistory,
     User,
 )
+from ..models.ai_saved_search import AiSavedSearch, AiSavedSearchCommand
 from ..models.commercial_advertisement import CommercialAdvertisement
 from ..models.moderation import ModerationNotice
 from ..schemas.auth import AvatarUpdateRequest, UserUpdateRequest
@@ -176,6 +177,8 @@ async def delete_account(user: User, session: AsyncSession) -> None:
         )
     )
     await session.execute(delete(SavedSearch).where(SavedSearch.user_id == locked_user.id))
+    await session.execute(delete(AiSavedSearchCommand).where(AiSavedSearchCommand.user_id == locked_user.id))
+    await session.execute(delete(AiSavedSearch).where(AiSavedSearch.user_id == locked_user.id))
     await session.execute(delete(SearchHistory).where(SearchHistory.user_id == locked_user.id))
     await session.execute(
         delete(MessageThread).where(

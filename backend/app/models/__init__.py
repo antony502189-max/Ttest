@@ -448,7 +448,7 @@ from .advertising_waitlist import AdvertisingWaitlist  # noqa: F401
 from .ai_fact_pipeline import AiFactCatalog, AiFactJob, AiFactRematchEvent, AiFactSource  # noqa: F401
 from .ai_listing_facts import AiListingFact, AiListingFactBatch, AiListingSearchFeatures  # noqa: F401
 from .ai_query_proof import AiQueryProof  # noqa: F401
-from .ai_saved_search import AiSavedSearch  # noqa: F401
+from .ai_saved_search import AiSavedSearch, AiSavedSearchCommand  # noqa: F401
 from .ai_search_quota import AISearchRequest, AIUsageDay  # noqa: F401
 from .ai_search_session import AISearchResult, AISearchSession, AISessionCommand  # noqa: F401
 from .commercial_advertisement import CommercialAdvertisement  # noqa: F401

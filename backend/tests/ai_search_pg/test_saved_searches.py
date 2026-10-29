@@ -5,7 +5,7 @@ matcher parity are tested separately in integration/test_ai_saved_searches.py.
 """
 import asyncio
 import importlib.util
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -19,11 +19,12 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from test_sessions import complete
 
 from app.models import SavedSearch
-from app.models.ai_saved_search import AiSavedSearch
+from app.models.ai_saved_search import AiSavedSearch, AiSavedSearchCommand
 from app.models.ai_search_quota import AISearchRequest
 from app.models.ai_search_session import AISearchSession
 from app.repositories.ai_saved_searches import RegisteredAISearches, SavedAIError
 from app.repositories.ai_search_sessions import SessionError
+from app.schemas.ai_listing_facts import FactVocabulary
 from app.schemas.ai_search_quota import QuotaSubject
 from app.schemas.searches import SavedSearchPatch, SavedSearchWrite
 from app.services.search_state import (
@@ -62,7 +63,10 @@ async def saved_store(store, pg):
                 module.upgrade()
         await conn.run_sync(migrate)
         assert await conn.scalar(select(SavedSearch.matcher).where(SavedSearch.id == legacy_saved)) == "manual.v1"
-    return RegisteredAISearches(store, SimpleNamespace(sessions=pg[1]))
+    vocabulary = FactVocabulary(amenity_codes=store.vocabulary.amenity_codes,
+        catalog_other_codes=store.vocabulary.accommodation_codes, tenant_group_codes=frozenset(),
+        municipality_zones=store.vocabulary.zones)
+    return RegisteredAISearches(store, SimpleNamespace(sessions=pg[1], vocabulary=vocabulary))
 
 
 async def registered(saved_store, pg):
@@ -76,10 +80,10 @@ async def registered(saved_store, pg):
 
 async def test_owned_original_snapshot_independent_of_followup_reset_and_expiry(saved_store, pg):
     owner, initial, receipt = await registered(saved_store, pg)
-    snapshot = await saved_store.save(owner, receipt.result_ref, name="saved")
+    snapshot = await saved_store.save(owner, receipt.result_ref, name="saved", idempotency_key=uuid4())
     current = await saved_store.sessions.get(owner, initial.intent.session_id)
     await complete(saved_store.sessions, owner, current, {"balcony": {"strength": "hard", "value": True}})
-    second = await saved_store.save(owner, receipt.result_ref)
+    second = await saved_store.save(owner, receipt.result_ref, idempotency_key=uuid4())
     assert second.intent == snapshot.intent and second.intent_hash == snapshot.intent_hash
     assert second.id != snapshot.id and snapshot.intent.criteria.balcony.value is False
     await saved_store.sessions.reset(owner, initial.intent.session_id, 2)
@@ -94,32 +98,32 @@ async def test_owned_original_snapshot_independent_of_followup_reset_and_expiry(
 async def test_guest_foreign_result_and_nonregistered_subject_cannot_save(saved_store, pg):
     owner, _, receipt = await registered(saved_store, pg)
     with pytest.raises(SavedAIError, match="REGISTERED_USER_REQUIRED"):
-        await saved_store.save(QuotaSubject(kind="guest", id=owner.id), receipt.result_ref)
+        await saved_store.save(QuotaSubject(kind="guest", id=owner.id), receipt.result_ref, idempotency_key=uuid4())
     with pytest.raises(SavedAIError, match="REGISTERED_USER_UNAVAILABLE"):
-        await saved_store.save(QuotaSubject(kind="auth", id=uuid4()), receipt.result_ref)
+        await saved_store.save(QuotaSubject(kind="auth", id=uuid4()), receipt.result_ref, idempotency_key=uuid4())
     other, _, _ = await registered(saved_store, pg)
     with pytest.raises(SessionError, match="RESULT_NOT_FOUND"):
-        await saved_store.save(other, receipt.result_ref)
-    snapshot = await saved_store.save(owner, receipt.result_ref)
+        await saved_store.save(other, receipt.result_ref, idempotency_key=uuid4())
+    snapshot = await saved_store.save(owner, receipt.result_ref, idempotency_key=uuid4())
     with pytest.raises(SavedAIError, match="SAVED_AI_NOT_FOUND"):
         await saved_store.get(other, snapshot.id)
 
 
 async def test_expired_result_cannot_be_saved_but_previous_saved_snapshot_survives(saved_store, pg):
     owner, initial, receipt = await registered(saved_store, pg)
-    snapshot = await saved_store.save(owner, receipt.result_ref)
+    snapshot = await saved_store.save(owner, receipt.result_ref, idempotency_key=uuid4())
     async with pg[1].begin() as conn:
         await conn.execute(update(AISearchSession).where(AISearchSession.id == initial.intent.session_id).values(
             expires_at=text("clock_timestamp()-interval '1 second'")))
     with pytest.raises(SessionError, match="RESULT_EXPIRED_REQUERY_REQUIRED"):
-        await saved_store.save(owner, receipt.result_ref)
+        await saved_store.save(owner, receipt.result_ref, idempotency_key=uuid4())
     assert await saved_store.get(owner, snapshot.id) == snapshot
 
 
 @pytest.mark.parametrize("corrupt", ["criteria", "hash", "vocabulary", "schema"])
 async def test_corrupt_snapshot_or_vocabulary_fails_closed(saved_store, pg, corrupt):
     owner, _, receipt = await registered(saved_store, pg)
-    snapshot = await saved_store.save(owner, receipt.result_ref)
+    snapshot = await saved_store.save(owner, receipt.result_ref, idempotency_key=uuid4())
     changes = {"criteria": {"invented": {"strength": "hard", "value": True}}} if corrupt == "criteria" else {"intent_hash": "a" * 64}
     if corrupt == "vocabulary":
         changes = {"criteria": {"amenities": {"strength": "hard", "value": ["unsupported"]}}}
@@ -136,7 +140,7 @@ async def test_corrupt_snapshot_or_vocabulary_fails_closed(saved_store, pg, corr
 async def test_disable_cas_legacy_patch_guard_and_delete_cascade(saved_store, pg):
     from fastapi import HTTPException
     owner, _, receipt = await registered(saved_store, pg)
-    snapshot = await saved_store.save(owner, receipt.result_ref)
+    snapshot = await saved_store.save(owner, receipt.result_ref, idempotency_key=uuid4())
     disabled = await saved_store.set_enabled(owner, snapshot.id, 1, False)
     assert not disabled.enabled and disabled.revision == 2 and disabled.intent_hash == snapshot.intent_hash
     with pytest.raises(SavedAIError, match="SAVED_AI_VERSION_CONFLICT"):
@@ -159,7 +163,7 @@ async def test_disable_cas_legacy_patch_guard_and_delete_cascade(saved_store, pg
                                     {"query": "legacy text"}, {"polygon": [{"lat": 1, "lng": 1}]}])
 async def test_old_binary_manual_writes_cannot_address_ai_snapshot(saved_store, pg, changes):
     owner, _, receipt = await registered(saved_store, pg)
-    snapshot = await saved_store.save(owner, receipt.result_ref)
+    snapshot = await saved_store.save(owner, receipt.result_ref, idempotency_key=uuid4())
     async with pg[1].begin() as conn:
         result = await conn.execute(update(SavedSearch).where(SavedSearch.id == snapshot.id).values(**changes))
         assert result.rowcount == 0
@@ -169,7 +173,7 @@ async def test_old_binary_manual_writes_cannot_address_ai_snapshot(saved_store, 
 async def test_separate_snapshot_delete_requires_owner_and_account_delete_cascades(saved_store, pg):
     from fastapi import HTTPException
     owner, _, receipt = await registered(saved_store, pg)
-    snapshot = await saved_store.save(owner, receipt.result_ref)
+    snapshot = await saved_store.save(owner, receipt.result_ref, idempotency_key=uuid4())
     async with pg[1]() as conn:
         assert await conn.scalar(select(func.count()).select_from(SavedSearch).where(SavedSearch.id == snapshot.id)) == 0
         with pytest.raises(HTTPException) as error:
@@ -185,7 +189,7 @@ async def test_separate_snapshot_delete_requires_owner_and_account_delete_cascad
 @pytest.mark.parametrize("change", ["blocked", "deleted", "restricted"])
 async def test_current_owner_state_rechecked_for_get_disable_and_dryrun(saved_store, pg, change):
     owner, _, receipt = await registered(saved_store, pg)
-    snapshot = await saved_store.save(owner, receipt.result_ref)
+    snapshot = await saved_store.save(owner, receipt.result_ref, idempotency_key=uuid4())
     async with pg[1].begin() as conn:
         if change == "restricted":
             await conn.execute(text("INSERT INTO user_restrictions(id,user_id,restriction_type) VALUES (:id,:owner,'full')"),
@@ -200,7 +204,7 @@ async def test_current_owner_state_rechecked_for_get_disable_and_dryrun(saved_st
 
 async def test_manual_create_list_update_still_use_only_manual_matcher(saved_store, pg):
     owner, _, receipt = await registered(saved_store, pg)
-    await saved_store.save(owner, receipt.result_ref)
+    await saved_store.save(owner, receipt.result_ref, idempotency_key=uuid4())
     user = SimpleNamespace(id=owner.id)
     async with pg[1]() as conn:
         manual = await create_saved_search(SavedSearchWrite(rentalMode="holiday", filters={"maxPrice": 75}), user, conn)
@@ -219,7 +223,7 @@ async def test_concurrent_ai_and_manual_saves_share_existing_collection_limit(sa
     async def manual():
         async with pg[1]() as conn:
             return await create_saved_search(SavedSearchWrite(rentalMode="long"), SimpleNamespace(id=owner.id), conn)
-    results = await asyncio.gather(saved_store.save(owner, receipt.result_ref), manual(), return_exceptions=True)
+    results = await asyncio.gather(saved_store.save(owner, receipt.result_ref, idempotency_key=uuid4()), manual(), return_exceptions=True)
     assert sum(not isinstance(item, Exception) for item in results) == 1
     assert sum(isinstance(item, (SavedAIError, HTTPException)) for item in results) == 1
     async with pg[1]() as conn:
@@ -236,7 +240,7 @@ async def small_saved_store(saved_store, pg, monkeypatch, request):
         connect_args={"server_settings": {"search_path": schema}})
     maker = async_sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr(saved_store.sessions.ledger, "sessions", maker)
-    repository = RegisteredAISearches(saved_store.sessions, SimpleNamespace(sessions=maker))
+    repository = RegisteredAISearches(saved_store.sessions, SimpleNamespace(sessions=maker, vocabulary=saved_store.pipeline.vocabulary))
     try:
         yield repository, owner, initial, receipt, maker, engine, size
     finally:
@@ -252,7 +256,7 @@ async def test_save_uses_one_checkout_even_with_minimum_or_saturated_pool(small_
         if size == 2:
             await stack.enter_async_context(engine.connect())  # Occupy every connection except one.
         before = len(checkouts)
-        saved = await asyncio.wait_for(repository.save(owner, receipt.result_ref), 2)
+        saved = await asyncio.wait_for(repository.save(owner, receipt.result_ref, idempotency_key=uuid4()), 2)
         assert len(checkouts) - before == 1
     assert saved.intent.criteria.balcony.value is False
     assert await repository.get(owner, saved.id) == saved
@@ -266,7 +270,7 @@ async def test_concurrent_small_pool_ai_and_manual_collection_cap_is_atomic(smal
     repository, owner, _, receipt, maker, _, _ = small_saved_store
     # First prove concurrent valid saves succeed when the pool is saturated by
     # save transactions themselves (rather than masking pool failures as caps).
-    saved = await asyncio.wait_for(asyncio.gather(*(repository.save(owner, receipt.result_ref) for _ in range(3))), 4)
+    saved = await asyncio.wait_for(asyncio.gather(*(repository.save(owner, receipt.result_ref, idempotency_key=uuid4()) for _ in range(3))), 4)
     assert len({value.id for value in saved}) == 3
     async with maker.begin() as conn:
         await conn.execute(delete(SavedSearch).where(SavedSearch.user_id == owner.id))
@@ -275,8 +279,8 @@ async def test_concurrent_small_pool_ai_and_manual_collection_cap_is_atomic(smal
     async def manual():
         async with maker() as conn:
             return await create_saved_search(SavedSearchWrite(rentalMode="long"), SimpleNamespace(id=owner.id), conn)
-    outcomes = await asyncio.wait_for(asyncio.gather(repository.save(owner, receipt.result_ref),
-        repository.save(owner, receipt.result_ref), manual(), return_exceptions=True), 4)
+    outcomes = await asyncio.wait_for(asyncio.gather(repository.save(owner, receipt.result_ref, idempotency_key=uuid4()),
+        repository.save(owner, receipt.result_ref, idempotency_key=uuid4()), manual(), return_exceptions=True), 4)
     assert sum(not isinstance(item, Exception) for item in outcomes) == 1
     failures = [value for value in outcomes if isinstance(value, Exception)]
     assert len(failures) == 2
@@ -310,8 +314,90 @@ async def test_same_connection_result_read_preserves_all_guards(small_saved_stor
             else:
                 row.session_version += 1
     with pytest.raises((SessionError, SavedAIError)):
-        await repository.save(caller, receipt.result_ref)
+        await repository.save(caller, receipt.result_ref, idempotency_key=uuid4())
     async with maker() as conn:
         assert await conn.scalar(select(func.count()).select_from(SavedSearch).where(SavedSearch.user_id == owner.id)) == 0
         assert await saved_search_count(owner.id, conn) == 0
         assert await conn.scalar(select(func.count()).select_from(AISearchRequest)) == 1
+
+
+async def test_save_concurrent_exact_retry_at_cap_and_after_expiry(saved_store, pg, monkeypatch):
+    from app.core.config import get_settings
+    owner, initial, receipt = await registered(saved_store, pg)
+    key = uuid4()
+    monkeypatch.setattr(get_settings(), "max_saved_searches_per_user", 1)
+    first, replay = await asyncio.gather(*(saved_store.save(owner, receipt.result_ref,
+        name="  Mi búsqueda  ", idempotency_key=key) for _ in range(2)))
+    assert first == replay and first.name == "Mi búsqueda" and first.matcher == "ai.v1"
+    async with pg[1].begin() as conn:
+        assert await saved_search_count(owner.id, conn) == 1
+        assert await conn.scalar(select(func.count()).select_from(AiSavedSearchCommand)) == 1
+        await conn.execute(update(AISearchSession).where(AISearchSession.id == initial.intent.session_id).values(
+            expires_at=text("clock_timestamp() - interval '1 second'")))
+    assert await saved_store.save(owner, receipt.result_ref, name="Mi búsqueda", idempotency_key=key) == first
+    with pytest.raises(SavedAIError, match="SAVED_AI_IDEMPOTENCY_CONFLICT"):
+        await saved_store.save(owner, receipt.result_ref, name="different", idempotency_key=key)
+    with pytest.raises(SavedAIError, match="SAVED_AI_IDEMPOTENCY_CONFLICT"):
+        await saved_store.save(owner, uuid4(), name="Mi búsqueda", idempotency_key=key)
+    changed = await saved_store.set_enabled(owner, first.id, 1, False)
+    assert changed.name == first.name and not changed.enabled
+    async with pg[1]() as conn:
+        await delete_saved_search(first.id, SimpleNamespace(id=owner.id), conn)
+    with pytest.raises(SavedAIError, match="SAVED_AI_DELETED"):
+        await saved_store.save(owner, receipt.result_ref, name="Mi búsqueda", idempotency_key=key)
+    async with pg[1]() as conn:
+        assert await saved_search_count(owner.id, conn) == 0
+
+
+async def test_save_committed_ack_loss_replays_and_distinct_keys_allow_named_copies(saved_store, pg, monkeypatch):
+    owner, _, receipt = await registered(saved_store, pg)
+    key = uuid4()
+    maker = saved_store.connections
+    @asynccontextmanager
+    async def lost_ack():
+        async with maker.begin() as conn:
+            yield conn
+        raise OSError("synthetic commit acknowledgement loss")
+    monkeypatch.setattr(saved_store, "connections", SimpleNamespace(begin=lost_ack))
+    with pytest.raises(OSError):
+        await saved_store.save(owner, receipt.result_ref, name="first", idempotency_key=key)
+    monkeypatch.setattr(saved_store, "connections", maker)
+    replay = await saved_store.save(owner, receipt.result_ref, name="first", idempotency_key=key)
+    copy = await saved_store.save(owner, receipt.result_ref, name="second", idempotency_key=uuid4())
+    assert copy.id != replay.id and copy.intent_hash == replay.intent_hash
+    assert (await saved_store.get(owner, replay.id)).name == "first"
+    first_page = await saved_store.list_for_user(owner, limit=1)
+    next_page = await saved_store.list_for_user(owner, after=first_page[0].id, limit=1)
+    assert {first_page[0].id, next_page[0].id} == {replay.id, copy.id}
+
+
+async def test_divergent_and_drifting_vocabularies_fail_before_snapshot_or_match(saved_store, pg):
+    owner, initial, _ = await registered(saved_store, pg)
+    current = await saved_store.sessions.get(owner, initial.intent.session_id)
+    _, receipt, _ = await complete(saved_store.sessions, owner, current,
+                                   {"amenities": {"strength": "hard", "value": ["wifi"]}})
+    original = saved_store.pipeline.vocabulary
+    empty = FactVocabulary(amenity_codes=frozenset(), catalog_other_codes=frozenset(),
+                           municipality_zones=frozenset(), tenant_group_codes=frozenset())
+    saved_store.pipeline.vocabulary = empty
+    with pytest.raises(SavedAIError, match="SAVED_AI_STATE_INVALID"):
+        await saved_store.save(owner, receipt.result_ref, idempotency_key=uuid4())
+    async with pg[1]() as conn:
+        assert await conn.scalar(select(func.count()).select_from(AiSavedSearch)) == 0
+        assert await conn.scalar(select(func.count()).select_from(AiSavedSearchCommand)) == 0
+    saved_store.pipeline.vocabulary = original
+    saved = await saved_store.save(owner, receipt.result_ref, idempotency_key=uuid4())
+    saved_store.pipeline.vocabulary = empty
+    for action in (saved_store.get(owner, saved.id), saved_store.dry_run(owner, saved.id, uuid4()),
+                   saved_store.set_enabled(owner, saved.id, 1, False)):
+        with pytest.raises(SavedAIError, match="SAVED_AI_STATE_INVALID"):
+            await action
+
+
+async def test_command_cleanup_on_hard_delete(saved_store, pg):
+    owner, _, receipt = await registered(saved_store, pg)
+    await saved_store.save(owner, receipt.result_ref, idempotency_key=uuid4())
+    async with pg[1].begin() as conn:
+        await conn.execute(text("DELETE FROM users WHERE id=:owner"), {"owner": owner.id})
+    async with pg[1]() as conn:
+        assert await conn.scalar(select(func.count()).select_from(AiSavedSearchCommand)) == 0

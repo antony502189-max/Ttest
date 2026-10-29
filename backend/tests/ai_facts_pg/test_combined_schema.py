@@ -54,7 +54,7 @@ def test_linear_combined_schema_matches_all_ai_models(pg):
             for table in Base.metadata.tables.values():
                 if table.name.startswith("ai_"):
                     table.to_metadata(metadata)
-            assert len([name for name in metadata.tables if name.startswith("ai_")]) == 14
+            assert len([name for name in metadata.tables if name.startswith("ai_")]) == 15
             assert set(inspect(connection).get_table_names()) == set(metadata.tables)
             assert compare_metadata(MigrationContext.configure(connection, opts={"compare_type": True}), metadata) == []
             for table in metadata.tables.values():
