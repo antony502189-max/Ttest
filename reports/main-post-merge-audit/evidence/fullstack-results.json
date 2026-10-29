@@ -1,0 +1,42 @@
+[
+  {
+    "name": "fullstack-migrate",
+    "command": [
+      "alembic",
+      "upgrade",
+      "head"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "fullstack-seed",
+    "command": [
+      "/usr/local/bin/python",
+      "-m",
+      "app.commands.seed"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "fullstack-empty-provider",
+    "command": [
+      "node",
+      "node_modules/@playwright/test/cli.js",
+      "test",
+      "--config",
+      "playwright.fullstack.config.ts"
+    ],
+    "exit_code": 1
+  },
+  {
+    "name": "fullstack-fixture-provider",
+    "command": [
+      "node",
+      "node_modules/@playwright/test/cli.js",
+      "test",
+      "--config",
+      "playwright.fullstack.config.ts"
+    ],
+    "exit_code": 0
+  }
+]

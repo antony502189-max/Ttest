@@ -1,0 +1,177 @@
+{
+  "ai-real-browser-recovery.xml": {
+    "cases": 4,
+    "outcomes": {
+      "passed": 4
+    },
+    "skip_reasons": {},
+    "AI_groups": {
+      "ai_search_pg": {},
+      "ai_facts_pg": {},
+      "integration.test_ai": {
+        "passed": 4
+      },
+      "test_ai_http_browser": {}
+    }
+  },
+  "backend-integration-removal-disabled.xml": {
+    "cases": 936,
+    "outcomes": {
+      "passed": 917,
+      "skipped": 5,
+      "failed": 14
+    },
+    "skip_reasons": {
+      "explicit built local frontend required": 4,
+      "set AI_UI_TEST_URL to an isolated local frontend": 1
+    },
+    "AI_groups": {
+      "ai_search_pg": {
+        "passed": 319
+      },
+      "ai_facts_pg": {
+        "passed": 227
+      },
+      "integration.test_ai": {
+        "skipped": 5,
+        "passed": 72
+      },
+      "test_ai_http_browser": {
+        "passed": 1
+      }
+    }
+  },
+  "backend-integration.xml": {
+    "cases": 936,
+    "outcomes": {
+      "passed": 931,
+      "skipped": 5
+    },
+    "skip_reasons": {
+      "explicit built local frontend required": 4,
+      "set AI_UI_TEST_URL to an isolated local frontend": 1
+    },
+    "AI_groups": {
+      "ai_search_pg": {
+        "passed": 319
+      },
+      "ai_facts_pg": {
+        "passed": 227
+      },
+      "integration.test_ai": {
+        "skipped": 5,
+        "passed": 72
+      },
+      "test_ai_http_browser": {
+        "passed": 1
+      }
+    }
+  },
+  "backend-s3.xml": {
+    "cases": 1,
+    "outcomes": {
+      "passed": 1
+    },
+    "skip_reasons": {},
+    "AI_groups": {
+      "ai_search_pg": {},
+      "ai_facts_pg": {},
+      "integration.test_ai": {},
+      "test_ai_http_browser": {}
+    }
+  },
+  "backend-unit-bootstrap.xml": {
+    "cases": 1574,
+    "outcomes": {
+      "passed": 1535,
+      "skipped": 39
+    },
+    "skip_reasons": {
+      "PowerShell runtime unavailable; run the fake-Docker suite on Windows/pwsh": 28,
+      "opt-in public route research": 2,
+      "opt-in public-source smoke test": 1,
+      "release gate requires Bash and jq": 8
+    },
+    "AI_groups": {
+      "ai_search_pg": {},
+      "ai_facts_pg": {},
+      "integration.test_ai": {},
+      "test_ai_http_browser": {}
+    }
+  },
+  "backend-unit.xml": {
+    "cases": 1574,
+    "outcomes": {
+      "passed": 1543,
+      "skipped": 31
+    },
+    "skip_reasons": {
+      "PowerShell runtime unavailable; run the fake-Docker suite on Windows/pwsh": 28,
+      "opt-in public route research": 2,
+      "opt-in public-source smoke test": 1
+    },
+    "AI_groups": {
+      "ai_search_pg": {},
+      "ai_facts_pg": {},
+      "integration.test_ai": {},
+      "test_ai_http_browser": {}
+    }
+  },
+  "browser-linux-default.xml": {
+    "cases": 694,
+    "outcomes": {
+      "passed": 691,
+      "failed": 2,
+      "skipped": 1
+    },
+    "skip_reasons": {
+      "": 1
+    },
+    "AI_groups": {
+      "ai_search_pg": {},
+      "ai_facts_pg": {},
+      "integration.test_ai": {},
+      "test_ai_http_browser": {}
+    }
+  },
+  "browser-linux-retry.xml": {
+    "cases": 2,
+    "outcomes": {
+      "failed": 1,
+      "passed": 1
+    },
+    "skip_reasons": {},
+    "AI_groups": {
+      "ai_search_pg": {},
+      "ai_facts_pg": {},
+      "integration.test_ai": {},
+      "test_ai_http_browser": {}
+    }
+  },
+  "browser-polygon-repeat.xml": {
+    "cases": 3,
+    "outcomes": {
+      "passed": 3
+    },
+    "skip_reasons": {},
+    "AI_groups": {
+      "ai_search_pg": {},
+      "ai_facts_pg": {},
+      "integration.test_ai": {},
+      "test_ai_http_browser": {}
+    }
+  },
+  "windows-toolchain.xml": {
+    "cases": 28,
+    "outcomes": {
+      "passed": 28
+    },
+    "skip_reasons": {},
+    "AI_groups": {
+      "ai_search_pg": {},
+      "ai_facts_pg": {},
+      "integration.test_ai": {},
+      "test_ai_http_browser": {}
+    }
+  }
+}

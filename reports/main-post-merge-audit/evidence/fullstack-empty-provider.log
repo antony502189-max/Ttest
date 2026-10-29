@@ -1,0 +1,370 @@
+
+Running 30 tests using 1 worker
+
+  ✘   1 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:139:1 › frontend renders a listing created through the real FastAPI backend (833ms)
+  ✘   2 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:152:1 › customer-priority fields persist through FastAPI, search uses them, and private location stays owner-only (318ms)
+  ✘   3 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:211:1 › unrestricted search does not send a strict tenant requirement to the API (621ms)
+  ✓   4 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:223:1 › unrestricted tourism search omits default price and room-size bounds from the real API request (3.4s)
+  ✓   5 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:254:1 › browser search stays bounded instead of hydrating the full catalog (2.6s)
+  -   6 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:283:1 › mobile results progressively append bounded cursor pages until every result is visible
+  -   7 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:327:1 › mobile infinite-scroll state survives opening a later card and going Back
+  ✓   8 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:408:1 › anonymous auth and publication routes render without a route error (2.1s)
+  -   9 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:424:1 › legacy bedroom-count URL parameter is removed from customer search
+  ✘  10 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:436:1 › an open catalog refreshes after its version changes on focus (546ms)
+  ✓  11 [desktop-chromium] › tests/full-stack/commercial-advertising.spec.ts:4:1 › real API persists advertiser upload, checkout and pending review (6.8s)
+  ✓  12 [desktop-chromium] › tests/full-stack/filter-layer-parity.spec.ts:147:1 › FILTER-LAYER desktop URL state serializes every active customer server-backed filter into the FastAPI request (9.2s)
+  ✘  13 [desktop-chromium] › tests/full-stack/filter-layer-parity.spec.ts:214:1 › FILTER-LAYER FastAPI + PostgreSQL predicates include matches and reject non-matches for every server filter (533ms)
+  -  14 [desktop-chromium] › tests/full-stack/listing-gallery-regression.spec.ts:106:1 › production mobile cards and detail keep photo carousel for long and holiday rentals
+  -  15 [desktop-chromium] › tests/full-stack/listing-gallery-regression.spec.ts:146:1 › production mobile holiday card recovers its full internal gallery when bounded card payload is truncated
+  ✘  16 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:139:1 › frontend renders a listing created through the real FastAPI backend (594ms)
+  ✘  17 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:152:1 › customer-priority fields persist through FastAPI, search uses them, and private location stays owner-only (305ms)
+  ✘  18 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:211:1 › unrestricted search does not send a strict tenant requirement to the API (596ms)
+  -  19 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:223:1 › unrestricted tourism search omits default price and room-size bounds from the real API request
+  ✓  20 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:254:1 › browser search stays bounded instead of hydrating the full catalog (2.0s)
+  ✓  21 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:283:1 › mobile results progressively append bounded cursor pages until every result is visible (2.6s)
+  ✓  22 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:327:1 › mobile infinite-scroll state survives opening a later card and going Back (3.5s)
+  ✓  23 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:408:1 › anonymous auth and publication routes render without a route error (2.0s)
+  ✓  24 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:424:1 › legacy bedroom-count URL parameter is removed from customer search (1.6s)
+  ✘  25 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:436:1 › an open catalog refreshes after its version changes on focus (441ms)
+  ✓  26 [mobile-chromium] › tests/full-stack/commercial-advertising.spec.ts:4:1 › real API persists advertiser upload, checkout and pending review (9.1s)
+  -  27 [mobile-chromium] › tests/full-stack/filter-layer-parity.spec.ts:147:1 › FILTER-LAYER desktop URL state serializes every active customer server-backed filter into the FastAPI request
+  ✘  28 [mobile-chromium] › tests/full-stack/filter-layer-parity.spec.ts:214:1 › FILTER-LAYER FastAPI + PostgreSQL predicates include matches and reject non-matches for every server filter (626ms)
+  ✓  29 [mobile-chromium] › tests/full-stack/listing-gallery-regression.spec.ts:106:1 › production mobile cards and detail keep photo carousel for long and holiday rentals (3.7s)
+  ✓  30 [mobile-chromium] › tests/full-stack/listing-gallery-regression.spec.ts:146:1 › production mobile holiday card recovers its full internal gallery when bounded card payload is truncated (2.0s)
+
+
+  1) [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:139:1 › frontend renders a listing created through the real FastAPI backend
+
+    Error: {"detail":"Address, postcode and map location must identify the same Spanish address"}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 422
+
+      131 |     data: { ...listingPayload(title, tenantRequirement), assetIds },
+      132 |   })
+    > 133 |   expect(created.status(), await created.text()).toBe(201)
+          |                                                  ^
+      134 |   const listing = await created.json() as { id: string }
+      135 |   await api.dispose()
+      136 |   return { listingId: listing.id, accessToken: session.accessToken }
+        at createBackendListing (/audit-src/tests/full-stack/backend-integration.spec.ts:133:50)
+        at /audit-src/tests/full-stack/backend-integration.spec.ts:142:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/backend-integration-fronte-7ffcd-gh-the-real-FastAPI-backend-desktop-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/backend-integration-fronte-7ffcd-gh-the-real-FastAPI-backend-desktop-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/backend-integration-fronte-7ffcd-gh-the-real-FastAPI-backend-desktop-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/backend-integration-fronte-7ffcd-gh-the-real-FastAPI-backend-desktop-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:152:1 › customer-priority fields persist through FastAPI, search uses them, and private location stays owner-only
+
+    Error: {"detail":"Address, postcode and map location must identify the same Spanish address"}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 422
+
+      131 |     data: { ...listingPayload(title, tenantRequirement), assetIds },
+      132 |   })
+    > 133 |   expect(created.status(), await created.text()).toBe(201)
+          |                                                  ^
+      134 |   const listing = await created.json() as { id: string }
+      135 |   await api.dispose()
+      136 |   return { listingId: listing.id, accessToken: session.accessToken }
+        at createBackendListing (/audit-src/tests/full-stack/backend-integration.spec.ts:133:50)
+        at /audit-src/tests/full-stack/backend-integration.spec.ts:155:19
+
+    Error Context: test-results/backend-integration-custom-d8952-e-location-stays-owner-only-desktop-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/backend-integration-custom-d8952-e-location-stays-owner-only-desktop-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/backend-integration-custom-d8952-e-location-stays-owner-only-desktop-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:211:1 › unrestricted search does not send a strict tenant requirement to the API
+
+    Error: {"detail":"Address, postcode and map location must identify the same Spanish address"}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 422
+
+      131 |     data: { ...listingPayload(title, tenantRequirement), assetIds },
+      132 |   })
+    > 133 |   expect(created.status(), await created.text()).toBe(201)
+          |                                                  ^
+      134 |   const listing = await created.json() as { id: string }
+      135 |   await api.dispose()
+      136 |   return { listingId: listing.id, accessToken: session.accessToken }
+        at createBackendListing (/audit-src/tests/full-stack/backend-integration.spec.ts:133:50)
+        at /audit-src/tests/full-stack/backend-integration.spec.ts:215:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/backend-integration-unrest-ec8e4-nant-requirement-to-the-API-desktop-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/backend-integration-unrest-ec8e4-nant-requirement-to-the-API-desktop-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/backend-integration-unrest-ec8e4-nant-requirement-to-the-API-desktop-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/backend-integration-unrest-ec8e4-nant-requirement-to-the-API-desktop-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:436:1 › an open catalog refreshes after its version changes on focus
+
+    Error: {"detail":"Address, postcode and map location must identify the same Spanish address"}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 422
+
+      131 |     data: { ...listingPayload(title, tenantRequirement), assetIds },
+      132 |   })
+    > 133 |   expect(created.status(), await created.text()).toBe(201)
+          |                                                  ^
+      134 |   const listing = await created.json() as { id: string }
+      135 |   await api.dispose()
+      136 |   return { listingId: listing.id, accessToken: session.accessToken }
+        at createBackendListing (/audit-src/tests/full-stack/backend-integration.spec.ts:133:50)
+        at /audit-src/tests/full-stack/backend-integration.spec.ts:439:19
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/backend-integration-an-ope-ecaa2-ts-version-changes-on-focus-desktop-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/backend-integration-an-ope-ecaa2-ts-version-changes-on-focus-desktop-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/backend-integration-an-ope-ecaa2-ts-version-changes-on-focus-desktop-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/backend-integration-an-ope-ecaa2-ts-version-changes-on-focus-desktop-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [desktop-chromium] › tests/full-stack/filter-layer-parity.spec.ts:214:1 › FILTER-LAYER FastAPI + PostgreSQL predicates include matches and reject non-matches for every server filter
+
+    Error: {"detail":"Address, postcode and map location must identify the same Spanish address"}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 422
+
+      101 |     data: { ...payload, assetIds },
+      102 |   })
+    > 103 |   expect(response.status(), await response.text()).toBe(201)
+          |                                                    ^
+      104 |   return (await response.json() as { id: string }).id
+      105 | }
+      106 |
+        at createListing (/audit-src/tests/full-stack/filter-layer-parity.spec.ts:103:52)
+        at /audit-src/tests/full-stack/filter-layer-parity.spec.ts:225:21
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/filter-layer-parity-FILTER-adbd1-hes-for-every-server-filter-desktop-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/filter-layer-parity-FILTER-adbd1-hes-for-every-server-filter-desktop-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/filter-layer-parity-FILTER-adbd1-hes-for-every-server-filter-desktop-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/filter-layer-parity-FILTER-adbd1-hes-for-every-server-filter-desktop-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:139:1 › frontend renders a listing created through the real FastAPI backend
+
+    Error: {"detail":"Address, postcode and map location must identify the same Spanish address"}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 422
+
+      131 |     data: { ...listingPayload(title, tenantRequirement), assetIds },
+      132 |   })
+    > 133 |   expect(created.status(), await created.text()).toBe(201)
+          |                                                  ^
+      134 |   const listing = await created.json() as { id: string }
+      135 |   await api.dispose()
+      136 |   return { listingId: listing.id, accessToken: session.accessToken }
+        at createBackendListing (/audit-src/tests/full-stack/backend-integration.spec.ts:133:50)
+        at /audit-src/tests/full-stack/backend-integration.spec.ts:142:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/backend-integration-fronte-7ffcd-gh-the-real-FastAPI-backend-mobile-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/backend-integration-fronte-7ffcd-gh-the-real-FastAPI-backend-mobile-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/backend-integration-fronte-7ffcd-gh-the-real-FastAPI-backend-mobile-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/backend-integration-fronte-7ffcd-gh-the-real-FastAPI-backend-mobile-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  7) [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:152:1 › customer-priority fields persist through FastAPI, search uses them, and private location stays owner-only
+
+    Error: {"detail":"Address, postcode and map location must identify the same Spanish address"}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 422
+
+      131 |     data: { ...listingPayload(title, tenantRequirement), assetIds },
+      132 |   })
+    > 133 |   expect(created.status(), await created.text()).toBe(201)
+          |                                                  ^
+      134 |   const listing = await created.json() as { id: string }
+      135 |   await api.dispose()
+      136 |   return { listingId: listing.id, accessToken: session.accessToken }
+        at createBackendListing (/audit-src/tests/full-stack/backend-integration.spec.ts:133:50)
+        at /audit-src/tests/full-stack/backend-integration.spec.ts:155:19
+
+    Error Context: test-results/backend-integration-custom-d8952-e-location-stays-owner-only-mobile-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/backend-integration-custom-d8952-e-location-stays-owner-only-mobile-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/backend-integration-custom-d8952-e-location-stays-owner-only-mobile-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  8) [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:211:1 › unrestricted search does not send a strict tenant requirement to the API
+
+    Error: {"detail":"Address, postcode and map location must identify the same Spanish address"}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 422
+
+      131 |     data: { ...listingPayload(title, tenantRequirement), assetIds },
+      132 |   })
+    > 133 |   expect(created.status(), await created.text()).toBe(201)
+          |                                                  ^
+      134 |   const listing = await created.json() as { id: string }
+      135 |   await api.dispose()
+      136 |   return { listingId: listing.id, accessToken: session.accessToken }
+        at createBackendListing (/audit-src/tests/full-stack/backend-integration.spec.ts:133:50)
+        at /audit-src/tests/full-stack/backend-integration.spec.ts:215:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/backend-integration-unrest-ec8e4-nant-requirement-to-the-API-mobile-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/backend-integration-unrest-ec8e4-nant-requirement-to-the-API-mobile-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/backend-integration-unrest-ec8e4-nant-requirement-to-the-API-mobile-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/backend-integration-unrest-ec8e4-nant-requirement-to-the-API-mobile-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  9) [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:436:1 › an open catalog refreshes after its version changes on focus
+
+    Error: {"detail":"Address, postcode and map location must identify the same Spanish address"}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 422
+
+      131 |     data: { ...listingPayload(title, tenantRequirement), assetIds },
+      132 |   })
+    > 133 |   expect(created.status(), await created.text()).toBe(201)
+          |                                                  ^
+      134 |   const listing = await created.json() as { id: string }
+      135 |   await api.dispose()
+      136 |   return { listingId: listing.id, accessToken: session.accessToken }
+        at createBackendListing (/audit-src/tests/full-stack/backend-integration.spec.ts:133:50)
+        at /audit-src/tests/full-stack/backend-integration.spec.ts:439:19
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/backend-integration-an-ope-ecaa2-ts-version-changes-on-focus-mobile-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/backend-integration-an-ope-ecaa2-ts-version-changes-on-focus-mobile-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/backend-integration-an-ope-ecaa2-ts-version-changes-on-focus-mobile-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/backend-integration-an-ope-ecaa2-ts-version-changes-on-focus-mobile-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  10) [mobile-chromium] › tests/full-stack/filter-layer-parity.spec.ts:214:1 › FILTER-LAYER FastAPI + PostgreSQL predicates include matches and reject non-matches for every server filter
+
+    Error: {"detail":"Address, postcode and map location must identify the same Spanish address"}
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 422
+
+      101 |     data: { ...payload, assetIds },
+      102 |   })
+    > 103 |   expect(response.status(), await response.text()).toBe(201)
+          |                                                    ^
+      104 |   return (await response.json() as { id: string }).id
+      105 | }
+      106 |
+        at createListing (/audit-src/tests/full-stack/filter-layer-parity.spec.ts:103:52)
+        at /audit-src/tests/full-stack/filter-layer-parity.spec.ts:225:21
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/filter-layer-parity-FILTER-adbd1-hes-for-every-server-filter-mobile-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/filter-layer-parity-FILTER-adbd1-hes-for-every-server-filter-mobile-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/filter-layer-parity-FILTER-adbd1-hes-for-every-server-filter-mobile-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/filter-layer-parity-FILTER-adbd1-hes-for-every-server-filter-mobile-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  10 failed
+    [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:139:1 › frontend renders a listing created through the real FastAPI backend
+    [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:152:1 › customer-priority fields persist through FastAPI, search uses them, and private location stays owner-only
+    [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:211:1 › unrestricted search does not send a strict tenant requirement to the API
+    [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:436:1 › an open catalog refreshes after its version changes on focus
+    [desktop-chromium] › tests/full-stack/filter-layer-parity.spec.ts:214:1 › FILTER-LAYER FastAPI + PostgreSQL predicates include matches and reject non-matches for every server filter
+    [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:139:1 › frontend renders a listing created through the real FastAPI backend
+    [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:152:1 › customer-priority fields persist through FastAPI, search uses them, and private location stays owner-only
+    [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:211:1 › unrestricted search does not send a strict tenant requirement to the API
+    [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:436:1 › an open catalog refreshes after its version changes on focus
+    [mobile-chromium] › tests/full-stack/filter-layer-parity.spec.ts:214:1 › FILTER-LAYER FastAPI + PostgreSQL predicates include matches and reject non-matches for every server filter
+  7 skipped
+  13 passed (1.2m)
