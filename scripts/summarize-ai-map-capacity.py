@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import hashlib
 import json
 import math
 import re
@@ -51,8 +52,8 @@ def resource_series(root):
             continue
         try:
             row = json.loads(line)
-            timestamp = datetime.fromisoformat(row["at"])
-            if timestamp.tzinfo is None:
+            observed_at = datetime.fromisoformat(row["at"])
+            if observed_at.tzinfo is None:
                 raise ValueError("missing timezone")
             if "db" in row:
                 cpu = float(row["db"]["CPUPerc"].removesuffix("%"))
@@ -70,11 +71,25 @@ def resource_series(root):
     interval = starts[-1].get("interval_seconds", 5) if starts else 5
     if not isinstance(interval, (float, int)) or not math.isfinite(interval) or interval <= 0:
         interval, invalid = 5, invalid + 1
-    timeline = ([starts[0]] if starts else []) + samples + ([stops[-1]] if stops else [])
-    durations = [(datetime.fromisoformat(b["at"]) - datetime.fromisoformat(a["at"])).total_seconds()
-                 for a, b in pairwise(timeline)]
-    gaps = sum(duration > 2.5 * interval for duration in durations)
-    invalid += sum(duration < 0 for duration in durations)
+    gaps = 0
+    if any(row.get("monitor_id") for row in samples+events):
+        for identifier in {row.get("monitor_id") for row in samples+events}:
+            group = sorted([row for row in samples+events if row.get("monitor_id") == identifier],key=lambda r:r["at"])
+            group_starts = [r for r in group if r.get("kind") == "monitor-start"]
+            group_stops = [r for r in group if r.get("kind") == "monitor-stop"]
+            if not identifier or len(group_starts) != 1 or len(group_stops) != 1:
+                invalid += 1
+                continue
+            step = group_starts[0].get("interval_seconds",0)
+            if not duration(step) or step == 0:
+                invalid += 1
+                continue
+            gaps += sum((timestamp(b["at"])-timestamp(a["at"])).total_seconds() > 2.5*step for a,b in pairwise(group))
+    else:
+        timeline = ([starts[0]] if starts else []) + samples + ([stops[-1]] if stops else [])
+        durations = [(datetime.fromisoformat(b["at"]) - datetime.fromisoformat(a["at"])).total_seconds() for a, b in pairwise(timeline)]
+        gaps = sum(value > 2.5*interval for value in durations)
+        invalid += sum(value < 0 for value in durations)
     profiles = {row["profile"] for row in samples + events if row.get("profile")}
     containers = {row["container"] for row in samples + events if row.get("container")}
     status = ("degraded" if errors or invalid or gaps or len(profiles) > 1 or len(containers) > 1 or
@@ -132,24 +147,57 @@ def observed_concurrency(attempts):
     return peak
 
 
+def duration(value):
+    return type(value) in (int,float) and math.isfinite(value) and value >= 0
+
+
+def attempt_problems(attempt, expected_count):
+    problems = []
+    if type(attempt.get("ok")) is not bool or not duration(attempt.get("ms")):
+        problems.append("invalid raw outcome/duration")
+    for field in ("pool_ms","query_ms"):
+        if field in attempt and not duration(attempt[field]):
+            problems.append(f"invalid {field}")
+    if attempt.get("ok") is True:
+        if (type(attempt.get("count")) is not int or attempt["count"] != expected_count or
+                type(attempt.get("items")) is not int or not 0 <= attempt["items"] <= expected_count):
+            problems.append("successful result count/items")
+        if any(not duration(attempt.get(field)) for field in ("pool_ms","query_ms")):
+            problems.append("missing success timing")
+    else:
+        if not all(isinstance(attempt.get(field),str) and attempt[field].strip() for field in ("error","detail")):
+            problems.append("missing failure diagnosis")
+        if attempt.get("sqlstate") is not None and not re.fullmatch(r"[0-9A-Z]{5}",str(attempt["sqlstate"])):
+            problems.append("invalid sqlstate")
+    if duration(attempt.get("ms")):
+        if all(duration(attempt.get(field)) for field in ("pool_ms","query_ms")) and attempt["pool_ms"] + attempt["query_ms"] > attempt["ms"] + 5:
+            problems.append("inconsistent timing components")
+        try:
+            elapsed = (timestamp(attempt["ended_at"]) - timestamp(attempt["started_at"])).total_seconds()*1000
+            if elapsed <= 0 or abs(elapsed - attempt["ms"]) > max(5,elapsed*.01):
+                problems.append("inconsistent attempt clock duration")
+        except (KeyError,ValueError,TypeError):
+            problems.append("missing attempt clock duration")
+    return problems
+
+
 def recompute_case(case):
     attempts = case["results"]
-    for attempt in attempts:
-        if (type(attempt.get("ok")) is not bool or type(attempt.get("ms")) not in (int, float) or
-                not math.isfinite(attempt["ms"]) or attempt["ms"] < 0):
-            raise ValueError("invalid raw attempt")
-    values = [r["ms"] for r in attempts]
-    failures = sum(not r["ok"] for r in attempts)
+    problems = [problem for r in attempts for problem in attempt_problems(r,case["candidates"])]
+    values = [r["ms"] for r in attempts if duration(r.get("ms"))]
+    failures = sum(r.get("ok") is not True for r in attempts)
     p95, p99 = percentile(values, .95), percentile(values, .99)
     derived = {"samples":len(attempts), "failures":failures, "p50_ms":percentile(values,.5),
         "p95_ms":p95, "p99_ms":p99,
         "stopped_after_failed_wave":len(attempts) < case.get("requested_samples", case["samples"]),
-        "pass":bool(attempts) and failures == 0 and p95 <= 500 and p99 <= 1000}
+        "pass":bool(attempts) and not problems and failures == 0 and p95 is not None and p95 <= 500 and p99 <= 1000}
     inconsistent = [key for key, value in derived.items() if case.get(key) != value]
-    if any(r["ok"] and r.get("count") != case["candidates"] for r in attempts):
-        inconsistent.append("successful result count")
-        derived["pass"] = False
+    inconsistent.extend(sorted(set(problems)))
     try:
+        seconds = (timestamp(case["ended_at"]) - timestamp(case["started_at"])).total_seconds()
+        if not duration(case.get("seconds")) or seconds < 0 or abs(case["seconds"]-seconds) > max(.005, seconds*.01):
+            inconsistent.append("inconsistent scenario seconds")
+        derived["seconds"] = seconds
         if any(not timestamp(case["started_at"]) <= timestamp(r["started_at"]) <
                 timestamp(r["ended_at"]) <= timestamp(case["ended_at"]) for r in attempts):
             inconsistent.append("attempt time window")
@@ -194,7 +242,124 @@ def valid_experiment(experiment):
         "runner_image_id":r"sha256:[0-9a-f]{64}","db_image_id":r"sha256:[0-9a-f]{64}"}
     return (all(isinstance(experiment.get(key), str) and re.fullmatch(pattern, experiment[key]) for key,pattern in fields.items()) and
         experiment.get("seed_id") == experiment.get("experiment_id") and experiment.get("sources") in (2,10) and
-        experiment.get("observations") == 20)
+        experiment.get("observations") == 20 and experiment.get("protocol_version") == "r01-capacity.v2")
+
+
+def seed_attested(root, dataset, template, proof, experiment):
+    if not valid_experiment(experiment):
+        return False
+    counts = dataset["counts_including_template"]
+    multipliers = {"listings":1,"listing_room_details":1,"external_listing_sources":experiment.get("sources"),
+        "ai_fact_catalogs":1,"ai_listing_fact_batches":experiment.get("sources"),
+        "ai_fact_sources":experiment.get("sources"),"ai_listing_facts":20,
+        "ai_listing_search_features":1,"ai_query_proofs":1}
+    ordinals = proof.get("ordinals",[])
+    size = dataset["listings"]
+    expected_ordinals = sorted(n for n in {2,size//7,size//3,size//2+1,size*2//3,size-1,size} if 1 <= n <= size)
+    return bool(valid_experiment(experiment) and
+        provenance_valid(root,[template],experiment,"initialize") and
+        provenance_valid(root,[dataset,proof],experiment,"seed") and
+        template.get("sources") == experiment["sources"] and template.get("observations") == 20 and
+        dataset["source_records_per_listing"] == experiment["sources"] and
+        all(type(counts.get(table)) is int and counts[table] == (dataset["listings"]+1)*n for table,n in multipliers.items()) and
+        proof.get("actual_production_digest_equal") is True and proof.get("run_id") == dataset.get("run_id") and
+        type(dataset.get("seed_generation")) is int and dataset["seed_generation"] > 0 and
+        proof.get("seed_generation") == dataset["seed_generation"] and
+        ordinals == expected_ordinals and all(type(n) is int for n in ordinals) and
+        type(dataset.get("distinct_providers")) is int and dataset["distinct_providers"] == min(10,size+experiment["sources"]) and
+        type(dataset.get("size_bytes")) is int and dataset["size_bytes"] > 0)
+
+
+def valid_plan(content):
+    plan = content.get("plan")
+    if content.get("status") not in ("actual","estimated-only") or not isinstance(plan,list) or len(plan) != 1:
+        return False
+    def node_valid(node):
+        return (isinstance(node,dict) and isinstance(node.get("Node Type"),str) and
+            (content["status"] != "actual" or duration(node.get("Actual Loops"))) and
+            all(node_valid(child) for child in node.get("Plans",[])))
+    if not node_valid(plan[0].get("Plan")):
+        return False
+    if content["status"] == "actual":
+        return duration(plan[0].get("Execution Time"))
+    error = content.get("analyze_error")
+    return bool(isinstance(error,dict) and all(isinstance(error.get(key),str) and error[key].strip() for key in ("type","detail")) and "Execution Time" not in plan[0])
+
+
+def baseline_attestation(root, size, records, experiment, run_id):
+    expected = {(count,zoom) for count in {0,*(min(n,size) for n in (299,300,301,302,10000)),size} for zoom in (8,12,13,21)}
+    found, referenced, missing = set(), set(), []
+    baseline_ok = provenance_valid(root,records,experiment,"measure")
+    plans_ok = bool(records)
+    for record in records:
+        key = (record.get("candidates"),record.get("zoom"))
+        if key in found or key not in expected or record.get("total") != size or record.get("run_id") != run_id:
+            baseline_ok = False
+        found.add(key)
+        count, zoom = key
+        if (attempt_problems(record.get("first_touch",{}),count) or
+                record.get("started_at") != record.get("first_touch",{}).get("started_at") or
+                record.get("ended_at") != record.get("first_touch",{}).get("ended_at")):
+            baseline_ok = False
+        statements = record.get("statements",[])
+        queries = [row for row in statements if row.get("category") == "map-query"]
+        controls = [row for row in statements if row.get("category") == "transaction-control"]
+        expected_queries = 2 if zoom is not None and zoom >= 13 and count is not None and count > 300 else 1
+        if (record.get("capture_count") != len(statements) or record.get("query_count") != len(queries) or
+                [row.get("ordinal") for row in statements] != list(range(len(statements))) or
+                len(controls) != 1 or controls[0].get("ordinal") != 0 or
+                controls[0].get("sql","").strip().upper() != "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY" or
+                len(controls)+len(queries) != len(statements) or not 1 <= len(queries) <= expected_queries or
+                (record.get("first_touch",{}).get("ok") is True and len(queries) != expected_queries)):
+            baseline_ok = False
+        if record.get("plan_count") != len(queries):
+            plans_ok = False
+        for row in queries:
+            filename = f"plan-{size}-{count}-z{zoom}-{row.get('ordinal')}.json"
+            path = root / filename
+            referenced.add(filename)
+            if row.get("plan_file") != filename or not path.exists():
+                plans_ok = False
+                missing.append(filename)
+                continue
+            try:
+                content = json.loads(path.read_text(encoding="utf-8"))
+                sql_hash = hashlib.sha256(row["sql"].encode()).hexdigest()
+                if (not valid_plan(content) or not provenance_valid(root,[content],experiment,"measure") or
+                        content.get("run_id") != run_id or content.get("sql_sha256") != sql_hash or row.get("sql_sha256") != sql_hash or
+                        content.get("parameters") != row.get("parameters") or content.get("status") != row.get("plan_status") or
+                        content.get("total") != size or content.get("candidates") != count or content.get("zoom") != zoom or
+                        content.get("statement_index") != row.get("ordinal")):
+                    plans_ok = False
+                    missing.append(filename + ": invalid/failed plan evidence")
+            except (ValueError,TypeError,KeyError,AttributeError):
+                plans_ok = False
+                missing.append(filename + ": unreadable plan evidence")
+    if found != expected:
+        baseline_ok = False
+        missing.append("baseline matrix")
+    if not baseline_ok:
+        missing.append("baseline raw/capture attestation")
+    return bool(baseline_ok), bool(plans_ok and baseline_ok), referenced, missing
+
+
+def stable_dataset(root, size, dataset, records, experiment, run_id):
+    path = root / f"dataset-stability-{size}-{run_id}.json"
+    if not path.exists():
+        return False
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if (not provenance_valid(root,[value],experiment,"measure") or value.get("run_id") != run_id or
+            value.get("stable") is not True or value.get("write_frozen") is not True or value.get("lock_mode") != "SHARE" or
+            value.get("seed_generation_before") != dataset.get("seed_generation") or
+            value.get("seed_generation_after") != dataset.get("seed_generation")):
+        return False
+    locked = {name.split('.')[-1].strip('"') for name in value.get("tables",[]) if isinstance(name,str)}
+    if not (set(dataset["counts_including_template"]) | {"r01_entities","r01_meta"}) <= locked:
+        return False
+    try:
+        return all(timestamp(value["started_at"]) <= timestamp(r["started_at"]) <= timestamp(r["ended_at"]) <= timestamp(value["ended_at"]) for r in records)
+    except (KeyError,ValueError,TypeError):
+        return False
 
 
 def resource_coverage(root, case, experiment):
@@ -203,9 +368,11 @@ def resource_coverage(root, case, experiment):
         return "missing", []
     try:
         rows = [json.loads(line) for line in path.read_text(encoding="utf-8-sig").splitlines() if line.strip()]
-        relevant = [row for row in rows if row.get("run_id") == case.get("run_id") and row.get("provenance") == experiment]
+        relevant = [row for row in rows if row.get("run_id") == case.get("run_id")]
         if not relevant or not experiment or not case.get("run_id"):
             return "missing", []
+        if any(row.get("provenance") != experiment for row in relevant) or len({row.get("monitor_id") for row in relevant}) != 1:
+            return "degraded", []
         begin, end = timestamp(case["started_at"]), timestamp(case["ended_at"])
         if end < begin:
             return "degraded", []
@@ -222,7 +389,7 @@ def resource_coverage(root, case, experiment):
             if not timestamp(start["at"]) <= begin <= end <= timestamp(stop["at"]):
                 continue
             samples = [r for r in group if "db" in r]
-            if (not samples or any(r.get("kind") == "monitor-error" for r in group) or
+            if (not samples or any(r.get("kind") not in {"sample","monitor-start","monitor-stop"} for r in group) or
                     any(r.get("db_container_id") != experiment.get("db_container_id") or
                         r.get("profile") != ("fanout" if experiment["sources"] == 10 else "baseline") for r in group)):
                 continue
@@ -253,6 +420,7 @@ def summarize(root):
     experiment_path = root / "experiment.json"
     experiment = json.loads(experiment_path.read_text(encoding="utf-8")) if experiment_path.exists() else None
     result["provenance"] = experiment
+    result["protocol_version"] = "r01-capacity.v2"
     for size in (100000,500000,1000000):
         dataset_path=root/f"dataset-{size}.json"
         if not dataset_path.exists():
@@ -276,12 +444,12 @@ def summarize(root):
                     consistent = False
                     result["warnings"].append(f"{size} scenario {case['candidates']}/{case['concurrency']}/{case['zoom']}: inconsistent {', '.join(mismatches)}")
                 attempts=case["results"]
-                successful=[r["ms"] for r in attempts if r["ok"]]
-                errors=Counter(r.get("sqlstate") or r.get("error") for r in attempts if not r["ok"])
+                successful=[r["ms"] for r in attempts if r.get("ok") is True and duration(r.get("ms"))]
+                errors=Counter(r.get("sqlstate") or r.get("error") or "missing-error-evidence" for r in attempts if r.get("ok") is not True)
                 summary={k:v for k,v in case.items() if k!="results"}
                 summary.update(error_kinds=dict(errors),successful_p95_ms=percentile(successful,.95),
                     successful_p99_ms=percentile(successful,.99),
-                    pool_p95_ms=percentile([r["pool_ms"] for r in attempts if "pool_ms" in r],.95))
+                    pool_p95_ms=percentile([r["pool_ms"] for r in attempts if duration(r.get("pool_ms"))],.95))
                 quality, window = resource_coverage(root, case, experiment)
                 summary["monitoring"] = quality
                 if window:
@@ -296,20 +464,30 @@ def summarize(root):
         template = json.loads(template_path.read_text(encoding="utf-8")) if template_path.exists() else {}
         proof_path = root / f"proof-verification-{size}.json"
         proof = json.loads(proof_path.read_text(encoding="utf-8")) if proof_path.exists() else {}
-        attested = (valid_experiment(experiment) and provenance_valid(root, [template], experiment, "initialize") and
-            provenance_valid(root, [dataset, proof], experiment, "seed") and
-            proof.get("actual_production_digest_equal") is True and proof.get("run_id") == dataset.get("run_id") and
-            (not data["baseline"] or provenance_valid(root, data["baseline"], experiment, "measure")) and
+        seed_ok = seed_attested(root,dataset,template,proof,experiment)
+        measured = raw_cases + [data.get("cancellation",{})]
+        run_id = raw_cases[0].get("run_id") if raw_cases else None
+        load_attested = (valid_experiment(experiment) and
             provenance_valid(root, raw_cases + [data.get("cancellation", {})], experiment, "measure") and
-            len({r.get("run_id") for r in raw_cases + [data.get("cancellation", {})]}) == 1 and
-            dataset["source_records_per_listing"] == experiment.get("sources"))
-        if not attested:
+            len({r.get("run_id") for r in measured}) == 1)
+        baseline_ok,plans_ok,referenced,missing = baseline_attestation(root,size,data["baseline"],experiment,run_id)
+        stability_ok = stable_dataset(root,size,dataset,measured+data["baseline"],experiment,run_id)
+        if not seed_ok or not load_attested:
             result["warnings"].append(f"{size}: missing or mixed experiment/phase provenance; historical evidence is unverified")
-        data["provenance_valid"] = bool(attested)
-        data["completed"] = bool(consistent and attested and measurement_complete(size, raw_cases, data.get("cancellation", {})))
+        data["provenance_valid"] = bool(seed_ok and load_attested)
         qualities = [c["monitoring"] for c in data["load"]]
         data["monitoring"] = "complete" if qualities and all(q == "complete" for q in qualities) else "degraded" if "degraded" in qualities else "missing"
-        data["dataset_complete"] = True
+        data.update(dataset_file_present=True,dataset_complete=seed_ok,seed_attested=seed_ok,
+            baseline_attested=baseline_ok,plans_attested=plans_ok,dataset_stable=stability_ok,
+            load_complete=bool(consistent and seed_ok and load_attested and stability_ok and measurement_complete(size,raw_cases,data.get("cancellation",{}))),
+            resource_attested=data["monitoring"] == "complete",missing_evidence=missing,referenced_plans=sorted(referenced))
+        if not stability_ok:
+            missing.append("frozen dataset/generation attestation")
+        if not data["resource_attested"]:
+            missing.append("resource coverage")
+        data["protocol_complete"] = bool(data["load_complete"] and baseline_ok and plans_ok and data["resource_attested"])
+        data["completed"] = data["protocol_complete"]
+        data["slo_passed"] = bool(data["protocol_complete"] and all(c["pass"] for c in data["load"]) and all(b["first_touch"]["ok"] for b in data["baseline"]))
         result["scales"].append(data)
     if resource_samples:
         samples=resource_samples
@@ -317,11 +495,20 @@ def summarize(root):
             "peak_db_memory_percent_of_8GiB":max(float(s["db"]["MemPerc"].rstrip("%")) for s in samples),
             "first":samples[0],"last":samples[-1]}
     plans=[]
+    referenced = {name for scale in result["scales"] for name in scale["referenced_plans"]}
     for path in root.glob("plan-*.json"):
         content=json.loads(path.read_text(encoding="utf-8"))
         if not provenance_valid(root, content if isinstance(content,list) else [content], experiment, "measure"):
             result["warnings"].append(f"{path.name}: missing or mixed plan provenance")
-        if isinstance(content,list):
+        if valid_experiment(experiment) and path.name not in referenced:
+            result["warnings"].append(f"{path.name}: unreferenced plan evidence")
+        if isinstance(content,dict) and "status" in content:
+            entries = content.get("plan") or [{}]
+            plan = entries[0] if isinstance(entries,list) and isinstance(entries[0],dict) else {}
+            plans.append({"file":path.name,"status":content["status"],"analyze_error":content.get("analyze_error"),
+                "estimate_error":content.get("estimate_error"),"actual_execution_ms":plan.get("Execution Time"),
+                "shared_hits":plan.get("Plan",{}).get("Shared Hit Blocks"),"shared_reads":plan.get("Plan",{}).get("Shared Read Blocks")})
+        elif isinstance(content,list):
             plan=content[0]
             plans.append({"file":path.name,"actual_execution_ms":plan.get("Execution Time"),
                 "actual_planning_ms":plan.get("Planning Time"),
@@ -335,7 +522,11 @@ def summarize(root):
     result["monitoring"]["status"] = ("degraded" if result["monitoring"]["status"] == "degraded" or "degraded" in qualities else
         "complete" if qualities and all(q == "complete" for q in qualities) else
         "missing" if qualities or not resource_samples else "unknown")
+    if result["monitoring"]["status"] != "complete":
+        for scale in result["scales"]:
+            scale.update(protocol_complete=False,completed=False,slo_passed=False)
     result["completed_scales"] = [scale["dataset"]["listings"] for scale in result["scales"] if scale["completed"]]
+    result["load_completed_scales"] = [scale["dataset"]["listings"] for scale in result["scales"] if scale["load_complete"]]
     stop_path = root / "experiment-stop.json"
     if stop_path.exists():
         result["termination"] = json.loads(stop_path.read_text(encoding="utf-8-sig"))
@@ -344,6 +535,8 @@ def summarize(root):
             result["warnings"].append("Stop marker completed_scales disagree with validated measurement files")
     result["status"] = ("INCONSISTENT" if result["warnings"] else
                         "COMPLETE" if result["completed_scales"] == [100000, 500000, 1000000] else "INCOMPLETE")
+    result["protocol_complete"] = result["status"] == "COMPLETE"
+    result["slo_passed"] = bool(result["protocol_complete"] and all(s["slo_passed"] for s in result["scales"]))
     return result
 
 
@@ -378,7 +571,13 @@ def main():
         "Диагностика: " + ("; ".join(result["warnings"]) or "противоречий stop-marker не найдено") + ".", "",
         "Мониторинг ресурсов: " + json.dumps(result["monitoring"], ensure_ascii=False) + ".", "",
         "**Версия:** точная ревизия и source hashes находятся в runner*.json; при отсутствии этих метаданных версия не установлена. Исторический архив 2026-10-28 относится к исходному OR SQL и не характеризует скорость исправленной версии.", "",
-        "**Решение по производительности:** " + ("критерии не выполнены." if any(not c["pass"] for s in result["scales"] for c in s["load"]) else "данных для решения пока недостаточно."), "",
+        "**Решение по производительности:** " + ("синтетические критерии выполнены; это не разрешение публичной активации." if result["slo_passed"] else
+            "критерии не выполнены." if any(not c["pass"] for s in result["scales"] for c in s["load"]) else "данных для решения пока недостаточно."), "",
+        "## Полнота доказательств", "", "| Каталог | Seed аттестован | Load завершён | Baseline | Планы | Ресурсы | Полный протокол | SLO |",
+        "|---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|",
+        *["| " + str(s["dataset"]["listings"]) + " | " + " | ".join("да" if s[key] else "нет" for key in (
+            "seed_attested","load_complete","baseline_attested","plans_attested","resource_attested","protocol_complete","slo_passed")) + " |" for s in result["scales"]],
+        "", *[f"{s['dataset']['listings']}: отсутствует/не аттестовано: " + "; ".join(s["missing_evidence"][:6]) for s in result["scales"] if s["missing_evidence"]], "",
         "## Что измерялось", "",
         "Настоящий repository-путь `_map_intent`: SQL, проверка proof и построение маркеров/кластеров. HTTP, авторизация сессии, TLS и внешний rate gate исключены. Рабочие базы и реальные провайдеры не использовались.", "",
         "\n\n".join(f"Набор {scale['dataset']['listings']:,}: "
@@ -432,7 +631,7 @@ def main():
             "completed":scale["completed"],"passes":sum(c["pass"] for c in scale["load"]),
             "failures":sum(c["failures"] for c in scale["load"]),
             "attempts":sum(c["samples"] for c in scale["load"])}))
-    return 1 if result["status"] == "INCONSISTENT" else 0
+    return 0 if result["protocol_complete"] else 1
 
 
 if __name__=="__main__":

@@ -16,6 +16,7 @@ import os
 import platform
 import re
 import time
+from contextlib import asynccontextmanager, contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -47,6 +48,7 @@ DSN = "postgresql+asyncpg://r01:r01-synthetic-only@r01-db:5432/r01_synthetic"
 OUT = Path("/results")
 RESOLVER = "r01-synthetic.v1"
 SEED_WRITERS = 8
+PROTOCOL_VERSION = "r01-capacity.v2"
 PROVENANCE = {}
 RUN_ID = None
 
@@ -105,7 +107,7 @@ def bind_experiment(sources, phase):
         raise RuntimeError("verified immutable experiment provenance required")
     if os.environ.get("R01_SOURCE_MODE") != "git-archive" or os.environ.get("R01_CHECKOUT_CLEAN") != "true":
         raise RuntimeError("clean archived source required")
-    fields.update(sources=sources, observations=20, seed_id=fields["experiment_id"])
+    fields.update(sources=sources, observations=20, seed_id=fields["experiment_id"],protocol_version=PROTOCOL_VERSION)
     path = OUT / "experiment.json"
     if path.exists():
         if json.loads(path.read_text(encoding="utf-8")) != fields:
@@ -123,6 +125,75 @@ def bind_experiment(sources, phase):
     if list(OUT.glob(f"runner-*-{run_id}.json")):
         raise RuntimeError("phase run IDs cannot be reused")
     PROVENANCE, RUN_ID = fields, run_id
+
+
+@contextmanager
+def phase_file_lock():
+    """An OS lock survives neither process exit nor a crash; the owner is recorded."""
+    with (OUT / ".phase.lock").open("a+b") as stream:
+        if stream.tell() == 0:
+            stream.write(b" ")
+            stream.flush()
+        stream.seek(0)
+        try:
+            if os.name == "nt":
+                import msvcrt
+                msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as error:
+            raise RuntimeError("another phase owns this experiment output") from error
+        owner = json.dumps({"run_id":RUN_ID, "pid":os.getpid(), "at":now()}).encode()
+        try:
+            stream.seek(0)
+            stream.truncate()
+            stream.write(owner)
+            stream.flush()
+            yield
+            stream.seek(0)
+            if stream.read() != owner:
+                raise RuntimeError("experiment lock owner changed")
+        finally:
+            stream.seek(0)
+            if os.name == "nt":
+                msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+
+
+@asynccontextmanager
+async def phase_database_guard(db, phase, total):
+    # This lock is database-wide, including different output/experiment IDs.
+    async with db.begin() as c:
+        if not await c.scalar(text("SELECT pg_try_advisory_xact_lock(401, 1)")):
+            raise RuntimeError("another synthetic initialize/seed/measure owns the database")
+        stability = None
+        if phase == "measure":
+            # SHARE permits SELECT but blocks ordinary DML, TRUNCATE and DDL,
+            # including writers which do not honor our advisory lock.
+            tables = list(await c.scalars(text("SELECT format('%I.%I', n.nspname, c.relname) "
+                "FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
+                "WHERE n.nspname=current_schema() AND c.relkind IN ('r','p') ORDER BY c.oid")))
+            if not tables:
+                raise RuntimeError("missing synthetic dataset tables")
+            await c.execute(text("LOCK TABLE " + ", ".join(tables) + " IN SHARE MODE NOWAIT"))
+            before = await c.scalar(text("SELECT data FROM r01_meta"))
+            if before.get("provenance") != PROVENANCE or type(before.get("generation")) is not int:
+                raise RuntimeError("dataset seed generation/provenance mismatch")
+            stability = {"total":total,"started_at":now(),"write_frozen":True,
+                "lock_mode":"SHARE", "tables":tables,"seed_generation_before":before["generation"],"stable":False}
+        try:
+            yield
+            if stability is not None:
+                after = await c.scalar(text("SELECT data FROM r01_meta"))
+                stability.update(seed_generation_after=after.get("generation"),stable=after == before,ended_at=now())
+                if not stability["stable"]:
+                    raise RuntimeError("dataset changed during measurement")
+        finally:
+            if stability is not None:
+                stability.setdefault("ended_at", now())
+                save(f"dataset-stability-{total}-{RUN_ID}.json",stability)
 
 
 async def verify_database_identity(db):
@@ -145,7 +216,8 @@ async def validate_dataset(c, total):
             template.get("provenance") != PROVENANCE or dataset.get("provenance") != PROVENANCE or
             meta.get("sources") != template.get("sources") or template.get("sources") != PROVENANCE.get("sources") or
             template.get("observations") != 20 or dataset.get("listings") != total or
-            dataset.get("source_records_per_listing") != template["sources"] or dataset.get("observations_per_listing") != 20):
+            dataset.get("source_records_per_listing") != template["sources"] or dataset.get("observations_per_listing") != 20 or
+            type(meta.get("generation")) is not int or meta["generation"] < 1 or dataset.get("seed_generation") != meta["generation"]):
         raise RuntimeError("dataset provenance/profile mismatch")
     entities = await c.scalar(text("SELECT count(*) FROM r01_entities"))
     if entities != total:
@@ -243,7 +315,7 @@ async def initialize(sources):
         await c.execute(text("CREATE TABLE r01_entities (n bigint PRIMARY KEY, id uuid UNIQUE NOT NULL)"))
         await c.execute(text("CREATE TABLE r01_ids (old text PRIMARY KEY, kind text, slot int)"))
         await c.execute(text("CREATE TABLE r01_meta (data jsonb NOT NULL)"))
-        await c.execute(text("INSERT INTO r01_meta VALUES (:v)"), {"v": json.dumps({"synthetic_only": True, "sources": sources, "provenance": PROVENANCE})})
+        await c.execute(text("INSERT INTO r01_meta VALUES (:v)"), {"v": json.dumps({"synthetic_only": True, "sources": sources, "provenance": PROVENANCE,"generation":0})})
         await c.execute(text("""CREATE FUNCTION r01_uuid(k text, n bigint, s int DEFAULT 0) RETURNS uuid
             LANGUAGE sql IMMUTABLE AS $$ SELECT md5(k || ':' || n::text || ':' || s::text)::uuid $$"""))
         await c.execute(text("""CREATE FUNCTION r01_rewrite(v jsonb, n bigint) RETURNS jsonb LANGUAGE plpgsql AS $$
@@ -410,7 +482,9 @@ async def seed(total, chunk=5000):
             actual=await c.scalar(select(projection_signature(literal(identifier))))
             assert stored==actual, f"bulk proof mismatch at synthetic ordinal {n}"
             checked.append(n)
-    save(f"proof-verification-{total}.json",{"actual_production_digest_equal":True,"ordinals":checked})
+    async with db.connect() as c:
+        generation = await c.scalar(text("SELECT (data->>'generation')::bigint FROM r01_meta"))
+    save(f"proof-verification-{total}.json",{"actual_production_digest_equal":True,"ordinals":checked,"seed_generation":generation})
     async with db.connect() as c:
         await c.execution_options(isolation_level="AUTOCOMMIT")
         await c.execute(text("VACUUM ANALYZE"))
@@ -421,7 +495,7 @@ async def seed(total, chunk=5000):
             assert counts[model.__tablename__] == (total+1)*multiplier, f"wrong fixture row count for {model.__tablename__}"
         provider_count=await c.scalar(select(func.count(func.distinct(ExternalListingSource.source_name))))
         assert provider_count == min(10,total+template["sources"])
-        metadata = {"listings": total, "counts_including_template": counts,
+        metadata = {"listings": total, "counts_including_template": counts,"seed_generation":generation,
             "distinct_providers":provider_count,"observations_per_listing":20,"source_records_per_listing":template["sources"],
             "size_bytes": await c.scalar(text("SELECT pg_database_size(current_database())")),
             "version": await c.scalar(text("SELECT version()")), "postgis": await c.scalar(text("SELECT postgis_full_version()")),
@@ -440,16 +514,43 @@ def viewport(count, total, zoom):
         north=28+((min(count,total)-1)//1000+0.5)*0.0001, zoom=zoom)
 
 
+def capture_statement(context, statement, parameters):
+    # Capture every explicit dispatch during the map call. SET is categorized
+    # by our own execution option; query text/CTEs/comments are never filtered.
+    return {"category":"transaction-control" if context.execution_options.get("r01_control") else "map-query",
+        "sql":statement,"parameters":parameters,"sql_sha256":hashlib.sha256(statement.encode()).hexdigest()}
+
+
+async def explain_statement(db, statement, parameters):
+    async def fetch(prefix):
+        async with db.connect() as c:
+            await c.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+            raw = await c.get_raw_connection()
+            value = await raw.driver_connection.fetchval(prefix + statement,*parameters)
+            return json.loads(value) if isinstance(value,str) else value
+    try:
+        return {"status":"actual","plan":await fetch("EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ")}
+    except Exception as error:  # noqa: BLE001 -- retain diagnostic failures as evidence
+        failure = {"analyze_error":{"type":type(error).__name__,"detail":str(error)[:250] or repr(error)}}
+    try:
+        return {**failure,"status":"estimated-only","plan":await fetch("EXPLAIN (FORMAT JSON) ")}
+    except Exception as error:  # noqa: BLE001 -- a double failure must not disappear
+        return {**failure,"status":"failed","estimate_error":{"type":type(error).__name__,"detail":str(error)[:250] or repr(error)}}
+
+
 async def measure(total, samples, candidate=None, baseline_only=False):
     db = engine(pool=30)
     try:
-        await verify_database_identity(db)
-        async with db.connect() as c:
-            await c.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
-            await validate_dataset(c, total)
-    except BaseException:
+        await measure_dataset(db,total,samples,candidate,baseline_only)
+    finally:
         await db.dispose()
-        raise
+
+
+async def measure_dataset(db, total, samples, candidate, baseline_only):
+    await verify_database_identity(db)
+    async with db.connect() as c:
+        await c.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+        await validate_dataset(c, total)
     factory = async_sessionmaker(db, expire_on_commit=False)
     pipe = pipeline(factory)
     # Direct _map_intent measures the complete shared map query/DTO path;
@@ -459,24 +560,25 @@ async def measure(total, samples, candidate=None, baseline_only=False):
     intent = SearchIntent.model_validate_json(json.dumps({"schema_version": "ai-search.v1", "taxonomy_version": "rental.v1", "session_id": str(uuid4()), "version": 1,
         "criteria": {"pets": {"strength": "hard", "value": [{"species": "dog", "size": "small", "count": 1}]}}}))
     captured = []
+    capture_active = False
     @event.listens_for(db.sync_engine, "before_cursor_execute")
     def capture(conn, cursor, statement, parameters, context, executemany):
-        if statement.lstrip().upper().startswith("SELECT") and "listings" in statement:
-            captured.append((statement, parameters))
+        if capture_active:
+            captured.append(capture_statement(context,statement,parameters))
     async def request(view):
         start = time.perf_counter()
         result = {"ok": False, "started_at": now()}
         after_pool = None
         try:
             async with factory() as s, s.begin():
-                await s.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+                await s.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY").execution_options(r01_control=True))
                 after_pool = time.perf_counter()
                 result["pool_ms"] = (after_pool-start)*1000
                 value = await query._map_intent(s, intent, view)
                 result.update(ok=True, count=sum(getattr(item,"count",1) for item in value.map.items), items=len(value.map.items),
                     pool_ms=(after_pool-start)*1000, query_ms=(time.perf_counter()-after_pool)*1000)
         except Exception as error:  # noqa: BLE001 -- retain every failed load sample
-            result.update(error=type(error).__name__, detail=str(error).splitlines()[0][:180],
+            result.update(error=type(error).__name__, detail=(str(error).splitlines() or [repr(error)])[0][:180],
                 sqlstate=getattr(getattr(error,"orig",None),"sqlstate",None))
             if after_pool is not None:
                 result["query_ms"] = (time.perf_counter()-after_pool)*1000
@@ -488,32 +590,35 @@ async def measure(total, samples, candidate=None, baseline_only=False):
         for zoom in (8,12,13,21):
             view = viewport(count,total,zoom)
             captured.clear()
-            first = await request(view)
+            capture_active = True
+            try:
+                first = await request(view)
+            finally:
+                capture_active = False
             # Untimed correctness must hold for every successful request.
             if first["ok"]:
                 assert first["count"] == count, (count, zoom, first)
-            records.append({"candidates": count, "zoom": zoom, "first_touch": first})
+            record = {"total":total,"candidates": count, "zoom": zoom, "first_touch": first,
+                "started_at":first["started_at"],"ended_at":first["ended_at"],
+                "capture_count":len(captured),"query_count":sum(row["category"] == "map-query" for row in captured),
+                "plan_count":0,"statements":[{**row,"ordinal":i} for i,row in enumerate(captured)]}
+            records.append(record)
             save(f"baseline-{total}.json",records)
             log("baseline", total=total,candidates=count,zoom=zoom,result=first)
             # Explain uses precisely the emitted SQL/binds via asyncpg driver.
-            for index,(statement,parameters) in enumerate(list(captured)):
-                try:
-                    async with db.connect() as c:
-                        await c.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
-                        raw = await c.get_raw_connection()
-                        plan = await raw.driver_connection.fetchval("EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) "+statement,*parameters)
-                    save(f"plan-{total}-{count}-z{zoom}-{index}.json",json.loads(plan) if isinstance(plan,str) else plan)
-                except Exception as error:  # noqa: BLE001 -- timeout evidence is part of the result
-                    failure={"analyze_error":type(error).__name__,"detail":str(error)[:250]}
-                    async with db.connect() as c:
-                        await c.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
-                        raw=await c.get_raw_connection()
-                        estimate=await raw.driver_connection.fetchval("EXPLAIN (FORMAT JSON) "+statement,*parameters)
-                        failure["estimated_plan_without_execution"]=json.loads(estimate) if isinstance(estimate,str) else estimate
-                    save(f"plan-{total}-{count}-z{zoom}-{index}.json",failure)
+            for trace in record["statements"]:
+                if trace["category"] != "map-query":
+                    continue
+                filename = f"plan-{total}-{count}-z{zoom}-{trace['ordinal']}.json"
+                plan = await explain_statement(db,trace["sql"],trace["parameters"])
+                save(filename,{**plan,"total":total,"candidates":count,"zoom":zoom,
+                    "statement_index":trace["ordinal"],"sql_sha256":trace["sql_sha256"],"parameters":trace["parameters"]})
+                trace.update(plan_file=filename,plan_status=plan["status"])
+                record["plan_count"] += plan["status"] in ("actual","estimated-only")
+                save(f"baseline-{total}.json",records)
+                log("explain",total=total,candidates=count,zoom=zoom,file=filename,status=plan["status"])
             captured.clear()
     if baseline_only:
-        await db.dispose()
         return
     warmed = await asyncio.gather(*(db.connect() for _ in range(30)))
     await asyncio.gather(*(connection.close() for connection in warmed))
@@ -550,7 +655,6 @@ async def measure(total, samples, candidate=None, baseline_only=False):
                 save(f"load-{total}.json",scenarios)
                 log("load",**{k:v for k,v in summary.items() if k!="results"})
     save(f"cancellation-{total}.json", await cancellation_check(db, factory, request, total))
-    await db.dispose()
 
 
 async def cancellation_check(db, factory, request, total):
@@ -614,28 +718,7 @@ def parse_args(argv=None):
     return args
 
 
-async def main():
-    args=parse_args()
-    validate_lab_environment()
-    OUT.mkdir(exist_ok=True)
-    if args.phase == "initialize":
-        sources = args.sources or 2
-    else:
-        sources = json.loads((OUT / "experiment.json").read_text(encoding="utf-8"))["sources"]
-    bind_experiment(sources, args.phase)
-    metadata={"python":platform.python_version(),"platform":platform.platform(),"sql_timeout_ms":5000,
-        "pool":30,"mode":"closed-loop repository map path; excludes HTTP/session", "source":"/code", "synthetic_only":True,
-        "code_revision":os.environ.get("R01_CODE_REVISION"),"dependency_image_id":os.environ.get("R01_IMAGE_ID"),"phase":args.phase,"total":args.total,
-        "source_provenance":{"mode":os.environ.get("R01_SOURCE_MODE","unverified-direct"),
-            "checkout_clean":os.environ.get("R01_CHECKOUT_CLEAN")=="true",
-            "archive_sha256":os.environ.get("R01_SOURCE_ARCHIVE_SHA256")},
-        "dependencies":{name:importlib.metadata.version(name) for name in ("SQLAlchemy","asyncpg","pydantic","geoalchemy2","psycopg")},
-        "source_hashes":{name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in (
-            "/code/scripts/benchmark-ai-map.py","/code/backend/app/repositories/ai_verified_cards.py",
-            "/code/backend/app/repositories/ai_query_proofs.py","/code/backend/app/repositories/listings.py")}}
-    metadata.update(started_at=now(), sources=sources, status="running")
-    manifest_name = f"runner-{args.phase}-{args.total}-{RUN_ID}.json"
-    save(manifest_name,metadata)
+async def execute_phase(args, sources):
     if args.phase=="initialize": await initialize(sources)
     elif args.phase=="seed":
         control=engine(timeout=0)
@@ -648,9 +731,11 @@ async def main():
                     template.get("sources") != sources or template.get("observations") != 20):
                 raise RuntimeError("seed DB provenance mismatch")
             before=await c.scalar(text("SELECT count(*) FROM r01_entities"))
+            await c.execute(text("UPDATE r01_meta SET data=jsonb_set(data,'{generation}',to_jsonb(CAST(:generation AS bigint)))"),
+                {"generation":meta["generation"] + 1})
             await c.execute(text("ALTER TABLE listings DISABLE TRIGGER listings_catalog_version"))
-        log("fixture_trigger_suspended",note="synthetic bulk setup only; restored before measurement")
         try:
+            log("fixture_trigger_suspended",note="synthetic bulk setup only; restored before measurement")
             await seed(args.total)
         finally:
             async with control.begin() as c:
@@ -661,8 +746,40 @@ async def main():
             await control.dispose()
             log("fixture_trigger_restored",inserted=after-before)
     else: await measure(args.total,args.samples,args.candidate,args.baseline_only)
-    metadata.update(ended_at=now(), status="complete")
-    save(manifest_name, metadata)
+
+
+async def main():
+    args=parse_args()
+    validate_lab_environment()
+    OUT.mkdir(exist_ok=True)
+    sources = (args.sources or 2) if args.phase == "initialize" else json.loads((OUT / "experiment.json").read_text(encoding="utf-8"))["sources"]
+    bind_experiment(sources, args.phase)
+    with phase_file_lock():
+        metadata={"python":platform.python_version(),"platform":platform.platform(),"sql_timeout_ms":5000,
+            "pool":30,"mode":"closed-loop repository map path; excludes HTTP/session", "source":"/code", "synthetic_only":True,
+            "code_revision":os.environ.get("R01_CODE_REVISION"),"dependency_image_id":os.environ.get("R01_IMAGE_ID"),"phase":args.phase,"total":args.total,
+            "source_provenance":{"mode":os.environ.get("R01_SOURCE_MODE"),"checkout_clean":True,
+                "archive_sha256":os.environ.get("R01_SOURCE_ARCHIVE_SHA256")},
+            "dependencies":{name:importlib.metadata.version(name) for name in ("SQLAlchemy","asyncpg","pydantic","geoalchemy2","psycopg")},
+            "source_hashes":{name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in (
+                "/code/scripts/benchmark-ai-map.py","/code/backend/app/repositories/ai_verified_cards.py",
+                "/code/backend/app/repositories/ai_query_proofs.py","/code/backend/app/repositories/listings.py")},
+            "started_at":now(),"sources":sources,"status":"running"}
+        manifest_name = f"runner-{args.phase}-{args.total}-{RUN_ID}.json"
+        save(manifest_name,metadata)
+        guard_db = engine(timeout=60000)
+        try:
+            await verify_database_identity(guard_db)
+            async with phase_database_guard(guard_db,args.phase,args.total):
+                await execute_phase(args,sources)
+        except BaseException as error:
+            metadata.update(ended_at=now(),status="failed",error=type(error).__name__,detail=str(error)[:250])
+            save(manifest_name,metadata)
+            raise
+        finally:
+            await guard_db.dispose()
+        metadata.update(ended_at=now(), status="complete")
+        save(manifest_name, metadata)
 
 
 if __name__=="__main__":

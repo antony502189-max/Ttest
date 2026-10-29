@@ -1,8 +1,11 @@
 """Small synthetic toolchain regressions; Docker and all benchmark work are faked."""
+import hashlib
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
@@ -48,9 +51,11 @@ def test_valid_cli(samples):
 
 def dataset(size=100000, sources=2):
     return {"listings": size, "source_records_per_listing": sources, "observations_per_listing": 20,
-            "counts_including_template": {"external_listing_sources": (size + 1) * sources,
-                                          "ai_listing_facts": (size + 1) * 20},
-            "size_bytes": 1024, "settings": [], "version": "synthetic", "postgis": "synthetic"}
+            "counts_including_template": {table:(size+1)*n for table,n in {
+                "listings":1,"listing_room_details":1,"external_listing_sources":sources,"ai_fact_catalogs":1,
+                "ai_listing_fact_batches":sources,"ai_fact_sources":sources,"ai_listing_facts":20,
+                "ai_listing_search_features":1,"ai_query_proofs":1}.items()},"seed_generation":1,
+            "size_bytes": 1024,"distinct_providers":min(10,size+sources), "settings": [], "version": "synthetic", "postgis": "synthetic"}
 
 
 def write(root, name, value):
@@ -60,7 +65,7 @@ def write(root, name, value):
 def complete(root, size=100000, sources=2):
     provenance = {"experiment_id":"a"*32, "seed_id":"a"*32, "code_revision":"b"*40,
         "runner_image_id":"sha256:"+"c"*64, "archive_sha256":"d"*64,
-        "db_container_id":"e"*64, "db_image_id":"sha256:"+"f"*64, "sources":sources, "observations":20}
+        "db_container_id":"e"*64, "db_image_id":"sha256:"+"f"*64, "sources":sources, "observations":20,"protocol_version":"r01-capacity.v2"}
     write(root, "experiment.json", provenance)
     init_id, seed_id, run_id = "1"*32, f"{size+2:032x}", f"{size+1:032x}"
     for phase, identifier in (("initialize", init_id), ("seed", seed_id), ("measure", run_id)):
@@ -70,7 +75,9 @@ def complete(root, size=100000, sources=2):
             "started_at":"2026-10-28T00:00:00+00:00", "ended_at":"2026-10-30T00:00:00+00:00"})
     write(root, "template.json", {"sources":sources, "observations":20,"provenance":provenance,"run_id":init_id})
     write(root, f"dataset-{size}.json", {**dataset(size, sources),"provenance":provenance,"run_id":seed_id})
-    write(root, f"proof-verification-{size}.json", {"actual_production_digest_equal":True,"provenance":provenance,"run_id":seed_id})
+    write(root, f"proof-verification-{size}.json", {"actual_production_digest_equal":True,"provenance":provenance,
+        "run_id":seed_id,"seed_generation":1,
+        "ordinals":sorted(n for n in {2,size//7,size//3,size//2+1,size*2//3,size-1,size} if 1 <= n <= size)})
     cases = []
     for count in {300, min(10000, size), size}:
         for concurrency in (50, 100, 200):
@@ -79,14 +86,46 @@ def complete(root, size=100000, sources=2):
                     "samples": 200, "requested_samples": 200,"stopped_after_failed_wave":False, "mode":"load", "failures": 0, "pass": True, "seconds": 4,
                     "provenance":provenance,"run_id":run_id,"started_at":"2026-10-29T00:00:00+00:00",
                     "ended_at":"2026-10-29T00:00:04+00:00",
-                    "p50_ms":1,"p95_ms": 1, "p99_ms": 1, "results": [{"ms": 1, "ok": True, "pool_ms": 0,"count":count,
+                    "p50_ms":1,"p95_ms": 1, "p99_ms": 1, "results": [{"ms": 1, "ok": True, "pool_ms": 0,"query_ms":1,"count":count,"items":min(count,300),
                         "started_at":f"2026-10-29T00:00:0{i//concurrency}+00:00",
-                        "ended_at":f"2026-10-29T00:00:0{i//concurrency+1}+00:00"} for i in range(200)]})
+                        "ended_at":f"2026-10-29T00:00:0{i//concurrency}.001+00:00"} for i in range(200)]})
     write(root, f"load-{size}.json", cases)
     write(root, f"cancellation-{size}.json", {"tasks": 20, "elapsed_ms": 1, "remaining_active": 0,
         "pool_reusable": True,"provenance":provenance,"run_id":run_id,
+        "started_at":"2026-10-29T00:00:04+00:00","ended_at":"2026-10-29T00:00:04.001+00:00",
         "cancel_requested":20,"cancel_accepted":20,"cancelled":20,"active_before_cancel":20,
         "completed_before_cancel":0,"failed":0})
+    write(root,f"dataset-stability-{size}-{run_id}.json",{"provenance":provenance,"run_id":run_id,"total":size,
+        "stable":True,"write_frozen":True,"lock_mode":"SHARE","seed_generation_before":1,"seed_generation_after":1,
+        "tables":["public."+table for table in [*dataset(size,sources)["counts_including_template"],"r01_entities","r01_meta"]],
+        "started_at":"2026-10-28T23:59:59+00:00","ended_at":"2026-10-29T00:00:06+00:00"})
+    baseline = []
+    for count in {0,299,300,301,302,10000,size}:
+        for zoom in (8,12,13,21):
+            statements = [{"ordinal":0,"category":"transaction-control","sql":"SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY","parameters":[]}]
+            for index in range(1,3 if zoom >= 13 and count > 300 else 2):
+                sql = f"SELECT {index} /* synthetic test capture */"
+                sha = hashlib.sha256(sql.encode()).hexdigest()
+                filename = f"plan-{size}-{count}-z{zoom}-{index}.json"
+                statements.append({"ordinal":index,"category":"map-query","sql":sql,"sql_sha256":sha,
+                    "parameters":[],"plan_file":filename,"plan_status":"actual"})
+                write(root,filename,{"total":size,"candidates":count,"zoom":zoom,"statement_index":index,
+                    "provenance":provenance,"run_id":run_id,"sql_sha256":sha,"parameters":[],"status":"actual",
+                    "plan":[{"Plan":{"Node Type":"Result","Actual Loops":1},"Execution Time":1}]})
+            baseline.append({"total":size,"candidates":count,"zoom":zoom,"provenance":provenance,"run_id":run_id,
+                "started_at":"2026-10-29T00:00:00+00:00","ended_at":"2026-10-29T00:00:00.001+00:00",
+                "first_touch":{"ok":True,"ms":1,"pool_ms":0,"query_ms":1,"count":count,"items":min(count,300),
+                    "started_at":"2026-10-29T00:00:00+00:00","ended_at":"2026-10-29T00:00:00.001+00:00"},
+                "capture_count":len(statements),"query_count":len(statements)-1,"plan_count":len(statements)-1,"statements":statements})
+    write(root,f"baseline-{size}.json",baseline)
+    resource_path = root / "resources.jsonl"
+    rows = [json.loads(line) for line in resource_path.read_text().splitlines()] if resource_path.exists() else []
+    rows = [r for r in rows if r.get("run_id") != run_id]
+    identity = {"provenance":provenance,"run_id":run_id,"monitor_id":"monitor-"+run_id,"profile":"fanout" if sources == 10 else "baseline","db_container_id":"e"*64}
+    rows += [{**identity,"kind":"monitor-start","at":"2026-10-29T00:00:00+00:00","interval_seconds":5},
+        *[{**identity,"kind":"sample","at":f"2026-10-29T00:00:0{s}+00:00","db":{"CPUPerc":"2%","MemPerc":"3%"}} for s in (0,5)],
+        {**identity,"kind":"monitor-stop","status":"stopped","at":"2026-10-29T00:00:06+00:00"}]
+    resource_path.write_text("\n".join(json.dumps(r) for r in rows),encoding="utf-8")
 
 
 def report(root, monkeypatch):
@@ -273,9 +312,9 @@ def test_all_protocol_scales_and_confirmed_failed_wave(tmp_path):
         complete(tmp_path, size)
     cases = json.loads((tmp_path / "load-500000.json").read_text())
     for case in cases:
-        case["results"] = [{**r, "ok":False, "ms":6000} for r in case["results"][:case["concurrency"]]]
+        case["results"] = [{**r, "ok":False, "error":"SyntheticError","detail":"forced failure","sqlstate":"57014"} for r in case["results"][:case["concurrency"]]]
         case.update(samples=len(case["results"]), failures=len(case["results"]),
-            stopped_after_failed_wave=len(case["results"]) < 200, p50_ms=6000,p95_ms=6000,p99_ms=6000, **{"pass":False})
+            stopped_after_failed_wave=len(case["results"]) < 200, **{"pass":False})
     write(tmp_path, "load-500000.json", cases)
     result = module("summarize-ai-map-capacity").summarize(tmp_path)
     assert result["status"] == "COMPLETE"
@@ -412,7 +451,7 @@ async def test_measure_validates_dataset_before_timed_sql(tmp_path, monkeypatch,
         (bench.ExternalListingSource,bench.AiFactSource,bench.AiListingFactBatch) else 1) for model in models}
     assert damage in {"entities","meta_sources","template","provenance","providers","trigger",*counts}
     provenance = {"sources":2}
-    meta = {"synthetic_only":True,"sources":2,"provenance":provenance}
+    meta = {"synthetic_only":True,"sources":2,"provenance":provenance,"generation":1}
     template = {"listing":"synthetic","sources":2,"observations":20,"provenance":provenance}
     value = {**dataset(100),"counts_including_template":counts,"distinct_providers":10,"provenance":provenance}
     if damage == "meta_sources": meta["sources"] = 10
@@ -438,3 +477,144 @@ async def test_measure_validates_dataset_before_timed_sql(tmp_path, monkeypatch,
         await bench.measure(100,200)
     timed.assert_not_called()
     assert not list(tmp_path.glob("load-*.json"))
+
+
+@pytest.mark.parametrize("damage", ["missing_baseline","partial_baseline","no_capture","wrong_count",
+    "missing_plan","invalid_plan","double_failure","wrong_hash"])
+def test_protocol_requires_baseline_and_every_captured_plan(tmp_path, damage):
+    for size in (100000,500000,1000000):
+        complete(tmp_path,size)
+    path = tmp_path / "baseline-100000.json"
+    records = json.loads(path.read_text())
+    plan_path = tmp_path / records[0]["statements"][1]["plan_file"]
+    if damage == "missing_baseline":
+        path.unlink()
+    elif damage == "partial_baseline":
+        write(tmp_path,path.name,records[:-1])
+    elif damage in {"no_capture","wrong_count"}:
+        if damage == "no_capture":
+            records[0].update(statements=[],capture_count=0,query_count=0,plan_count=0)
+        else:
+            records[0]["first_touch"]["count"] = 999
+        write(tmp_path,path.name,records)
+    elif damage == "missing_plan":
+        plan_path.unlink()
+    else:
+        plan = json.loads(plan_path.read_text())
+        if damage == "invalid_plan": plan["plan"] = []
+        if damage == "double_failure": plan.update(status="failed",analyze_error="timeout",estimate_error="failed")
+        if damage == "wrong_hash": plan["sql_sha256"] = "0"*64
+        write(tmp_path,plan_path.name,plan)
+    result = module("summarize-ai-map-capacity").summarize(tmp_path)
+    scale = result["scales"][0]
+    assert scale["seed_attested"] and scale["load_complete"] and scale["resource_attested"]
+    assert not scale["protocol_complete"] and not result["protocol_complete"]
+    assert result["status"] != "COMPLETE" and not result["slo_passed"]
+
+
+def test_explicit_estimated_only_plan_can_complete_evidence(tmp_path):
+    complete(tmp_path)
+    path = tmp_path / "baseline-100000.json"
+    rows = json.loads(path.read_text())
+    trace = rows[0]["statements"][1]
+    trace["plan_status"] = "estimated-only"
+    plan_path = tmp_path / trace["plan_file"]
+    plan = json.loads(plan_path.read_text())
+    plan.update(status="estimated-only",analyze_error={"type":"TimeoutError","detail":"synthetic timeout"},plan=[{"Plan":{"Node Type":"Result"}}])
+    write(tmp_path,plan_path.name,plan)
+    write(tmp_path,path.name,rows)
+    scale = module("summarize-ai-map-capacity").summarize(tmp_path)["scales"][0]
+    assert scale["plans_attested"] and scale["protocol_complete"]
+
+
+@pytest.mark.parametrize("damage", ["missing","run_id","gap","error","extra_lifecycle"])
+def test_global_complete_requires_resource_attestation(tmp_path, damage):
+    for size in (100000,500000,1000000):
+        complete(tmp_path,size)
+    path = tmp_path / "resources.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    if damage == "missing":
+        path.unlink()
+    else:
+        if damage == "run_id": rows = [{**r,"run_id":"stale"} for r in rows]
+        if damage == "gap": rows[0]["at"] = "2026-10-28T23:00:00+00:00"
+        if damage == "error": rows.append({**rows[0],"kind":"monitor-error"})
+        if damage == "extra_lifecycle": rows.append({**rows[0],"monitor_id":"unpaired-monitor"})
+        path.write_text("\n".join(json.dumps(r) for r in rows))
+    result = module("summarize-ai-map-capacity").summarize(tmp_path)
+    assert all(s["load_complete"] for s in result["scales"])
+    assert not result["protocol_complete"] and result["status"] != "COMPLETE"
+
+
+@pytest.mark.parametrize("damage", ["negative_seconds","nan_seconds","wrong_seconds","missing_query_ms","negative_pool_ms",
+    "nan_query_ms","component_sum","clock_mismatch","missing_error"])
+def test_raw_timing_and_failure_diagnosis_are_validated(tmp_path, monkeypatch, damage):
+    complete(tmp_path)
+    path = tmp_path / "load-100000.json"
+    cases = json.loads(path.read_text())
+    case, attempt = cases[0], cases[0]["results"][0]
+    if damage == "negative_seconds": case["seconds"] = -1
+    if damage == "nan_seconds": case["seconds"] = float("nan")
+    if damage == "wrong_seconds": case["seconds"] = 100
+    if damage == "missing_query_ms": attempt.pop("query_ms")
+    if damage == "negative_pool_ms": attempt["pool_ms"] = -1
+    if damage == "nan_query_ms": attempt["query_ms"] = float("nan")
+    if damage == "component_sum": attempt["pool_ms"] = 100
+    if damage == "clock_mismatch": attempt["ended_at"] = "2026-10-29T00:00:02+00:00"
+    if damage == "missing_error":
+        attempt["ok"] = False
+        case.update(failures=1,**{"pass":False})
+    write(tmp_path,path.name,cases)
+    monkeypatch.setattr("sys.argv",["summarize-ai-map-capacity.py",str(tmp_path)])
+    assert module("summarize-ai-map-capacity").main() == 1
+    result = json.loads((tmp_path / "summary.json").read_text())
+    assert result["status"] == "INCONSISTENT" and not result["scales"][0]["load_complete"]
+
+
+@pytest.mark.parametrize("damage", ["manifest","proof","counts","generation","proof_ordinals","providers"])
+def test_dataset_file_presence_is_separate_from_attested_seed(tmp_path, damage):
+    complete(tmp_path)
+    if damage == "manifest":
+        next(tmp_path.glob("runner-seed-*.json")).unlink()
+    elif damage == "proof":
+        (tmp_path / "proof-verification-100000.json").unlink()
+    elif damage == "proof_ordinals":
+        path = tmp_path / "proof-verification-100000.json"
+        value = json.loads(path.read_text())
+        value["ordinals"] = [100000]
+        write(tmp_path,path.name,value)
+    else:
+        path = tmp_path / "dataset-100000.json"
+        value = json.loads(path.read_text())
+        if damage == "counts": value["counts_including_template"].pop("ai_query_proofs")
+        if damage == "generation": value["seed_generation"] = 2
+        if damage == "providers": value["distinct_providers"] = 1
+        write(tmp_path,path.name,value)
+    scale = module("summarize-ai-map-capacity").summarize(tmp_path)["scales"][0]
+    assert scale["dataset_file_present"] and not scale["seed_attested"] and not scale["dataset_complete"]
+
+
+def test_experiment_output_lock_excludes_other_processes_and_releases(tmp_path, monkeypatch):
+    bench = module("benchmark-ai-map")
+    monkeypatch.setattr(bench,"OUT",tmp_path)
+    code = ("import importlib.util,sys; from pathlib import Path; "
+        "s=importlib.util.spec_from_file_location('bench',sys.argv[1]); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); "
+        "m.OUT=Path(sys.argv[2]); lock=m.phase_file_lock(); lock.__enter__(); lock.__exit__(None,None,None)")
+    command = [sys.executable,"-c",code,str(ROOT / "scripts/benchmark-ai-map.py"),str(tmp_path)]
+    env = {**os.environ,"PYTHONPATH":str(ROOT / "backend")}
+    with bench.phase_file_lock():
+        blocked = subprocess.run(command,env=env,capture_output=True,text=True,timeout=30,check=False)
+        assert blocked.returncode != 0 and "another phase owns" in blocked.stderr
+    released = subprocess.run(command,env=env,capture_output=True,text=True,timeout=30,check=False)
+    assert released.returncode == 0,released.stderr
+
+
+async def test_double_explain_failure_is_retained_as_an_artifact(tmp_path, monkeypatch):
+    bench = module("benchmark-ai-map")
+    db = Mock()
+    db.connect.side_effect = RuntimeError("synthetic explain failure")
+    result = await bench.explain_statement(db,"WITH fixture AS (SELECT 1) SELECT * FROM fixture",[])
+    assert result["status"] == "failed" and result["analyze_error"] and result["estimate_error"]
+    monkeypatch.setattr(bench,"OUT",tmp_path)
+    bench.save("failed-plan.json",result)
+    assert json.loads((tmp_path / "failed-plan.json").read_text())["status"] == "failed"

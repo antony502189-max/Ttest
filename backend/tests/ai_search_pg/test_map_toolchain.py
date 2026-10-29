@@ -4,7 +4,8 @@ import json
 from pathlib import Path
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import event, text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 pytestmark = pytest.mark.integration
@@ -20,7 +21,7 @@ def benchmark():
 
 @pytest.mark.parametrize("damage", [None, "entities", "listings", "listing_room_details",
     "external_listing_sources", "ai_fact_catalogs", "ai_listing_fact_batches", "ai_fact_sources",
-    "ai_listing_facts", "ai_listing_search_features", "ai_query_proofs", "profile", "trigger"])
+    "ai_listing_facts", "ai_listing_search_features", "ai_query_proofs", "profile", "trigger", "generation"])
 async def test_exact_dataset_validation_on_postgres(pg, tmp_path, monkeypatch, damage):
     bench = benchmark()
     db = pg[1].kw["bind"]
@@ -39,7 +40,7 @@ async def test_exact_dataset_validation_on_postgres(pg, tmp_path, monkeypatch, d
         await c.execute(text("CREATE TABLE r01_entities AS SELECT generate_series(1,3) AS n"))
         await c.execute(text("CREATE TABLE r01_meta (data jsonb)"))
         await c.execute(text("INSERT INTO r01_meta VALUES (CAST(:v AS jsonb))"), {"v":json.dumps({
-            "synthetic_only":True,"sources":10 if damage == "profile" else 2,"provenance":provenance})})
+            "synthetic_only":True,"sources":10 if damage == "profile" else 2,"provenance":provenance,"generation":2 if damage == "generation" else 1})})
         await c.execute(text("CREATE FUNCTION lab_noop() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$"))
         await c.execute(text("CREATE TRIGGER listings_catalog_version BEFORE INSERT ON listings FOR EACH ROW EXECUTE FUNCTION lab_noop()"))
         if damage == "trigger":
@@ -50,7 +51,7 @@ async def test_exact_dataset_validation_on_postgres(pg, tmp_path, monkeypatch, d
             await c.execute(text(f"DELETE FROM {damage} WHERE id=1"))
     (tmp_path / "template.json").write_text(json.dumps({"sources":2,"observations":20,"provenance":provenance}))
     (tmp_path / "dataset-3.json").write_text(json.dumps({"listings":3,"source_records_per_listing":2,
-        "observations_per_listing":20,"counts_including_template":counts,"distinct_providers":5,"provenance":provenance}))
+        "observations_per_listing":20,"counts_including_template":counts,"distinct_providers":5,"provenance":provenance,"seed_generation":1}))
     async with db.connect() as c:
         await c.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
         if damage is None:
@@ -74,3 +75,72 @@ async def test_twenty_server_active_queries_are_actually_cancelled_and_pool_reus
         assert result["pool_reusable"] is True
     finally:
         await db.dispose()
+
+
+@pytest.mark.parametrize("other_phase", ["seed","measure"])
+async def test_database_excludes_simultaneous_phases_even_with_different_outputs(pg, other_phase):
+    bench = benchmark()
+    db = pg[1].kw["bind"]
+    async with bench.phase_database_guard(db,"seed",3):
+        with pytest.raises(RuntimeError,match="another synthetic"):
+            async with bench.phase_database_guard(db,other_phase,3):
+                pytest.fail("concurrent phase entered")
+    async with bench.phase_database_guard(db,"seed",3):
+        pass
+
+
+@pytest.mark.parametrize("failure", [False,True])
+async def test_measurement_freeze_blocks_writes_and_ddl_and_releases_on_exit(pg,tmp_path,monkeypatch,failure):
+    bench = benchmark()
+    db = pg[1].kw["bind"]
+    provenance = {"experiment_id":"a"*32}
+    monkeypatch.setattr(bench,"PROVENANCE",provenance)
+    monkeypatch.setattr(bench,"RUN_ID","b"*32)
+    monkeypatch.setattr(bench,"OUT",tmp_path)
+    async with db.begin() as c:
+        await c.execute(text("CREATE TABLE freeze_fixture (id int)"))
+        await c.execute(text("INSERT INTO freeze_fixture VALUES (1)"))
+        await c.execute(text("CREATE TABLE r01_meta (data jsonb)"))
+        await c.execute(text("INSERT INTO r01_meta VALUES (CAST(:v AS jsonb))"),{"v":json.dumps({"provenance":provenance,"generation":1})})
+    async def guarded():
+        async with bench.phase_database_guard(db,"measure",3):
+            for sql in ("INSERT INTO freeze_fixture VALUES (2)","UPDATE r01_meta SET data=data",
+                        "TRUNCATE freeze_fixture","ALTER TABLE freeze_fixture ADD COLUMN n int"):
+                async with db.connect() as c:
+                    await c.execute(text("SET lock_timeout='100ms'"))
+                    with pytest.raises(DBAPIError) as error:
+                        await c.execute(text(sql))
+                    assert error.value.orig.sqlstate == "55P03"
+            async with db.connect() as c:
+                assert await c.scalar(text("SELECT count(*) FROM freeze_fixture")) == 1
+            if failure:
+                raise RuntimeError("synthetic interrupted measurement")
+    if failure:
+        with pytest.raises(RuntimeError,match="interrupted"):
+            await guarded()
+    else:
+        await guarded()
+    value = json.loads(next(tmp_path.glob("dataset-stability-*.json")).read_text())
+    assert value["stable"] is (not failure) and value["write_frozen"]
+    async with db.begin() as c:
+        await c.execute(text("INSERT INTO freeze_fixture VALUES (2)"))
+
+
+async def test_capture_keeps_ctes_comments_and_explicit_control_and_explains_every_query(pg):
+    bench = benchmark()
+    db = pg[1].kw["bind"]
+    captured = []
+    def capture(conn,cursor,statement,parameters,context,executemany):
+        captured.append(bench.capture_statement(context,statement,parameters))
+    event.listen(db.sync_engine,"before_cursor_execute",capture)
+    try:
+        async with db.connect() as c:
+            await c.execute(text("SET TRANSACTION READ ONLY").execution_options(r01_control=True))
+            await c.execute(text("WITH fixture AS (SELECT 1 AS n) SELECT n FROM fixture"))
+            await c.execute(text("/* synthetic query comment */ SELECT 2"))
+    finally:
+        event.remove(db.sync_engine,"before_cursor_execute",capture)
+    assert [row["category"] for row in captured] == ["transaction-control","map-query","map-query"]
+    for row in captured[1:]:
+        plan = await bench.explain_statement(db,row["sql"],row["parameters"])
+        assert plan["status"] == "actual" and plan["plan"][0]["Plan"]

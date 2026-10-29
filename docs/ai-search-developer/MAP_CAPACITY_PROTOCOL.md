@@ -1,5 +1,17 @@
 # R-01 synthetic map capacity protocol
 
+Current evidence version: `r01-capacity.v2` (2026-10-29). Earlier artifacts remain
+historical and cannot be certified under this version without new measurements.
+
+The summarizer reports separate `dataset_file_present`, `seed_attested`
+(`dataset_complete` is its alias), `load_complete`, `baseline_attested`,
+`plans_attested`, `resource_attested`, `dataset_stable`, `protocol_complete` and
+`slo_passed`. A scale completes the protocol only when every attestation passes.
+Global COMPLETE additionally requires all three scales and no inconsistent
+evidence. The summary CLI exits nonzero for both INCOMPLETE and INCONSISTENT;
+it still writes a reviewable JSON/Markdown report. `load_completed_scales` never
+substitutes for protocol-complete scales. A completed protocol can fail every SLO.
+
 Authorized workload (2026-10-28): 100,000, 500,000 and 1,000,000 listings;
 10 source providers; 20 facts/listing; 50, 100 and 200 concurrent map requests;
 p95 <= 500 ms and p99 <= 1,000 ms. Only synthetic data in isolated infrastructure.
@@ -69,6 +81,16 @@ container checks the synthetic role/database and PostgreSQL/PostGIS versions.
 Python repeats the DB/version check before migrations or fixture writes.
 The runner uses the inspected network ID and pins r01-db in /etc/hosts to that
 container's inspected IP, so another container's DNS alias cannot redirect DDL.
+An OS file lock records the owner run/PID and excludes concurrent phases writing
+the same experiment directory; it is released automatically on process exit.
+A database-wide transaction advisory lock excludes initialize/seed/measure even
+across different output directories. During measure a dedicated transaction
+holds SHARE locks on every lab-schema table before preflight until all queries
+and pool cleanup finish. SELECT remains allowed; ordinary DML, TRUNCATE and DDL
+are blocked, including writers that ignore the advisory lock. A concurrent
+writer already holding a conflicting lock aborts preflight via NOWAIT. Every
+seed advances r01_meta.generation; dataset/proof metadata and a final stability
+artifact must attest the same generation before and after the frozen interval.
 The source mount is read-only; only the results directory is
 writable. No project .env, credentials, application DB, providers, ASR, workers,
 crawlers, public endpoints, notification or deployment are used.
@@ -97,6 +119,15 @@ that PostgreSQL executes 200 statements simultaneously.
 
 For each scale, capture single-request results and exact emitted SQL plans at
 zoom 8/12/13/21 with 0/299/300/301/302, 10,000 and whole-catalog candidates.
+This deduplicated baseline matrix is mandatory for protocol completion. Every
+record retains first-touch timing/outcome, capture_count/query_count/plan_count
+and the ordered explicit SQL dispatch trace, including transaction control.
+Only our explicitly marked SET is control; CTEs, comments and other query text
+are never filtered. The current map executes one SQL query, or two for high zoom
+above 300 candidates; successful baseline traces must match that contract.
+Each query references a unique plan artifact with matching SQL SHA-256, binds,
+scenario and run identity. Actual and explicitly estimated-only plans are valid
+evidence; missing, malformed or failed plans prevent protocol completion.
 Coordinates use a deterministic dense 1,000-column grid, not sampled real
 geography. All sources/projections are active and valid: this is a deliberately
 broad aggregation workload. Successful counts and marker/cluster transitions
@@ -110,6 +141,13 @@ plan. The actual application default is 60 seconds; the shorter experimental
 cap bounds resource use after the 1-second target is already exceeded. A timeout
 is a failed sample, never a successful 5-second response or a measured true
 latency percentile for that unfinished query.
+If both actual and estimated EXPLAIN fail, retain both diagnostic errors and a
+failed plan artifact, then continue gathering load evidence. The phase finishing
+does not certify missing plans. Raw attempts require finite nonnegative timings,
+success pool/query durations and count/items, or an error type and diagnostic
+detail with a valid optional SQLSTATE. Scenario seconds and individual durations
+must agree with their UTC intervals within max(5 ms, 1%); inconsistent fields
+are reported and never accepted as complete.
 
 Full load scenarios request exactly 200 attempts each, zoom 8/13, and
 300/10,000/whole-catalog viewports. At 100,000, run the full 200 attempts. At
@@ -206,12 +244,13 @@ profile; ambiguous or inconsistent counts are rejected. A template contributes
 2 or10 sources and20 observations, so fanout subtraction and prose reflect10
 sources rather than a hardcoded baseline. The raw historical archive is unchanged.
 
-Measurement completion requires every expected load scenario, 200 requested
+Load completion requires every expected load scenario, 200 requested
 attempts with demonstrated concurrency (or the fully failed first-wave exception),
 matching raw/derived counts and immutable phase provenance, and a
 successful cancellation/pool-reuse check. Completed dataset creation alone is
 insufficient. COMPLETE describes protocol completion, not a passing latency SLO.
-Stop-marker claims are compared with these files and produce INCONSISTENT when
+Full protocol completion also requires the entire baseline/plan matrix, a frozen
+unchanged seed and complete resource coverage. Stop-marker claims are compared with these files and produce INCONSISTENT when
 they disagree; otherwise partial histories are INCOMPLETE.
 
 The monitor validates container name/task label/network and any existing output
@@ -225,6 +264,14 @@ Every scenario must be inside one correctly paired lifecycle with bracketing
 valid samples and no gaps/errors. Quality is reported per scenario and scale;
 old monitoring cannot certify a new load. Legacy archives have unverified
 provenance and cannot be marked complete under the current protocol.
+One measured run must have exactly one paired monitor lifecycle. Extra/unpaired
+lifecycles, errors, gaps or malformed resource rows also prevent global COMPLETE.
+
+The small full-schema map regression exercises actual plans for 32/128/300/301
+matching candidates at zoom 8/13, with 2,048 unrelated sources. It records node
+types, total loops/visited rows/buffer touches and execution duration, and bounds
+authority work by candidate count. This is a deterministic functional regression
+covering the marker/probe/cluster paths, not a capacity or p95/p99 measurement.
 
 Small toolchain regressions use fake Docker and temporary Git repositories,
 including real PowerShell execution when pwsh/PowerShell is installed. They do
