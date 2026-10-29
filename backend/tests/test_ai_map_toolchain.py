@@ -83,6 +83,7 @@ def test_report_uses_actual_source_profile(tmp_path, monkeypatch, sources, expec
     assert f"| 100,000 | {expected} | 2,000,000 |" in text
     assert f"{sources} записей источника" in text
     assert f"({sources} источников / 20 наблюдений)" in text
+    assert "На 100 тысячах — 200 попыток" not in text
 
 
 @pytest.mark.parametrize("damage", ["unsupported", "less_than_template", "inconsistent"])
