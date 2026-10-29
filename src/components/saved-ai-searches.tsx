@@ -3,6 +3,7 @@ import { api } from '@/api/client'
 import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
 import { Button } from '@/components/ui/button'
+import './saved-ai-searches.css'
 
 type Summary = { id: string; matcher: 'ai.v1'; name: string; revision: number; enabled: boolean }
 type Page = { items: Summary[]; next_cursor: string | null; collection_count: number }
@@ -50,12 +51,12 @@ function OwnedSavedAISearches({ empty }: { empty?: ReactNode }) {
   }
 
   if (!page?.items.length && !error) return <>{empty}</>
-  return <section className="account-section saved-search-list" aria-label={t.title} aria-busy={busy}>
+  return <section className="saved-ai-collection" aria-label={t.title} aria-busy={busy}>
     <h2>{t.title}</h2>
     {page ? <p>{t.count}: {page.collection_count}</p> : null}
     {error ? <p role="alert">{t.error} <Button disabled={busy} onClick={() => void update()}>{t.retry}</Button></p> : null}
-    {page?.items.map(item => <article key={item.id} className="saved-search-card flex flex-wrap gap-3">
-      <h3 className="min-w-0 flex-1 break-words">{item.name || t.unnamed}</h3>
+    {page?.items.map(item => <article key={item.id} className="saved-ai-collection__item">
+      <h3>{item.name || t.unnamed}</h3>
       <Button variant="outline" disabled={busy} aria-label={`${t.remove}: ${item.name || t.unnamed}`} onClick={() => void update(item.id)}>{t.remove}</Button>
     </article>)}
     {page?.next_cursor ? <Button disabled={busy} onClick={() => void update(undefined, page.next_cursor!)}>{busy ? t.loading : t.more}</Button> : null}

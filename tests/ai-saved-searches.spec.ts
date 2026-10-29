@@ -12,8 +12,9 @@ for (const width of [320, 1280]) {
         password: '', passwordHash: 'offline', role: 'tenant', initials: 'S', phone: '', whatsapp: '', telegram: '', about: '',
         showPhone: false, showWhatsApp: false, emailVerified: true }]))
     })
+    const firstName = 'Mi búsqueda de habitación tranquila junto al trabajo y transporte'
     const rows = [
-      { id: '00000000-0000-4000-8000-000000000021', name: 'Mi búsqueda', matcher: 'ai.v1', revision: 1, enabled: true },
+      { id: '00000000-0000-4000-8000-000000000021', name: firstName, matcher: 'ai.v1', revision: 1, enabled: true },
       { id: '00000000-0000-4000-8000-000000000022', name: 'Otra búsqueda', matcher: 'ai.v1', revision: 2, enabled: false },
     ]
     let rejectDelete = true
@@ -31,17 +32,22 @@ for (const width of [320, 1280]) {
     })
     await page.goto('/#/busquedas-guardadas')
     const collection = page.getByRole('region', { name: 'Búsquedas IA guardadas', exact: true })
-    await expect(collection.getByRole('heading', { name: 'Mi búsqueda', exact: true })).toBeVisible()
+    await expect(collection.getByRole('heading', { name: firstName, exact: true })).toBeVisible()
+    const firstButton = collection.getByRole('button', { name: `Eliminar: ${firstName}`, exact: true })
+    const bounds = await firstButton.boundingBox()
+    expect(bounds).not.toBeNull()
+    expect(bounds!.x).toBeGreaterThanOrEqual(0)
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width)
     await collection.getByRole('button', { name: 'Cargar más' }).click()
     await expect(collection.getByRole('heading', { name: 'Otra búsqueda' })).toBeVisible()
     await page.reload()
-    await expect(collection.getByRole('heading', { name: 'Mi búsqueda', exact: true })).toBeVisible()
-    const remove = collection.getByRole('button', { name: 'Eliminar: Mi búsqueda', exact: true })
+    await expect(collection.getByRole('heading', { name: firstName, exact: true })).toBeVisible()
+    const remove = collection.getByRole('button', { name: `Eliminar: ${firstName}`, exact: true })
     await remove.click()
     await expect(collection.getByRole('alert')).toBeVisible()
     await expect(remove).toBeEnabled()
     await remove.click()
-    await expect(collection.getByRole('heading', { name: 'Mi búsqueda', exact: true })).toHaveCount(0)
+    await expect(collection.getByRole('heading', { name: firstName, exact: true })).toHaveCount(0)
     await expect(collection.getByRole('heading', { name: 'Otra búsqueda' })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
   })
