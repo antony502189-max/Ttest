@@ -29,6 +29,7 @@ import {
 } from '@/assets/occupants'
 import { occupantObjectUrl } from '@/assets/occupants/object-url'
 import '@/home-mandatory-search.css'
+import { HomeAISearch } from '@/components/home-ai-search'
 
 type OccupantOption = {
   value: Exclude<HomeOccupantChoice, null>
@@ -132,6 +133,8 @@ export function HomeMandatorySearch() {
       <span>{t('Tipo de alquiler')} <small>{t('opcional')}</small></span>
       <RentalTypeSwitch home />
     </div>
+
+    <HomeAISearch homeMode={rentalMode} />
 
     <fieldset className="mandatory-choice-group">
       <legend>{t('¿Para quién buscas?')}</legend>

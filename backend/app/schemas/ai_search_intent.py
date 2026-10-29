@@ -183,6 +183,11 @@ class SearchIntent(StrictContract):
     criteria: Criteria
 
 
+class SessionCreate(StrictContract):
+    # Only an explicit visible mode choice may seed a new conversation.
+    rental_mode: Literal["long", "holiday"] | None = None
+
+
 class IntentPatch(StrictContract):
     schema_version: Literal["ai-search.v1"]
     session_id: UUID

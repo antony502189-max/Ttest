@@ -16,6 +16,7 @@ const firstVisible = async (page: Page, selector: string) => {
 }
 
 test.beforeEach(async ({ page }) => {
+  await page.route('**/*', route => new URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.abort())
   await page.setViewportSize({ width: 1024, height: 768 })
   await page.goto('/#/')
   await page.evaluate(() => localStorage.clear())

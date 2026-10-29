@@ -45,7 +45,7 @@ def test_invalid_municipality_or_conflicting_province_is_rejected(payload):
 
 
 def test_saved_municipality_alerts_do_not_expand_to_the_entire_province():
-    search = SimpleNamespace(query='Santa Cruz de Tenerife', province_code='38', rental_mode='long',
+    search = SimpleNamespace(matcher='manual.v1', query='Santa Cruz de Tenerife', province_code='38', rental_mode='long',
                              filters={'municipalityCode': '38038'}, polygon=[])
     payload = _saved_search_payload(search)
     assert payload is not None
