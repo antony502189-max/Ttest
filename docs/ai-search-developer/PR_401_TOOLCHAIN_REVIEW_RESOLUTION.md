@@ -1,5 +1,35 @@
 # PR401: устранение замечаний comprehensive review
 
+## Повторное полное ревью: PR401-R01–R08 (29 октября 2026)
+
+Исправления по PR_401_FULL_CODE_REVIEW_2026-10-29.md:
+
+| ID | Исправление | Регрессия |
+|---|---|---|
+| R01 | Полная нагрузка требует 200 попыток и фактического перекрытия 50/100/200 клиентских операций по raw timestamps. Малые пробы не завершают протокол; early stop допустим только после полной неуспешной первой волны | 1/49/99/199, последовательные операции, полная матрица и ранний отказ |
+| R02 | До timed SQL одна read-only repeatable-read транзакция сверяет все девять таблиц, r01_entities, provider count, template/dataset/meta, профиль и триггер | Подмена каждого счётчика и профиля; маленькие реальные PostgreSQL-таблицы |
+| R03 | Отдельный каталог и immutable experiment.json: commit, archive hash, image IDs, DB container, seed/profile. Идентичность хранится в БД; raw-файлы ссылаются на завершённые уникальные phase manifests | Смешение dataset/load/cancellation/template/manifest/revision, отсутствующий manifest, изменение experiment |
+| R04 | Двадцать контролируемых SQL с серверным барьером активности; подсчёт принятых и подтверждённых отмен, ранних завершений и ошибок, проверка освобождения и повторной работы пула | Ноль реальных отмен не проходит; настоящий PostgreSQL подтверждает 20 отмен |
+| R05 | Точная сеть, единственное подключение, alias, pinned DB image, running container ID; read-only identity check до миграций и повторно в Python | Fake Docker: неверные network/network ID/alias/image/database |
+| R06 | Каждая строка мониторинга связана с experiment/run/monitor/DB. Для каждого сценария проверяются отдельная пара start/stop, временное покрытие, samples до/после, отсутствие gaps/errors | Старые run/revision, другой DB, неверный интервал, gaps, непарный lifecycle |
+| R07 | Сводка пересчитывает агрегаты и pass по raw attempts. Противоречия дают INCONSISTENT, незавершённый масштаб и ненулевой CLI exit code | Подмена p99/pass/failures/p50; сырые метрики сохраняют приоритет |
+| R08 | --sources разрешён только для initialize; seed/measure используют проверенный immutable profile | Ранний отказ CLI для seed/measure --sources |
+
+Исторические raw-файлы не изменены. Новая строгая сводка не подтверждает их
+provenance/cancellation задним числом; прежние заявления о completed scales ниже
+относятся к предыдущей версии инструмента. Новых больших прогонов и данных
+post-fix p95/p99 нет. Публичная активация остаётся заблокированной прежними gates.
+
+Локальная проверка текущих исправлений: 1528 backend unit passed, 15 ожидаемых
+skips; 53 PostgreSQL passed (14 проверок toolchain и 39 proof-регрессий).
+Ruff для app/tests и обоих Python-скриптов, mypy для 153 app-файлов,
+Bandit с порогом medium/high, pip-audit точного constraints-графа и проверка
+supply-chain pins прошли. PowerShell fake-Docker сценарии исполнялись на Windows.
+Эти числа пересекаются с целевым unit-набором; они не суммируются как независимые.
+Небольшой PostgreSQL-контейнер использовался только для синтетических регрессий.
+
+## Предыдущий этап исправлений (историческая запись)
+
 29 октября2026. Проверены замечания к HEAD `0af4e1a4` из пользовательских
 PR_401_COMPREHENSIVE_REVIEW.md и PR_401_FIX_PLAN.md. Все пять находок подтверждены
 в диагностических инструментах; application SQL, API, UI, миграции, зависимости

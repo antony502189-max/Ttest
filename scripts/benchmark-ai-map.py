@@ -14,6 +14,7 @@ import json
 import math
 import os
 import platform
+import re
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -46,15 +47,27 @@ DSN = "postgresql+asyncpg://r01:r01-synthetic-only@r01-db:5432/r01_synthetic"
 OUT = Path("/results")
 RESOLVER = "r01-synthetic.v1"
 SEED_WRITERS = 8
+PROVENANCE = {}
+RUN_ID = None
+
+
+def now():
+    return datetime.now(UTC).isoformat()
 
 
 def save(name, value):
     OUT.mkdir(exist_ok=True)
-    (OUT / name).write_text(json.dumps(value, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+    if isinstance(value, dict):
+        value = {**value, "provenance": PROVENANCE, "run_id": RUN_ID}
+    elif isinstance(value, list):
+        value = [{**row, "provenance": PROVENANCE, "run_id": RUN_ID} if isinstance(row, dict) else row for row in value]
+    temporary = OUT / (name + ".tmp")
+    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+    temporary.replace(OUT / name)
 
 
 def log(kind, **data):
-    value = {"at": datetime.now(UTC).isoformat(), "kind": kind, **data}
+    value = {"at": now(), "kind": kind, **data, "provenance": PROVENANCE, "run_id": RUN_ID}
     print(json.dumps(value, default=str), flush=True)
     with (OUT / "progress.jsonl").open("a", encoding="utf-8") as f:
         f.write(json.dumps(value, default=str) + "\n")
@@ -76,6 +89,79 @@ def engine(pool=1, timeout=5000):
     return create_async_engine(DSN, pool_size=pool, max_overflow=0, pool_timeout=30,
         connect_args={"server_settings": {"statement_timeout": str(timeout),
             "lock_timeout": "1000", "application_name": "codex-r01-synthetic"}})
+
+
+def bind_experiment(sources, phase):
+    """An output directory belongs to exactly one immutable code/DB/profile seed."""
+    global PROVENANCE, RUN_ID
+    fields = {key: os.environ.get(env) for key, env in (
+        ("experiment_id", "R01_EXPERIMENT_ID"), ("code_revision", "R01_CODE_REVISION"),
+        ("runner_image_id", "R01_IMAGE_ID"), ("archive_sha256", "R01_SOURCE_ARCHIVE_SHA256"),
+        ("db_container_id", "R01_DB_ID"), ("db_image_id", "R01_DB_IMAGE_ID"))}
+    patterns = {"experiment_id": r"[0-9a-f]{32}", "code_revision": r"[0-9a-f]{40}",
+        "archive_sha256": r"[0-9a-f]{64}", "db_container_id": r"[0-9a-f]{64}",
+        "runner_image_id": r"sha256:[0-9a-f]{64}", "db_image_id": r"sha256:[0-9a-f]{64}"}
+    if any(not re.fullmatch(patterns[key], value or "") for key, value in fields.items()):
+        raise RuntimeError("verified immutable experiment provenance required")
+    if os.environ.get("R01_SOURCE_MODE") != "git-archive" or os.environ.get("R01_CHECKOUT_CLEAN") != "true":
+        raise RuntimeError("clean archived source required")
+    fields.update(sources=sources, observations=20, seed_id=fields["experiment_id"])
+    path = OUT / "experiment.json"
+    if path.exists():
+        if json.loads(path.read_text(encoding="utf-8")) != fields:
+            raise RuntimeError("experiment provenance mismatch; use a new experiment and seed")
+    else:
+        if phase != "initialize":
+            raise RuntimeError("initialize the experiment before seed/measure")
+        if any(OUT.iterdir()):
+            raise RuntimeError("new experiment directory must be empty")
+        with path.open("x", encoding="utf-8") as stream:
+            json.dump(fields, stream, indent=2)
+    run_id = os.environ.get("R01_RUN_ID")
+    if not re.fullmatch(r"[0-9a-f]{32}", run_id or ""):
+        raise RuntimeError("explicit phase run ID required")
+    if list(OUT.glob(f"runner-*-{run_id}.json")):
+        raise RuntimeError("phase run IDs cannot be reused")
+    PROVENANCE, RUN_ID = fields, run_id
+
+
+async def verify_database_identity(db):
+    async with db.connect() as c:
+        await c.execute(text("SET TRANSACTION READ ONLY"))
+        row = (await c.execute(text("SELECT current_database() AS db, current_user AS role, "
+            "current_setting('server_version_num')::int AS version, postgis_lib_version() AS postgis"))).mappings().one()
+        if row["db"] != "r01_synthetic" or row["role"] != "r01" or not 160000 <= row["version"] < 170000 or not row["postgis"].startswith("3.4."):
+            raise RuntimeError("unexpected synthetic PostgreSQL/PostGIS identity")
+
+
+async def validate_dataset(c, total):
+    """Run before timed SQL, under one repeatable read-only snapshot."""
+    template = json.loads((OUT / "template.json").read_text(encoding="utf-8"))
+    dataset = json.loads((OUT / f"dataset-{total}.json").read_text(encoding="utf-8"))
+    meta = await c.scalar(text("SELECT data FROM r01_meta"))
+    if isinstance(meta, str):
+        meta = json.loads(meta)
+    if (meta.get("synthetic_only") is not True or meta.get("provenance") != PROVENANCE or
+            template.get("provenance") != PROVENANCE or dataset.get("provenance") != PROVENANCE or
+            meta.get("sources") != template.get("sources") or template.get("sources") != PROVENANCE.get("sources") or
+            template.get("observations") != 20 or dataset.get("listings") != total or
+            dataset.get("source_records_per_listing") != template["sources"] or dataset.get("observations_per_listing") != 20):
+        raise RuntimeError("dataset provenance/profile mismatch")
+    entities = await c.scalar(text("SELECT count(*) FROM r01_entities"))
+    if entities != total:
+        raise RuntimeError("dataset entity count mismatch")
+    for model in (Listing, ListingRoomDetails, ExternalListingSource, AiFactCatalog, AiListingFactBatch,
+                  AiFactSource, AiListingFact, AiListingSearchFeatures, AiQueryProof):
+        multiplier = 20 if model is AiListingFact else template["sources"] if model in (
+            ExternalListingSource, AiFactSource, AiListingFactBatch) else 1
+        actual = await c.scalar(select(func.count()).select_from(model))
+        if actual != (total + 1) * multiplier or dataset["counts_including_template"].get(model.__tablename__) != actual:
+            raise RuntimeError(f"dataset row count mismatch: {model.__tablename__}")
+    providers = await c.scalar(select(func.count(func.distinct(ExternalListingSource.source_name))))
+    if providers != min(10, total + template["sources"]) or dataset.get("distinct_providers") != providers:
+        raise RuntimeError("dataset provider profile mismatch")
+    if await c.scalar(text("SELECT tgenabled::text FROM pg_trigger WHERE tgrelid='listings'::regclass AND tgname='listings_catalog_version'")) != "O":
+        raise RuntimeError("setup trigger must be restored before measurements")
 
 
 def pipeline(factory):
@@ -137,6 +223,14 @@ async def initialize(sources):
     validate_lab_environment()
     if sources not in (2, 10):
         raise ValueError("20 observations are split across 2 or 10 records")
+    identity = engine()
+    try:
+        await verify_database_identity(identity)
+        async with identity.connect() as c:
+            if await c.scalar(text("SELECT to_regclass('r01_meta')")) is not None:
+                raise RuntimeError("database already belongs to a seed; create a fresh disposable lab")
+    finally:
+        await identity.dispose()
     # Environment is replaced by the launcher, not loaded from a project .env.
     process = await asyncio.create_subprocess_exec("python", "-m", "alembic", "upgrade", "head", cwd="/code/backend")
     if await process.wait():
@@ -149,7 +243,7 @@ async def initialize(sources):
         await c.execute(text("CREATE TABLE r01_entities (n bigint PRIMARY KEY, id uuid UNIQUE NOT NULL)"))
         await c.execute(text("CREATE TABLE r01_ids (old text PRIMARY KEY, kind text, slot int)"))
         await c.execute(text("CREATE TABLE r01_meta (data jsonb NOT NULL)"))
-        await c.execute(text("INSERT INTO r01_meta VALUES (:v)"), {"v": json.dumps({"synthetic_only": True, "sources": sources})})
+        await c.execute(text("INSERT INTO r01_meta VALUES (:v)"), {"v": json.dumps({"synthetic_only": True, "sources": sources, "provenance": PROVENANCE})})
         await c.execute(text("""CREATE FUNCTION r01_uuid(k text, n bigint, s int DEFAULT 0) RETURNS uuid
             LANGUAGE sql IMMUTABLE AS $$ SELECT md5(k || ':' || n::text || ':' || s::text)::uuid $$"""))
         await c.execute(text("""CREATE FUNCTION r01_rewrite(v jsonb, n bigint) RETURNS jsonb LANGUAGE plpgsql AS $$
@@ -348,9 +442,14 @@ def viewport(count, total, zoom):
 
 async def measure(total, samples, candidate=None, baseline_only=False):
     db = engine(pool=30)
-    async with db.connect() as c:
-        assert await c.scalar(text("SELECT data->>'synthetic_only' FROM r01_meta")) == "true"
-        assert await c.scalar(text("SELECT tgenabled::text FROM pg_trigger WHERE tgname='listings_catalog_version'")) == "O", "setup trigger must be restored before measurements"
+    try:
+        await verify_database_identity(db)
+        async with db.connect() as c:
+            await c.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+            await validate_dataset(c, total)
+    except BaseException:
+        await db.dispose()
+        raise
     factory = async_sessionmaker(db, expire_on_commit=False)
     pipe = pipeline(factory)
     # Direct _map_intent measures the complete shared map query/DTO path;
@@ -366,7 +465,7 @@ async def measure(total, samples, candidate=None, baseline_only=False):
             captured.append((statement, parameters))
     async def request(view):
         start = time.perf_counter()
-        result = {"ok": False}
+        result = {"ok": False, "started_at": now()}
         after_pool = None
         try:
             async with factory() as s, s.begin():
@@ -382,6 +481,7 @@ async def measure(total, samples, candidate=None, baseline_only=False):
             if after_pool is not None:
                 result["query_ms"] = (time.perf_counter()-after_pool)*1000
         result["ms"] = (time.perf_counter()-start)*1000
+        result["ended_at"] = now()
         return result
     records = []
     for count in ([candidate] if candidate is not None else sorted({0,*(min(n,total) for n in (299,300,301,302,10000)),total})):
@@ -423,6 +523,7 @@ async def measure(total, samples, candidate=None, baseline_only=False):
             for zoom in (8,13):
                 view=viewport(count,total,zoom)
                 results=[]
+                started_at = now()
                 start=time.perf_counter()
                 for offset in range(0,samples,concurrency):
                     results.extend(await asyncio.gather(*(request(view) for _ in range(min(concurrency,samples-offset)))))
@@ -439,6 +540,7 @@ async def measure(total, samples, candidate=None, baseline_only=False):
                 def percentile(q, ordered=values):
                     return ordered[min(len(ordered)-1, math.ceil(q*len(ordered))-1)]
                 summary={"total":total,"candidates":count,"zoom":zoom,"concurrency":concurrency,
+                    "started_at":started_at,"ended_at":now(),"mode":"load" if samples == 200 else "probe",
                     "samples":len(results),"requested_samples":samples,"stopped_after_failed_wave":len(results)<samples,
                     "seconds":time.perf_counter()-start,"failures":sum(not r["ok"] for r in results),
                     "p50_ms":percentile(.5),"p95_ms":percentile(.95),"p99_ms":percentile(.99),
@@ -447,24 +549,53 @@ async def measure(total, samples, candidate=None, baseline_only=False):
                 scenarios.append(summary)
                 save(f"load-{total}.json",scenarios)
                 log("load",**{k:v for k,v in summary.items() if k!="results"})
-    # Cancellation is real driver cancellation; confirm no active query remains.
-    tasks=[asyncio.create_task(request(viewport(total,total,z))) for z in (8,13)*10]
-    await asyncio.sleep(.1)
-    start=time.perf_counter()
-    for task in tasks:
-        task.cancel()
-    await asyncio.gather(*tasks,return_exceptions=True)
-    async with db.connect() as c:
-        active=await c.scalar(text("SELECT count(*) FROM pg_stat_activity WHERE application_name='codex-r01-synthetic' AND state='active' AND pid<>pg_backend_pid()"))
-    save(f"cancellation-{total}.json",{"tasks":len(tasks),"elapsed_ms":(time.perf_counter()-start)*1000,"remaining_active":active,
-        "pool_reusable":(await request(viewport(0,total,8)))["ok"]})
+    save(f"cancellation-{total}.json", await cancellation_check(db, factory, request, total))
     await db.dispose()
+
+
+async def cancellation_check(db, factory, request, total):
+    # A unique application_name and server-side pg_stat_activity barrier prove
+    # all twenty SQL operations were active, even when map queries are instant.
+    name = "r01-cancel-" + uuid4().hex
+    started_at = now()
+    async def controlled():
+        async with factory() as s, s.begin():
+            await s.execute(text("SELECT set_config('application_name', :name, true)"), {"name": name})
+            await s.execute(text("SELECT pg_sleep(4)"))
+    tasks = [asyncio.create_task(controlled()) for _ in range(20)]
+    active_before = 0
+    deadline = time.monotonic() + 3
+    try:
+        while time.monotonic() < deadline:
+            async with db.connect() as c:
+                active_before = await c.scalar(text("SELECT count(*) FROM pg_stat_activity WHERE application_name=:name AND state='active' AND wait_event='PgSleep'"), {"name": name})
+            if active_before == 20 or any(task.done() for task in tasks):
+                break
+            await asyncio.sleep(.01)
+    except BaseException:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        raise
+    start = time.perf_counter()
+    completed_before = sum(task.done() and not task.cancelled() and task.exception() is None for task in tasks)
+    accepted = sum(task.cancel() for task in tasks if not task.done())
+    outcomes = await asyncio.gather(*tasks, return_exceptions=True)
+    async with db.connect() as c:
+        active = await c.scalar(text("SELECT count(*) FROM pg_stat_activity WHERE application_name=:name AND state='active'"), {"name": name})
+    return {"tasks":20, "cancel_requested":20, "cancel_accepted":accepted,
+        "cancelled":sum(isinstance(result, asyncio.CancelledError) for result in outcomes),
+        "completed_before_cancel":completed_before,
+        "failed":sum(isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError) for result in outcomes),
+        "active_before_cancel":active_before, "remaining_active":active,
+        "elapsed_ms":(time.perf_counter()-start)*1000,"started_at":started_at,"ended_at":now(),
+        "pool_reusable":(await request(viewport(0,total,8)))["ok"]}
 
 
 def parse_args(argv=None):
     parser=argparse.ArgumentParser()
     parser.add_argument("phase",choices=["initialize","seed","measure"])
-    parser.add_argument("--sources",type=int,choices=(2,10),default=2)
+    parser.add_argument("--sources",type=int,choices=(2,10))
     parser.add_argument("--total",type=int,default=100000)
     parser.add_argument("--samples",type=int,default=200)
     parser.add_argument("--candidate",type=int)
@@ -478,6 +609,8 @@ def parse_args(argv=None):
         parser.error("--candidate and --baseline-only require the measure phase")
     if args.candidate is not None and not args.baseline_only:
         parser.error("--candidate requires --baseline-only (load always uses the full matrix)")
+    if args.sources is not None and args.phase != "initialize":
+        parser.error("--sources is only supported for initialize; seed/measure use the immutable experiment profile")
     return args
 
 
@@ -485,6 +618,11 @@ async def main():
     args=parse_args()
     validate_lab_environment()
     OUT.mkdir(exist_ok=True)
+    if args.phase == "initialize":
+        sources = args.sources or 2
+    else:
+        sources = json.loads((OUT / "experiment.json").read_text(encoding="utf-8"))["sources"]
+    bind_experiment(sources, args.phase)
     metadata={"python":platform.python_version(),"platform":platform.platform(),"sql_timeout_ms":5000,
         "pool":30,"mode":"closed-loop repository map path; excludes HTTP/session", "source":"/code", "synthetic_only":True,
         "code_revision":os.environ.get("R01_CODE_REVISION"),"dependency_image_id":os.environ.get("R01_IMAGE_ID"),"phase":args.phase,"total":args.total,
@@ -495,13 +633,20 @@ async def main():
         "source_hashes":{name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in (
             "/code/scripts/benchmark-ai-map.py","/code/backend/app/repositories/ai_verified_cards.py",
             "/code/backend/app/repositories/ai_query_proofs.py","/code/backend/app/repositories/listings.py")}}
-    save("runner.json",metadata)
-    save(f"runner-{args.phase}-{args.total}.json",metadata)
-    if args.phase=="initialize": await initialize(args.sources)
+    metadata.update(started_at=now(), sources=sources, status="running")
+    manifest_name = f"runner-{args.phase}-{args.total}-{RUN_ID}.json"
+    save(manifest_name,metadata)
+    if args.phase=="initialize": await initialize(sources)
     elif args.phase=="seed":
         control=engine(timeout=0)
+        await verify_database_identity(control)
         async with control.begin() as c:
-            assert await c.scalar(text("SELECT data->>'synthetic_only' FROM r01_meta")) == "true"
+            meta = await c.scalar(text("SELECT data FROM r01_meta"))
+            template = json.loads((OUT / "template.json").read_text(encoding="utf-8"))
+            if (meta.get("synthetic_only") is not True or meta.get("provenance") != PROVENANCE or
+                    meta.get("sources") != sources or template.get("provenance") != PROVENANCE or
+                    template.get("sources") != sources or template.get("observations") != 20):
+                raise RuntimeError("seed DB provenance mismatch")
             before=await c.scalar(text("SELECT count(*) FROM r01_entities"))
             await c.execute(text("ALTER TABLE listings DISABLE TRIGGER listings_catalog_version"))
         log("fixture_trigger_suspended",note="synthetic bulk setup only; restored before measurement")
@@ -516,6 +661,8 @@ async def main():
             await control.dispose()
             log("fixture_trigger_restored",inserted=after-before)
     else: await measure(args.total,args.samples,args.candidate,args.baseline_only)
+    metadata.update(ended_at=now(), status="complete")
+    save(manifest_name, metadata)
 
 
 if __name__=="__main__":

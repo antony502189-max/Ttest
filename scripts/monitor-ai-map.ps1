@@ -1,5 +1,6 @@
 param(
     [Parameter(Mandatory)][string]$OutputDirectory,
+    [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{32}$')][string]$RunId,
     [ValidateSet('baseline','fanout')][string]$Profile = 'baseline',
     [ValidateRange(1,10)][int]$MaxConsecutiveFailures = 3,
     [ValidateRange(1,60)][int]$IntervalSeconds = 5
@@ -9,10 +10,17 @@ $labOutput = (Resolve-Path -LiteralPath $OutputDirectory).Path
 $labSuffix = if ($Profile -eq 'fanout') { 'fanout-20261028' } else { '20261028' }
 $labDbName = "codex-r01-db-$labSuffix"
 $labNetworkName = "codex-r01-$labSuffix"
+$labMonitorId = [guid]::NewGuid().ToString('N')
+$labExperiment = Get-Content -Raw -LiteralPath (Join-Path $labOutput 'experiment.json') | ConvertFrom-Json
+$labDbId = $labExperiment.db_container_id
 function Write-MonitorEvent($event) {
     $event.at = [DateTime]::UtcNow.ToString('o')
     $event.container = $labDbName
     $event.profile = $Profile
+    $event.provenance = $labExperiment
+    $event.run_id = $RunId
+    $event.monitor_id = $labMonitorId
+    $event.db_container_id = $labDbId
     $event | ConvertTo-Json -Depth 8 -Compress |
         Add-Content -LiteralPath (Join-Path $labOutput 'resources.jsonl') -Encoding utf8
 }
@@ -25,7 +33,9 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'inspect failed' }
     $labDb = $labRaw | ConvertFrom-Json
     if ($labDb.Name -ne "/$labDbName" -or $labDb.Config.Labels.'codex.task' -ne 'r01-synthetic' -or
-        $labDb.NetworkSettings.Networks.PSObject.Properties.Name -notcontains $labNetworkName) {
+        $labDb.NetworkSettings.Networks.PSObject.Properties.Name -notcontains $labNetworkName -or
+        $labDb.Id -ne $labDbId -or $labDb.Image -ne $labExperiment.db_image_id -or
+        $labExperiment.sources -ne $(if ($Profile -eq 'fanout') { 10 } else { 2 })) {
         throw 'container profile mismatch'
     }
     $labTemplatePath = Join-Path $labOutput 'template.json'
@@ -43,7 +53,7 @@ $labFailures = 0
 while (-not (Test-Path -LiteralPath (Join-Path $labOutput 'monitor.stop'))) {
     $labCategory = 'docker-stats-exit'
     try {
-        $labRaw = docker stats $labDbName --no-stream --format '{{json .}}' 2>$null
+        $labRaw = docker stats $labDbId --no-stream --format '{{json .}}' 2>$null
         if ($LASTEXITCODE -ne 0) { throw 'stats failed' }
         $labCategory = 'invalid-stats-json'
         if (-not $labRaw) { throw 'empty stats' }

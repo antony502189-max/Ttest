@@ -5,7 +5,8 @@ Authorized workload (2026-10-28): 100,000, 500,000 and 1,000,000 listings;
 p95 <= 500 ms and p99 <= 1,000 ms. Only synthetic data in isolated infrastructure.
 
 The owner subsequently stopped the large experiment and requested fixing the
-identified SQL first. Historical 100k/500k measurements are complete; 1m setup
+identified SQL first. Historical 100k/500k raw attempts are retained, but their
+provenance and actual cancellations cannot be certified retroactively; 1m setup
 was interrupted at 900k and no 1m load measurement exists. Do not restart that
 large workload as part of the SQL correction. The application now selects
 authority IDs with the same indexed UNION used by the fixture optimization;
@@ -61,8 +62,14 @@ throughput is not a measurement of real importer throughput.
 Use a fresh PostGIS 16/3.4 container pinned to the same digest as integration CI,
 an internal Docker network with no outside route, and no published DB ports.
 The benchmark hardcodes a synthetic-only DB identity and requires an explicit
-lab marker. The launcher verifies the task label, internal network and absent
-port bindings. The source mount is read-only; only the results directory is
+lab marker. The launcher verifies the task label, absent port bindings, exclusive
+membership in the exact internal network, the `r01-db` alias, running container
+ID and pinned PostGIS image ID. A read-only identity query inside that exact
+container checks the synthetic role/database and PostgreSQL/PostGIS versions.
+Python repeats the DB/version check before migrations or fixture writes.
+The runner uses the inspected network ID and pins r01-db in /etc/hosts to that
+container's inspected IP, so another container's DNS alias cannot redirect DDL.
+The source mount is read-only; only the results directory is
 writable. No project .env, credentials, application DB, providers, ASR, workers,
 crawlers, public endpoints, notification or deployment are used.
 
@@ -104,7 +111,7 @@ cap bounds resource use after the 1-second target is already exceeded. A timeout
 is a failed sample, never a successful 5-second response or a measured true
 latency percentile for that unfinished query.
 
-Load scenarios request up to 200 attempts each, zoom 8/13, and
+Full load scenarios request exactly 200 attempts each, zoom 8/13, and
 300/10,000/whole-catalog viewports. At 100,000, run the full 200 attempts. At
 500,000 and 1,000,000, stop a scenario after its first full concurrency wave
 if every attempt failed: that already rejects the target, and avoids repeated
@@ -117,12 +124,21 @@ p99 is an exploratory tail estimate, insufficient for high-confidence passing
 certification; already large failures can still reject the target. This is
 closed-loop load and does not characterize open-loop overload/coordinated
 omission. The maximum effective concurrency is min(requested concurrency,
-attempt count). No one-sample preflight is presented as a load test.
+attempt count). Fewer than 200 requested attempts are labelled `probe` and never
+complete the protocol. Raw attempt start/end timestamps must demonstrate the
+declared client concurrency; this includes pool waiting. No one-sample preflight
+is presented as a load test. Summary recomputes p50/p95/p99, samples, failures,
+early-stop metadata and pass from raw attempts. Contradictory stored aggregates
+produce INCONSISTENT and a nonzero summary CLI exit code.
 
 The first touch after data preparation is not an OS-cold measurement: preparation
 and VACUUM have warmed caches. Do not evict shared host caches or label these
-results cold. Record cancellation completion and verify no query from the
-benchmark application remains active. Save versioned JSON plans, attempts,
+results cold. Cancellation uses twenty controlled `pg_sleep(4)` operations, with
+a server-side `pg_stat_activity` barrier confirming all twenty are actively
+sleeping before cancellation. Retain requested/accepted/confirmed cancellations,
+completed-before-cancel and failed counts. All twenty must actually be cancelled,
+none may finish early or fail, no tagged SQL may remain active, and an actual map
+request must confirm pool reuse. Save versioned JSON plans, attempts,
 dataset counts/size/settings, container resource samples and a findings report.
 
 ## Historical invocation — stopped; separate approval required to resume
@@ -138,15 +154,21 @@ Create the labelled internal network and fresh DB exactly as recorded in the
 experiment report. From a clean source checkout with no .env:
 
 ```powershell
-./scripts/run-ai-map-benchmark.ps1 -Phase initialize
-./scripts/run-ai-map-benchmark.ps1 -Phase seed -Total 100000
-./scripts/run-ai-map-benchmark.ps1 -Phase measure -Total 100000 -Samples 200
+$experiment = [guid]::NewGuid().ToString('N')
+./scripts/run-ai-map-benchmark.ps1 -Phase initialize -ExperimentId $experiment
+./scripts/run-ai-map-benchmark.ps1 -Phase seed -Total 100000 -ExperimentId $experiment
+$run = [guid]::NewGuid().ToString('N')
+# Start the monitor in another terminal before measure; stop it after measure:
+# ./scripts/monitor-ai-map.ps1 -OutputDirectory ./output/r01/$experiment -RunId $run
+./scripts/run-ai-map-benchmark.ps1 -Phase measure -Total 100000 -Samples 200 -ExperimentId $experiment -RunId $run
+# New-Item ./output/r01/$experiment/monitor.stop
+# Wait for the monitor to stop; remove monitor.stop before monitoring another run.
 # Grow the same synthetic catalog, analyze and repeat at 500000 and 1000000.
 ```
 
 The private runner resolves the local `ttest-backend:latest` dependency image
-once, pins its immutable ID in the results directory and uses that ID for later
-phases while importing all project code from the read-only checkout. Record
+for each invocation and verifies its immutable ID against experiment.json for
+later phases while importing all project code from the read-only snapshot. Record
 that image ID; do not infer its dependency versions from the tag. Running
 this protocol does not approve an activation or a production configuration.
 
@@ -157,14 +179,26 @@ Docker. It exports the selected commit with `git archive`, mounts that separate
 snapshot read-only, and records the commit, `checkout_clean`, source mode and
 archive SHA-256 in runner metadata. Ignored files and subsequent checkout edits
 are excluded from execution. Git, archive extraction and Docker inspection
-failures stop the launcher. Direct Python invocation is labelled
-`unverified-direct`; it is not an immutable-commit replication.
+failures stop the launcher. Python refuses missing archived-source provenance.
+Every experiment has a separate output/r01[-fanout]/<experiment-id> directory.
+Its immutable experiment.json binds commit, archive SHA-256, runner/DB image IDs,
+DB container ID, profile and seed ID; the DB's r01_meta stores the same identity.
+Changes require a fresh experiment and disposable DB seed. Unique phase-run
+manifests are atomically written with running/complete state and time boundaries;
+raw artifacts carry the same provenance and phase run ID. Incomplete phases,
+mixed load/cancellation runs and missing/legacy provenance cannot certify completion.
 
 Both entry points reject invalid numeric input before infrastructure actions:
 total1..1,000,000, samples1..200, candidate0..total. Candidate and BaselineOnly
 require measure; a candidate-specific probe requires BaselineOnly because the
 load phase always executes its full matrix. These bounds do not authorize large
 runs. The owner's stop instruction remains in force.
+`--sources` is only accepted for initialize. Later phases derive the active
+profile from the immutable experiment, and the launcher checks -Profile against it.
+Before the first timed request, a repeatable-read, read-only transaction validates
+exact entity, listing, room, external source, fact catalog, batch, fact source,
+observation, projection and proof counts, provider count, template/dataset/profile
+metadata, DB seed provenance and restored trigger. A mismatch emits no load files.
 
 Reports derive source/observation counts from dataset metadata. For older
 archives without explicit profile fields, exact row-count ratios identify the
@@ -172,8 +206,9 @@ profile; ambiguous or inconsistent counts are rejected. A template contributes
 2 or10 sources and20 observations, so fanout subtraction and prose reflect10
 sources rather than a hardcoded baseline. The raw historical archive is unchanged.
 
-Measurement completion requires every expected load scenario, nonempty samples
-matching declared counts (including recorded failed-wave stopping), and a
+Measurement completion requires every expected load scenario, 200 requested
+attempts with demonstrated concurrency (or the fully failed first-wave exception),
+matching raw/derived counts and immutable phase provenance, and a
 successful cancellation/pool-reuse check. Completed dataset creation alone is
 insufficient. COMPLETE describes protocol completion, not a passing latency SLO.
 Stop-marker claims are compared with these files and produce INCONSISTENT when
@@ -184,8 +219,12 @@ template against baseline/fanout before collecting samples. It writes start,
 sample, error and stop events to resources.jsonl, with sanitized error categories.
 After three consecutive failures by default it exits nonzero; a recovery resets
 that counter. Reports expose missing/degraded/unknown/complete resource quality,
-including malformed records, observed gaps and mixed profiles/containers. Legacy
-archives without monitor lifecycle events have unknown completeness.
+including malformed records, observed gaps and mixed profiles/containers. Each
+row also binds experiment, DB container ID, phase run ID and unique monitor ID.
+Every scenario must be inside one correctly paired lifecycle with bracketing
+valid samples and no gaps/errors. Quality is reported per scenario and scale;
+old monitoring cannot certify a new load. Legacy archives have unverified
+provenance and cannot be marked complete under the current protocol.
 
 Small toolchain regressions use fake Docker and temporary Git repositories,
 including real PowerShell execution when pwsh/PowerShell is installed. They do
