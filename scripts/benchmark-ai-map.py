@@ -60,10 +60,19 @@ def log(kind, **data):
         f.write(json.dumps(value, default=str) + "\n")
 
 
-def engine(pool=1, timeout=5000):
-    # Fixed lab hostname/database; no CLI/environment override to application DBs.
+def validate_lab_environment():
+    # Alembic reads DATABASE_URL, unlike the fixed-DSN query engine. Validate
+    # before spawning migrations too, so direct invocation cannot migrate an
+    # application DB even when the isolated-lab marker was copied accidentally.
     if os.environ.get("R01_DISPOSABLE_LAB") != "synthetic-only":
         raise RuntimeError("explicit isolated-lab marker required")
+    if os.environ.get("DATABASE_URL") != DSN or os.environ.get("APP_ENV") != "test":
+        raise RuntimeError("expected the fixed synthetic-only database and test environment")
+
+
+def engine(pool=1, timeout=5000):
+    # Fixed lab hostname/database; no CLI/environment override to application DBs.
+    validate_lab_environment()
     return create_async_engine(DSN, pool_size=pool, max_overflow=0, pool_timeout=30,
         connect_args={"server_settings": {"statement_timeout": str(timeout),
             "lock_timeout": "1000", "application_name": "codex-r01-synthetic"}})
@@ -125,6 +134,7 @@ def fixture_signature(listing_id):
 
 
 async def initialize(sources):
+    validate_lab_environment()
     if sources not in (2, 10):
         raise ValueError("20 observations are split across 2 or 10 records")
     # Environment is replaced by the launcher, not loaded from a project .env.
@@ -458,6 +468,7 @@ async def main():
     parser.add_argument("--candidate",type=int)
     parser.add_argument("--baseline-only",action="store_true")
     args=parser.parse_args()
+    validate_lab_environment()
     OUT.mkdir(exist_ok=True)
     metadata={"python":platform.python_version(),"platform":platform.platform(),"sql_timeout_ms":5000,
         "pool":30,"mode":"closed-loop repository map path; excludes HTTP/session", "source":"/code", "synthetic_only":True,

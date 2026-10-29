@@ -55,6 +55,7 @@ async def guard(proofs, listing_id):
 
 def legacy_signature(listing_id):
     """Keep the previous authority predicate as a v2 digest compatibility oracle."""
+    replaced = []
     def restore_or(node):
         if not isinstance(node, BinaryExpression) or node.operator is not operators.in_op:
             return None
@@ -64,8 +65,11 @@ def legacy_signature(listing_id):
         source = AiFactSource.__table__.alias()
         known = select(source.c.source_record_id).where(
             source.c.canonical_listing_id == listing_id).correlate_except(source)
+        replaced.append(node)
         return or_(external.c.canonical_listing_id == listing_id, node.left.in_(known))
-    return visitors.replacement_traverse(projection_signature(listing_id), {}, restore_or)
+    signature = visitors.replacement_traverse(projection_signature(listing_id), {}, restore_or)
+    assert len(replaced) == 1, "compatibility oracle must actually restore the old predicate"
+    return signature
 
 
 @pytest.mark.parametrize("change", ["none", "new_current", "remap", "delete", "remap_and_new", "over_bound"])
@@ -94,7 +98,8 @@ async def test_indexed_authority_preserves_existing_v2_digest_and_invalidation(p
     assert await guard(proofs, lid) == (change == "none")
 
 
-async def test_authority_lookup_does_not_visit_unrelated_catalog_sources(pipeline, proofs):
+@pytest.mark.parametrize("correlated", [False, True])
+async def test_authority_lookup_does_not_visit_unrelated_catalog_sources(pipeline, proofs, correlated):
     _, sessions = pipeline
     source = await completed(pipeline)
     async with sessions() as session, session.begin():
@@ -110,7 +115,10 @@ async def test_authority_lookup_does_not_visit_unrelated_catalog_sources(pipelin
             captured.append((statement, parameters))
         event.listen(session.bind.sync_engine, "before_cursor_execute", capture)
         try:
-            await session.scalar(select(projection_signature(literal(source.canonical_listing_id))))
+            statement = (select(projection_signature(Listing.id)).select_from(Listing).where(
+                Listing.id == source.canonical_listing_id) if correlated else
+                select(projection_signature(literal(source.canonical_listing_id))))
+            await session.scalar(statement)
         finally:
             event.remove(session.bind.sync_engine, "before_cursor_execute", capture)
         statement, parameters = captured[0]
@@ -124,6 +132,32 @@ async def test_authority_lookup_does_not_visit_unrelated_catalog_sources(pipelin
         authority_scans = scans(plan[0]["Plan"])
         assert authority_scans
         assert all(node["Actual Rows"] + node.get("Rows Removed by Filter", 0) <= 1 for node in authority_scans)
+
+
+async def test_correlated_proofs_keep_each_listing_scoped_after_source_remap(pipeline, proofs):
+    service, sessions = pipeline
+    first = await completed(pipeline)
+    second = await completed(pipeline)
+    ids = [first.canonical_listing_id, second.canonical_listing_id]
+    for lid in ids:
+        assert await proofs.prepare(lid)
+    async def read():
+        async with sessions() as session:
+            return (await session.execute(select(Listing.id,
+                projection_signature(Listing.id), legacy_signature(Listing.id),
+                current_projection_predicate(Listing.id, resolver_version=service.resolver_version,
+                    vocabulary_hash=service.vocabulary_hash)).where(Listing.id.in_(ids)))).all()
+    before = {row[0]: row[1:] for row in await read()}
+    assert all(new == old and valid for new, old, valid in before.values())
+    async with sessions() as session, session.begin():
+        await session.execute(text("UPDATE external_listing_sources SET canonical_listing_id=:target WHERE id=:source"),
+            {"target": ids[1], "source": first.source_record_id})
+    after = {row[0]: row[1:] for row in await read()}
+    # Both the former owner and new owner must observe the remap. Each retains
+    # its own digest, and the old proof cannot authorize either listing.
+    assert all(new == old and not valid and new != before[lid][0]
+               for lid, (new, old, valid) in after.items())
+    assert after[ids[0]][0] != after[ids[1]][0]
 
 
 async def test_only_verified_projection_can_be_certified(pipeline, proofs):

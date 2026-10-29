@@ -125,7 +125,14 @@ results cold. Record cancellation completion and verify no query from the
 benchmark application remains active. Save versioned JSON plans, attempts,
 dataset counts/size/settings, container resource samples and a findings report.
 
-## Invocation
+## Historical invocation — stopped; separate approval required to resume
+
+The commands below document the original experiment. They must not be run
+again without the owner's separate explicit approval. Current review is limited
+to small disposable regressions and ordinary CI. The runner rejects a missing
+lab marker, any non-test environment or a DATABASE_URL different from its fixed
+synthetic DSN before Alembic, including direct invocation. For an explicitly
+approved fanout run, the resource monitor must also receive `-Profile fanout`.
 
 Create the labelled internal network and fresh DB exactly as recorded in the
 experiment report. From a clean source checkout with no .env:

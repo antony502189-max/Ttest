@@ -23,3 +23,8 @@ are not included. No real database, provider, source site or notification was us
 repository work and failed-transaction cleanup. Failed completion-time quantiles
 are not successful SQL latency percentiles. The report deliberately does not
 extrapolate throughput, production capacity or the unmeasured million scale.
+
+The archive is immutable historical evidence. Its `current-source/` directory
+means the SQL-fix snapshot at archive creation on 2026-10-28, before the PR401
+readiness review; it is not a copy of the eventual merged tree. Later review
+changes and validation are described in the PR and review report.
