@@ -8,7 +8,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
-from ..models import Listing, SavedSearch, User
+from ..models import Listing, User
 from ..models.ai_fact_pipeline import AiFactRematchEvent
 from ..models.ai_saved_search import AiSavedSearch
 from ..models.moderation import UserRestriction
@@ -75,31 +75,28 @@ class RegisteredAISearches:
         if owner is None:
             raise SavedAIError("REGISTERED_USER_UNAVAILABLE")
 
-    def _decode(self, parent: SavedSearch, child: AiSavedSearch) -> SavedAISnapshot:
+    def _decode(self, child: AiSavedSearch) -> SavedAISnapshot:
         try:
-            if (parent.matcher != "ai.v1" or child.matcher != "ai.v1" or parent.rental_mode is not None
-                    or parent.query != "" or parent.filters != {} or parent.polygon != [] or parent.alerts_enabled):
+            if child.matcher != "ai.v1":
                 raise ValueError("hybrid matcher")
             intent = SavedIntent.model_validate_json(json.dumps({"schema_version": child.schema_version,
                 "taxonomy_version": child.taxonomy_version, "criteria": child.criteria}))
             self.sessions.vocabulary.validate(intent.criteria)
             if digest(intent.model_dump(mode="json", exclude_none=True)) != child.intent_hash:
                 raise ValueError("snapshot mismatch")
-            return SavedAISnapshot(id=parent.id, revision=child.revision, enabled=child.enabled,
+            return SavedAISnapshot(id=child.saved_search_id, revision=child.revision, enabled=child.enabled,
                                    intent=intent, intent_hash=child.intent_hash)
         except (ValueError, TypeError):
             raise SavedAIError("SAVED_AI_STATE_INVALID") from None
 
     async def _read(self, conn: AsyncSession, subject: QuotaSubject, saved_id: UUID, *, lock=False):
         await self._active(conn, subject)
-        query = select(SavedSearch, AiSavedSearch).join(AiSavedSearch,
-            AiSavedSearch.saved_search_id == SavedSearch.id).where(SavedSearch.id == saved_id,
-            SavedSearch.user_id == subject.id, SavedSearch.matcher == "ai.v1")
-        result = (await conn.execute(query.with_for_update() if lock else query)).one_or_none()
+        query = select(AiSavedSearch).where(AiSavedSearch.saved_search_id == saved_id,
+            AiSavedSearch.user_id == subject.id, AiSavedSearch.matcher == "ai.v1")
+        result = await conn.scalar(query.with_for_update() if lock else query)
         if result is None:
             raise SavedAIError("SAVED_AI_NOT_FOUND")
-        parent, child = result
-        return parent, child, self._decode(parent, child)
+        return result, self._decode(result)
 
     async def save(self, subject: QuotaSubject, result_ref: UUID, *, name: str = "") -> SavedAISnapshot:
         """Explicit save of an owned committed result; no caller criteria/hash accepted."""
@@ -117,38 +114,35 @@ class RegisteredAISearches:
                 taxonomy_version=committed.intent.taxonomy_version, criteria=committed.intent.criteria)
             self.sessions.vocabulary.validate(copied.criteria)
             saved_id = uuid4()
-            parent = SavedSearch(id=saved_id, user_id=subject.id, name=name.strip(), matcher="ai.v1",
-                query="", rental_mode=None, filters={}, polygon=[], alerts_enabled=False)
-            conn.add(parent)
-            await conn.flush()
-            child = AiSavedSearch(saved_search_id=saved_id, matcher="ai.v1", revision=1, enabled=True,
+            child = AiSavedSearch(saved_search_id=saved_id, user_id=subject.id, name=name.strip(),
+                matcher="ai.v1", revision=1, enabled=True,
                 schema_version=copied.schema_version, taxonomy_version=copied.taxonomy_version,
                 criteria=copied.criteria.model_dump(mode="json", exclude_none=True),
                 intent_hash=digest(copied.model_dump(mode="json", exclude_none=True)))
             conn.add(child)
             await conn.flush()
-            return self._decode(parent, child)
+            return self._decode(child)
 
     async def get(self, subject: QuotaSubject, saved_id: UUID) -> SavedAISnapshot:
         subject = self._subject(subject)
         async with self.connections() as conn:
-            return (await self._read(conn, subject, saved_id))[2]
+            return (await self._read(conn, subject, saved_id))[1]
 
     async def set_enabled(self, subject: QuotaSubject, saved_id: UUID, revision: int, enabled: bool) -> SavedAISnapshot:
         subject = self._subject(subject)
         if type(revision) is not int or revision < 1 or type(enabled) is not bool:
             raise SavedAIError("SAVED_AI_COMMAND_INVALID")
         async with self.connections.begin() as conn:
-            parent, child, current = await self._read(conn, subject, saved_id, lock=True)
+            child, current = await self._read(conn, subject, saved_id, lock=True)
             if current.revision != revision:
                 raise SavedAIError("SAVED_AI_VERSION_CONFLICT")
             child.enabled = enabled
             child.revision += 1
             await conn.flush()
-            return self._decode(parent, child)
+            return self._decode(child)
 
     async def _decision(self, conn: AsyncSession, subject: QuotaSubject, saved_id: UUID, listing_id: UUID) -> SavedAIDryRun:
-        snapshot = (await self._read(conn, subject, saved_id))[2]
+        snapshot = (await self._read(conn, subject, saved_id))[1]
         status: Literal["matched", "not_verified_or_ineligible", "disabled"] = "disabled"
         if snapshot.enabled:
             # Synthetic matching identity only; immutable saved criteria/hash are

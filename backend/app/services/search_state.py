@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
 from ..models import DiscardedListing, Favorite, Listing, SavedSearch, SearchHistory, User
+from ..models.ai_saved_search import AiSavedSearch
 from ..models.moderation import ListingRestriction, UserRestriction
 from ..schemas.searches import (
     GuestStateImport,
@@ -160,7 +161,8 @@ async def lock_search_history(user_id: UUID, session: AsyncSession) -> None:
 
 async def saved_search_count(user_id: UUID, session: AsyncSession) -> int:
     value = await session.scalar(select(func.count()).select_from(SavedSearch).where(SavedSearch.user_id == user_id))
-    return int(value or 0)
+    ai_value = await session.scalar(select(func.count()).select_from(AiSavedSearch).where(AiSavedSearch.user_id == user_id))
+    return int(value or 0) + int(ai_value or 0)
 
 
 async def import_guest_state(payload: GuestStateImport, user: User, session: AsyncSession) -> None:
@@ -317,11 +319,18 @@ async def update_saved_search(
 
 
 async def delete_saved_search(search_id: UUID, user: User, session: AsyncSession) -> None:
+    await lock_saved_searches(user.id, session)
     search = await session.scalar(
         select(SavedSearch).where(SavedSearch.id == search_id, SavedSearch.user_id == user.id)
     )
     if not search:
-        raise HTTPException(404, "Saved search not found")
+        ai_search = await session.scalar(select(AiSavedSearch).where(
+            AiSavedSearch.saved_search_id == search_id, AiSavedSearch.user_id == user.id))
+        if ai_search is None:
+            raise HTTPException(404, "Saved search not found")
+        await session.delete(ai_search)
+        await session.commit()
+        return
     await session.delete(search)
     await session.commit()
 

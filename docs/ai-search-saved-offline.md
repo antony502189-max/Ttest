@@ -1,18 +1,22 @@
 # Registered saved intent and rematch dry run (disabled)
 
 Migration 0074 adds a top-level matcher (`manual.v1` for existing rows) and an
-`ai.v1` child containing a strict immutable criteria snapshot and its own content
+separate `ai.v1` table containing a strict immutable criteria snapshot and its own content
 hash. There is no result/session foreign key or conversational expiry dependency.
-AI parents have no legacy mode/query/filters/polygon and cannot enable legacy
-alerts, including writes from older binaries. A composite foreign key prevents
-attaching an AI child to a manual matcher. Historical migrations stay immutable.
+AI snapshots have no legacy mode/query/filters/polygon or alerts column. Older
+binaries cannot address them through manual-search SQL. New-table constraints
+enforce the AI schema; the owner foreign key cascades account deletion. Existing
+manual constraints and rental-mode nullability stay unchanged. Historical
+migrations and the expand-only compatibility checker stay immutable.
 
 Legacy notification SQL and per-row conversion reject non-manual matchers before
 filter interpretation. Legacy write/patch/import reject reserved AI metadata;
 hybrids in persisted filters are skipped. Manual lists and updates do not route
-AI rows back into legacy filters. Registered delete/account deletion cascades to
-the child. The existing shared saved-search collection lock and total limit also
+AI rows back into legacy filters. Registered deletion checks ownership for both
+tables. The existing shared saved-search collection lock and combined count also
 cover explicit AI saves; no separate background quota policy is selected.
+An older binary sees only manual rows and applies its historical manual limit;
+the current binary counts both tables. Delivery remains disabled during rollback.
 
 The injected `RegisteredAISearches.save` accepts an owned committed result
 reference, never caller criteria/hash or a mutable session. It checks registered

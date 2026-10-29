@@ -15,7 +15,6 @@ import pytest_asyncio
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from sqlalchemy import delete, event, func, select, text, update
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from test_sessions import complete
 
@@ -27,7 +26,13 @@ from app.repositories.ai_saved_searches import RegisteredAISearches, SavedAIErro
 from app.repositories.ai_search_sessions import SessionError
 from app.schemas.ai_search_quota import QuotaSubject
 from app.schemas.searches import SavedSearchPatch, SavedSearchWrite
-from app.services.search_state import create_saved_search, list_saved_searches, update_saved_search
+from app.services.search_state import (
+    create_saved_search,
+    delete_saved_search,
+    list_saved_searches,
+    saved_search_count,
+    update_saved_search,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -143,7 +148,7 @@ async def test_disable_cas_legacy_patch_guard_and_delete_cascade(saved_store, pg
             await update_saved_search(snapshot.id, SavedSearchPatch(alertsEnabled=True), SimpleNamespace(id=owner.id), conn)
         assert error.value.status_code == 404
     async with pg[1].begin() as conn:
-        await conn.execute(delete(SavedSearch).where(SavedSearch.id == snapshot.id))
+        await delete_saved_search(snapshot.id, SimpleNamespace(id=owner.id), conn)
     with pytest.raises(SavedAIError, match="SAVED_AI_NOT_FOUND"):
         await saved_store.get(owner, snapshot.id)
     async with pg[1]() as conn:
@@ -152,12 +157,29 @@ async def test_disable_cas_legacy_patch_guard_and_delete_cascade(saved_store, pg
 
 @pytest.mark.parametrize("changes", [{"alerts_enabled": True}, {"rental_mode": "long"}, {"filters": {"balcony": True}},
                                     {"query": "legacy text"}, {"polygon": [{"lat": 1, "lng": 1}]}])
-async def test_database_prevents_old_binary_ai_parent_delivery_and_hybrids(saved_store, pg, changes):
+async def test_old_binary_manual_writes_cannot_address_ai_snapshot(saved_store, pg, changes):
     owner, _, receipt = await registered(saved_store, pg)
     snapshot = await saved_store.save(owner, receipt.result_ref)
-    with pytest.raises(IntegrityError):
-        async with pg[1].begin() as conn:
-            await conn.execute(update(SavedSearch).where(SavedSearch.id == snapshot.id).values(**changes))
+    async with pg[1].begin() as conn:
+        result = await conn.execute(update(SavedSearch).where(SavedSearch.id == snapshot.id).values(**changes))
+        assert result.rowcount == 0
+    assert await saved_store.get(owner, snapshot.id) == snapshot
+
+
+async def test_separate_snapshot_delete_requires_owner_and_account_delete_cascades(saved_store, pg):
+    from fastapi import HTTPException
+    owner, _, receipt = await registered(saved_store, pg)
+    snapshot = await saved_store.save(owner, receipt.result_ref)
+    async with pg[1]() as conn:
+        assert await conn.scalar(select(func.count()).select_from(SavedSearch).where(SavedSearch.id == snapshot.id)) == 0
+        with pytest.raises(HTTPException) as error:
+            await delete_saved_search(snapshot.id, SimpleNamespace(id=uuid4()), conn)
+        assert error.value.status_code == 404
+    assert await saved_store.get(owner, snapshot.id) == snapshot
+    async with pg[1].begin() as conn:
+        await conn.execute(text("DELETE FROM users WHERE id=:id"), {"id": owner.id})
+    async with pg[1]() as conn:
+        assert await conn.scalar(select(func.count()).select_from(AiSavedSearch).where(AiSavedSearch.saved_search_id == snapshot.id)) == 0
 
 
 @pytest.mark.parametrize("change", ["blocked", "deleted", "restricted"])
@@ -201,7 +223,7 @@ async def test_concurrent_ai_and_manual_saves_share_existing_collection_limit(sa
     assert sum(not isinstance(item, Exception) for item in results) == 1
     assert sum(isinstance(item, (SavedAIError, HTTPException)) for item in results) == 1
     async with pg[1]() as conn:
-        assert await conn.scalar(select(func.count()).select_from(SavedSearch).where(SavedSearch.user_id == owner.id)) == 1
+        assert await saved_search_count(owner.id, conn) == 1
 
 
 @pytest_asyncio.fixture
@@ -248,6 +270,7 @@ async def test_concurrent_small_pool_ai_and_manual_collection_cap_is_atomic(smal
     assert len({value.id for value in saved}) == 3
     async with maker.begin() as conn:
         await conn.execute(delete(SavedSearch).where(SavedSearch.user_id == owner.id))
+        await conn.execute(delete(AiSavedSearch).where(AiSavedSearch.user_id == owner.id))
     monkeypatch.setattr(get_settings(), "max_saved_searches_per_user", 1)
     async def manual():
         async with maker() as conn:
@@ -259,7 +282,7 @@ async def test_concurrent_small_pool_ai_and_manual_collection_cap_is_atomic(smal
     assert len(failures) == 2
     assert all(isinstance(value, (SavedAIError, HTTPException)) for value in failures)
     async with maker() as conn:
-        assert await conn.scalar(select(func.count()).select_from(SavedSearch).where(SavedSearch.user_id == owner.id)) == 1
+        assert await saved_search_count(owner.id, conn) == 1
 
 
 @pytest.mark.parametrize("small_saved_store", [1], indirect=True)
@@ -290,4 +313,5 @@ async def test_same_connection_result_read_preserves_all_guards(small_saved_stor
         await repository.save(caller, receipt.result_ref)
     async with maker() as conn:
         assert await conn.scalar(select(func.count()).select_from(SavedSearch).where(SavedSearch.user_id == owner.id)) == 0
+        assert await saved_search_count(owner.id, conn) == 0
         assert await conn.scalar(select(func.count()).select_from(AISearchRequest)) == 1

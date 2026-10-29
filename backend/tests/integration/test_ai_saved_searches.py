@@ -11,9 +11,10 @@ from sqlalchemy import delete, func, select, update
 from test_ai_verified_cards import setup
 
 from app.db.session import SessionLocal
-from app.models import ExternalListingSource, Listing, MailOutbox, Notification, SavedSearch, User
+from app.models import ExternalListingSource, Listing, MailOutbox, Notification, User
 from app.models.ai_fact_pipeline import AiFactRematchEvent
 from app.models.ai_query_proof import AiQueryProof
+from app.models.ai_saved_search import AiSavedSearch
 from app.models.ai_search_quota import AISearchRequest, AIUsageDay
 from app.models.ai_search_session import AISearchResult, AISearchSession
 from app.models.moderation import ListingRestriction, UserRestriction
@@ -124,7 +125,7 @@ async def test_rematch_reloads_current_sources_proofs_moderation_and_saved_state
         assert await conn.scalar(select(func.count()).select_from(MailOutbox)) == 0
         assert await conn.scalar(select(func.sum(AIUsageDay.used))) == 1
     async with SessionLocal.begin() as conn:
-        await conn.execute(delete(SavedSearch).where(SavedSearch.id == saved.id))
+        await conn.execute(delete(AiSavedSearch).where(AiSavedSearch.saved_search_id == saved.id))
     with pytest.raises(SavedAIError, match="SAVED_AI_NOT_FOUND"):
         await repo.dry_run_event(subject, disabled.id, event_id)
 
