@@ -49,7 +49,7 @@ async def saved_store(store, pg):
         await conn.execute(text("INSERT INTO saved_searches(id,user_id,name,query,rental_mode,filters,polygon,alerts_enabled) "
                                 "VALUES (:id,:user,'legacy','','long','{}','[]',true)"), {"id": legacy_saved, "user": legacy_user})
         def migrate(sync):
-            path = Path(__file__).parents[2] / "alembic/versions/0072_ai_saved_searches.py"
+            path = Path(__file__).parents[2] / "alembic/versions/0074_ai_saved_searches.py"
             spec = importlib.util.spec_from_file_location("saved_migration", path)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)

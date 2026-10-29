@@ -4,8 +4,8 @@ from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
-revision = "0072_ai_saved_searches"
-down_revision = "0071_ai_query_proofs"
+revision = "0074_ai_saved_searches"
+down_revision = "0073_ai_command_seed"
 branch_labels = None
 depends_on = None
 

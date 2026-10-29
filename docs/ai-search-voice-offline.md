@@ -16,6 +16,11 @@ Running/replayed operations never call either provider again. Zero matches after
 a meaningful successful change still cost one search. Reviewed DeepSeek no-op
 rejection and text fingerprints remain unchanged.
 
+Successful voice replays use the same terminal receipt reader as text search.
+Expired or unavailable original cards return the durable successful receipt with
+`cards_error`, without rerunning ASR/intent or debiting again. Card reads retain
+their ownership, expiry and integrity checks; unexpected errors still propagate.
+
 `OfflineASR` accepts only HTTPX MockTransport, targeting a synthetic `.invalid`
 host. Its explicit local outbound gate is not production consent approval. It
 rejects compression/redirects, limits raw response bytes before JSON parsing,

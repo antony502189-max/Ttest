@@ -28,3 +28,18 @@ deployment or production policy is enabled by this change.
 CI also identified CVE-2026-114605 in the inherited dnspython 2.8.0 pin.
 The pin is updated to 2.9.0, the upstream fix:
 https://www.dnspython.org/news/2.9.0/ . No security checks are bypassed.
+# Integration after #402 and #397
+
+Session creation and reset retain the identity bootstrap, durable command keys,
+source/version binding and independent editable-session synchronization. An explicit
+new mode resets the owned source atomically rather than abandoning an active slot.
+Ambiguous responses preserve the mode together with the original command key.
+Migration `0073_ai_command_seed` adds the nullable chosen mode to command receipts;
+legacy receipts mean no initial mode. Changed-mode replay is rejected, even after
+the editable session criteria evolve. Cleanup preserves command references as well
+as request and result references.
+
+Committed-result metadata is validated separately from the editable session. Its
+failure cannot resurrect a terminal pending message or discard an editable draft;
+cards keep their previous valid labels, and the session is synchronized independently.
+An explicit new conversation preserves draft/cards and requires a fresh mode choice.

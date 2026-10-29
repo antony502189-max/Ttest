@@ -70,6 +70,22 @@ jobs:
         run: python -m pytest -q backend/tests/integration/test_ai_verified_cards.py backend/tests/integration/test_ai_http.py backend/tests/integration/test_ai_saved_searches.py backend/tests/integration/test_listing_gallery_cards.py --junitxml=output/ai-verified-cards.xml
       - name: Install isolated Chromium contract runtime
         run: python -m playwright install --with-deps chromium
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Build isolated browser frontend
+        env:
+          VITE_ENABLE_MOCK_MODE: '1'
+          VITE_GOOGLE_MAPS_TEST_SDK: '1'
+          VITE_API_BASE_URL: /api/v1
+        run: |
+          npm ci
+          npm run build
+      - name: Real HTTP frontend cookie and lost-ack recovery on PostGIS
+        env:
+          AI_UI_DIST_PATH: ${{ github.workspace }}/dist
+        run: python -m pytest -q backend/tests/integration/test_ai_browser_recovery.py --junitxml=output/ai-real-http-recovery.xml
       - name: Actual browser guest cookie and cross-site boundary
         run: python -m pytest -q backend/tests/ai_http_browser/test_ai_http_browser.py --junitxml=output/ai-http-browser.xml
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

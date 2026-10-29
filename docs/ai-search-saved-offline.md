@@ -1,6 +1,6 @@
 # Registered saved intent and rematch dry run (disabled)
 
-Migration 0072 adds a top-level matcher (`manual.v1` for existing rows) and an
+Migration 0074 adds a top-level matcher (`manual.v1` for existing rows) and an
 `ai.v1` child containing a strict immutable criteria snapshot and its own content
 hash. There is no result/session foreign key or conversational expiry dependency.
 AI parents have no legacy mode/query/filters/polygon and cannot enable legacy
