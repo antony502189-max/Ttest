@@ -182,9 +182,13 @@ for (const viewport of [
     await expectNoHorizontalOverflow(page)
     await page.getByRole('button', { name: /¿Quién vivirá\?/ }).click()
     await expectNoHorizontalOverflow(page)
-    const occupantDialog = page.getByRole('dialog')
+    // The enhanced panel replaces the source sheet on an animation frame.
+    // Wait for its own controls so a click cannot latch onto the source button
+    // just before the source is hidden by the enhancement.
+    const occupantDialog = page.getByRole('dialog').filter({ has: page.locator('[data-m2-occupant-close]') })
     await expect(occupantDialog).toBeVisible()
-    await occupantDialog.locator('button[aria-label="Cerrar"]:visible, button[aria-label="Close"]:visible').first().click()
+    await occupantDialog.getByRole('button', { name: 'Cerrar', exact: true }).click()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
     await page.getByRole('button', { name: 'Seleccionar ubicación actual' }).click()
     await expectNoHorizontalOverflow(page)
     await page.getByTestId('draw-zone').click()

@@ -7,7 +7,7 @@ source-health freshness by elapsed time or complete listing eligibility.
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import DateTime, Text, func, literal, or_, select, text
+from sqlalchemy import DateTime, Text, func, literal, select, text
 from sqlalchemy.dialects.postgresql import JSONB, aggregate_order_by, insert
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -53,6 +53,14 @@ def projection_signature(listing_id) -> ColumnElement[str]:
     anchor = AiFactCatalog.__table__.alias()
     known_ids = select(source.c.source_record_id).where(source.c.canonical_listing_id == listing_id).correlate_except(source)
     batch_ids = select(source.c.batch_id).where(source.c.canonical_listing_id == listing_id).correlate_except(source)
+    current = ExternalListingSource.__table__.alias()
+    current_ids = select(current.c.id).where(current.c.canonical_listing_id == listing_id).correlate_except(current)
+    # Select the identical current-or-former identity set through indexed
+    # lookups first. An OR against a correlated IN subquery made PostgreSQL
+    # scan the entire external-source PK for each sparse listing, even with
+    # the 129-row result bound below. UNION deduplicates identities without
+    # dropping newly linked or formerly known/remapped sources.
+    authority_ids = current_ids.union(known_ids)
 
     def rows(table, condition, key, limit, value=None):
         bounded = select((value if value is not None else _object(table.c)).label("row"), key.label("ordering")).where(
@@ -87,7 +95,7 @@ def projection_signature(listing_id) -> ColumnElement[str]:
         "anchor", rows(anchor, anchor.c.canonical_listing_id == listing_id, anchor.c.canonical_listing_id, 1),
         "projection", rows(projection, projection.c.canonical_listing_id == listing_id, projection.c.canonical_listing_id, 1),
         "sources", rows(source, source.c.canonical_listing_id == listing_id, source.c.source_record_id, 129),
-        "authority", rows(external, or_(external.c.canonical_listing_id == listing_id, external.c.id.in_(known_ids)),
+        "authority", rows(external, external.c.id.in_(authority_ids),
                           external.c.id, 129, authority),
         "batches", rows(batch, batch.c.id.in_(batch_ids), batch.c.id, 129),
         "facts", rows(fact, fact.c.batch_id.in_(batch_ids), fact.c.id, 1025)))

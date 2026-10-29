@@ -390,6 +390,8 @@ async def test_dense_ai_map_thresholds_edges_and_live_proof_changes(record_prope
     import json
     from time import perf_counter
 
+    from sqlalchemy import event
+
     from app.schemas.listings import ListingMapRequest
 
     bounds = {"north": 28.5, "south": 27.5, "east": -16.6, "west": -16.9}
@@ -398,14 +400,68 @@ async def test_dense_ai_map_thresholds_edges_and_live_proof_changes(record_prope
     # one center cell. Row zero has incompatible pets and must never count.
     positions = [center, (-16.9, 27.5), (-16.6, 27.5), (-16.9, 28.5), (-16.6, 28.5)] + [center] * 298
     query, subject, sid, ids, source_ids = await setup("long", count=303, positions=positions)
+    async with SessionLocal() as session, session.begin():
+        first = await session.get(Listing,ids[0])
+        owner = await session.get(User,first.owner_user_id)
+        outside = await _seed_listing_with_gallery(session,owner,"long","plan-unrelated")
+        outside.status = "draft"
+        await session.flush()
+        await session.execute(ExternalListingSource.__table__.insert(),[{
+            "source_name":"plan-unrelated","external_id":str(i),"source_url":f"https://example.invalid/plan/{i}",
+            "canonical_listing_id":outside.id,"fingerprint":digest(str(i)),"current_status":"active"
+        } for i in range(2048)])
+    async with SessionLocal() as session, session.begin():
+        for table in ("listings","external_listing_sources","ai_fact_sources"):
+            await session.execute(text(f"ANALYZE {table}"))
     timings = []
+    plans = []
     original_hash = None
 
     async def read(zoom, expected):
         nonlocal original_hash
         started = perf_counter()
-        result = await query.map_owned(subject, sid, 1, ListingMapRequest(**bounds, zoom=zoom))
+        captured = []
+        engine = SessionLocal.kw["bind"]
+        inspect_plan = len(expected) in {32,128,300,301} and zoom in {8,13}
+        def capture(conn,cursor,statement,parameters,context,executemany):
+            if getattr(getattr(context.compiled,"statement",None),"is_select",False):
+                captured.append((statement,parameters))
+        if inspect_plan:
+            event.listen(engine.sync_engine,"before_cursor_execute",capture)
+        try:
+            result = await query.map_owned(subject, sid, 1, ListingMapRequest(**bounds, zoom=zoom))
+        finally:
+            if inspect_plan:
+                event.remove(engine.sync_engine,"before_cursor_execute",capture)
         timings.append({"valid": len(expected), "zoom": zoom, "seconds": round(perf_counter() - started, 6)})
+        if inspect_plan:
+            def authorities(node):
+                return ([node] if node.get("Relation Name") == "external_listing_sources" else []) + [
+                    item for child in node.get("Plans",[]) for item in authorities(child)]
+            case = {"valid":len(expected),"zoom":zoom,"authority_plans":0,"loops":0,"visited_rows":0,"buffer_touches":0,"execution_ms":0,"node_types":set()}
+            async with SessionLocal() as session, session.begin():
+                await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+                raw = await (await session.connection()).get_raw_connection()
+                for sql,parameters in captured:
+                    plan = await raw.driver_connection.fetchval("EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) "+sql,*parameters)
+                    plan = json.loads(plan) if isinstance(plan,str) else plan
+                    nodes = authorities(plan[0]["Plan"])
+                    if not nodes:
+                        continue
+                    case["authority_plans"] += 1
+                    case["execution_ms"] += plan[0]["Execution Time"]
+                    for node in nodes:
+                        case["loops"] += node["Actual Loops"]
+                        case["visited_rows"] += node["Actual Loops"]*(node["Actual Rows"]+node.get("Rows Removed by Filter",0))
+                        case["buffer_touches"] += node.get("Shared Hit Blocks",0)+node.get("Shared Read Blocks",0)
+                        case["node_types"].add(node["Node Type"])
+            assert case["authority_plans"] == (2 if zoom >= 13 and len(expected) > 300 else 1),case
+            assert "Seq Scan" not in case["node_types"],case
+            assert case["loops"] <= 32*(len(expected)+1),case
+            assert case["visited_rows"] <= 32*(len(expected)+1),case
+            assert case["buffer_touches"] <= 256*(len(expected)+1),case
+            case["node_types"] = sorted(case["node_types"])
+            plans.append(case)
         original_hash = original_hash or result.intent_hash
         assert result.intent_hash == original_hash
         if zoom >= 13 and len(expected) <= 300:
@@ -417,7 +473,7 @@ async def test_dense_ai_map_thresholds_edges_and_live_proof_changes(record_prope
             assert sum(item.count for item in result.map.items) == len(expected)
         return result
 
-    for count in (302, 301, 300, 299, 0):
+    for count in (302, 301, 300, 128, 32, 299, 0):
         async with SessionLocal() as session, session.begin():
             await session.execute(update(Listing).where(Listing.id.in_(ids)).values(status="published"))
             await session.execute(update(Listing).where(Listing.id.in_(ids[count + 1:])).values(status="draft"))
@@ -443,6 +499,7 @@ async def test_dense_ai_map_thresholds_edges_and_live_proof_changes(record_prope
     assert not any(item.promoted for result in results for item in result.map.items)
     # Synthetic timing evidence only: no production latency/SLO assertion.
     record_property("synthetic_map_timings", json.dumps(timings))
+    record_property("synthetic_map_plans", json.dumps(plans))
 
 
 @pytest.mark.parametrize("mode,period,column,display", [("long", "weekly", "weekly_price", 725),

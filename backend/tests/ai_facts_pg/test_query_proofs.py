@@ -1,5 +1,6 @@
 """Real SQL invalidation on synthetic stored sources; no application DB."""
 import importlib.util
+import json
 from pathlib import Path
 from uuid import uuid4
 
@@ -7,12 +8,16 @@ import pytest
 import pytest_asyncio
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
-from sqlalchemy import func, literal, select, text
+from sqlalchemy import event, func, literal, or_, select, text
+from sqlalchemy.sql import operators, visitors
+from sqlalchemy.sql.elements import BinaryExpression
+from sqlalchemy.sql.selectable import CompoundSelect
 from test_current_projection import completed
 from test_fact_pipeline import seed
 from typed_match_cases import VOCABULARY, intent
 
 from app.models import Listing
+from app.models.ai_fact_pipeline import AiFactSource
 from app.models.ai_listing_facts import AiListingSearchFeatures
 from app.repositories.ai_hard_matching import hard_match_predicate
 from app.repositories.ai_query_proofs import QueryProofs, current_projection_predicate, projection_signature
@@ -46,6 +51,113 @@ async def guard(proofs, listing_id):
     async with service.sessions() as session:
         return await session.scalar(select(current_projection_predicate(literal(listing_id),
             resolver_version=service.resolver_version, vocabulary_hash=service.vocabulary_hash)))
+
+
+def legacy_signature(listing_id):
+    """Keep the previous authority predicate as a v2 digest compatibility oracle."""
+    replaced = []
+    def restore_or(node):
+        if not isinstance(node, BinaryExpression) or node.operator is not operators.in_op:
+            return None
+        if not isinstance(getattr(node.right, "element", None), CompoundSelect):
+            return None
+        external = node.left.table
+        source = AiFactSource.__table__.alias()
+        known = select(source.c.source_record_id).where(
+            source.c.canonical_listing_id == listing_id).correlate_except(source)
+        replaced.append(node)
+        return or_(external.c.canonical_listing_id == listing_id, node.left.in_(known))
+    signature = visitors.replacement_traverse(projection_signature(listing_id), {}, restore_or)
+    assert len(replaced) == 1, "compatibility oracle must actually restore the old predicate"
+    return signature
+
+
+@pytest.mark.parametrize("change", ["none", "new_current", "remap", "delete", "remap_and_new", "over_bound"])
+async def test_indexed_authority_preserves_existing_v2_digest_and_invalidation(pipeline, proofs, change):
+    _, sessions = pipeline
+    source = await completed(pipeline)
+    lid = source.canonical_listing_id
+    assert await proofs.prepare(lid)
+    async with sessions() as session:
+        assert await session.scalar(select(legacy_signature(literal(lid)))) == await session.scalar(
+            select(projection_signature(literal(lid))))
+    if change in {"remap", "remap_and_new", "delete"}:
+        async with sessions() as session, session.begin():
+            statement = ("DELETE FROM external_listing_sources WHERE id=:id" if change == "delete" else
+                "UPDATE external_listing_sources SET canonical_listing_id=:new WHERE id=:id")
+            await session.execute(text(statement), {"id": source.source_record_id, "new": uuid4()})
+    if change in {"new_current", "remap_and_new"}:
+        await seed(pipeline, listing_id=lid)
+    if change == "over_bound":
+        async with sessions() as session, session.begin():
+            await session.execute(text("INSERT INTO external_listing_sources(id,canonical_listing_id,fingerprint,current_status) "
+                "SELECT md5('extra:'||g::text)::uuid,:lid,repeat('a',64),'active' FROM generate_series(1,130) g"), {"lid":lid})
+    async with sessions() as session:
+        assert await session.scalar(select(legacy_signature(literal(lid)))) == await session.scalar(
+            select(projection_signature(literal(lid))))
+    assert await guard(proofs, lid) == (change == "none")
+
+
+@pytest.mark.parametrize("correlated", [False, True])
+async def test_authority_lookup_does_not_visit_unrelated_catalog_sources(pipeline, proofs, correlated):
+    _, sessions = pipeline
+    source = await completed(pipeline)
+    async with sessions() as session, session.begin():
+        # Same canonical-source index as the full legacy migration schema.
+        await session.execute(text("CREATE INDEX test_source_canonical ON external_listing_sources(canonical_listing_id)"))
+        await session.execute(text("INSERT INTO external_listing_sources(id,canonical_listing_id,fingerprint,current_status) "
+            "SELECT md5('unrelated:'||g::text)::uuid,md5('other:'||g::text)::uuid,repeat('a',64),'active' "
+            "FROM generate_series(1,2048) g"))
+        await session.execute(text("ANALYZE external_listing_sources"))
+        await session.execute(text("ANALYZE ai_fact_sources"))
+        captured = []
+        def capture(connection, cursor, statement, parameters, context, executemany):
+            captured.append((statement, parameters))
+        event.listen(session.bind.sync_engine, "before_cursor_execute", capture)
+        try:
+            statement = (select(projection_signature(Listing.id)).select_from(Listing).where(
+                Listing.id == source.canonical_listing_id) if correlated else
+                select(projection_signature(literal(source.canonical_listing_id))))
+            await session.scalar(statement)
+        finally:
+            event.remove(session.bind.sync_engine, "before_cursor_execute", capture)
+        statement, parameters = captured[0]
+        raw = await (await session.connection()).get_raw_connection()
+        plan = await raw.driver_connection.fetchval("EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) " + statement, *parameters)
+        if isinstance(plan, str):
+            plan = json.loads(plan)
+        def scans(node):
+            own = [node] if node.get("Relation Name") == "external_listing_sources" else []
+            return own + [item for child in node.get("Plans", []) for item in scans(child)]
+        authority_scans = scans(plan[0]["Plan"])
+        assert authority_scans
+        assert all(node["Actual Rows"] + node.get("Rows Removed by Filter", 0) <= 1 for node in authority_scans)
+
+
+async def test_correlated_proofs_keep_each_listing_scoped_after_source_remap(pipeline, proofs):
+    service, sessions = pipeline
+    first = await completed(pipeline)
+    second = await completed(pipeline)
+    ids = [first.canonical_listing_id, second.canonical_listing_id]
+    for lid in ids:
+        assert await proofs.prepare(lid)
+    async def read():
+        async with sessions() as session:
+            return (await session.execute(select(Listing.id,
+                projection_signature(Listing.id), legacy_signature(Listing.id),
+                current_projection_predicate(Listing.id, resolver_version=service.resolver_version,
+                    vocabulary_hash=service.vocabulary_hash)).where(Listing.id.in_(ids)))).all()
+    before = {row[0]: row[1:] for row in await read()}
+    assert all(new == old and valid for new, old, valid in before.values())
+    async with sessions() as session, session.begin():
+        await session.execute(text("UPDATE external_listing_sources SET canonical_listing_id=:target WHERE id=:source"),
+            {"target": ids[1], "source": first.source_record_id})
+    after = {row[0]: row[1:] for row in await read()}
+    # Both the former owner and new owner must observe the remap. Each retains
+    # its own digest, and the old proof cannot authorize either listing.
+    assert all(new == old and not valid and new != before[lid][0]
+               for lid, (new, old, valid) in after.items())
+    assert after[ids[0]][0] != after[ids[1]][0]
 
 
 async def test_only_verified_projection_can_be_certified(pipeline, proofs):
