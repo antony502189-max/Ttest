@@ -94,21 +94,20 @@ services:
 networks:
   edge:
     name: ttest-ai-text-lab-loopback
-    labels: *labels
+    external: true
   lab:
     name: ttest-ai-text-lab-network
-    internal: true
-    labels: *labels
+    external: true
 volumes:
   pg:
     name: ttest-ai-text-lab-pg-v1
-    labels: *labels
+    external: true
   redis:
     name: ttest-ai-text-lab-redis-v1
-    labels: *labels
+    external: true
   tls:
     name: ttest-ai-text-lab-tls-v1
-    labels: *labels
+    external: true
   media:
     name: ttest-ai-text-lab-media-v1
-    labels: *labels
+    external: true

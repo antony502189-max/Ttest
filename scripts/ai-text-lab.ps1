@@ -75,6 +75,22 @@ $compose = @('compose', '--project-name', 'ttest-ai-text-lab', '-f', (Join-Path 
 switch ($Action) {
     'start' {
         Invoke-Checked docker ($compose + @('build'))
+        # Stable labels: Compose must never recreate persistent synthetic data
+        # because a source SHA changed. The launcher owns their lifecycle.
+        foreach ($name in @('pg', 'redis', 'tls', 'media')) {
+            & docker volume inspect "ttest-ai-text-lab-$name-v1" *> $null
+            if ($LASTEXITCODE -ne 0) {
+                Invoke-Checked docker @('volume', 'create', '--label', "es.ttest.purpose=$purpose", "ttest-ai-text-lab-$name-v1")
+            }
+        }
+        foreach ($network in @('ttest-ai-text-lab-network', 'ttest-ai-text-lab-loopback')) {
+            & docker network inspect $network *> $null
+            if ($LASTEXITCODE -ne 0) {
+                $options = @('network', 'create', '--label', "es.ttest.purpose=$purpose")
+                if ($network -eq 'ttest-ai-text-lab-network') { $options += '--internal' }
+                Invoke-Checked docker ($options + $network)
+            }
+        }
         Invoke-Checked docker ($compose + @('up', '-d', '--wait', 'postgres', 'redis'))
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'python', '-m', 'lab.certificate'))
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'alembic', 'upgrade', 'head'))
