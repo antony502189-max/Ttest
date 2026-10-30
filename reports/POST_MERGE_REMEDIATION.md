@@ -1,65 +1,107 @@
 # Исправления замечаний post-merge аудита
 
-Дата: 30 октября 2026, Europe/Moscow.
-Код исправлений: `23ccd0b76ee383389811983426dd415085b9d7ac`, ветка
-`codex/post-merge-remediation`. База аудита: `7d4c125574927181511c5f1bc7e201e20a8840a8`.
+Дата: 30 октября 2026, Europe/Moscow. Проверенный код: `6548a2aeccb65d1bdec13d40cf9d0e43bd22b13c`,
+ветка `codex/post-merge-remediation`. База аудита: `7d4c125574927181511c5f1bc7e201e20a8840a8`.
+PR: [#403](https://github.com/antony502189-max/Ttest/pull/403).
 
-Исходный [отчёт аудита](MAIN_POST_MERGE_INTEGRATION_AUDIT.md) сохранён как
-историческая запись. Его FAIL относится к проверенному старому main.
+Исходный [аудит](MAIN_POST_MERGE_INTEGRATION_AUDIT.md) сохранён как историческая
+запись. Его FAIL относится к старому main. Исправления кода проверены в PR;
+новый capacity result: **protocol COMPLETE / SLO FAIL**. Зелёный CI не заменяет SLO.
 
-| Замечание | Изменение | Проверка | Статус |
-|---|---|---|---|
-| ISSUE-001, P1 | Общий `start-fullstack-audit.sh` применяет test-only geocoder override при старте backend и seed в обоих PR/main runners | Исполнение launcher с fake Docker/curl, проверка настоящего Compose config и реальные frontend/API/PostGIS tests: 23 passed, 7 skipped | Исправлено в ветке; remote CI требуется до merge |
-| ISSUE-002, P2 | Единый синхронный `commitMapRoute`; camera idle не возвращает drawing mode и не пишет camera params после выхода в List/Filters | Старое управляемое reproduction теперь проходит; 10 повторных race checks и 65 map/navigation tests passed | Исправлено |
-| ISSUE-003, P2 | Оба AI workflow слушают каждый main push; manual release дополнительно проверяет последние push runs точного main SHA по workflow path/event/branch/status | 24 CI/release/home regression checks passed; негативные stale/missing/failed/queued/cancelled/skipped варианты отклонены | Исправлено в коде; первые реальные main-push runs появятся после merge |
-| ISSUE-004, P2 | Добавлен read-only `check-ai-map-capacity.py`, который пересчитывает raw evidence и требует measured SHA + полный протокол + успешный SLO | 6 capacity acceptance tests passed; поддельный cached summary, старый SHA, недостающий масштаб и raw failure отклонены; CLI без evidence возвращает1 | **Не закрыто: нужны отдельно разрешённые новые representative замеры** |
-| ISSUE-005, P3 | Optional Pages configure/upload/deploy выполняются только при `PAGES_PREVIEW_ENABLED=true`; build/lint/typecheck остаются обязательными, disabled state явно отражён в summary | YAML/условия проверены regression tests; при opt-in настоящие 404/permission errors не подавляются | Исправлено на уровне workflow; Pages site/settings не включались |
-
-## Исполненные проверки
-
-Среда: native Linux snapshot в отдельном test container, Python3.13.14 с pinned
-constraints, PostgreSQL16/PostGIS3.4, отдельные Redis и synthetic DB. Frontend
-static checks также выполнены на Windows/Node24; Docker production build использует
-прикреплённый к Dockerfile Node22. Ни одна application/staging/production DB не использована.
-
-| Команда / suite | Результат |
+| Замечание | Результат |
 |---|---|
-| `ruff check app tests` + новые Python CLI | PASS |
-| `mypy app` | PASS, 153 source files |
-| `pytest -q -m 'not integration'` | **1564 passed, 31 skipped** |
-| Новые capacity/CI contracts, финальный повтор | **21 passed**; входят также в unit suite |
-| CI/release/home focused suite | **24 passed**; пересекается с unit suite |
-| Map race tests + исходное audit reproduction, repeat2 | **10 passed** |
-| APK/navigation/history/mobile map/Maps acceptance | **65 passed** |
-| `playwright.ai-search.config.ts` | **50 passed** |
-| `playwright.search-lifecycle.config.ts` | **62 passed** |
-| `playwright.fullstack.config.ts` | **23 passed, 7 skipped**, actual API/PostGIS |
-| Fresh database migrations для full-stack | PASS, полный upgrade head |
-| `npm run lint`, `typecheck`, `build`, `test:security`, `test:bundle-security` | PASS |
-| Supply-chain и immutable migration compatibility | PASS |
-| Compose full-stack harness contract | PASS |
+| ISSUE-001, P1 | Общий test-only full-stack launcher применяет geocoder harness и при старте, и при seed в обоих PR/main runners. Production address validation сохранена. PR Full audit PASS. |
+| ISSUE-002, P2 | Синхронная route authority и сверка с фактическим hash URL защищают Search this area, List/Filters, browser Back и fallback Back. Суперседированный pending camera сбрасывается. Обе новые Back reproduction сначала FAIL, после исправления PASS. |
+| ISSUE-003, P2 | AI workflows слушают каждый main push. Manual release требует последние successful push/main checks точного SHA по workflow path. Stale/missing/running/failed/skipped варианты отклоняются. Первые реальные exact-main push checks возможны после merge. |
+| ISSUE-004, P2 | **Открыт performance blocker:** новый протокол выполнен, но capacity SLO не пройден. |
+| ISSUE-005, P3 | Optional Pages configure/upload/deploy требуют PAGES_PREVIEW_ENABLED=true; обязательный build сохранён. При opt-in ошибки не подавляются. Pages site не включался. |
 
-31 unit skips — 28 Windows/PowerShell cases и три opt-in public-source/research
-tests. PowerShell launcher/monitor не изменялись; их 28 Windows cases были отдельно
-проверены в исходном аудите. Full-stack skips — прежние conditional/legacy cases.
-Полный PG regression на931 cases и historical upgrade matrix повторно не запускались:
-backend application SQL/models/migrations не менялись; их исходные результаты
-сохранены в audit report. Здесь отдельно создана новая full-stack DB и пройден
-реальный полный migration path.
+Актуальные architecture/database/index/troubleshooting ссылки обновлены до
+`0074_ai_saved_searches`; датированные snapshots обозначены как исторические.
 
-Локальные raw logs/JUnit: `output/post-merge-remediation/` managed worktree.
-Компактная матрица: `reports/post-merge-remediation-evidence/test-results.json`.
-Пересекающиеся проверки не объявляются дополнительными уникальными tests.
+## Проверки итогового кода
 
-## Оставшаяся граница
+Все 11 исполнявшихся CI workflows на указанном SHA успешны; два условных visual
+workflow пропущены по существующим условиям. Полный список:
+[CI evidence](post-merge-remediation-evidence/ci-final-code.json).
 
-План capacity-прогона и необходимые ресурсы записаны в
-[docs/post-merge-remediation.md](../docs/post-merge-remediation.md).
-30 октября 2026 владелец отдельно разрешил указанный изолированный прогон.
-Ресурсы и namespace готовятся по этому плану; до получения raw evidence
-100k/500k/1m результат не объявляется успешным, p95/p99 не выдумываются и
-ISSUE-004 не закрывается. Окончательный capacity report будет отдельным artifact.
+| Проверка | Результат |
+|---|---|
+| Production CI unit suite | 1593 passed, 3 opt-in skipped |
+| Production CI PostgreSQL/PostGIS suite | 938 passed, 6 conditional skipped |
+| Production CI MinIO suite | 1 passed |
+| Dedicated facts CI: real HTTP frontend/cookie recovery | PASS; четыре recovery cases и actual browser guest/cross-site step исполнены |
+| Финальные toolchain/PG contracts в Linux | 168 passed, 28 Windows-only skipped |
+| Windows launcher/monitor contracts | 28 passed отдельно |
+| Forced idle + recall, repeat3 | 18 passed |
+| Map/navigation/Maps/freehand/APK suite | 67 passed |
+| Frontend lint/typecheck/build; backend Ruff/mypy (153 files); supply-chain/migration governance | PASS |
 
-Public AI/ASR/providers, notifications, GitHub Pages site, deployment configuration
-на сервере и production rollout не активировались. Ветка не merged. До выпуска
-нужны review, green PR checks и новые green exact-main push checks после merge.
+Шесть Production PG skips — browser/recovery/optional ASGI bridge cases; реальные
+cookie/recovery steps отдельно обязательны и успешны в dedicated facts workflow.
+Пересекающиеся suites не складываются в число уникальных tests. Ранние проверки
+основного исправления также сохранены: AI browser — 50, search lifecycle — 62,
+actual full-stack — 23 passed / 7 conditional skipped; frontend production Docker build
+и bundle/security checks успешны. Детали:
+[матрица](post-merge-remediation-evidence/test-results.json).
+
+## Авторизованная изолированная нагрузка
+
+Experiment `aa2f9d3367a44c42acde8ce8b29ee220`, точный source SHA выше. DB PostgreSQL 16 /
+PostGIS 3.4 из pinned image; private internal network без host DB ports.
+DB: 8 CPU / 8 GiB, driver: 2 CPU / 2 GiB, pool: 30; 10 synthetic providers,
+2 source records и 20 observations/listing. 200 requested attempts/case;
+полностью неуспешная первая волна на 500k/1m — предусмотренная протоколом остановка.
+
+| Объявлений | Сценариев | Попыток | Ошибок | SLO-pass сценариев | DB GiB |
+|---:|---:|---:|---:|---:|---:|
+| 100,000 | 18 | 3,600 | 2,504 | 0 | 2.16 |
+| 500,000 | 18 | 2,600 | 1,684 | 0 | 10.58 |
+| 1,000,000 | 18 | 2,600 | 1,697 | 0 | 20.87 |
+
+Критерии: p95 ≤ 500 ms, p99 ≤ 1000 ms, без ошибок. SQL timeout 5 s и pool timeout 30 s
+сохранены. Длительности ошибок не объявляются latency успешного SQL.
+Seed, baseline/actual-or-estimated plans, immutable provenance, dataset SHARE
+freeze, resource coverage и cancellation/pool reuse аттестованы на всех масштабах.
+Сырые данные пересчитаны действующим summarizer; предупреждения: `[]`.
+Acceptance gate возвращает 1.
+
+Подробные результаты: [capacity report](AI_MAP_CAPACITY_REMEDIATION.md).
+Разрешение владельца, ресурсы и ограничения: [план](../docs/post-merge-remediation.md).
+
+## Card cursor aggregates на 1m
+
+Отдельный bounded read-only sequential profile после map-нагрузки: три повторения
+реальных aggregate expressions из `_query_intent`, затем actual EXPLAIN ANALYZE.
+Это диагностика при concurrency 1, не full-card/HTTP capacity certification.
+
+| Aggregate | Три длительности, ms | EXPLAIN execution, ms |
+|---|---|---:|
+| `fact_catalog_revision` | 300.0, 52.1, 51.3 | 73.209 |
+| `proof_population_signature` | 5856.4, 2587.4, 2550.7 | 2774.958 |
+
+## Доказательства и границы
+
+Текущий raw archive:
+[capacity-aa2f9d33.tar.gz](post-merge-remediation-evidence/capacity-aa2f9d33.tar.gz)
+SHA256 `21ce1bdbf200b24e4ac40bd6ac415bfb57b687be1fb5e7dd843e77160c3d8b3b`.
+[Индекс и hashes каждого файла](post-merge-remediation-evidence/capacity-evidence-index.json)
+включает также прежний неполный эксперимент, clock-rejected запуск и ранние
+прерванные initialize/seed. Их данные не перенесены в новый experiment и не
+засчитаны как успешные. Конкретные исправления instrumentation, в том числе
+AUTOCOMMIT initialization guard, отдельные maintenance/preflight deadlines и
+UTC-anchored monotonic clocks, описаны в remediation plan. Strict consistency
+и SLO checks не ослаблялись. В обвязке исправлены readiness TCP и сравнение
+DateTimeOffset; артефакты измерений при этом не переписывались.
+Первый start measure 1m отклонён NOWAIT guard из-за autovacuum до timed SQL;
+после завершения обслуживания повторена только measure-фаза с новым run ID.
+Неуспешный manifest сохранён. Повторный пересчёт из распакованного архива
+подтвердил COMPLETE / SLO FAIL, 54 сценария и BLOCKED acceptance.
+
+Локальные raw logs/JUnit: `output/post-merge-remediation/` этого managed worktree.
+DB остановлены; production/shared application DB не использовались. Public AI,
+ASR/providers, уведомления, Pages и production deploy не активировались. Ветка
+не merged. До merge требуется review; после merge обязательны новые green
+exact-main push checks. Public AI остаётся заблокированным capacity и отдельными
+privacy/freshness/retention/provider gates. Future coverage из раздела 9 исходного
+аудита не выдаётся за исполненную public-production сертификацию.

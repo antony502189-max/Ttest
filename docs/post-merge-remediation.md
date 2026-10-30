@@ -139,3 +139,24 @@ lint/typecheck/build passed. Пересекающиеся suites не сумми
 Это большой прогон с возможной длительностью в несколько часов. Даже успешный
 synthetic capacity не разрешает публичный AI: privacy/retention/freshness,
 runtime policy и provider rollout остаются отдельными согласованиями.
+
+## Итог авторизованного прогона
+
+Source `6548a2aeccb65d1bdec13d40cf9d0e43bd22b13c`, experiment
+`aa2f9d3367a44c42acde8ce8b29ee220`: **protocol COMPLETE, SLO FAIL**.
+100k: 2 504 ошибки / 3 600 попыток; 500k: 1 684 / 2 600; 1m: 1 697 / 2 600.
+Ни один из 54 сценариев не прошёл SLO. Все seed/load/plan/resource/stability/
+cancellation attestations подтверждены, warnings отсутствуют; acceptance exit 1.
+Первый start measure 1m остановлен NOWAIT guard из-за autovacuum до timed SQL;
+после завершения обслуживания повторена только measure-фаза с новым run ID.
+Сравнение timestamp в обвязке переведено на DateTimeOffset без изменения данных.
+
+Дополнительно профилированы реальные card-cursor aggregates на 1m. Один
+proof_population_signature занимает 2.55–5.86 s при concurrency 1; этот
+diagnostic profile не сертифицирует полный card/HTTP путь.
+Все lab DB остановлены, public AI не включался. Performance blocker остаётся
+открытым; зелёный CI не является разрешением на активацию.
+
+[Отчёт исправлений](../reports/POST_MERGE_REMEDIATION.md),
+[подробные замеры](../reports/AI_MAP_CAPACITY_REMEDIATION.md),
+[raw archives и hashes](../reports/post-merge-remediation-evidence/capacity-evidence-index.json).
