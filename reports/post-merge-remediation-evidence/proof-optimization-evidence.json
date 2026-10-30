@@ -1,0 +1,106 @@
+{
+  "kind": "bounded-sequential-diagnostic",
+  "capacity_certification": false,
+  "date": "2026-10-31 Europe/Moscow",
+  "before_sha": "6548a2aeccb65d1bdec13d40cf9d0e43bd22b13c",
+  "after_sha": "e5b7f0981d9642b78a264c7c456a5f5c2b90b66e",
+  "runtime_change_sha": "2dc411f4773f73ec1c200abeb5ee3dde3e5b25e2",
+  "before_archive_sha256": "8cddda6eef4176b13596f2a12dfdea30ada084880ccf7cd39f6735dd005e60e0",
+  "after_archive_sha256": "431bc40a073f4f9844f1655522b8c5213a8a18bc68834736a274370384f9df56",
+  "fixture_experiment": "aa2f9d3367a44c42acde8ce8b29ee220",
+  "fixture_sha": "6548a2aeccb65d1bdec13d40cf9d0e43bd22b13c",
+  "concurrency": 1,
+  "maximum_viewport_candidates": 302,
+  "repetitions": 2,
+  "cases": [
+    {
+      "candidates": 0,
+      "zoom": 8,
+      "before_ms": [
+        93.70724300003985,
+        23.645370999929582
+      ],
+      "after_ms": [
+        104.28494400002819,
+        24.727942000026815
+      ],
+      "max_coordinate_delta_degrees": 0.0,
+      "membership_and_noncoordinate_fields_identical": true
+    },
+    {
+      "candidates": 300,
+      "zoom": 13,
+      "before_ms": [
+        3298.9692520000062,
+        2544.2196960000274
+      ],
+      "after_ms": [
+        446.09649899996384,
+        361.5173410000807
+      ],
+      "max_coordinate_delta_degrees": 0.0,
+      "membership_and_noncoordinate_fields_identical": true
+    },
+    {
+      "candidates": 302,
+      "zoom": 13,
+      "before_ms": [
+        4911.48629700001,
+        4974.331230999951
+      ],
+      "after_ms": [
+        2063.8680099999647,
+        2076.1594929999774
+      ],
+      "max_coordinate_delta_degrees": 7.105427357601002e-15,
+      "membership_and_noncoordinate_fields_identical": true
+    }
+  ],
+  "files": {
+    "raw/map-proof-before.json": {
+      "bytes": 838568,
+      "sha256": "d2906a33943c4053ee5b48b3986ebe86c35eb36e936f8c3a67e63edc82815e8b"
+    },
+    "source/before-ai_query_proofs.py": {
+      "bytes": 12618,
+      "sha256": "0487bd9f78da30114c449bc4d5bf7b26333d04eb7f8294cc7230a31273c6ab0a"
+    },
+    "raw/map-proof-after.json": {
+      "bytes": 892790,
+      "sha256": "4423949a30d7e645bf594164e0c58be8760a65ac0efa64abbd4b719ad3d3789d"
+    },
+    "source/after-ai_query_proofs.py": {
+      "bytes": 13661,
+      "sha256": "4a652feae391809899e14f5fe39442197357eb3d4f21bc71c42e2321b2b8a2a6"
+    },
+    "helpers/profile_proof_optimization.py": {
+      "bytes": 5600,
+      "sha256": "450b4d7e55e33e4d0371c3c33b8422a214cfc3f8df6228ffa76796feaddfd80e"
+    },
+    "helpers/profile-proof-optimization.ps1": {
+      "bytes": 4270,
+      "sha256": "2d60f7c4cad63e27c2c90181aec18748984c98aeb5a396adfd1c6f41c3dfd1f2"
+    },
+    "tests/proof-optimization-facts.xml": {
+      "bytes": 35553,
+      "sha256": "14961f9ad7831e65b510277d6827389ce9b76fd7073b27ebdd2c5a8c0da90461"
+    },
+    "tests/proof-optimization-integration.xml": {
+      "bytes": 13615,
+      "sha256": "3a28fa4b0add45e3a7b4064b354e6e46fa640720709f553f436ae997e942f851"
+    },
+    "tests/proof-optimization-unit.xml": {
+      "bytes": 239175,
+      "sha256": "58b5ac03c13e2e54d70706cb36c7e99535c24a135fef535337d6a52911837b8c"
+    },
+    "tests/proof-optimization-capacity-contracts.xml": {
+      "bytes": 1755,
+      "sha256": "726f615d896cea19ea09428114fd8500586b43d9e057dd4974beea396d64542f"
+    }
+  },
+  "archive": {
+    "name": "proof-optimization-diagnostic.tar.gz",
+    "bytes": 168651,
+    "sha256": "ee7e7666c18d320a295ab27aea0ddc736fcb1c8c0e071fb85525b382bcd9f93f"
+  }
+}

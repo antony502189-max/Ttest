@@ -160,3 +160,42 @@ diagnostic profile не сертифицирует полный card/HTTP пут
 [Отчёт исправлений](../reports/POST_MERGE_REMEDIATION.md),
 [подробные замеры](../reports/AI_MAP_CAPACITY_REMEDIATION.md),
 [raw archives и hashes](../reports/post-merge-remediation-evidence/capacity-evidence-index.json).
+
+## Последующая SQL-диагностика и исправления, 31 октября
+
+После завершения baseline в `2dc411f4` устранены две подтверждённые лишние
+операции: canonical whole-row to_jsonb восемь раз на digest и flattening proof
+EXISTS в hash join, сканирующий весь proof catalog и повторяющий digest.
+LIMIT/OFFSET query boundaries сохраняют ровно тот же v2 JSON/digest и
+correlated PK lookup; correctness guards остаются до count/order/LIMIT.
+Регрессии проверяют независимый старый digest в трёх timezone, minimal/extended
+legacy schemas, отсутствующие canonical rows, bookkeeping, remap/delete,
+конкурентный CAS и actual EXPLAIN с 2048 unrelated proofs.
+
+235 fact/proof, 57 cards/map/saved-search integration, 1565 unit и 10 capacity
+acceptance/safety tests passed; 31 unit skips (28 Windows-only + 3 opt-in).
+Ruff/mypy PASS. Test Redis был поднят после setup connection-refused;
+последующий интеграционный прогон успешен.
+
+Bounded sequential diagnostic на уже созданной synthetic 1m DB не менял
+данные и не выполнял новый большой нагрузочный прогон: concurrency 1,
+viewport 0/300/302, два повторения на каждый из старого и нового source SHA,
+SHARE freeze, readonly query transactions, private network и прежние limits.
+Exact source archives экспортированы через git archive, старый hash совпал
+с исходным experiment. Raw capacity directory доступен driver только readonly;
+новая диагностика записана отдельно. Первую попытку остановила strict JSON
+валидация входа до map SQL; после использования model_validate_json измерение
+прошло. Все предыдущие файлы сохранены локально, timings не исправлялись.
+
+При 300 кандидатах второй запрос ускорился 2544.2→361.5ms; actual EXPLAIN
+2587.008→349.226ms. Scan 1000001 proof rows заменён на 300 PK lookups.
+При 302 кандидатах запрос всё ещё занимает 2076.2ms; cluster-statement JIT
+1416.251ms из 1698.023ms execution — отдельное подтверждённое узкое место.
+Membership/counts/остальные поля совпали; floating-point AVG координат отличается
+максимум на 7.11e-15 градуса. Это не p95/p99 и не SLO certification.
+Cursor population aggregate не изменён. ISSUE-004 остаётся OPEN.
+
+В `e5b7f098` исправлена также устаревшая рекомендация summarizer: она больше
+не объявляет любой новый запуск неизмеренным после UNION. Каждый результат
+ограничен собственной source provenance. Критерии и приёмка не ослаблены.
+[Новые raw/JUnit и hashes](../reports/post-merge-remediation-evidence/proof-optimization-evidence.json).

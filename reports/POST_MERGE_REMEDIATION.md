@@ -4,6 +4,12 @@
 ветка `codex/post-merge-remediation`. База аудита: `7d4c125574927181511c5f1bc7e201e20a8840a8`.
 PR: [#403](https://github.com/antony502189-max/Ttest/pull/403).
 
+Обновление 31 октября: после полного baseline добавлены SQL-оптимизации в
+`2dc411f4773f73ec1c200abeb5ee3dde3e5b25e2`; последующий
+`e5b7f0981d9642b78a264c7c456a5f5c2b90b66e` исправляет только историческую
+формулировку генератора отчёта. Полный capacity ниже относится к `6548a2ae`,
+а не к новому SQL. ISSUE-004 остаётся открыт.
+
 Исходный [аудит](MAIN_POST_MERGE_INTEGRATION_AUDIT.md) сохранён как историческая
 запись. Его FAIL относится к старому main. Исправления кода проверены в PR;
 новый capacity result: **protocol COMPLETE / SLO FAIL**. Зелёный CI не заменяет SLO.
@@ -81,6 +87,55 @@ Acceptance gate возвращает 1.
 | `proof_population_signature` | 5856.4, 2587.4, 2550.7 | 2774.958 |
 
 ## Доказательства и границы
+
+### Последующая оптимизация proof SQL, 31 октября
+
+В v2 digest сохранены все входы, границы, нормализация timestamps и исключение
+bookkeeping-полей. Полная canonical row теперь сериализуется в JSON один раз
+вместо восьми; отдельный SQL boundary сохраняет точечный PK lookup proof и
+однократное вычисление digest вместо hash join с повторной проверкой.
+Ни один guard не перенесён после count/order/LIMIT; миграций или TTL нет.
+
+Локальные проверки: **235 fact/proof tests**, включая 47 точечных proof cases;
+**57** реальных интеграционных tests карточек/карты/saved searches;
+**1565 unit passed, 31 skipped** (28 Windows-only + 3 opt-in); **10** capacity
+acceptance/safety tests; Ruff и mypy PASS. Ранняя попытка интеграционных tests
+не прошла setup при выключенном тестовом Redis; после старта собственного
+изолированного Redis все 57 tests прошли. Это не дефект приложения.
+
+Production audit на новом runtime SHA `2dc411f4` также PASS:
+**1593 unit passed / 3 skipped**, **946 PostgreSQL/PostGIS passed / 6 skipped**,
+**1 MinIO passed**. Это новые CI результаты; верхняя таблица с 938 PG tests
+сохраняет исторический результат исходного measured SHA `6548a2ae`.
+Все 11 исполнявшихся workflows нового runtime SHA успешны; два условных visual
+workflow пропущены: [CI evidence](post-merge-remediation-evidence/ci-proof-optimization.json).
+
+Отдельная диагностика использовала ранее созданную synthetic lab 1m, неизменяемые
+source archives `6548a2ae` и `e5b7f098`, concurrency 1, два повторения, viewport
+не более 302 кандидатов. DB 8 CPU/8 GiB, driver 2 CPU/2 GiB; только read-only
+запросы под SHARE freeze. Исходные capacity artifacts смонтированы read-only.
+Это **не повторный capacity protocol** и не доказательство p95/p99.
+
+| Viewport / zoom | Два запроса до, ms | Два запроса после, ms |
+|---|---|---|
+| 0 / 8 | 93.7 / 23.6 | 104.3 / 24.7 |
+| 300 / 13 | 3299.0 / 2544.2 | 446.1 / 361.5 |
+| 302 / 13 | 4911.5 / 4974.3 | 2063.9 / 2076.2 |
+
+Actual EXPLAIN для 300: **2587.008 → 349.226 ms**; вместо Seq Scan **1,000,001**
+proof rows — 300 PK lookups по одной строке. Все IDs, membership, цены, counts,
+promotion/source fields совпали. Маркеры совпали точно; максимальное отличие
+координат кластеров от порядка floating-point AVG — **7.11e-15 градуса**.
+
+Оставшиеся задержки подтверждены: в cluster statement на 302 кандидата JIT
+занял **1416.251 ms из 1698.023 ms**; на zoom≥13 остаются probe и отдельная
+агрегация. Полный cursor aggregate на всём каталоге также не изменён.
+Новый SQL не проходил весь 100k/500k/1m concurrency protocol, SLO PASS не заявлен.
+
+[Сырые запросы, actual plans, ответы и JUnit](post-merge-remediation-evidence/proof-optimization-diagnostic.tar.gz),
+[hashes и сравнение](post-merge-remediation-evidence/proof-optimization-evidence.json).
+SHA256 архива: `ee7e7666c18d320a295ab27aea0ddc736fcb1c8c0e071fb85525b382bcd9f93f`.
+Полный исходный baseline ниже остаётся историческим доказательством SLO FAIL.
 
 Текущий raw archive:
 [capacity-aa2f9d33.tar.gz](post-merge-remediation-evidence/capacity-aa2f9d33.tar.gz)
