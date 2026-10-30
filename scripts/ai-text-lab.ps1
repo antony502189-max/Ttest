@@ -92,6 +92,8 @@ switch ($Action) {
             }
         }
         Invoke-Checked docker ($compose + @('up', '-d', '--wait', 'postgres', 'redis'))
+        Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', '--user', 'root', 'backend', 'python', '-c',
+            "import os,pwd; u=pwd.getpwnam('app'); os.chown('/app/var/lab-media',u.pw_uid,u.pw_gid)"))
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'python', '-m', 'lab.certificate'))
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'alembic', 'upgrade', 'head'))
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'python', '-m', 'lab.seed_ai_text'))
