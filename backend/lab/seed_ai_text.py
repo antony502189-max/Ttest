@@ -25,6 +25,8 @@ async def seed():
     from app.core.security import hash_password
     from app.db.session import SessionLocal, engine
     from app.models import ExternalListingSource, Listing, User
+    from app.models.ai_fact_pipeline import AiFactJob
+    from app.models.ai_query_proof import AiQueryProof
     from app.repositories.ai_query_proofs import QueryProofs
     from app.repositories.listings import point
     from app.schemas.ai_fact_pipeline import SourceInput
@@ -35,6 +37,11 @@ async def seed():
     # Fail closed on any existing catalogue; never truncate or overwrite data.
     async with SessionLocal() as connection:
         if await connection.scalar(select(func.count()).select_from(Listing)):
+            actual = set(await connection.scalars(select(Listing.id)))
+            jobs = await connection.scalar(select(func.count()).select_from(AiFactJob).where(AiFactJob.status == "succeeded"))
+            proofs = set(await connection.scalars(select(AiQueryProof.canonical_listing_id)))
+            if actual != {identifier(name) for name, _, _ in CASES} or jobs != 7 or proofs != actual:
+                raise RuntimeError("incomplete or unexpected synthetic catalogue; refusing to overwrite")
             print(json.dumps({"status": "already-seeded", "ids": {n: str(identifier(n)) for n, _, _ in CASES}}))
             await engine.dispose()
             return

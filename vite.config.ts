@@ -63,7 +63,9 @@ export default defineConfig(({ mode }) => {
     base: process.env.VITE_BASE_PATH || '/',
     plugins: [isolateMockDataFromProduction(mockMode), react(), tailwindcss(), ...(syntheticLab ? [{
       name: 'synthetic-lab-notice',
-      transformIndexHtml: (html: string) => html.replace('<body>', '<body><aside style="padding:12px;background:#fff3cd;color:#332600;text-align:center" data-i18n-exempt>Закрытый synthetic стенд · Тестовый parser, не LLM. Фразы: «все варианты», «с маленькой собакой», «до 600 евро в месяц», «до 400 евро в месяц», «без ограничения бюджета», «желательно с балконом», «обязательно с балконом». Карта локальная, без провайдера.</aside>'),
+      transformIndexHtml: (html: string) => html.replace(/<body[^>]*>/, '$&<aside style="padding:12px;background:#fff3cd;color:#332600;text-align:center" data-i18n-exempt>Закрытый synthetic стенд · Тестовый parser, не LLM. Фразы: «все варианты», «с маленькой собакой», «до 600 евро в месяц», «до 400 евро в месяц», «без ограничения бюджета», «желательно с балконом», «обязательно с балконом». Карта локальная, без провайдера.</aside>'),
+      transform: (code: string, id: string) => /\/src\/(pages\/HomePage|data\/listings)\.tsx?$/.test(id.replaceAll('\\', '/'))
+        ? code.replace(/https:\/\/images\.unsplash\.com\/[^'"\s]+/g, '/lab-placeholder.svg') : null,
     }] : [])],
     // Audit artifacts contain HTML fixtures and copied applications. Only the
     // application entry point belongs in dependency discovery.
