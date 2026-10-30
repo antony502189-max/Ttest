@@ -35,6 +35,24 @@ def _object(columns):
     return func.jsonb_build_object(*pairs)
 
 
+def _canonical_listing_rows(listing, listing_id):
+    # Keep the whole-row conversion below a query boundary: otherwise every
+    # timestamp lookup expands to another to_jsonb(whole_listing) call. LIMIT
+    # and OFFSET prevent flattening while preserving the exact v2 JSON value,
+    # including support for deliberately minimal legacy fixture schemas.
+    snapshot = select(func.to_jsonb(listing.table_valued()).label("value"), listing.c.id.label("ordering")).where(
+        listing.c.id == listing_id).order_by(listing.c.id).limit(1).offset(0).correlate_except(listing).subquery()
+    canonical = snapshot.c.value.op("-")(literal("views")).op("-")(literal("updated_at"))
+    timestamps: list[ColumnElement] = []
+    for column in listing.c:
+        if isinstance(column.type, DateTime) and column.name != "updated_at":
+            timestamps.extend((literal(column.name, type_=Text), func.extract(
+                "epoch", snapshot.c.value.op("->>")(literal(column.name, type_=Text)).cast(DateTime(timezone=True)))))
+    canonical = canonical.op("||")(func.jsonb_build_object(*timestamps))
+    return select(func.coalesce(func.jsonb_agg(aggregate_order_by(canonical, snapshot.c.ordering)),
+                                literal([], type_=JSONB))).select_from(snapshot).scalar_subquery()
+
+
 def projection_signature(listing_id) -> ColumnElement[str]:
     """Bounded correlated SQL digest of everything the verifier relies on.
 
@@ -75,13 +93,6 @@ def projection_signature(listing_id) -> ColumnElement[str]:
         "fingerprint", external.c.fingerprint, "status", external.c.current_status, "snapshot", snapshot,
         "last_success", func.extract("epoch", external.c.last_success_at),
         "content_updated", func.extract("epoch", external.c.content_updated_at))
-    canonical = func.to_jsonb(listing.table_valued()).op("-")(literal("views")).op("-")(literal("updated_at"))
-    timestamps: list[ColumnElement] = []
-    for column in listing.c:
-        if isinstance(column.type, DateTime) and column.name != "updated_at":
-            timestamps.extend((literal(column.name, type_=Text), func.extract(
-                "epoch", canonical.op("->>")(literal(column.name, type_=Text)).cast(DateTime(timezone=True)))))
-    canonical = canonical.op("||")(func.jsonb_build_object(*timestamps))
     return _hash(func.jsonb_build_object(
         # Bump whenever preparation's semantic checks change. Old cache rows
         # must not bypass a new verifier merely because their inputs are equal.
@@ -89,8 +100,7 @@ def projection_signature(listing_id) -> ColumnElement[str]:
         # Hash the canonical row too: public cards can change independently of
         # the provider snapshot. Views/updated_at are bookkeeping, not evidence.
         # to_jsonb(row) also supports deliberately minimal legacy test schemas.
-        "listing", rows(listing, listing.c.id == listing_id, listing.c.id, 1,
-                        canonical),
+        "listing", _canonical_listing_rows(listing, listing_id),
         "room", rows(room, room.c.listing_id == listing_id, room.c.listing_id, 1),
         "anchor", rows(anchor, anchor.c.canonical_listing_id == listing_id, anchor.c.canonical_listing_id, 1),
         "projection", rows(projection, projection.c.canonical_listing_id == listing_id, projection.c.canonical_listing_id, 1),
@@ -121,12 +131,16 @@ def proof_population_signature(*, resolver_version: str, vocabulary_hash: str):
 
 def current_projection_predicate(listing_id, *, resolver_version: str, vocabulary_hash: str) -> ColumnElement[bool]:
     """Use with existing eligibility and hard matching BEFORE count/order/seek/limit."""
+    # Preserve the correlated PK lookup. Flattening this EXISTS into a hash
+    # semi-join scans the complete proof catalog for a small viewport and can
+    # evaluate the expensive signature again when rechecking the hash match.
+    # OFFSET 0 changes neither membership nor the before-LIMIT guard contract.
     return select(1).select_from(AiQueryProof).where(
         AiQueryProof.canonical_listing_id == listing_id,
         AiQueryProof.resolver_version == resolver_version,
         AiQueryProof.vocabulary_hash == vocabulary_hash,
         AiQueryProof.signature == projection_signature(listing_id),
-    ).correlate_except(AiQueryProof).exists()
+    ).offset(0).correlate_except(AiQueryProof).exists()
 
 
 async def _canonical_values_agree(session, listing_id: UUID, projection: SearchProjection) -> bool:

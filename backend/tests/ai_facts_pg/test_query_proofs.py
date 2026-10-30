@@ -8,9 +8,11 @@ import pytest
 import pytest_asyncio
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
-from sqlalchemy import event, func, literal, or_, select, text
+from sqlalchemy import DateTime, Text, event, func, literal, or_, select, text
+from sqlalchemy.dialects.postgresql import JSONB, aggregate_order_by
 from sqlalchemy.sql import operators, visitors
 from sqlalchemy.sql.elements import BinaryExpression
+from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.sql.selectable import CompoundSelect
 from test_current_projection import completed
 from test_fact_pipeline import seed
@@ -24,6 +26,95 @@ from app.repositories.ai_query_proofs import QueryProofs, current_projection_pre
 from app.services.ai_hard_matching import compile_hard_match
 
 pytestmark = pytest.mark.integration
+
+
+def legacy_canonical_rows(listing, listing_id):
+    """Independent pre-optimization v2 canonical JSON oracle."""
+    canonical = func.to_jsonb(listing.table_valued()).op("-")(literal("views")).op("-")(literal("updated_at"))
+    timestamps = []
+    for column in listing.c:
+        if isinstance(column.type, DateTime) and column.name != "updated_at":
+            timestamps.extend((literal(column.name, type_=Text), func.extract("epoch",
+                canonical.op("->>")(literal(column.name, type_=Text)).cast(DateTime(timezone=True)))))
+    canonical = canonical.op("||")(func.jsonb_build_object(*timestamps))
+    bounded = select(canonical.label("row"), listing.c.id.label("ordering")).where(
+        listing.c.id == listing_id).order_by(listing.c.id).limit(1).correlate_except(listing).subquery()
+    return select(func.coalesce(func.jsonb_agg(aggregate_order_by(bounded.c.row, bounded.c.ordering)),
+                                literal([], type_=JSONB))).select_from(bounded).scalar_subquery()
+
+
+@pytest.mark.parametrize("extended", [False, True])
+@pytest.mark.parametrize("timezone", ["UTC", "Pacific/Auckland", "America/New_York"])
+async def test_canonical_serialization_preserves_v2_digest(pipeline, proofs, monkeypatch, extended, timezone):
+    from app.repositories import ai_query_proofs
+    _, sessions = pipeline
+    first, second = await completed(pipeline), await completed(pipeline)
+    if extended:
+        async with sessions() as session, session.begin():
+            for column in Listing.__table__.c:
+                if isinstance(column.type, DateTime) and column.name != "deleted_at":
+                    await session.execute(text(f'ALTER TABLE listings ADD COLUMN "{column.name}" timestamptz'))
+                    await session.execute(text(f'UPDATE listings SET "{column.name}" = '
+                        "'2026-10-25 01:30:00.123456+00'::timestamptz WHERE id=:id"), {"id": first.canonical_listing_id})
+            await session.execute(text("ALTER TABLE listings ADD COLUMN views integer DEFAULT 17"))
+            await session.execute(text("ALTER TABLE listings ADD COLUMN extra_fixture_payload jsonb DEFAULT "
+                "'{\"nested\": [null, true, \"unicode: ñ\"]}'::jsonb"))
+    # Compile an independent old expression before executing the new path.
+    with monkeypatch.context() as old:
+        old.setattr(ai_query_proofs, "_canonical_listing_rows", legacy_canonical_rows)
+        legacy = projection_signature(Listing.id)
+        missing_legacy = projection_signature(literal(uuid4()))
+    current = projection_signature(Listing.id)
+    async with sessions() as session, session.begin():
+        await session.execute(text("SELECT set_config('TimeZone', :zone, true)"), {"zone": timezone})
+        rows = (await session.execute(select(Listing.id, current, legacy).order_by(Listing.id))).all()
+        assert len(rows) == 2
+        assert all(new == old for _, new, old in rows)
+        assert rows[0][1] != rows[1][1], "correlation must not reuse another listing's row"
+        # Both absent IDs have exactly the empty canonical/proof inputs.
+        assert await session.scalar(select(projection_signature(literal(uuid4())))) == await session.scalar(
+            select(missing_legacy))
+    for source in (first, second):
+        assert await proofs.prepare(source.canonical_listing_id)
+        assert await guard(proofs, source.canonical_listing_id)
+    if extended:
+        async with sessions() as session, session.begin():
+            await session.execute(text("UPDATE listings SET views=views+1, updated_at=clock_timestamp()"))
+        assert await guard(proofs, first.canonical_listing_id), "bookkeeping stays outside v2 evidence"
+        async with sessions() as session, session.begin():
+            await session.execute(text("UPDATE listings SET extra_fixture_payload='{}'::jsonb WHERE id=:id"),
+                                  {"id": first.canonical_listing_id})
+        assert not await guard(proofs, first.canonical_listing_id)
+        assert await guard(proofs, second.canonical_listing_id)
+
+
+async def test_canonical_row_is_serialized_once_instead_of_once_per_timestamp(pipeline):
+    from app.repositories.ai_query_proofs import _canonical_listing_rows
+    _, sessions = pipeline
+    source = await completed(pipeline)
+    listing = Listing.__table__.alias()
+    current = _canonical_listing_rows(listing, literal(source.canonical_listing_id))
+    legacy = legacy_canonical_rows(listing, literal(source.canonical_listing_id))
+
+    def count_serializations(node):
+        if isinstance(node, FunctionElement) and node.name == "to_jsonb":
+            return func.count_canonical_serialization(*node.clauses)
+        return None
+
+    current = visitors.replacement_traverse(current, {}, count_serializations)
+    legacy = visitors.replacement_traverse(legacy, {}, count_serializations)
+    async with sessions() as session, session.begin():
+        await session.execute(text("CREATE SEQUENCE canonical_serializations"))
+        await session.execute(text("CREATE FUNCTION count_canonical_serialization(listings) RETURNS jsonb "
+            "LANGUAGE plpgsql VOLATILE AS $$ BEGIN PERFORM nextval('canonical_serializations'); "
+            "RETURN to_jsonb($1); END $$"))
+        previous = await session.scalar(select(legacy))
+        old_calls = await session.scalar(text("SELECT currval('canonical_serializations')"))
+        await session.execute(text("SELECT setval('canonical_serializations', 1, false)"))
+        assert await session.scalar(select(current)) == previous
+        assert await session.scalar(text("SELECT currval('canonical_serializations')")) == 1
+        assert old_calls == 1 + sum(isinstance(column.type, DateTime) and column.name != "updated_at"
+                                    for column in Listing.__table__.c)
 
 
 @pytest_asyncio.fixture
@@ -132,6 +223,49 @@ async def test_authority_lookup_does_not_visit_unrelated_catalog_sources(pipelin
         authority_scans = scans(plan[0]["Plan"])
         assert authority_scans
         assert all(node["Actual Rows"] + node.get("Rows Removed by Filter", 0) <= 1 for node in authority_scans)
+
+
+async def test_correlated_guard_uses_only_candidate_proofs_and_one_digest_per_listing(pipeline, proofs):
+    from app.models.ai_query_proof import AiQueryProof
+    service, sessions = pipeline
+    sources = [await completed(pipeline), await completed(pipeline)]
+    for source in sources:
+        assert await proofs.prepare(source.canonical_listing_id)
+    async with sessions() as session, session.begin():
+        await session.execute(text("INSERT INTO ai_query_proofs "
+            "(canonical_listing_id, signature, vocabulary_hash, resolver_version, feature_revision) "
+            "SELECT md5('unrelated-proof:'||g::text)::uuid,repeat('0',64),:vocab,:resolver,1 "
+            "FROM generate_series(1,2048) g"), {"vocab": service.vocabulary_hash, "resolver": service.resolver_version})
+        await session.execute(text("ANALYZE listings"))
+        await session.execute(text("ANALYZE ai_query_proofs"))
+        query = select(Listing.id).where(current_projection_predicate(Listing.id,
+            resolver_version=service.resolver_version, vocabulary_hash=service.vocabulary_hash))
+        captured = []
+        def capture(connection, cursor, statement, parameters, context, executemany):
+            captured.append((statement, parameters))
+        event.listen(session.bind.sync_engine, "before_cursor_execute", capture)
+        try:
+            assert set((await session.scalars(query)).all()) == {source.canonical_listing_id for source in sources}
+        finally:
+            event.remove(session.bind.sync_engine, "before_cursor_execute", capture)
+        statement, parameters = captured[0]
+        raw = await (await session.connection()).get_raw_connection()
+        plan = await raw.driver_connection.fetchval("EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) " + statement, *parameters)
+        if isinstance(plan, str):
+            plan = json.loads(plan)
+        def nodes(node):
+            return [node] + [item for child in node.get("Plans", []) for item in nodes(child)]
+        scans = nodes(plan[0]["Plan"])
+        proof_scans = [node for node in scans if node.get("Relation Name") == AiQueryProof.__tablename__]
+        assert proof_scans
+        assert all(node["Node Type"] in {"Index Scan", "Index Only Scan"} for node in proof_scans)
+        assert sum(node["Actual Loops"] for node in proof_scans) == len(sources)
+        assert all(node["Actual Rows"] + node.get("Rows Removed by Filter", 0) == 1 for node in proof_scans)
+        # The canonical row subplan is part of each digest. A hash join used
+        # to evaluate it twice per candidate (hash condition plus recheck).
+        canonical_scans = [node for node in scans if node.get("Relation Name") == "listings"
+                           and node.get("Alias") != "listings"]
+        assert sum(node["Actual Rows"] * node["Actual Loops"] for node in canonical_scans) == len(sources)
 
 
 async def test_correlated_proofs_keep_each_listing_scoped_after_source_remap(pipeline, proofs):
