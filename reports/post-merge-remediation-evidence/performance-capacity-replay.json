@@ -1,0 +1,38 @@
+{
+  "source_sha": "06af013856798f4eb93572433b522796edc69fdc",
+  "archive": {
+    "name": "performance-capacity-74074e06.tar.gz",
+    "bytes": 1408076,
+    "sha256": "4c2e898a97b1640fef5ca77e13c60df19c8d14393ab220ed79d1d60a8fbea64b"
+  },
+  "all_file_hashes_verified": true,
+  "measured_source_hashes_verified": true,
+  "protocol_complete": true,
+  "slo_passed": false,
+  "warnings": [],
+  "acceptance": "BLOCKED",
+  "network": "none",
+  "scales": [
+    {
+      "listings": 100000,
+      "cases": 18,
+      "attempts": 3600,
+      "errors": 2400,
+      "slo_pass_cases": 0
+    },
+    {
+      "listings": 500000,
+      "cases": 18,
+      "attempts": 2600,
+      "errors": 1400,
+      "slo_pass_cases": 0
+    },
+    {
+      "listings": 1000000,
+      "cases": 18,
+      "attempts": 2600,
+      "errors": 1400,
+      "slo_pass_cases": 0
+    }
+  ]
+}

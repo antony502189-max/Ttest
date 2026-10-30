@@ -1,5 +1,71 @@
 # Исправления замечаний post-merge аудита
 
+## Актуальный результат продолжения, 31 октября
+
+Runtime `06af013856798f4eb93572433b522796edc69fdc`, тот же draft PR #403.
+Добавлены transaction-local JIT off, один проход карты вместо probe+aggregate
+и O(1) epoch/revision для cursor prepared-proof population (миграция `0075_ai_proof_population`).
+Полный live `query-proof.v2` digest сохранён до count/order/LIMIT;
+новый counter не заменяет актуальность источников/canonical/room/facts.
+
+**ISSUE-004 остаётся OPEN.** Новый fresh experiment
+`74074e06e9d748909889d1567a541f2c`: **protocol COMPLETE / SLO FAIL**.
+
+| Listings | Сценариев | Попыток | Ошибок | SLO-pass |
+|---:|---:|---:|---:|---:|
+|100000|18|3600|2400|0|
+|500000|18|2600|1400|0|
+|1000000|18|2600|1400|0|
+
+Все seed/baseline/plans/stability/resources attestations подтверждены;
+245 resource samples, ошибок и пробелов 0, warnings `[]`. На каждом масштабе
+20/20 запросов отменены, активных SQL 0, pool reuse PASS. Acceptance exit 1.
+Offline replay из опубликованного архива перепроверил hashes каждого файла,
+измеряемых исходников и все RAW: COMPLETE / SLO FAIL / BLOCKED.
+
+Viewport 300 во всех 18 соответствующих нагрузочных сценариях без ошибок,
+но p95 превышает 500 ms. На 1m, zoom 13, first-touch 300/302 — 275.5/265.6 ms;
+при concurrency 100 p95 ≈ 5.5 s, при 200 ≈ 11 s. Viewport 10k/all даёт SQL/pool timeout.
+Это разные виды измерений; одиночные samples не являются p95/p99.
+Actual plans подтверждают один map SQL, отсутствие JIT и 302 proof PK lookups
+для 302 кандидатов. Полный live digest всё ещё читает 6040 fact rows.
+
+Отдельный read-only профиль 1m, concurrency 1, SHARE freeze, SQL 5 s, JIT off:
+
+| Cursor expression | Три длительности, ms | EXPLAIN execution, ms |
+|---|---|---:|
+|Прежний prepared-set aggregate|3092.284 / 2114.648 / 1997.297|1865.047|
+|Новый epoch/revision|3.707 / 1.443 / 1.385|0.020|
+|Оставшийся fact catalog aggregate|91.251 / 41.581 / 46.711|59.044|
+
+Samples включают transaction config и получение соединения. Freeze использует
+отдельное второе соединение; одновременно исполняется один diagnostic query.
+Это не full-card/HTTP capacity certification. Первый диагностический helper
+ошибочно использовал pool 1 одновременно для freeze и query; остановлен,
+лог сохранён, повтор выполнен с двумя соединениями. Capacity pool 30 не менялся.
+Первый start measure 100k остановлен NOWAIT из-за maintenance до map SQL;
+после ожидания выполнен новый run ID, failed manifest и monitoring сохранены.
+
+Локально: 1571 unit passed/31 skipped; 379 fact/proof/toolchain/acceptance
+passed/28 Windows-only skipped; 57 cards/map/saved integration; 31 migration/map
+PG contracts; отдельно 36 Windows launcher/monitor checks. Ruff/mypy PASS.
+Пересекающиеся suites не складываются. Все 11 исполнявшихся runtime CI workflows
+PASS, два условных visual skipped. Production audit: 1599 unit/3 skipped,
+953 PostgreSQL/PostGIS/6 skipped, 1 MinIO passed.
+
+[Новый полный отчёт](AI_MAP_CAPACITY_PERFORMANCE_20261031.md),
+[RAW/JUnit/source archive и hashes](post-merge-remediation-evidence/performance-capacity-evidence.json),
+[offline replay](post-merge-remediation-evidence/performance-capacity-replay.json),
+[runtime CI](post-merge-remediation-evidence/ci-performance-runtime.json).
+Архив SHA256: `4c2e898a97b1640fef5ca77e13c60df19c8d14393ab220ed79d1d60a8fbea64b`.
+Git archive с Windows EOL attributes воспроизведён по тому же SHA и совпал
+с исходным archive hash; evidence сохраняет исполненные archive bytes.
+
+DB остановлена. Merge/public AI/providers/ASR/payments/notifications/Pages/deploy
+не выполнялись. Следующий performance этап требует уменьшения работы live
+проверки и широких агрегатов с полным контрактом инвалидации; быстрые отказы
+и TTL не заменяют SLO. Остальная часть ниже — исторические результаты прежних SHA.
+
 Дата: 30 октября 2026, Europe/Moscow. Проверенный код: `6548a2aeccb65d1bdec13d40cf9d0e43bd22b13c`,
 ветка `codex/post-merge-remediation`. База аудита: `7d4c125574927181511c5f1bc7e201e20a8840a8`.
 PR: [#403](https://github.com/antony502189-max/Ttest/pull/403).

@@ -218,8 +218,9 @@ AI card/map transactions применяют `SET LOCAL jit = off`; настро�
 Миграция `0075_ai_proof_population` заменяет полное чтение proof-множества для
 cursor context на O(1) epoch/revision. Транзакционные statement triggers на
 `ai_query_proofs` покрывают INSERT/COPY/bulk, ON CONFLICT, UPDATE, DELETE и
-TRUNCATE, включая direct SQL. Номер меняется один раз на statement; идентичная
-подготовка не меняет его. Конкурентные записи сериализуются на одном counter;
+TRUNCATE, включая direct SQL. Counter обновляют statement triggers; смешанный
+INSERT ON CONFLICT может вызвать две ветки. Идентичная подготовка не меняет его.
+Конкурентные записи сериализуются на одном counter;
 rollback откатывает proof и counter вместе, RR snapshot видит согласованную пару.
 Пропавший counter блокирует query; пересоздание получает новый epoch.
 
@@ -232,4 +233,20 @@ rollback откатывает proof и counter вместе, RR snapshot вид�
 aggregate при восстановлении множества мог сохранить cursor. Старые cursors
 после rollout отклоняются из-за смены формата context.
 
-Полный повторный capacity ещё не подтверждён; ISSUE-004 остаётся OPEN.
+Полный новый протокол на runtime `06af013856798f4eb93572433b522796edc69fdc`
+завершён: experiment `74074e06e9d748909889d1567a541f2c`, все 54 сценария,
+8800 попыток, 5200 ошибок, 0 SLO-pass. Protocol COMPLETE / SLO FAIL;
+acceptance exit 1. Все attestations полны, warnings отсутствуют. Offline replay
+из архива подтвердил source/file hashes и тот же BLOCKED result.
+
+Read-only диагностика на новой неизменяемой 1m DB: legacy population aggregate
+3092/2115/1997 ms, epoch/revision 3.71/1.44/1.38 ms, concurrency 1, отдельное
+соединение для SHARE freeze, SQL 5 s, JIT off. Это не full-card/HTTP certification.
+
+[Полный отчёт](../reports/AI_MAP_CAPACITY_PERFORMANCE_20261031.md),
+[архив и hashes](../reports/post-merge-remediation-evidence/performance-capacity-evidence.json),
+[offline replay](../reports/post-merge-remediation-evidence/performance-capacity-replay.json).
+Runtime CI: все 11 исполнявшихся workflows PASS, 2 conditional skipped;
+Production audit: 1599 unit, 953 PostgreSQL/PostGIS и 1 MinIO passed.
+Lab остановлена; ISSUE-004 остаётся OPEN. После measured SHA изменены только
+отчёты/evidence и пояснения генератора; приложение не менялось.
