@@ -14,7 +14,7 @@ MARKER = "ttest-ai-text-lab.synthetic.v1"
 
 def require_lab():
     # Exact dedicated destinations; no caller-supplied application DB/provider.
-    expected = {"APP_ENV": "ai-synthetic-lab", "AI_SYNTHETIC_LAB": MARKER,
+    expected = {"APP_ENV": "test", "AI_SYNTHETIC_LAB": MARKER,
                 "DATABASE_URL": DATABASE, "REDIS_URL": REDIS,
                 "FRONTEND_APP_URL": ORIGIN, "FRONTEND_ORIGINS": ORIGIN,
                 "EXTERNAL_IMPORT_ENABLED": "false", "EXTERNAL_REMOVAL_CHECK_ENABLED": "false"}

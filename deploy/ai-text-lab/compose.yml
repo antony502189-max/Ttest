@@ -12,7 +12,7 @@ x-backend: &backend
   labels: *labels
   networks: [lab]
   environment:
-    APP_ENV: ai-synthetic-lab
+    APP_ENV: test
     AI_SYNTHETIC_LAB: ttest-ai-text-lab.synthetic.v1
     DATABASE_URL: postgresql+asyncpg://ai_lab:synthetic-local-only@postgres:5432/ai_text_lab
     REDIS_URL: redis://redis:6379/0
@@ -46,7 +46,6 @@ services:
       POSTGRES_USER: ai_lab
       POSTGRES_PASSWORD: synthetic-local-only
       POSTGRES_DB: ai_text_lab
-    ports: ["127.0.0.1:55439:5432"]
     volumes:
       - pg:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/01-lab.sql:ro
@@ -61,7 +60,6 @@ services:
     container_name: ttest-ai-text-lab-redis
     labels: *labels
     command: ["redis-server", "--appendonly", "yes"]
-    ports: ["127.0.0.1:56389:6379"]
     volumes: ["redis:/data"]
     networks: [lab]
     healthcheck:
@@ -72,7 +70,11 @@ services:
   backend:
     <<: *backend
     container_name: ttest-ai-text-lab-backend
-    ports: ["127.0.0.1:58089:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/ready', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -87,9 +89,12 @@ services:
         FRONTEND_BASE: ${LAB_FRONTEND_BASE:-ttest-main-audit-frontend:7d4c1255}
     ports: ["127.0.0.1:9443:8443"]
     volumes: ["tls:/lab-tls:ro"]
-    networks: [lab]
+    networks: [lab, edge]
     depends_on: [backend]
 networks:
+  edge:
+    name: ttest-ai-text-lab-loopback
+    labels: *labels
   lab:
     name: ttest-ai-text-lab-network
     internal: true

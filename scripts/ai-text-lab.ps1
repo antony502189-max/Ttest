@@ -27,9 +27,11 @@ foreach ($name in @('pg', 'redis', 'tls', 'media')) {
         throw "Foreign volume: $full"
     }
 }
-$raw = & docker network inspect ttest-ai-text-lab-network 2>$null
-if ($LASTEXITCODE -eq 0 -and ($raw | ConvertFrom-Json)[0].Labels.'es.ttest.purpose' -ne $purpose) {
-    throw 'Foreign lab network'
+foreach ($network in @('ttest-ai-text-lab-network', 'ttest-ai-text-lab-loopback')) {
+    $raw = & docker network inspect $network 2>$null
+    if ($LASTEXITCODE -eq 0 -and ($raw | ConvertFrom-Json)[0].Labels.'es.ttest.purpose' -ne $purpose) {
+        throw "Foreign lab network: $network"
+    }
 }
 $stateDir = Join-Path $root 'output/ai-text-lab'
 $stateFile = Join-Path $stateDir 'source.json'
@@ -59,6 +61,8 @@ if ($Action -eq 'start') {
         Invoke-Checked node @('node_modules/vite/bin/vite.js', 'build', '--mode', 'ai-synthetic-lab', '--outDir', 'output/lab-dist')
     }
     finally { Pop-Location }
+    @{ source = $sha; parser = 'synthetic-exact-phrases-v1'; mockApi = $false } | ConvertTo-Json |
+        Set-Content -Encoding utf8 -LiteralPath (Join-Path $snapshot 'output/lab-dist/build-info.json')
     @{ source = $sha; snapshot = $snapshot; backendBase = $BackendBase; frontendBase = $FrontendBase } |
         ConvertTo-Json | Set-Content -Encoding utf8 -LiteralPath $stateFile
 }
@@ -75,7 +79,7 @@ switch ($Action) {
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'python', '-m', 'lab.certificate'))
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'alembic', 'upgrade', 'head'))
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'python', '-m', 'lab.seed_ai_text'))
-        Invoke-Checked docker ($compose + @('up', '-d', 'backend', 'frontend'))
+        Invoke-Checked docker ($compose + @('up', '-d', '--wait', 'backend', 'frontend'))
         Write-Output "Synthetic lab: https://localhost:9443 ; source $($state.source)"
     }
     'seed' { Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'python', '-m', 'lab.seed_ai_text')) }
