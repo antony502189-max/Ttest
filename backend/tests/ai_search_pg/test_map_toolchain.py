@@ -1,4 +1,5 @@
 """Tiny PostgreSQL evidence/cancellation regressions, never a capacity run."""
+import asyncio
 import importlib.util
 import json
 from pathlib import Path
@@ -124,6 +125,49 @@ async def test_measurement_freeze_blocks_writes_and_ddl_and_releases_on_exit(pg,
     assert value["stable"] is (not failure) and value["write_frozen"]
     async with db.begin() as c:
         await c.execute(text("INSERT INTO freeze_fixture VALUES (2)"))
+
+
+async def test_seed_vacuum_waits_for_maintenance_lock_and_restores_query_timeout(pg):
+    bench = benchmark()
+    db = pg[1].kw["bind"]
+    async with db.begin() as connection:
+        await connection.execute(text("CREATE TABLE seed_vacuum_fixture (id int)"))
+    async with db.connect() as blocker, db.connect() as maintenance:
+        await blocker.execute(text("LOCK TABLE seed_vacuum_fixture IN SHARE UPDATE EXCLUSIVE MODE"))
+        await maintenance.execution_options(isolation_level="AUTOCOMMIT")
+        await maintenance.execute(text("SET lock_timeout='1000ms'"))
+        pid = await maintenance.scalar(text("SELECT pg_backend_pid()"))
+        task = asyncio.create_task(bench.vacuum_seed_database(maintenance))
+        try:
+            for _ in range(200):
+                async with db.connect() as observer:
+                    blocked = await observer.scalar(text("SELECT cardinality(pg_blocking_pids(:pid)) > 0"), {"pid": pid})
+                if blocked:
+                    break
+                await asyncio.sleep(0.01)
+            assert blocked, "VACUUM never reached the held maintenance lock"
+            await asyncio.sleep(1.2)
+            assert not task.done(), "setup inherited the measured-query lock timeout"
+        finally:
+            await blocker.rollback()
+            await task
+        assert await maintenance.scalar(text("SHOW lock_timeout")) == "1s"
+
+
+async def test_seed_vacuum_restores_timeout_after_statement_failure(pg):
+    bench = benchmark()
+    db = pg[1].kw["bind"]
+    async with db.begin() as connection:
+        await connection.execute(text("CREATE TABLE seed_vacuum_failure_fixture (id int)"))
+    async with db.begin() as blocker, db.connect() as maintenance:
+        await blocker.execute(text("LOCK TABLE seed_vacuum_failure_fixture IN SHARE UPDATE EXCLUSIVE MODE"))
+        await maintenance.execution_options(isolation_level="AUTOCOMMIT")
+        await maintenance.execute(text("SET lock_timeout='1000ms'"))
+        await maintenance.execute(text("SET statement_timeout='100ms'"))
+        with pytest.raises(DBAPIError) as error:
+            await bench.vacuum_seed_database(maintenance)
+        assert error.value.orig.sqlstate == "57014"
+        assert await maintenance.scalar(text("SHOW lock_timeout")) == "1s"
 
 
 @pytest.mark.parametrize("failure", [False, True])

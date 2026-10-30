@@ -94,6 +94,18 @@ def engine(pool=1, timeout=5000):
             "lock_timeout": "1000", "application_name": "codex-r01-synthetic"}})
 
 
+async def vacuum_seed_database(connection):
+    # Bulk ingestion can overlap autovacuum's ShareUpdateExclusive relation
+    # lock. The measured-query 1s timeout is too short for setup maintenance.
+    # Bound this wait separately and restore the query setting on every exit.
+    previous = await connection.scalar(text("SHOW lock_timeout"))
+    await connection.execute(text("SELECT set_config('lock_timeout', '60s', false)"))
+    try:
+        await connection.execute(text("VACUUM ANALYZE"))
+    finally:
+        await connection.execute(text("SELECT set_config('lock_timeout', :value, false)"), {"value": previous})
+
+
 def bind_experiment(sources, phase):
     """An output directory belongs to exactly one immutable code/DB/profile seed."""
     global PROVENANCE, RUN_ID
@@ -501,7 +513,7 @@ async def seed(total, chunk=5000):
     save(f"proof-verification-{total}.json",{"actual_production_digest_equal":True,"ordinals":checked,"seed_generation":generation})
     async with db.connect() as c:
         await c.execution_options(isolation_level="AUTOCOMMIT")
-        await c.execute(text("VACUUM ANALYZE"))
+        await vacuum_seed_database(c)
         counts = {m.__tablename__: await c.scalar(select(func.count()).select_from(m)) for m in models+[AiQueryProof]}
         for model in models+[AiQueryProof]:
             multiplier = (20 if model is AiListingFact else template["sources"] if model in (

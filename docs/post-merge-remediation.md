@@ -87,6 +87,15 @@ namespace блокировки общий с seed/measure, взаимное ис
 параллельного seed и освобождение lock при успехе/ошибке; suite22 passed.
 Прерванный initialize сохранён отдельно и не является capacity measurement.
 
+В следующей новой lab seed100k завершил загрузку и проверку production digest,
+но подготовительный VACUUM ANALYZE получил lock timeout1s, общий с query engine.
+Для этого единственного maintenance statement задано ограниченное ожидание60s;
+прежний timeout восстанавливается при успехе и ошибке. Измеряемые SQL сохраняют
+свои прежние лимиты. PG regression воспроизводит конфликт
+ShareUpdateExclusive дольше1s и проверяет восстановление настройки также после
+statement cancellation; полный toolchain suite24 passed. Этот неуспешный seed
+тоже сохранён отдельно; новые измерения выполняются в следующей свежей lab.
+
 Это большой прогон с возможной длительностью в несколько часов. Даже успешный
 synthetic capacity не разрешает публичный AI: privacy/retention/freshness,
 runtime policy и provider rollout остаются отдельными согласованиями.
