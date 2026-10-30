@@ -21,6 +21,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
+from sqlalchemy import event, func, literal, select, text, update
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.sql import operators, visitors
+from sqlalchemy.sql.elements import BooleanClauseList
+
 from app.models import ExternalListingSource, Listing, User
 from app.models.ai_fact_pipeline import AiFactCatalog, AiFactSource
 from app.models.ai_listing_facts import (
@@ -39,10 +44,6 @@ from app.schemas.ai_fact_pipeline import FactQueuePolicy, SourceInput
 from app.schemas.ai_listing_facts import FactBatch, FactVocabulary, digest
 from app.schemas.ai_search_intent import SearchIntent
 from app.schemas.listings import ListingMapRequest
-from sqlalchemy import event, func, literal, select, text, update
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.sql import operators, visitors
-from sqlalchemy.sql.elements import BooleanClauseList
 
 DSN = "postgresql+asyncpg://r01:r01-synthetic-only@r01-db:5432/r01_synthetic"
 OUT = Path("/results")
@@ -165,6 +166,19 @@ def phase_file_lock():
 @asynccontextmanager
 async def phase_database_guard(db, phase, total):
     # This lock is database-wide, including different output/experiment IDs.
+    if phase == "initialize":
+        # CREATE INDEX CONCURRENTLY waits for older transaction snapshots.
+        # Keep the same advisory-lock namespace without pinning a transaction
+        # across the migration subprocess; session locks survive autocommit.
+        async with db.connect() as c:
+            await c.execution_options(isolation_level="AUTOCOMMIT")
+            if not await c.scalar(text("SELECT pg_try_advisory_lock(401, 1)")):
+                raise RuntimeError("another synthetic initialize/seed/measure owns the database")
+            try:
+                yield
+            finally:
+                await c.execute(text("SELECT pg_advisory_unlock(401, 1)"))
+        return
     async with db.begin() as c:
         if not await c.scalar(text("SELECT pg_try_advisory_xact_lock(401, 1)")):
             raise RuntimeError("another synthetic initialize/seed/measure owns the database")

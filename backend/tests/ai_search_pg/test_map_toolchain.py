@@ -126,6 +126,32 @@ async def test_measurement_freeze_blocks_writes_and_ddl_and_releases_on_exit(pg,
         await c.execute(text("INSERT INTO freeze_fixture VALUES (2)"))
 
 
+@pytest.mark.parametrize("failure", [False, True])
+async def test_initialize_guard_allows_concurrent_index_and_releases_session_lock(pg, failure):
+    bench = benchmark()
+    db = pg[1].kw["bind"]
+    async with db.begin() as connection:
+        await connection.execute(text("CREATE TABLE initialize_index_fixture (id int)"))
+    async def initialize():
+        async with bench.phase_database_guard(db, "initialize", 3):
+            async with db.connect() as connection:
+                await connection.execution_options(isolation_level="AUTOCOMMIT")
+                await connection.execute(text("SET statement_timeout='2000ms'"))
+                await connection.execute(text("CREATE INDEX CONCURRENTLY initialize_fixture_index ON initialize_index_fixture(id)"))
+            with pytest.raises(RuntimeError, match="another synthetic"):
+                async with bench.phase_database_guard(db, "seed", 3):
+                    pytest.fail("initializer did not exclude concurrent phases")
+            if failure:
+                raise RuntimeError("synthetic initialization failure")
+    if failure:
+        with pytest.raises(RuntimeError, match="synthetic initialization failure"):
+            await initialize()
+    else:
+        await initialize()
+    async with bench.phase_database_guard(db, "seed", 3):
+        pass
+
+
 async def test_capture_keeps_ctes_comments_and_explicit_control_and_explains_every_query(pg):
     bench = benchmark()
     db = pg[1].kw["bind"]

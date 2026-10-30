@@ -78,6 +78,15 @@ Launcher и monitor принимают `-LabId` для новой namespace; б�
 internal network, pinned DB image, exact DB/container identity и resource limits
 сохранены. Новые measurements не должны переиспользовать исторические 20261028 DB.
 
+Первый новый initialize выявил старый дефект benchmark guard: открытая
+транзакция с advisory lock удерживала snapshot и блокировала concurrent index
+migration. Initialize теперь удерживает session advisory lock в AUTOCOMMIT;
+namespace блокировки общий с seed/measure, взаимное исключение сохраняется.
+Измерение по-прежнему держит transaction advisory lock и SHARE freeze всех
+таблиц. Реальные PG tests проверяют concurrent index внутри guard, исключение
+параллельного seed и освобождение lock при успехе/ошибке; suite22 passed.
+Прерванный initialize сохранён отдельно и не является capacity measurement.
+
 Это большой прогон с возможной длительностью в несколько часов. Даже успешный
 synthetic capacity не разрешает публичный AI: privacy/retention/freshness,
 runtime policy и provider rollout остаются отдельными согласованиями.
