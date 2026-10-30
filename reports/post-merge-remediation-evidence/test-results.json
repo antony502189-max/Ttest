@@ -1,0 +1,47 @@
+{
+  "ai-browser.xml": {
+    "tests": 50,
+    "failed": 0,
+    "skipped": 0
+  },
+  "backend-unit.xml": {
+    "tests": 1595,
+    "failed": 0,
+    "skipped": 31
+  },
+  "ci-contracts.xml": {
+    "tests": 24,
+    "failed": 0,
+    "skipped": 0
+  },
+  "final-contracts.xml": {
+    "tests": 21,
+    "failed": 0,
+    "skipped": 0
+  },
+  "fullstack.xml": {
+    "tests": 30,
+    "failed": 0,
+    "skipped": 7
+  },
+  "map-race.xml": {
+    "tests": 10,
+    "failed": 0,
+    "skipped": 0
+  },
+  "map-regressions.xml": {
+    "tests": 65,
+    "failed": 0,
+    "skipped": 0
+  },
+  "search-lifecycle.xml": {
+    "tests": 62,
+    "failed": 0,
+    "skipped": 0
+  },
+  "windows-toolchain.xml": {
+    "tests": 28,
+    "failed": 0,
+    "skipped": 0
+  }
+}

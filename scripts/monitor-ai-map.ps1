@@ -2,12 +2,13 @@ param(
     [Parameter(Mandatory)][string]$OutputDirectory,
     [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{32}$')][string]$RunId,
     [ValidateSet('baseline','fanout')][string]$Profile = 'baseline',
+    [ValidatePattern('^[a-z0-9][a-z0-9-]{0,47}$')][string]$LabId,
     [ValidateRange(1,10)][int]$MaxConsecutiveFailures = 3,
     [ValidateRange(1,60)][int]$IntervalSeconds = 5
 )
 $ErrorActionPreference = 'Stop'
 $labOutput = (Resolve-Path -LiteralPath $OutputDirectory).Path
-$labSuffix = if ($Profile -eq 'fanout') { 'fanout-20261028' } else { '20261028' }
+$labSuffix = if ($LabId) { $LabId } elseif ($Profile -eq 'fanout') { 'fanout-20261028' } else { '20261028' }
 $labDbName = "codex-r01-db-$labSuffix"
 $labNetworkName = "codex-r01-$labSuffix"
 $labMonitorId = [guid]::NewGuid().ToString('N')

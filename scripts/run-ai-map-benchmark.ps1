@@ -6,6 +6,8 @@ param(
     [switch]$BaselineOnly,
     [ValidateSet('baseline','fanout')][string]$Profile = 'baseline',
     [ValidatePattern('^[0-9a-f]{32}$')][string]$ExperimentId,
+    [ValidatePattern('^[a-z0-9][a-z0-9-]{0,47}$')][string]$LabId,
+    [string]$DependencyImage = 'ttest-backend:latest',
     [ValidatePattern('^[0-9a-f]{32}$')][string]$RunId = ([guid]::NewGuid().ToString('N'))
 )
 $ErrorActionPreference = 'Stop'
@@ -25,11 +27,12 @@ if ($labStatus) { throw 'Benchmark requires a clean checkout, including staged/u
 $labProfileOutput = Join-Path $labRoot $(if ($Profile -eq 'fanout') { 'output/r01-fanout' } else { 'output/r01' })
 $labOutput = Join-Path $labProfileOutput $ExperimentId
 New-Item -ItemType Directory -Force -Path $labOutput | Out-Null
-$labImage = docker image inspect ttest-backend:latest --format '{{.Id}}'
+$labImage = docker image inspect $DependencyImage --format '{{.Id}}'
 if ($LASTEXITCODE -ne 0) { throw 'Missing local backend dependency image' }
 if ($labImage -notmatch '^sha256:[0-9a-f]{64}$') { throw 'Expected immutable local runner image ID' }
 # This launcher deliberately supports only this task's private internal lab.
-$labSuffix = if ($Profile -eq 'fanout') { 'fanout-20261028' } else { '20261028' }
+$labSuffix = if ($LabId) { $LabId } elseif ($Profile -eq 'fanout') { 'fanout-20261028' } else { '20261028' }
+$labRunnerSuffix = if ($LabId) { "-$LabId" } else { '' }
 $labNetworkName = "codex-r01-$labSuffix"
 $labDbName = "codex-r01-db-$labSuffix"
 $labNetworkRaw = docker network inspect $labNetworkName
@@ -92,7 +95,7 @@ try {
     tar -xf $labArchive -C $labSnapshot
     if ($LASTEXITCODE -ne 0) { throw 'Cannot extract committed source' }
 Write-Output "ExperimentId=$ExperimentId RunId=$RunId Output=$labOutput"
-docker run --rm --name "codex-r01-runner-$Profile" --network $labNetwork.Id --add-host "r01-db:$($labAttachment.IPAddress)" `
+docker run --rm --name "codex-r01-runner-$Profile$labRunnerSuffix" --network $labNetwork.Id --add-host "r01-db:$($labAttachment.IPAddress)" `
     --label codex.task=r01-synthetic --memory 2g --cpus 2 --read-only --tmpfs /tmp `
     -v "${labSnapshot}:/code:ro" -v "${labOutput}:/results" -w /code/backend `
     -e PYTHONPATH=/code/backend -e PYTHONDONTWRITEBYTECODE=1 -e R01_DISPOSABLE_LAB=synthetic-only -e R01_CODE_REVISION=$labRevision -e R01_IMAGE_ID=$labImage `

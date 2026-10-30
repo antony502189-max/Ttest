@@ -51,9 +51,10 @@ repository variable `PAGES_PREVIEW_ENABLED=true`; без неё workflow явн�
 приёмку. Эта команда ничего не включает и не выполняет нагрузку.
 
 **ISSUE-004 нельзя закрыть без новых реальных измерений.** Малые тесты и новый
-acceptance gate не заменяют результаты. Старое stop instruction сохраняется до
-отдельного явного разрешения владельца, как требовалось в исходном audit prompt
-и [MAP_CAPACITY_PROTOCOL.md](ai-search-developer/MAP_CAPACITY_PROTOCOL.md).
+acceptance gate не заменяют результаты. 30 октября 2026 владелец отдельно
+разрешил описанный ниже изолированный прогон («Разрешаю указанный изолированный
+прогон»). Это разрешение относится только к synthetic lab и не включает public AI.
+Протокол: [MAP_CAPACITY_PROTOCOL.md](ai-search-developer/MAP_CAPACITY_PROTOCOL.md).
 
 Проверяемый план такого разрешения:
 
@@ -70,6 +71,12 @@ acceptance gate не заменяют результаты. Старое stop in
   resource monitor и cancellation/pool-reuse evidence — по действующему протоколу;
 - критерии: p95≤500ms, p99≤1000ms, без ошибок; всё пересчитывается acceptance gate;
 - никаких реальных providers/ASR/crawls/payments/notifications/публичного AI.
+
+Launcher и monitor принимают `-LabId` для новой namespace; без него сохраняется
+старое поведение. Launcher дополнительно принимает `-DependencyImage`, разрешает
+его в immutable image ID и связывает ID с experiment provenance. Проверки
+internal network, pinned DB image, exact DB/container identity и resource limits
+сохранены. Новые measurements не должны переиспользовать исторические 20261028 DB.
 
 Это большой прогон с возможной длительностью в несколько часов. Даже успешный
 synthetic capacity не разрешает публичный AI: privacy/retention/freshness,
