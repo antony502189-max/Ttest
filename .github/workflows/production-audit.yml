@@ -91,7 +91,7 @@ jobs:
 
       - name: PostgreSQL and PostGIS integration tests
         working-directory: backend
-        run: pytest -q -m 'integration and not s3'
+        run: pytest -vv --durations=25 -o faulthandler_timeout=60 -m 'integration and not s3'
 
       - name: MinIO integration tests
         working-directory: backend
@@ -110,7 +110,7 @@ jobs:
           docker compose logs --no-color > output/production-audit.log 2>&1 || true
 
       - name: Upload infrastructure logs on failure
-        if: failure()
+        if: failure() || cancelled()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: production-audit-infrastructure-logs

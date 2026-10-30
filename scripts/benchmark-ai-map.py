@@ -94,14 +94,14 @@ def engine(pool=1, timeout=5000):
             "lock_timeout": "1000", "application_name": "codex-r01-synthetic"}})
 
 
-async def vacuum_seed_database(connection):
+async def maintain_seed_database(connection, *, vacuum=False):
     # Bulk ingestion can overlap autovacuum's ShareUpdateExclusive relation
     # lock. The measured-query 1s timeout is too short for setup maintenance.
     # Bound this wait separately and restore the query setting on every exit.
     previous = await connection.scalar(text("SHOW lock_timeout"))
     await connection.execute(text("SELECT set_config('lock_timeout', '60s', false)"))
     try:
-        await connection.execute(text("VACUUM ANALYZE"))
+        await connection.execute(text("VACUUM ANALYZE" if vacuum else "ANALYZE"))
     finally:
         await connection.execute(text("SELECT set_config('lock_timeout', :value, false)"), {"value": previous})
 
@@ -476,7 +476,7 @@ async def seed(total, chunk=5000):
         await asyncio.gather(*(seed_chunk(lo) for lo in range(base,min(total+1,base+chunk*SEED_WRITERS),chunk)))
     async with db.connect() as c:
         await c.execution_options(isolation_level="AUTOCOMMIT")
-        await c.execute(text("ANALYZE"))
+        await maintain_seed_database(c)
     # Verify actual production Python resolver/hash/card-value checks BEFORE
     # bulk certification, not merely the fact that rows exist.
     for n in sorted({1, max(1,total//2), total}):
@@ -513,7 +513,7 @@ async def seed(total, chunk=5000):
     save(f"proof-verification-{total}.json",{"actual_production_digest_equal":True,"ordinals":checked,"seed_generation":generation})
     async with db.connect() as c:
         await c.execution_options(isolation_level="AUTOCOMMIT")
-        await vacuum_seed_database(c)
+        await maintain_seed_database(c, vacuum=True)
         counts = {m.__tablename__: await c.scalar(select(func.count()).select_from(m)) for m in models+[AiQueryProof]}
         for model in models+[AiQueryProof]:
             multiplier = (20 if model is AiListingFact else template["sources"] if model in (

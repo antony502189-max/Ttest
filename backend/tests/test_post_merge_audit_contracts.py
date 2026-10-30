@@ -40,7 +40,7 @@ def test_disabled_pages_still_builds_but_never_configures_or_deploys_a_site():
     assert next(s for s in build if s.get('name') == 'Record disabled optional preview')['if'] == "vars.PAGES_PREVIEW_ENABLED != 'true'"
 
 
-@pytest.mark.skipif(not shutil.which('bash'), reason='Bash required for audit runner contract')
+@pytest.mark.skipif(sys.platform == 'win32' or not shutil.which('bash'), reason='POSIX Bash and executable stubs required')
 def test_both_audit_entrypoints_use_the_same_executed_fixture_launcher(tmp_path):
     for name in ('final-audit-local.sh', 'ci-fullstack-audit.sh'):
         script = (ROOT / 'scripts' / name).read_text()

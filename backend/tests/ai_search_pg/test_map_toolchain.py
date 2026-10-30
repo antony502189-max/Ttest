@@ -127,7 +127,8 @@ async def test_measurement_freeze_blocks_writes_and_ddl_and_releases_on_exit(pg,
         await c.execute(text("INSERT INTO freeze_fixture VALUES (2)"))
 
 
-async def test_seed_vacuum_waits_for_maintenance_lock_and_restores_query_timeout(pg):
+@pytest.mark.parametrize("vacuum", [False, True])
+async def test_seed_maintenance_waits_for_lock_and_restores_query_timeout(pg, vacuum):
     bench = benchmark()
     db = pg[1].kw["bind"]
     async with db.begin() as connection:
@@ -137,7 +138,7 @@ async def test_seed_vacuum_waits_for_maintenance_lock_and_restores_query_timeout
         await maintenance.execution_options(isolation_level="AUTOCOMMIT")
         await maintenance.execute(text("SET lock_timeout='1000ms'"))
         pid = await maintenance.scalar(text("SELECT pg_backend_pid()"))
-        task = asyncio.create_task(bench.vacuum_seed_database(maintenance))
+        task = asyncio.create_task(bench.maintain_seed_database(maintenance, vacuum=vacuum))
         try:
             for _ in range(200):
                 async with db.connect() as observer:
@@ -154,7 +155,8 @@ async def test_seed_vacuum_waits_for_maintenance_lock_and_restores_query_timeout
         assert await maintenance.scalar(text("SHOW lock_timeout")) == "1s"
 
 
-async def test_seed_vacuum_restores_timeout_after_statement_failure(pg):
+@pytest.mark.parametrize("vacuum", [False, True])
+async def test_seed_maintenance_restores_timeout_after_statement_failure(pg, vacuum):
     bench = benchmark()
     db = pg[1].kw["bind"]
     async with db.begin() as connection:
@@ -165,7 +167,7 @@ async def test_seed_vacuum_restores_timeout_after_statement_failure(pg):
         await maintenance.execute(text("SET lock_timeout='1000ms'"))
         await maintenance.execute(text("SET statement_timeout='100ms'"))
         with pytest.raises(DBAPIError) as error:
-            await bench.vacuum_seed_database(maintenance)
+            await bench.maintain_seed_database(maintenance, vacuum=vacuum)
         assert error.value.orig.sqlstate == "57014"
         assert await maintenance.scalar(text("SHOW lock_timeout")) == "1s"
 
