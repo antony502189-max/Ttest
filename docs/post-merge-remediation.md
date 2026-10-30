@@ -96,6 +96,23 @@ ShareUpdateExclusive дольше1s и проверяет восстановле
 statement cancellation; полный toolchain suite24 passed. Этот неуспешный seed
 тоже сохранён отдельно; новые измерения выполняются в следующей свежей lab.
 
+В lab1632199c на source9c9a520c завершены этапы100k/500k с полными
+attestations, но SLO провален. Набор1m создан и проверен при seed, однако
+measure прерван до первого map-запроса: предварительный count20m facts
+унаследовал measured statement timeout5s. Обе попытки, paired monitor events
+и failed manifests сохранены. Отдельный read-only EXPLAIN count занял3.435s;
+это диагностический прогон с другим timeout, не capacity result.
+
+Предварительная проверка набора теперь выполняется в отдельной repeatable-read,
+read-only транзакции с SET LOCAL statement_timeout60s. После выхода прежний
+лимит measured engine5s восстанавливается автоматически, включая ошибки.
+Отдельные PG tests доказывают успешное выполнение validation дольше исходного
+таймаута, read-only snapshot и реальный timeout последующего query на той же
+pool connection. ANALYZE и VACUUM ANALYZE используют maintenance wait60s.
+Измеряемые запросы и пороги SLO не изменены. Для полного нового протокола
+используется следующая свежая lab с новым source SHA; данные и timings старых
+экспериментов в неё не переносятся.
+
 Это большой прогон с возможной длительностью в несколько часов. Даже успешный
 synthetic capacity не разрешает публичный AI: privacy/retention/freshness,
 runtime policy и provider rollout остаются отдельными согласованиями.

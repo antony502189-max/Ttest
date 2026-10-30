@@ -574,9 +574,7 @@ async def measure(total, samples, candidate=None, baseline_only=False):
 
 async def measure_dataset(db, total, samples, candidate, baseline_only):
     await verify_database_identity(db)
-    async with db.connect() as c:
-        await c.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
-        await validate_dataset(c, total)
+    await preflight_dataset(db, total)
     factory = async_sessionmaker(db, expire_on_commit=False)
     pipe = pipeline(factory)
     # Direct _map_intent measures the complete shared map query/DTO path;
@@ -681,6 +679,15 @@ async def measure_dataset(db, total, samples, candidate, baseline_only):
                 save(f"load-{total}.json",scenarios)
                 log("load",**{k:v for k,v in summary.items() if k!="results"})
     save(f"cancellation-{total}.json", await cancellation_check(db, factory, request, total))
+
+
+async def preflight_dataset(db, total):
+    # Counting up to 20 million fixture facts is setup, outside every timed
+    # request. SET LOCAL cannot relax the engine's measured-query deadline.
+    async with db.connect() as connection:
+        await connection.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+        await connection.execute(text("SET LOCAL statement_timeout='60s'"))
+        await validate_dataset(connection, total)
 
 
 async def cancellation_check(db, factory, request, total):

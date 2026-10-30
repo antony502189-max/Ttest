@@ -173,6 +173,36 @@ async def test_seed_maintenance_restores_timeout_after_statement_failure(pg, vac
 
 
 @pytest.mark.parametrize("failure", [False, True])
+async def test_preflight_has_separate_read_only_deadline_and_restores_query_limit(pg, monkeypatch, failure):
+    bench = benchmark()
+    db = create_async_engine(pg[1].kw["bind"].url, pool_size=1, max_overflow=0,
+        connect_args={"server_settings": {"statement_timeout": "50"}})
+    async def validate(connection, total):
+        assert total == 3
+        assert await connection.scalar(text("SHOW transaction_read_only")) == "on"
+        assert await connection.scalar(text("SHOW transaction_isolation")) == "repeatable read"
+        assert await connection.scalar(text("SHOW statement_timeout")) == "1min"
+        await connection.execute(text("SELECT pg_sleep(0.1)"))
+        if failure:
+            raise RuntimeError("synthetic invalid dataset")
+    monkeypatch.setattr(bench, "validate_dataset", validate)
+    try:
+        if failure:
+            with pytest.raises(RuntimeError, match="invalid dataset"):
+                await bench.preflight_dataset(db, 3)
+        else:
+            await bench.preflight_dataset(db, 3)
+        async with db.connect() as connection:
+            assert await connection.scalar(text("SHOW statement_timeout")) == "50ms"
+            assert await connection.scalar(text("SHOW transaction_read_only")) == "off"
+            with pytest.raises(DBAPIError) as error:
+                await connection.execute(text("SELECT pg_sleep(0.1)"))
+            assert error.value.orig.sqlstate == "57014"
+    finally:
+        await db.dispose()
+
+
+@pytest.mark.parametrize("failure", [False, True])
 async def test_initialize_guard_allows_concurrent_index_and_releases_session_lock(pg, failure):
     bench = benchmark()
     db = pg[1].kw["bind"]
