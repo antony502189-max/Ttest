@@ -28,6 +28,17 @@ class AssemblyGuards(unittest.TestCase):
 
 
 class IntentBoundary(unittest.IsolatedAsyncioTestCase):
+    async def test_default_app_stays_disabled_even_in_lab_environment(self):
+        from httpx import ASGITransport, AsyncClient
+
+        from app.main import app
+        self.assertFalse(hasattr(app.state, "ai_search_runtime"))
+        async with AsyncClient(transport=ASGITransport(app), base_url=ORIGIN) as client:
+            capabilities = await client.get("/api/v1/ai-search/capabilities")
+            self.assertEqual(capabilities.json(), {"text": False, "map": False, "voice": False, "saved_searches": False})
+            disabled = await client.post("/api/v1/ai-search/query", json={})
+            self.assertEqual(disabled.status_code, 503)
+
     async def test_followup_keeps_hard_criteria_and_reset_is_explicit(self):
         parser = SyntheticParser()
         current = SearchIntent(schema_version="ai-search.v1", taxonomy_version="rental.v1",

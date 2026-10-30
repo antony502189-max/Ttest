@@ -100,7 +100,7 @@ networks:
     external: true
 volumes:
   pg:
-    name: ttest-ai-text-lab-pg-v1
+    name: ttest-ai-text-lab-pg-v2
     external: true
   redis:
     name: ttest-ai-text-lab-redis-v1

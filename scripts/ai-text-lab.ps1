@@ -6,6 +6,9 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $root
+$labMutex = [System.Threading.Mutex]::new($false, 'ttest-ai-text-lab-launcher-v1')
+if (-not $labMutex.WaitOne(0)) { throw 'Another lab launcher is still running; wait for its completion.' }
+try {
 function Invoke-Checked([string]$Program, [string[]]$Arguments) {
     & $Program @Arguments
     if ($LASTEXITCODE -ne 0) { throw "$Program failed ($LASTEXITCODE)" }
@@ -21,7 +24,8 @@ foreach ($name in @('postgres', 'redis', 'backend', 'frontend')) {
     }
 }
 foreach ($name in @('pg', 'redis', 'tls', 'media')) {
-    $full = "ttest-ai-text-lab-$name-v1"
+    $version = if ($name -eq 'pg') { 'v2' } else { 'v1' }
+    $full = "ttest-ai-text-lab-$name-$version"
     $raw = & docker volume inspect $full 2>$null
     if ($LASTEXITCODE -eq 0 -and ($raw | ConvertFrom-Json)[0].Labels.'es.ttest.purpose' -ne $purpose) {
         throw "Foreign volume: $full"
@@ -78,9 +82,11 @@ switch ($Action) {
         # Stable labels: Compose must never recreate persistent synthetic data
         # because a source SHA changed. The launcher owns their lifecycle.
         foreach ($name in @('pg', 'redis', 'tls', 'media')) {
-            & docker volume inspect "ttest-ai-text-lab-$name-v1" *> $null
+            $version = if ($name -eq 'pg') { 'v2' } else { 'v1' }
+            $volume = "ttest-ai-text-lab-$name-$version"
+            & docker volume inspect $volume *> $null
             if ($LASTEXITCODE -ne 0) {
-                Invoke-Checked docker @('volume', 'create', '--label', "es.ttest.purpose=$purpose", "ttest-ai-text-lab-$name-v1")
+                Invoke-Checked docker @('volume', 'create', '--label', "es.ttest.purpose=$purpose", $volume)
             }
         }
         foreach ($network in @('ttest-ai-text-lab-network', 'ttest-ai-text-lab-loopback')) {
@@ -91,13 +97,13 @@ switch ($Action) {
                 Invoke-Checked docker ($options + $network)
             }
         }
-        Invoke-Checked docker ($compose + @('up', '-d', '--wait', 'postgres', 'redis'))
+        Invoke-Checked docker ($compose + @('up', '-d', '--wait', '--wait-timeout', '60', 'postgres', 'redis'))
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', '--user', 'root', 'backend', 'python', '-c',
             "import os,pwd; u=pwd.getpwnam('app'); os.chown('/app/var/lab-media',u.pw_uid,u.pw_gid)"))
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'python', '-m', 'lab.certificate'))
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'alembic', 'upgrade', 'head'))
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'python', '-m', 'lab.seed_ai_text'))
-        Invoke-Checked docker ($compose + @('up', '-d', '--wait', 'backend', 'frontend'))
+        Invoke-Checked docker ($compose + @('up', '-d', '--wait', '--wait-timeout', '60', 'backend', 'frontend'))
         Write-Output "Synthetic lab: https://localhost:9443 ; source $($state.source)"
     }
     'seed' { Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'python', '-m', 'lab.seed_ai_text')) }
@@ -108,4 +114,8 @@ switch ($Action) {
             'SELECT version_num FROM alembic_version; SELECT count(*) AS listings FROM listings; SELECT count(*) AS proofs FROM ai_query_proofs;'))
     }
     'stop' { Invoke-Checked docker ($compose + @('stop')) }
+}
+} finally {
+    $labMutex.ReleaseMutex()
+    $labMutex.Dispose()
 }

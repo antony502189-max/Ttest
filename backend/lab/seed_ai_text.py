@@ -55,7 +55,7 @@ async def seed():
         connection.add_all([host, guest_user])
         await connection.flush()
         for index, (name, price, pets) in enumerate(CASES):
-            description = f"Rent {price} EUR monthly. " + (
+            description = f"Long-term rental. Rent {price} EUR monthly. " + (
                 "Pets allowed." if pets is True else "No pets." if pets is False else "No pet information.")
             connection.add(Listing(id=identifier(name), owner_user_id=host.id,
                 title=f"Synthetic {name}", description=description, city="Adeje", area="Synthetic district",
@@ -82,6 +82,9 @@ async def seed():
         facts = [{"fact_id": identifier("price-" + name), "key": "price", "status": "explicit_allow",
                   "typed_value": {"kind": "money", "amount": str(price), "currency": "EUR", "period": "monthly"},
                   "qualifiers": {}, "origin": "source_text", "evidence": evidence}]
+        facts.append({"fact_id": identifier("mode-" + name), "key": "rental_mode", "status": "explicit_allow",
+                      "typed_value": {"kind": "category", "value": "long"}, "qualifiers": {},
+                      "origin": "source_text", "evidence": evidence})
         if pets is not None:
             facts.append({"fact_id": identifier("pets-" + name), "key": "pets",
                 "status": "explicit_allow" if pets else "explicit_deny", "typed_value": {"kind": "policy", "allowed": pets},
