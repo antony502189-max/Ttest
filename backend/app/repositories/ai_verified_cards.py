@@ -6,7 +6,9 @@ must use quota finalize; page reads reuse an already-owned normalized session.
 Pagination is live keyset, not a frozen result set. Each page rechecks current
 source/public eligibility and TOP ordering in its own repeatable-read snapshot.
 Signed context detects intent/filter/config/catalog/fact/prepared-proof changes,
-but direct source, user/moderation changes and clock-driven TOP changes can
+with conservative invalidation when another resolver's proofs change or a
+previous proof set is restored. Identical preparation preserves the cursor.
+Direct source, user/moderation changes and clock-driven TOP changes can
 alter totals/order without rejecting a cursor. Restart without a cursor to
 discover rows newly eligible or moved before the seek point. No stale card is
 kept merely to preserve an earlier page's total or order.
@@ -34,6 +36,7 @@ from .ai_card_values import current_card_values_predicate
 from .ai_fact_pipeline import FactPipeline
 from .ai_hard_matching import hard_match_predicate
 from .ai_query_proofs import PROOF_CONTRACT_VERSION, current_projection_predicate, proof_population_signature
+from .ai_query_settings import configure_ai_query
 from .ai_search_sessions import SearchSessions, SessionError, intent_hash
 from .listings import (
     _cursor_fingerprint,
@@ -107,6 +110,7 @@ class VerifiedCardSearch:
 
     async def _query_intent(self, session, subject: QuotaSubject, intent: SearchIntent,
                             payload: ListingCardSearchRequest) -> VerifiedCardResult:
+        await configure_ai_query(session)
         payload = ListingCardSearchRequest.model_validate(payload.model_dump())
         compiled = compile_hard_match(intent, self.pipeline.vocabulary)
         normalized_hash = intent_hash(intent)
@@ -114,6 +118,8 @@ class VerifiedCardSearch:
         facts = (await session.execute(select(func.count(), func.coalesce(func.sum(AiFactCatalog.revision), 0)))).one()
         proofs = await session.scalar(select(proof_population_signature(
             resolver_version=self.pipeline.resolver_version, vocabulary_hash=self.pipeline.vocabulary_hash)))
+        if proofs is None:
+            raise RuntimeError("prepared-proof population state is missing")
         context = digest({"subject": [subject.kind, str(subject.id)], "intent": normalized_hash,
             "filters": _cursor_fingerprint(payload), "catalog": catalog,
             "facts": [facts[0], str(facts[1])], "proofs": proofs, "resolver": self.pipeline.resolver_version,
@@ -163,6 +169,7 @@ class VerifiedCardSearch:
             return await self._map_intent(session, committed.intent, payload)
 
     async def _map_intent(self, session, intent: SearchIntent, payload: ListingMapRequest) -> "VerifiedMapResult":
+        await configure_ai_query(session)
         bounded = payload.model_copy(update={"minLatitude": payload.south, "maxLatitude": payload.north,
                                              "minLongitude": payload.west, "maxLongitude": payload.east})
         filtered = apply_search_filters(visible_query(), bounded).where(verified_intent_predicate(self.pipeline, intent))

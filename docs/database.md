@@ -3,7 +3,7 @@
 ## Current baseline
 
 - **Production:** PostgreSQL 16 with PostGIS 3.4, persistent Docker volume. Redis and MinIO are independent stateful services.
-- **Migration directory:** `backend/alembic/versions/`. Checked-in Alembic head as of 2026-10-30: **`0074_ai_saved_searches`**. `0032_media_reference_guard` remains the *frozen migration integrity baseline*.
+- **Migration directory:** `backend/alembic/versions/`. Checked-in Alembic head as of 2026-10-31: **`0075_ai_proof_population`**. `0032_media_reference_guard` remains the *frozen migration integrity baseline*.
 - **ORM:** `backend/app/models/` and domain models; async SQLAlchemy 2 / asyncpg; PostGIS via GeoAlchemy2.
 - **Schema contracts:** `backend/app/schemas/`; repository search in `backend/app/repositories/listings.py`.
 

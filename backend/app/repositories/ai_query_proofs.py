@@ -14,7 +14,7 @@ from sqlalchemy.sql.elements import ColumnElement
 from ..models import ExternalListingSource, Listing
 from ..models.ai_fact_pipeline import AiFactCatalog, AiFactSource
 from ..models.ai_listing_facts import AiListingFact, AiListingFactBatch, AiListingSearchFeatures
-from ..models.ai_query_proof import AiQueryProof
+from ..models.ai_query_proof import AiProofPopulation, AiQueryProof
 from ..models.room_details import ListingRoomDetails
 from ..schemas.ai_listing_facts import Category, DateRange, Money, Quantity, SearchProjection
 from .ai_fact_pipeline import FactPipeline
@@ -112,21 +112,19 @@ def projection_signature(listing_id) -> ColumnElement[str]:
 
 
 def proof_population_signature(*, resolver_version: str, vocabulary_hash: str):
-    """Exact prepared-set identity, scoped to this resolver and vocabulary.
+    """O(1) transactional prepared-set generation, never live eligibility.
 
-    Insertions, deletions and replacement proofs change the cursor identity;
-    preparing an identical proof does not. An identical restored set is the
-    same prepared-set identity, so this needs no global generation lock.
-    This is cache identity, not a snapshot of live eligibility or TOP ordering.
-    This aggregate still needs representative capacity testing before release.
+    Database statement triggers cover every ordinary proof writer, including
+    direct SQL and TRUNCATE. Identical preparation leaves the version unchanged.
+    Restoring a former set or changing another resolver conservatively expires
+    cursors. Source/canonical/room/fact changes still fail the full live digest
+    before count/order/LIMIT, without requiring a version bump or reconciler.
+    Missing state returns NULL and the caller fails closed. A recreated counter
+    gets a fresh random epoch so it cannot revive an earlier cursor.
     """
-    proof = AiQueryProof.__table__
-    member = func.concat(proof.c.canonical_listing_id, ":", proof.c.signature, ":", proof.c.feature_revision)
-    return select(_hash(func.coalesce(func.string_agg(
-        member, aggregate_order_by(literal("|"), proof.c.canonical_listing_id)), literal("")))).where(
-        proof.c.resolver_version == resolver_version,
-        proof.c.vocabulary_hash == vocabulary_hash,
-    ).scalar_subquery()
+    state = AiProofPopulation
+    return select(func.concat("proof-population.v1:", resolver_version, ":", vocabulary_hash, ":",
+                              state.epoch, ":", state.revision)).where(state.id == 1).scalar_subquery()
 
 
 def current_projection_predicate(listing_id, *, resolver_version: str, vocabulary_hash: str) -> ColumnElement[bool]:

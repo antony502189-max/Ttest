@@ -130,9 +130,17 @@ zoom 8/12/13/21 with 0/299/300/301/302, 10,000 and whole-catalog candidates.
 This deduplicated baseline matrix is mandatory for protocol completion. Every
 record retains first-touch timing/outcome, capture_count/query_count/plan_count
 and the ordered explicit SQL dispatch trace, including transaction control.
-Only our explicitly marked SET is control; CTEs, comments and other query text
-are never filtered. The current map executes one SQL query, or two for high zoom
-above 300 candidates; successful baseline traces must match that contract.
+Only our explicitly marked SET TRANSACTION is transaction control; CTEs,
+comments and other query text are never filtered. The historical map executed
+one SQL query, or two for high zoom above 300 candidates. The new
+`single-pass-jit.v1` trace requires exactly SET TRANSACTION, one explicitly
+marked `SET LOCAL jit = off` configuration dispatch, and one map SQL query at
+every zoom/count. Configuration time stays inside measured query/total time.
+The single materialized eligible set feeds either markers or aggregation;
+all proof/currentness/eligibility guards remain before count and rendering.
+EXPLAIN uses the identical transaction-local JIT setting and records it in its
+artifact. Missing/changed/extra configuration or map SQL rejects attestation.
+Historical evidence remains checked against its original two-query contract.
 Each query references a unique plan artifact with matching SQL SHA-256, binds,
 scenario and run identity. Actual and explicitly estimated-only plans are valid
 evidence; missing, malformed or failed plans prevent protocol completion.

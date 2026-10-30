@@ -21,11 +21,6 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from sqlalchemy import event, func, literal, select, text, update
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.sql import operators, visitors
-from sqlalchemy.sql.elements import BooleanClauseList
-
 from app.models import ExternalListingSource, Listing, User
 from app.models.ai_fact_pipeline import AiFactCatalog, AiFactSource
 from app.models.ai_listing_facts import (
@@ -38,12 +33,17 @@ from app.models.room_details import ListingRoomDetails
 from app.repositories.ai_fact_pipeline import FactPipeline
 from app.repositories.ai_fact_snapshots import source_snapshot_hash
 from app.repositories.ai_query_proofs import QueryProofs, projection_signature
+from app.repositories.ai_query_settings import configure_ai_query
 from app.repositories.ai_verified_cards import VerifiedCardSearch
 from app.repositories.listings import point
 from app.schemas.ai_fact_pipeline import FactQueuePolicy, SourceInput
 from app.schemas.ai_listing_facts import FactBatch, FactVocabulary, digest
 from app.schemas.ai_search_intent import SearchIntent
 from app.schemas.listings import ListingMapRequest
+from sqlalchemy import event, func, literal, select, text, update
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.sql import operators, visitors
+from sqlalchemy.sql.elements import BooleanClauseList
 
 DSN = "postgresql+asyncpg://r01:r01-synthetic-only@r01-db:5432/r01_synthetic"
 OUT = Path("/results")
@@ -547,7 +547,9 @@ def viewport(count, total, zoom):
 def capture_statement(context, statement, parameters):
     # Capture every explicit dispatch during the map call. SET is categorized
     # by our own execution option; query text/CTEs/comments are never filtered.
-    return {"category":"transaction-control" if context.execution_options.get("r01_control") else "map-query",
+    category = ("transaction-control" if context.execution_options.get("r01_control") else
+                "query-config" if context.execution_options.get("ai_query_config") else "map-query")
+    return {"category":category,
         "sql":statement,"parameters":parameters,"sql_sha256":hashlib.sha256(statement.encode()).hexdigest()}
 
 
@@ -555,6 +557,7 @@ async def explain_statement(db, statement, parameters):
     async def fetch(prefix):
         async with db.connect() as c:
             await c.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+            await configure_ai_query(c)
             raw = await c.get_raw_connection()
             value = await raw.driver_connection.fetchval(prefix + statement,*parameters)
             return json.loads(value) if isinstance(value,str) else value
@@ -628,6 +631,7 @@ async def measure_dataset(db, total, samples, candidate, baseline_only):
             if first["ok"]:
                 assert first["count"] == count, (count, zoom, first)
             record = {"total":total,"candidates": count, "zoom": zoom, "first_touch": first,
+                "query_contract":"single-pass-jit.v1", "query_settings":{"jit":"off"},
                 "started_at":first["started_at"],"ended_at":first["ended_at"],
                 "capture_count":len(captured),"query_count":sum(row["category"] == "map-query" for row in captured),
                 "plan_count":0,"statements":[{**row,"ordinal":i} for i,row in enumerate(captured)]}
@@ -641,6 +645,7 @@ async def measure_dataset(db, total, samples, candidate, baseline_only):
                 filename = f"plan-{total}-{count}-z{zoom}-{trace['ordinal']}.json"
                 plan = await explain_statement(db,trace["sql"],trace["parameters"])
                 save(filename,{**plan,"total":total,"candidates":count,"zoom":zoom,
+                    "query_settings":{"jit":"off"},
                     "statement_index":trace["ordinal"],"sql_sha256":trace["sql_sha256"],"parameters":trace["parameters"]})
                 trace.update(plan_file=filename,plan_status=plan["status"])
                 record["plan_count"] += plan["status"] in ("actual","estimated-only")
@@ -674,6 +679,7 @@ async def measure_dataset(db, total, samples, candidate, baseline_only):
                 def percentile(q, ordered=values):
                     return ordered[min(len(ordered)-1, math.ceil(q*len(ordered))-1)]
                 summary={"total":total,"candidates":count,"zoom":zoom,"concurrency":concurrency,
+                    "query_contract":"single-pass-jit.v1", "query_settings":{"jit":"off"},
                     "started_at":started_at,"ended_at":now(),"mode":"load" if samples == 200 else "probe",
                     "samples":len(results),"requested_samples":samples,"stopped_after_failed_wave":len(results)<samples,
                     "seconds":time.perf_counter()-start,"failures":sum(not r["ok"] for r in results),
@@ -801,7 +807,8 @@ async def main():
             "dependencies":{name:importlib.metadata.version(name) for name in ("SQLAlchemy","asyncpg","pydantic","geoalchemy2","psycopg")},
             "source_hashes":{name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in (
                 "/code/scripts/benchmark-ai-map.py","/code/backend/app/repositories/ai_verified_cards.py",
-                "/code/backend/app/repositories/ai_query_proofs.py","/code/backend/app/repositories/listings.py")},
+                "/code/backend/app/repositories/ai_query_proofs.py","/code/backend/app/repositories/ai_query_settings.py",
+                "/code/backend/alembic/versions/0075_ai_proof_population.py","/code/backend/app/repositories/listings.py")},
             "started_at":now(),"sources":sources,"status":"running",
             "clock":{"contract":"utc-anchored-monotonic.v1","anchor_utc":_CLOCK_UTC.isoformat(),
                 "wall_started_at":datetime.now(UTC).isoformat()}}

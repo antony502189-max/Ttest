@@ -441,6 +441,7 @@ async def test_dense_ai_map_thresholds_edges_and_live_proof_changes(record_prope
             case = {"valid":len(expected),"zoom":zoom,"authority_plans":0,"loops":0,"visited_rows":0,"buffer_touches":0,"execution_ms":0,"node_types":set()}
             async with SessionLocal() as session, session.begin():
                 await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+                await session.execute(text("SET LOCAL jit = off"))
                 raw = await (await session.connection()).get_raw_connection()
                 for sql,parameters in captured:
                     plan = await raw.driver_connection.fetchval("EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) "+sql,*parameters)
@@ -455,7 +456,7 @@ async def test_dense_ai_map_thresholds_edges_and_live_proof_changes(record_prope
                         case["visited_rows"] += node["Actual Loops"]*(node["Actual Rows"]+node.get("Rows Removed by Filter",0))
                         case["buffer_touches"] += node.get("Shared Hit Blocks",0)+node.get("Shared Read Blocks",0)
                         case["node_types"].add(node["Node Type"])
-            assert case["authority_plans"] == (2 if zoom >= 13 and len(expected) > 300 else 1),case
+            assert case["authority_plans"] == 1,case
             assert "Seq Scan" not in case["node_types"],case
             assert case["loops"] <= 32*(len(expected)+1),case
             assert case["visited_rows"] <= 32*(len(expected)+1),case

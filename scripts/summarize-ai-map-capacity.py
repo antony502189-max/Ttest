@@ -304,12 +304,24 @@ def baseline_attestation(root, size, records, experiment, run_id):
         statements = record.get("statements",[])
         queries = [row for row in statements if row.get("category") == "map-query"]
         controls = [row for row in statements if row.get("category") == "transaction-control"]
-        expected_queries = 2 if zoom is not None and zoom >= 13 and count is not None and count > 300 else 1
+        configs = [row for row in statements if row.get("category") == "query-config"]
+        contract = record.get("query_contract")
+        single_pass = contract == "single-pass-jit.v1"
+        if contract not in (None, "single-pass-jit.v1"):
+            baseline_ok = False
+        expected_queries = 1 if single_pass else (2 if zoom is not None and zoom >= 13 and count is not None and count > 300 else 1)
+        if single_pass:
+            if (record.get("query_settings") != {"jit":"off"} or len(configs) != 1 or
+                    configs[0].get("ordinal") != 1 or configs[0].get("sql", "") != "SET LOCAL jit = off" or
+                    configs[0].get("sql_sha256") != hashlib.sha256(b"SET LOCAL jit = off").hexdigest()):
+                baseline_ok = False
+        elif configs:
+            baseline_ok = False
         if (record.get("capture_count") != len(statements) or record.get("query_count") != len(queries) or
                 [row.get("ordinal") for row in statements] != list(range(len(statements))) or
                 len(controls) != 1 or controls[0].get("ordinal") != 0 or
                 controls[0].get("sql","").strip().upper() != "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY" or
-                len(controls)+len(queries) != len(statements) or not 1 <= len(queries) <= expected_queries or
+                len(controls)+len(configs)+len(queries) != len(statements) or not 1 <= len(queries) <= expected_queries or
                 (record.get("first_touch",{}).get("ok") is True and len(queries) != expected_queries)):
             baseline_ok = False
         if record.get("plan_count") != len(queries):
@@ -324,6 +336,8 @@ def baseline_attestation(root, size, records, experiment, run_id):
                 continue
             try:
                 content = json.loads(path.read_text(encoding="utf-8"))
+                if single_pass and content.get("query_settings") != {"jit":"off"}:
+                    plans_ok = False
                 sql_hash = hashlib.sha256(row["sql"].encode()).hexdigest()
                 if (not valid_plan(content) or not provenance_valid(root,[content],experiment,"measure") or
                         content.get("run_id") != run_id or content.get("sql_sha256") != sql_hash or row.get("sql_sha256") != sql_hash or

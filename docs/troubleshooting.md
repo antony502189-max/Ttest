@@ -40,7 +40,7 @@ docker compose logs --tail=100 backend postgres
 curl -fsS http://localhost:8000/health/ready
 ```
 
-Check applied Alembic revision (source head as of 2026-10-30: `0074_ai_saved_searches`), PostGIS extension, DB connection pool and private Redis/MinIO services. Backend regional filter is a `ST_Intersects` predicate over listed points; it is not a city text search. For slow nationwide counts, measure `EXPLAIN (ANALYZE, BUFFERS)` against representative **non-production** or approved read-only data and inspect relevant GiST/index plans before rewriting the API.
+Check applied Alembic revision (source head as of 2026-10-31: `0075_ai_proof_population`), PostGIS extension, DB connection pool and private Redis/MinIO services. Backend regional filter is a `ST_Intersects` predicate over listed points; it is not a city text search. For slow nationwide counts, measure `EXPLAIN (ANALYZE, BUFFERS)` against representative **non-production** or approved read-only data and inspect relevant GiST/index plans before rewriting the API.
 
 ## GitHub Actions release troubleshooting
 

@@ -149,6 +149,42 @@ def report(root, monkeypatch):
     return (root / "REPORT_RU.md").read_text(encoding="utf-8"), json.loads((root / "summary.json").read_text())
 
 
+@pytest.mark.parametrize("damage", [None, "missing_config", "wrong_config", "missing_plan_setting", "unknown_contract", "extra_query"])
+def test_single_pass_contract_attests_jit_dispatch_and_explain_settings(tmp_path, damage):
+    complete(tmp_path)
+    records = json.loads((tmp_path / "baseline-100000.json").read_text())
+    for record in records:
+        old = [row for row in record["statements"] if row["category"] == "map-query"]
+        plan = json.loads((tmp_path / old[0]["plan_file"]).read_text())
+        for row in old:
+            (tmp_path / row["plan_file"]).unlink()
+        filename = f"plan-100000-{record['candidates']}-z{record['zoom']}-2.json"
+        plan.update(statement_index=2, query_settings={"jit":"off"})
+        write(tmp_path, filename, plan)
+        config = {"category":"query-config", "ordinal":1, "sql":"SET LOCAL jit = off",
+                  "sql_sha256":hashlib.sha256(b"SET LOCAL jit = off").hexdigest(), "parameters":[]}
+        record.update(query_contract="single-pass-jit.v1", query_settings={"jit":"off"},
+                      capture_count=3, query_count=1, plan_count=1,
+                      statements=[record["statements"][0], config, {**old[0], "ordinal":2,"plan_file":filename}])
+    if damage == "missing_config":
+        records[0]["statements"].pop(1)
+    elif damage == "wrong_config":
+        records[0]["statements"][1]["sql"] = "SET jit = off"
+    elif damage == "missing_plan_setting":
+        filename = records[0]["statements"][2]["plan_file"]
+        plan = json.loads((tmp_path / filename).read_text())
+        del plan["query_settings"]
+        write(tmp_path, filename, plan)
+    elif damage == "unknown_contract":
+        records[0]["query_contract"] = "unattested.v2"
+    elif damage == "extra_query":
+        records[0]["statements"].append({**records[0]["statements"][2], "ordinal":3})
+        records[0].update(capture_count=4, query_count=2, plan_count=2)
+    write(tmp_path, "baseline-100000.json", records)
+    result = module("summarize-ai-map-capacity").summarize(tmp_path)
+    assert result["completed_scales"] == ([100000] if damage is None else [])
+
+
 @pytest.mark.parametrize("sources,expected", [(2, "200,000"), (10, "1,000,000")])
 def test_report_uses_actual_source_profile(tmp_path, monkeypatch, sources, expected):
     complete(tmp_path, sources=sources)

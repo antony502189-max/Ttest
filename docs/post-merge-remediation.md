@@ -199,3 +199,37 @@ Cursor population aggregate не изменён. ISSUE-004 остаётся OPEN
 не объявляет любой новый запуск неизмеренным после UNION. Каждый результат
 ограничен собственной source provenance. Критерии и приёмка не ослаблены.
 [Новые raw/JUnit и hashes](../reports/post-merge-remediation-evidence/proof-optimization-evidence.json).
+
+## Продолжение ISSUE-004: JIT, карта и cursor population
+
+31 октября работа продолжена в том же draft PR по ранее данному разрешению
+на новый изолированный 100k/500k/1m прогон. Merge и публичная активация запрещены.
+Новые результаты должны относиться к новому exact source SHA и свежему dataset.
+
+AI card/map transactions применяют `SET LOCAL jit = off`; настройка автоматически
+восстанавливается при commit/rollback/cancellation и reuse pool. Benchmark
+фиксирует dispatch и включает его время в query_ms/total; EXPLAIN использует ту
+же настройку. Deadline5s, pool30 и SLO не изменены.
+
+На zoom≥13 карта один раз материализует полностью проверенное множество,
+затем возвращает маркеры при count≤300 либо агрегирует кластеры. Вторая проверка
+того же множества после probe устранена. Все guards остаются до count/агрегации.
+
+Миграция `0075_ai_proof_population` заменяет полное чтение proof-множества для
+cursor context на O(1) epoch/revision. Транзакционные statement triggers на
+`ai_query_proofs` покрывают INSERT/COPY/bulk, ON CONFLICT, UPDATE, DELETE и
+TRUNCATE, включая direct SQL. Номер меняется один раз на statement; идентичная
+подготовка не меняет его. Конкурентные записи сериализуются на одном counter;
+rollback откатывает proof и counter вместе, RR snapshot видит согласованную пару.
+Пропавший counter блокирует query; пересоздание получает новый epoch.
+
+Это версия **подготовленного proof-множества**, не cache live eligibility.
+Источники, canonical/room, batches/facts, remap/delete по-прежнему проверяются
+полным `query-proof.v2` digest на каждом запросе до count/order/LIMIT. Для них
+новые writer hooks не требуются: механизм актуальности не заменён версией.
+Нет TTL или зависимости от reconciler. Изменения другого resolver/vocabulary и
+восстановление прежнего множества консервативно сбрасывают cursor; прежний
+aggregate при восстановлении множества мог сохранить cursor. Старые cursors
+после rollout отклоняются из-за смены формата context.
+
+Полный повторный capacity ещё не подтверждён; ISSUE-004 остаётся OPEN.

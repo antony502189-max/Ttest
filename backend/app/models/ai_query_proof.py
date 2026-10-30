@@ -1,7 +1,7 @@
 """Disposable verification cache; no FK or mutation of legacy catalog."""
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, Integer, String
+from sqlalchemy import BigInteger, CheckConstraint, Integer, String, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,3 +20,11 @@ class AiQueryProof(Base):
     vocabulary_hash: Mapped[str] = mapped_column(String(64))
     resolver_version: Mapped[str] = mapped_column(String(64))
     feature_revision: Mapped[int] = mapped_column(Integer)
+
+
+class AiProofPopulation(Base):
+    __tablename__ = "ai_proof_population"
+    __table_args__ = (CheckConstraint("id = 1 AND revision > 0", name="ck_ai_proof_population_singleton"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    epoch: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), server_default=text("gen_random_uuid()"))
+    revision: Mapped[int] = mapped_column(BigInteger)
