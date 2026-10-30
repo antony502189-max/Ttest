@@ -34,6 +34,48 @@ for (const target of ['area', 'list', 'filters'] as const) {
   })
 }
 
+test('delayed camera idle cannot undo same-query map Back', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.addInitScript(() => {
+    localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+    window.addEventListener('popstate', () => {
+      if (document.documentElement.dataset.backIdle !== 'armed') return
+      delete document.documentElement.dataset.backIdle
+      queueMicrotask(() => window.__googleMapsTestLastMap?.setCenter({ lat: 28.15, lng: -16.62 }))
+    })
+  })
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long')
+  await expect(page.locator('.m2-result-card').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Mapa', exact: true }).click()
+  await expect(page).toHaveURL(/vista=mapa.*mapZoom=/)
+  await page.evaluate(() => { document.documentElement.dataset.backIdle = 'armed' })
+  await page.goBack()
+  await expect(page).not.toHaveURL(/vista=mapa|mapLat=|mapLng=|mapZoom=/)
+  await expect(page.locator('.m2-result-card').first()).toBeVisible()
+})
+
+test('delayed camera idle cannot undo map Back fallback', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.addInitScript(() => {
+    localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+    const replace = history.replaceState.bind(history)
+    let injected = false
+    history.replaceState = (...args) => {
+      const answer = replace(...args)
+      if (!injected && String(args[2]).includes('/buscar?') && !String(args[2]).includes('vista=mapa')) {
+        injected = true
+        queueMicrotask(() => window.__googleMapsTestLastMap?.setCenter({ lat: 28.15, lng: -16.62 }))
+      }
+      return answer
+    }
+  })
+  await page.goto('/#/buscar?q=Tenerife&alquiler=long&vista=mapa')
+  await expect(page).toHaveURL(/mapZoom=/)
+  await page.getByRole('button', { name: 'Volver', exact: true }).click()
+  await expect(page).not.toHaveURL(/vista=mapa|mapLat=|mapLng=|mapZoom=/)
+  await expect(page.locator('.m2-result-card').first()).toBeVisible()
+})
+
 async function openLocation(page: Page) {
   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
   await page.goto('/#/?panel=ubicacion')

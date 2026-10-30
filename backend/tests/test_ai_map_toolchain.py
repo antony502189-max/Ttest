@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import sys
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
@@ -13,6 +14,20 @@ import pytest
 
 ROOT = Path(__file__).parents[2]
 PS = shutil.which("pwsh") or shutil.which("powershell")
+
+
+def test_evidence_intervals_survive_wall_clock_steps(monkeypatch):
+    bench = module("benchmark-ai-map")
+    anchor = datetime(2026, 10, 30, tzinfo=UTC)
+    monkeypatch.setattr(bench, "_CLOCK_UTC", anchor)
+    monkeypatch.setattr(bench, "_CLOCK_MONOTONIC", 100.0)
+    monkeypatch.setattr(bench, "time", Mock(perf_counter=Mock(side_effect=[100.0, 101.0, 102.0])))
+    wall_clock = Mock()
+    wall_clock.now.side_effect = [anchor, anchor-timedelta(seconds=4), anchor+timedelta(minutes=10)]
+    monkeypatch.setattr(bench, "datetime", wall_clock)
+    observed = [datetime.fromisoformat(bench.now()) for _ in range(3)]
+    assert observed == [anchor, anchor+timedelta(seconds=1), anchor+timedelta(seconds=2)]
+    wall_clock.now.assert_not_called()
 
 
 def module(name):

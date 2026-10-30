@@ -3,11 +3,18 @@
 ## Current baseline
 
 - **Production:** PostgreSQL 16 with PostGIS 3.4, persistent Docker volume. Redis and MinIO are independent stateful services.
-- **Migration directory:** `backend/alembic/versions/`. Current checked-in Alembic head: **`0056_external_scope_checkpoint`**. The older claim that `0032_media_reference_guard` is the current head is obsolete; 0032 remains the *frozen migration integrity baseline*.
+- **Migration directory:** `backend/alembic/versions/`. Checked-in Alembic head as of 2026-10-30: **`0074_ai_saved_searches`**. `0032_media_reference_guard` remains the *frozen migration integrity baseline*.
 - **ORM:** `backend/app/models/` and domain models; async SQLAlchemy 2 / asyncpg; PostGIS via GeoAlchemy2.
 - **Schema contracts:** `backend/app/schemas/`; repository search in `backend/app/repositories/listings.py`.
 
 Existing domains include account/session/reset/verification, `users`, `listings`, listing owner/contact fields, room details, images/videos/assets, favorite/discarded state, `saved_searches`, `search_history`, `listing_views`, promotions, notifications, moderation restrictions/audit, `mail_outbox`, external-import identities/scopes/checkpoints, commercial advertising, and cleanup/outbox state.
+
+The private AI foundation adds typed fact batches and observations, source
+generations, resolved search features, query proofs, durable quota/session/result
+journals and registered saved-search snapshots. These additive tables do not
+activate public AI, providers, ASR or notification delivery. See the
+[architecture](architecture.md#private-ai-search-foundation) and
+[query-proof contract](ai-search-developer/CURRENT_QUERY_PROOFS.md).
 
 ## Geographic behavior
 

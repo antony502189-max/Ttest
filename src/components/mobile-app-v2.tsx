@@ -878,6 +878,13 @@ export function MobileAppV2() {
   useEffect(() => {
     if (onMapRoute) mapOpenedInCurrentDocument = true
   }, [onMapRoute])
+  const browserRouteSearch = new URL(window.location.hash.slice(1) || '/', window.location.href).search
+  if (pendingRouteSearchRef.current && pendingRouteSearchRef.current !== browserRouteSearch) {
+    // Back/direct hash navigation can supersede a queued camera replace.
+    // Drop that pending route rather than waiting forever for its old URL.
+    pendingRouteSearchRef.current = null
+    latestPendingCameraRef.current = null
+  }
   if (pendingRouteSearchRef.current === location.search) pendingRouteSearchRef.current = null
   if (!pendingRouteSearchRef.current) routeSearchRef.current = location.search
   const backToHome = useAppBack('/')
@@ -1084,9 +1091,15 @@ export function MobileAppV2() {
     setNearbyStatus('success')
     commitMapRoute(params)
   }
+  const mapRouteMatchesBrowser = () => {
+    // HashRouter can defer its render after Back or a fallback replace. An
+    // unmounting Maps instance must not overwrite the URL already visited.
+    const browserRoute = new URL(window.location.hash.slice(1) || '/', window.location.href)
+    return browserRoute.pathname === '/buscar' && browserRoute.search === routeSearchRef.current
+  }
   const commitMobilePolygon = (polygon: MapPoint[]) => {
     const params = new URLSearchParams(routeSearchRef.current)
-    if (location.pathname !== '/buscar' || params.get('vista') !== 'mapa') return
+    if (!mapRouteMatchesBrowser() || location.pathname !== '/buscar' || params.get('vista') !== 'mapa') return
     setMapPolygon(polygon)
     if (polygon.length >= 3) params.set('poligono', polygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(';'))
     else params.delete('poligono')
@@ -1095,7 +1108,7 @@ export function MobileAppV2() {
   const commitMapCamera = (camera: MapCamera, interacted = false) => {
     const params = new URLSearchParams(routeSearchRef.current)
     // A final idle from the unmounting map cannot modify List/Filters routes.
-    if (location.pathname !== '/buscar' || params.get('vista') !== 'mapa') return
+    if (!mapRouteMatchesBrowser() || location.pathname !== '/buscar' || params.get('vista') !== 'mapa') return
     // Keep Back/deep-link camera state on the URL, but only real map exploration
     // contributes to the next SEARCH's remembered 70 km circle.
     if (interacted) rememberMapViewport(camera)

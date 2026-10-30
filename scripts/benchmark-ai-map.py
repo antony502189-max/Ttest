@@ -17,7 +17,7 @@ import platform
 import re
 import time
 from contextlib import asynccontextmanager, contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -52,10 +52,14 @@ SEED_WRITERS = 8
 PROTOCOL_VERSION = "r01-capacity.v2"
 PROVENANCE = {}
 RUN_ID = None
+_CLOCK_UTC = datetime.now(UTC)
+_CLOCK_MONOTONIC = time.perf_counter()
 
 
 def now():
-    return datetime.now(UTC).isoformat()
+    # Preserve UTC correlation while measuring elapsed time on one clock.
+    # NTP/VM wall-clock steps must not shorten or invert measured intervals.
+    return (_CLOCK_UTC + timedelta(seconds=time.perf_counter() - _CLOCK_MONOTONIC)).isoformat()
 
 
 def save(name, value):
@@ -591,7 +595,7 @@ async def measure_dataset(db, total, samples, candidate, baseline_only):
             captured.append(capture_statement(context,statement,parameters))
     async def request(view):
         start = time.perf_counter()
-        result = {"ok": False, "started_at": now()}
+        result = {"ok": False, "started_at": now(), "wall_started_at": datetime.now(UTC).isoformat()}
         after_pool = None
         try:
             async with factory() as s, s.begin():
@@ -608,6 +612,7 @@ async def measure_dataset(db, total, samples, candidate, baseline_only):
                 result["query_ms"] = (time.perf_counter()-after_pool)*1000
         result["ms"] = (time.perf_counter()-start)*1000
         result["ended_at"] = now()
+        result["wall_ended_at"] = datetime.now(UTC).isoformat()
         return result
     records = []
     for count in ([candidate] if candidate is not None else sorted({0,*(min(n,total) for n in (299,300,301,302,10000)),total})):
@@ -797,7 +802,9 @@ async def main():
             "source_hashes":{name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in (
                 "/code/scripts/benchmark-ai-map.py","/code/backend/app/repositories/ai_verified_cards.py",
                 "/code/backend/app/repositories/ai_query_proofs.py","/code/backend/app/repositories/listings.py")},
-            "started_at":now(),"sources":sources,"status":"running"}
+            "started_at":now(),"sources":sources,"status":"running",
+            "clock":{"contract":"utc-anchored-monotonic.v1","anchor_utc":_CLOCK_UTC.isoformat(),
+                "wall_started_at":datetime.now(UTC).isoformat()}}
         manifest_name = f"runner-{args.phase}-{args.total}-{RUN_ID}.json"
         save(manifest_name,metadata)
         guard_db = engine(timeout=60000)

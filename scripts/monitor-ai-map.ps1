@@ -14,8 +14,12 @@ $labNetworkName = "codex-r01-$labSuffix"
 $labMonitorId = [guid]::NewGuid().ToString('N')
 $labExperiment = Get-Content -Raw -LiteralPath (Join-Path $labOutput 'experiment.json') | ConvertFrom-Json
 $labDbId = $labExperiment.db_container_id
+$labClockUtc = [DateTime]::UtcNow
+$labClockMonotonic = [Diagnostics.Stopwatch]::StartNew()
 function Write-MonitorEvent($event) {
-    $event.at = [DateTime]::UtcNow.ToString('o')
+    $event.at = $labClockUtc.Add($labClockMonotonic.Elapsed).ToString('o')
+    $event.wall_at = [DateTime]::UtcNow.ToString('o')
+    $event.clock = 'utc-anchored-monotonic.v1'
     $event.container = $labDbName
     $event.profile = $Profile
     $event.provenance = $labExperiment

@@ -25,6 +25,11 @@ authority IDs with the same indexed UNION used by the fixture optimization;
 the historical timings describe the earlier OR expression. Validate correctness
 with small regressions and agree a lighter workload separately.
 
+On 2026-10-30 the owner explicitly authorized a new isolated baseline run at
+100k/500k/1m with the resources below. This later approval is recorded in
+[post-merge remediation](../post-merge-remediation.md). It permits fresh synthetic
+labs; it does not permit reuse of the historical DB or public AI activation.
+
 ## Architectural meaning
 
 A fact is one row of `ai_listing_facts`: a typed observation, scope, status,
@@ -83,8 +88,11 @@ The runner uses the inspected network ID and pins r01-db in /etc/hosts to that
 container's inspected IP, so another container's DNS alias cannot redirect DDL.
 An OS file lock records the owner run/PID and excludes concurrent phases writing
 the same experiment directory; it is released automatically on process exit.
-A database-wide transaction advisory lock excludes initialize/seed/measure even
-across different output directories. During measure a dedicated transaction
+A database-wide advisory lock excludes initialize/seed/measure even across
+different output directories. Initialize uses an AUTOCOMMIT session lock so
+concurrent-index migrations do not wait for its own old transaction snapshot;
+seed and measure use transaction locks in the same lock namespace.
+During measure a dedicated transaction
 holds SHARE locks on every lab-schema table before preflight until all queries
 and pool cleanup finish. SELECT remains allowed; ordinary DML, TRUNCATE and DDL
 are blocked, including writers that ignore the advisory lock. A concurrent
@@ -277,3 +285,18 @@ Small toolchain regressions use fake Docker and temporary Git repositories,
 including real PowerShell execution when pwsh/PowerShell is installed. They do
 not start the synthetic lab. Run `python -m pytest -q
 backend/tests/test_ai_map_toolchain.py backend/tests/test_ai_map_benchmark_safety.py`.
+
+## Instrumentation corrections (2026-10-30)
+
+Seed ANALYZE/VACUUM waits up to60s for maintenance locks and restores the1s query
+lock timeout even on failure. The untimed repeatable-read/read-only dataset
+preflight uses SET LOCAL statement_timeout60s: counting20m fixture facts must
+not inherit the timed-query deadline5s. Closing that transaction restores the
+engine setting; timed map queries and SLO thresholds are unchanged.
+
+Attempt/phase timestamps and resource events use a UTC anchor captured at process
+start plus monotonic elapsed time, so a wall-clock correction cannot invert or
+shorten a measured interval. Raw wall-clock fields are retained separately.
+The orchestrator brackets the final manifest timestamp with resource samples.
+Raw consistency checks remain strict; older evidence with inconsistent clocks
+is rejected and preserved. Any source change requires a fresh experiment/DB.

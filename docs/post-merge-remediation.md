@@ -113,6 +113,29 @@ pool connection. ANALYZE и VACUUM ANALYZE используют maintenance wait
 используется следующая свежая lab с новым source SHA; данные и timings старых
 экспериментов в неё не переносятся.
 
+В следующей lab1548ec6b source8346a1b9 прошёл весь seed/preflight100k,
+но строгая приёмка отклонила одну load-волну: wall-clock интервалы оказались
+короче perf_counter длительностей примерно на4.416s. Raw timing не исправлялся;
+seed500k остановлен через SIGINT после выявления несогласованности, trigger
+восстановлен в finally, manifests и monitoring сохранены. Приёмка осталась FAIL.
+Новые timestamps используют UTC anchor при старте процесса плюс elapsed
+монотонного таймера; исходные wall-clock значения также сохраняются.
+Monitor применяет тот же принцип. Проверка consistency/SLO не ослаблена.
+Следующая свежая lab не переиспользует данные предыдущих запусков.
+
+Дополнительные forced Back cases выявили ещё две формы ISSUE-002: браузерный
+Back на тот же q и fallback Back прямой ссылки. History уже меняет URL, пока
+HashRouter ещё не выполнил render; поздний idle возвращал старую map route.
+Camera/polygon callbacks теперь также сверяют route authority с фактическим
+hash URL браузера. Оба reproduction сначала FAIL, после исправления все пять
+forced idle cases прошли по два раза. Актуальные architecture/database/index/
+troubleshooting ссылки обновлены до0074; датированные snapshots сохранены.
+Суперседированный Back/hash переход также сбрасывает pending camera route и
+ожидающий camera update, сохраняя возможность запомнить следующую область.
+Финально:18 forced idle/recall checks passed (три повтора),67 map/navigation
+tests passed,168 toolchain/PG contracts passed +28 Windows checks отдельно;
+lint/typecheck/build passed. Пересекающиеся suites не суммируются как уникальные.
+
 Это большой прогон с возможной длительностью в несколько часов. Даже успешный
 synthetic capacity не разрешает публичный AI: privacy/retention/freshness,
 runtime policy и provider rollout остаются отдельными согласованиями.

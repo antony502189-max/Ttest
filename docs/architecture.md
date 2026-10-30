@@ -9,7 +9,7 @@
                         HTTPS / Traefik → Nginx frontend    │
                          └── FastAPI routers  ←─────────────┘
                               ├── SQLAlchemy async → PostgreSQL + PostGIS
-                              │                        └── Alembic 0001..0056
+                              │                        └── Alembic 0001..0074
                               ├── Redis → rate limiting / distributed leases
                               ├── S3 storage adapter → private MinIO / assets
                               └── mail outbox → mail-worker → SMTP
@@ -32,6 +32,27 @@ The production listing feed is **bounded**, not a full-catalog download. `POST /
 - **Regional selection:** `comunidad=<01..17>` in the client URL maps to `autonomousCommunity` in API DTOs. PostGIS selects published listings in the requested autonomous community; a mere string match of the city name is insufficient.
 - **Geographic sources:** simplified local region boundaries are used by the server and browser; browser also has an INE municipality dictionary for suggestions. [Detailed contract](spain-regional-search.md).
 - **Maps:** the first mobile visit opens a broad Spain/Canary overview. Later fresh visits restore a virtual 70 km zone from browser storage, subject to explicit search/deep-link priority. No visible circles or new overlays are required. [Detailed lifecycle](navigation-and-maps.md).
+
+## Private AI search foundation
+
+As of 2026-10-30, the integrated foundation includes typed fact observations,
+source-generation batches, resolved search features and current-source query
+proofs. The shared eligibility predicate runs before cards/map counts, ordering
+and limits; it also protects saved-result matching. PostgreSQL owns quota leases,
+session versions, idempotent commands and committed result receipts. Voice uses
+the same durable execution boundary with explicitly supplied offline adapters.
+Registered saved-search snapshots and rematch dry runs are additive migration
+0074; they do not start notification delivery or a scheduler.
+
+Public AI remains disabled by default. Provider/ASR rollout, freshness,
+privacy/retention policy and capacity acceptance are separate activation gates.
+The current map query must pass the representative synthetic capacity protocol;
+small correctness tests do not certify its throughput. See
+[query proofs](ai-search-developer/CURRENT_QUERY_PROOFS.md),
+[HTTP boundary](ai-search-developer/DISABLED_HTTP_BOUNDARY.md),
+[map contract](ai-search-developer/VERIFIED_MAP_QUOTA.md) and
+[post-merge remediation](post-merge-remediation.md). Dated AI checkpoints describe
+their recorded revision and must not be read as the current integration state.
 
 ## Security and data safety
 
