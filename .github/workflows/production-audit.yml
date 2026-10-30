@@ -90,6 +90,7 @@ jobs:
         run: pytest -q -m 'not integration'
 
       - name: PostgreSQL and PostGIS integration tests
+        timeout-minutes: 10
         working-directory: backend
         run: pytest -vv --durations=25 -o faulthandler_timeout=60 -m 'integration and not s3'
 
