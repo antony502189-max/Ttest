@@ -1,6 +1,8 @@
 name: AI Search combined facts quota sessions
 
 on:
+  push:
+    branches: [main]
   pull_request:
     paths: ['backend/**', '.github/workflows/ai-search-facts.yml']
   workflow_dispatch:

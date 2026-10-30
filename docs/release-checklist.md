@@ -15,6 +15,7 @@ Use this checklist for any change affecting the running site. **A merged PR, a g
 ## Before deploying
 
 - [ ] Record the **exact 40-character `origin/main` SHA** and confirm PR merged; a merge alone is not a deployment.
+- [ ] Confirm the latest **push** runs on that exact SHA passed Full audit, Security dependency and static audit, Capacity smoke safeguards, AI Search combined facts quota sessions, and AI Search private frontend. The release verifier rejects missing, pending, skipped or failed runs; green PR checks alone are insufficient. See [post-merge remediation](post-merge-remediation.md).
 - [ ] Confirm VPS hostname `vmi3640228`, IP `169.58.147.65`, `APP_DOMAIN=app.112233.es`; do not deploy to an old server.
 - [ ] Confirm target has no ongoing deploy/rollback/backup/restore; shared `flock` free.
 - [ ] Confirm `/srv/112233.es/current` is present and corresponds to a known clean worktree.
@@ -27,6 +28,7 @@ Use this checklist for any change affecting the running site. **A merged PR, a g
 
 - [ ] Open [Production deployment (manual approval)](https://github.com/antony502189-max/Ttest/actions/workflows/manual-production-deploy.yml); select `main`, tick explicit production confirmation and choose **Run workflow**.
 - [ ] **Confirm exact main commit and passing PR CI** completes successfully. The selected SHA is the **latest** `main` SHA and has approved merged-PR check evidence.
+- [ ] **Verify post-merge checks on exact main SHA** succeeds before the deployment job. Optional Pages publication is independent and requires explicit `PAGES_PREVIEW_ENABLED=true`; preview settings never authorize a VPS deployment.
 - [ ] If the deployment is waiting for review, use **Review deployments → Approve and deploy** on `production`. Self-approval needs **Prevent self-review disabled** and the operator listed among Required reviewers. Alternatively use a second authorized approver.
 - [ ] **Do not modify `main` while the release is running** and do not run another deploy or backup concurrently. The VPS verifies that approved SHA still equals `origin/main`.
 - [ ] **Deploy manually approved release to VPS** completes green. The restricted VPS runner invokes the established release engine: MinIO freshness gate, PostgreSQL backup, Alembic, Docker startup, smoke test and safe application rollback where supported. Preserve logs and metadata for incident response; don't retry migrations manually.

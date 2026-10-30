@@ -2,6 +2,38 @@ import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 
 const origin = 'http://127.0.0.1:4173'
 
+for (const target of ['area', 'list', 'filters'] as const) {
+  test(`delayed camera idle cannot overwrite ${target} navigation`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.addInitScript(() => {
+      localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+      const push = history.pushState.bind(history)
+      let injected = false
+      history.pushState = (...args) => {
+        const answer = push(...args)
+        if (!injected && String(args[2]).includes('poligono=') && !String(args[2]).includes('dibujar=1')) {
+          injected = true
+          queueMicrotask(() => window.__googleMapsTestLastMap?.setCenter({ lat: 28.15, lng: -16.62 }))
+        }
+        return answer
+      }
+    })
+    const polygon = '28.00000,-16.79000;28.00000,-16.50000;28.17000,-16.50000;28.17000,-16.79000'
+    await page.goto(`/#/buscar?q=Tenerife&alquiler=long&vista=mapa&${target === 'area' ? 'dibujar=1&' : ''}poligono=${encodeURIComponent(polygon)}`)
+    await expect(page).toHaveURL(/mapZoom=/)
+    if (target === 'area') await page.getByTestId('search-this-area').click()
+    else await page.getByRole('button', { name: target === 'list' ? 'Listado' : 'Filtros', exact: true }).click()
+    await expect(page).not.toHaveURL(/dibujar=1/)
+    await expect(page).toHaveURL(/poligono=/)
+    if (target === 'area') await expect(page).toHaveURL(/vista=mapa/)
+    else {
+      await expect(page).not.toHaveURL(/vista=mapa|mapLat=|mapLng=|mapZoom=/)
+      if (target === 'filters') await expect(page).toHaveURL(/panel=filtros/)
+      else await expect(page.locator('.m2-result-card').first()).toBeVisible()
+    }
+  })
+}
+
 async function openLocation(page: Page) {
   await page.addInitScript(() => localStorage.setItem('112233:mobile-onboarding:v1', 'done'))
   await page.goto('/#/?panel=ubicacion')
