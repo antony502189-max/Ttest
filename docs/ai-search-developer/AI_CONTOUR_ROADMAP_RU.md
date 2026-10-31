@@ -194,6 +194,7 @@ MockTransport adapter и default-disabled runtime сохранены. Предл
 синтетических запроса/эталона; они ещё не утверждены для live. Качество модели
 и реальные расходы не измерены, пункт 4 не принят как выполненный.
 [Контракт, набор, ограничения и воспроизведение](AI_INTENT_MODEL_LAB_RU.md).
+[Offline результат и evidence](../../reports/AI_INTENT_MODEL_OFFLINE_20261101.md).
 
 После отдельного разрешения на живые вызовы и политики исходящих данных создать
 рабочий provider transport; offline MockTransport adapter сохранить для тестов.
