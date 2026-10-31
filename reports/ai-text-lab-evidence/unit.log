@@ -1,0 +1,15 @@
+test_explicit_marker_alone_never_authorizes_application_database (lab.test_ai_text.AssemblyGuards.test_explicit_marker_alone_never_authorizes_application_database) ... ok
+test_production_destinations_or_credentials_fail_closed (lab.test_ai_text.AssemblyGuards.test_production_destinations_or_credentials_fail_closed) ... ok
+{"timestamp": "2026-10-31T00:06:05.513960+00:00", "level": "WARNING", "logger": "asyncio", "message": "Executing <Task pending name='Task-2' coro=<IntentBoundary.test_default_app_stays_disabled_even_in_lab_environment() running at /app/lab/test_ai_text.py:37> cb=[_run_until_complete_cb() at /usr/local/lib/python3.13/asyncio/base_events.py:181] created at /usr/local/lib/python3.13/asyncio/runners.py:101> took 2.184 seconds"}
+{"timestamp": "2026-10-31T00:06:05.558724+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "c13356b5-bbab-4d52-b244-ef093fa0ed4e", "method": "GET", "path": "/api/v1/ai-search/<private>", "status": 200, "duration_ms": 49.01}
+{"timestamp": "2026-10-31T00:06:05.564678+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET https://localhost:9443/api/v1/ai-search/capabilities \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-10-31T00:06:05.570278+00:00", "level": "INFO", "logger": "app.main", "message": "http_request", "request_id": "972dff3e-9e77-4398-ba9c-acabc0b76179", "method": "POST", "path": "/api/v1/ai-search/<private>", "status": 503, "duration_ms": 3.08}
+{"timestamp": "2026-10-31T00:06:05.573092+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST https://localhost:9443/api/v1/ai-search/query \"HTTP/1.1 503 Service Unavailable\""}
+test_default_app_stays_disabled_even_in_lab_environment (lab.test_ai_text.IntentBoundary.test_default_app_stays_disabled_even_in_lab_environment) ... ok
+test_followup_keeps_hard_criteria_and_reset_is_explicit (lab.test_ai_text.IntentBoundary.test_followup_keeps_hard_criteria_and_reset_is_explicit) ... ok
+test_unknown_phrase_never_silently_widens_search (lab.test_ai_text.IntentBoundary.test_unknown_phrase_never_silently_widens_search) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 2.261s
+
+OK
