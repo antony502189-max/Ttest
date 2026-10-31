@@ -5,9 +5,9 @@ from sqlalchemy import and_, func, literal, select
 from sqlalchemy.sql.elements import ColumnElement
 
 from ..models import ExternalListingSource
-from .ai_fact_pipeline import FactPipeline
 from ..services.ai_fact_quality import FactQualityPolicy
 from ..services.ai_hard_matching import HardMatchPlan
+from .ai_fact_pipeline import FactPipeline
 
 
 def source_freshness_predicate(listing_id: ColumnElement[UUID], plan: HardMatchPlan,
