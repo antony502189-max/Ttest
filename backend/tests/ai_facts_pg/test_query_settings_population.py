@@ -25,7 +25,7 @@ async def population(pipeline):
         def migrate(connection):
             with Operations.context(MigrationContext.configure(connection)):
                 connection.execute(text("CREATE TABLE listing_room_details (listing_id uuid PRIMARY KEY)"))
-                for name in ("0071_ai_query_proofs", "0075_ai_proof_population", "0077_ai_live_inputs"):
+                for name in ("0071_ai_query_proofs", "0075_ai_proof_population", "0077_ai_live_inputs", "0078_ai_live_validity"):
                     path = Path(__file__).parents[2] / "alembic/versions" / (name + ".py")
                     spec = importlib.util.spec_from_file_location(name, path)
                     module = importlib.util.module_from_spec(spec)
@@ -74,7 +74,7 @@ async def test_population_direct_bulk_upsert_noops_delete_truncate_and_recreatio
         await s.execute(text("DELETE FROM ai_query_proofs"))
         assert await s.scalar(identity()) != before
         before = await s.scalar(identity())
-        await s.execute(text("TRUNCATE ai_query_proofs"))
+        await s.execute(text("TRUNCATE ai_query_proofs CASCADE"))
         assert await s.scalar(identity()) != before
         before = await s.scalar(identity())
         raw = await (await s.connection()).get_raw_connection()

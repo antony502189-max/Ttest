@@ -42,7 +42,10 @@ async def test_exact_dataset_validation_on_postgres(pg, tmp_path, monkeypatch, d
         # Minimal synthetic fields for coverage validation only; real live
         # token triggers/proofs are tested separately on the actual schema.
         await c.execute(text("ALTER TABLE ai_query_proofs ADD input_signature text DEFAULT repeat('a',64), "
-                             "ADD input_binding text DEFAULT repeat('b',64), ADD input_vector jsonb DEFAULT '{}'::jsonb"))
+                             "ADD input_binding text DEFAULT repeat('b',64), ADD input_vector jsonb DEFAULT '{}'::jsonb, "
+                             "ADD input_status text DEFAULT 'current', ADD input_contract text DEFAULT 'query-proof.v2', "
+                             "ADD input_epoch uuid DEFAULT gen_random_uuid(), ADD input_schema text DEFAULT repeat('c',64), "
+                             "ADD match_cohort_id text DEFAULT repeat('d',64)"))
         ready = "NULL::text" if damage == "live_trigger" else "'synthetic-ready'::text"
         await c.execute(text(f"CREATE FUNCTION ai_live_input_schema_signature() RETURNS text LANGUAGE sql AS $$ SELECT {ready} $$"))
         await c.execute(text("CREATE TABLE r01_entities AS SELECT generate_series(1,3) AS n"))
@@ -62,7 +65,8 @@ async def test_exact_dataset_validation_on_postgres(pg, tmp_path, monkeypatch, d
     (tmp_path / "template.json").write_text(json.dumps({"sources":2,"observations":20,"provenance":provenance}))
     (tmp_path / "dataset-3.json").write_text(json.dumps({"listings":3,"source_records_per_listing":2,
         "observations_per_listing":20,"counts_including_template":counts,"distinct_providers":5,"provenance":provenance,"seed_generation":1,
-        "live_inputs_contract":"wrong" if damage == "live_contract" else "live-inputs.v1","fast_proof_count":4}))
+        "live_inputs_contract":"wrong" if damage == "live_contract" else "live-inputs.v1","fast_proof_count":4,
+        "validity_contract":"live-validity.fk.v1"}))
     async with db.connect() as c:
         await c.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
         if damage is None:

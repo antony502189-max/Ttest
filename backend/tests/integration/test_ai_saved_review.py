@@ -140,5 +140,5 @@ async def test_expand_only_downgrade_fails_without_stamp_or_snapshot_change():
     with pytest.raises(RuntimeError, match="SCHEMA_DOWNGRADE_DISABLED"):
         command.downgrade(config, "0073_ai_command_seed")
     async with SessionLocal() as conn:
-        assert await conn.scalar(text("SELECT version_num FROM alembic_version")) == "0077_ai_live_inputs"
+        assert await conn.scalar(text("SELECT version_num FROM alembic_version")) == "0078_ai_live_validity"
     assert (await repo.get(owner, saved.id)).id == saved.id

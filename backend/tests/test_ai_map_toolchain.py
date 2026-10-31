@@ -507,7 +507,8 @@ async def test_measure_validates_dataset_before_timed_sql(tmp_path, monkeypatch,
     meta = {"synthetic_only":True,"sources":2,"provenance":provenance,"generation":1}
     template = {"listing":"synthetic","sources":2,"observations":20,"provenance":provenance}
     value = {**dataset(100),"counts_including_template":counts,"distinct_providers":10,"provenance":provenance,
-             "live_inputs_contract":"wrong" if damage == "live_contract" else "live-inputs.v1","fast_proof_count":101}
+             "live_inputs_contract":"wrong" if damage == "live_contract" else "live-inputs.v1","fast_proof_count":101,
+             "validity_contract":"live-validity.fk.v1"}
     if damage == "meta_sources": meta["sources"] = 10
     if damage == "template": template["sources"] = 10
     if damage == "provenance": value["provenance"] = {}

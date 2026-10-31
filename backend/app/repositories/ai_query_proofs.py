@@ -7,18 +7,26 @@ source-health freshness by elapsed time or complete listing eligibility.
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import DateTime, Text, and_, case, func, literal, or_, select, text, true
+from sqlalchemy import DateTime, Text, and_, case, delete, func, literal, select, text, tuple_, update
 from sqlalchemy.dialects.postgresql import JSONB, aggregate_order_by, insert
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.elements import ColumnElement
 
 from ..models import ExternalListingSource, Listing
 from ..models.ai_fact_pipeline import AiFactCatalog, AiFactSource
 from ..models.ai_listing_facts import AiListingFact, AiListingFactBatch, AiListingSearchFeatures
-from ..models.ai_query_proof import AiLiveInputEpoch, AiLiveInputVersion, AiProofPopulation, AiQueryProof
+from ..models.ai_query_proof import (
+    AiLiveInputEpoch,
+    AiLiveInputVersion,
+    AiLiveMatchCohort,
+    AiLiveProofDependency,
+    AiProofPopulation,
+    AiQueryProof,
+)
 from ..models.room_details import ListingRoomDetails
 from ..schemas.ai_listing_facts import Category, DateRange, Money, Quantity, SearchProjection
 from .ai_fact_pipeline import FactPipeline
+from .ai_hard_matching import hard_match_predicate
 
 PROOF_CONTRACT_VERSION = "query-proof.v2"
 
@@ -140,59 +148,50 @@ def live_vector_signature(vector):
 
 
 def _input_context():
-    vector = AiQueryProof.input_vector
     epoch = select(AiLiveInputEpoch.epoch).where(AiLiveInputEpoch.id == 1).scalar_subquery()
     # Uncorrelated scalar subquery is a statement-wide InitPlan: schema/trigger
     # readiness is not recomputed for every candidate.
     schema = select(func.ai_live_input_schema_signature()).scalar_subquery()
-    return and_(vector["schema"].astext == schema, vector["epoch"].astext == epoch.cast(Text),
-                vector["contract"].astext == "live-inputs.v1")
+    return and_(AiQueryProof.input_schema == schema, AiQueryProof.input_epoch == epoch)
 
 
-def _current_input_vector(listing_id, *, match_tokens=True):
-    vector = AiQueryProof.input_vector
-    version = AiLiveInputVersion.__table__.alias()
-    listing_checks = [version.c.kind == "listing", version.c.record_id == listing_id]
-    if match_tokens:
-        listing_checks.append(version.c.token == vector["listing"].astext.cast(PGUUID))
-    checks = [select(1).select_from(version).where(*listing_checks).offset(0).correlate_except(version).exists()]
-    for field, kind in (("authority", "external"), ("batches", "batch")):
-        entries = func.jsonb_array_elements(vector[field]).table_valued("value").alias()
-        value = entries.c.value.cast(JSONB)
-        versions = AiLiveInputVersion.__table__.alias()
-        live = select(versions.c.token).where(versions.c.kind == kind,
-            versions.c.record_id == value[0].astext.cast(PGUUID)).offset(0).correlate_except(versions).lateral()
-        invalid = live.c.token.is_(None)
-        if match_tokens:
-            invalid = or_(invalid, live.c.token != value[1].astext.cast(PGUUID))
-        missing = select(1).select_from(entries.outerjoin(live, true())).where(invalid)
-        checks.append(~missing.correlate_except(entries, live).exists())
-    return and_(*checks)
-
-
-def current_projection_predicate(listing_id, *, resolver_version: str, vocabulary_hash: str) -> ColumnElement[bool]:
+def current_projection_predicate(listing_id, *, resolver_version: str, vocabulary_hash: str,
+                                 match_plan=None, cohort_scope=None) -> ColumnElement[bool]:
     """Use with existing eligibility and hard matching BEFORE count/order/seek/limit."""
-    # Preserve the correlated PK lookup. Flattening this EXISTS into a hash
-    # semi-join scans the complete proof catalog for a small viewport and can
-    # evaluate the expensive signature again when rechecking the hash match.
-    # OFFSET 0 changes neither membership nor the before-LIMIT guard contract.
-    binding_valid = and_(_input_context(), AiQueryProof.input_signature == _hash(AiQueryProof.input_vector),
-        AiQueryProof.input_binding == input_binding(AiQueryProof.signature, AiQueryProof.input_signature,
-            AiQueryProof.resolver_version, AiQueryProof.vocabulary_hash, AiQueryProof.feature_revision))
+    # The legacy digest stays inside COALESCE/CASE, not an equality hash key.
+    # PostgreSQL may choose a set join for broad views and indexed probes for
+    # narrow candidates, without hashing every listing's raw v2 inputs.
+    # The ALWAYS proof-write guard verifies vector/binding integrity once per
+    # write. Query readiness includes that guard's definition and enabled state.
+    binding_valid = and_(_input_context(), AiQueryProof.input_contract == PROOF_CONTRACT_VERSION)
     # TRUE is the unchanged-input shortcut. FALSE is fail-closed missing or
     # corrupted state. NULL requests the exact original v2 check: legacy proofs
     # or changed tokens with all dependencies present. This preserves live
     # keyset restoration semantics without treating a stale token as permission.
-    decision = case((AiQueryProof.input_signature.is_not(None),
-        case((binding_valid, case((_current_input_vector(listing_id), True),
-                                 (_current_input_vector(listing_id, match_tokens=False), None), else_=False)),
+    fast_match: ColumnElement[bool] = literal(True)
+    legacy_match: ColumnElement[bool] = literal(True)
+    if match_plan is not None:
+        matching = select(AiLiveMatchCohort.id).where(hard_match_predicate(AiLiveMatchCohort.__table__.c.features, match_plan))
+        if cohort_scope is not None:
+            cohorts = matching.where(AiLiveMatchCohort.id.in_(cohort_scope)).cte().prefix_with("MATERIALIZED")
+            fast_match = AiQueryProof.match_cohort_id.in_(select(cohorts.c.id))
+        else:
+            # One-listing/saved matching must not scan every catalog cohort.
+            fast_match = matching.where(AiLiveMatchCohort.id == AiQueryProof.match_cohort_id
+                ).offset(0).correlate(AiQueryProof).exists()
+        features = AiListingSearchFeatures.__table__.alias()
+        legacy_match = select(1).select_from(features).where(features.c.canonical_listing_id == AiQueryProof.canonical_listing_id,
+            hard_match_predicate(features.c.features, match_plan)).correlate_except(features).exists()
+    decision = case((AiQueryProof.input_status != "legacy",
+        case((binding_valid, case((AiQueryProof.input_status == "current", fast_match),
+                                 (AiQueryProof.input_status == "changed", None), else_=False)),
              else_=False)), else_=None)
     return select(1).select_from(AiQueryProof).where(
         AiQueryProof.canonical_listing_id == listing_id,
         AiQueryProof.resolver_version == resolver_version,
         AiQueryProof.vocabulary_hash == vocabulary_hash,
-        func.coalesce(decision, AiQueryProof.signature == projection_signature(listing_id)),
-    ).offset(0).correlate_except(AiQueryProof).exists()
+        func.coalesce(decision, and_(AiQueryProof.signature == projection_signature(AiQueryProof.canonical_listing_id), legacy_match)),
+    ).correlate_except(AiQueryProof).exists()
 
 
 async def _canonical_values_agree(session, listing_id: UUID, projection: SearchProjection) -> bool:
@@ -267,21 +266,61 @@ class QueryProofs:
             vector, inputs = (await session.execute(select(snapshot.c.vector, live_vector_signature(snapshot.c.vector)))).one()
             if inputs is None:
                 return False
+            matching = select(func.ai_live_match_features(literal(listing_id)).cast(JSONB).label("features")).offset(0).subquery()
+            match_features, cohort = (await session.execute(select(matching.c.features, _hash(matching.c.features)))).one()
+        try:
+            return await self._write_prepared(listing_id, signature, inputs, vector, projection.feature_revision, match_features, cohort)
+        except IntegrityError as error:
+            cause = getattr(error.orig, "__cause__", None)
+            constraint = getattr(error.orig, "constraint_name", None) or getattr(cause, "constraint_name", None)
+            if constraint in {"fk_ai_live_dep_version", "ck_ai_live_current_proof"}:
+                return False  # context changed; the whole write has rolled back
+            raise
+
+    async def _write_prepared(self, listing_id, signature, inputs, vector, revision, match_features, cohort):
+        deps = [("listing", listing_id, UUID(vector["listing"]))]
+        deps += [(kind, UUID(record), UUID(token)) for field, kind in (("authority", "external"), ("batches", "batch"))
+                 for record, token in vector[field]]
         async with self.pipeline.sessions() as session, session.begin():
+            # Match PostgreSQL's FK lock ordering before locking the proof row.
+            # Key-share locks serialize token-key updates with preparation even
+            # when a source writer has an older repeatable-read snapshot.
+            version = AiLiveInputVersion
+            locked = (await session.execute(select(version.kind, version.record_id, version.token).where(
+                tuple_(version.kind, version.record_id).in_([(kind, record) for kind, record, _ in deps])
+                ).order_by(version.kind, version.record_id).with_for_update(read=True, key_share=True))).all()
+            if {(kind, record): token for kind, record, token in locked} != {(kind, record): token for kind, record, token in deps}:
+                return False
+            await session.execute(insert(AiLiveMatchCohort).values(id=cohort, features=match_features).on_conflict_do_nothing())
             values = select(literal(listing_id), literal(signature), literal(self.pipeline.vocabulary_hash),
-                            literal(self.pipeline.resolver_version), literal(projection.feature_revision), literal(inputs),
+                            literal(self.pipeline.resolver_version), literal(revision), literal(inputs),
                             input_binding(literal(signature), literal(inputs), literal(self.pipeline.resolver_version),
-                                literal(self.pipeline.vocabulary_hash), literal(projection.feature_revision)),
-                            literal(vector, type_=JSONB)).where(
+                                literal(self.pipeline.vocabulary_hash), literal(revision)),
+                            literal(vector, type_=JSONB), literal("missing"), literal(PROOF_CONTRACT_VERSION),
+                            literal(UUID(vector["epoch"])), literal(vector["schema"]), literal(cohort)).where(
                 projection_signature(literal(listing_id)) == signature,
                 func.ai_live_input_signature(literal(listing_id)) == inputs)
             statement = insert(AiQueryProof).from_select(
                 ["canonical_listing_id", "signature", "vocabulary_hash", "resolver_version", "feature_revision",
-                 "input_signature", "input_binding", "input_vector"], values)
+                 "input_signature", "input_binding", "input_vector", "input_status", "input_contract", "input_epoch", "input_schema", "match_cohort_id"], values)
             returning = statement.on_conflict_do_update(index_elements=[AiQueryProof.canonical_listing_id], set_={
                 "signature": statement.excluded.signature, "vocabulary_hash": statement.excluded.vocabulary_hash,
                 "resolver_version": statement.excluded.resolver_version, "feature_revision": statement.excluded.feature_revision,
                 "input_signature": statement.excluded.input_signature, "input_binding": statement.excluded.input_binding,
                 "input_vector": statement.excluded.input_vector,
+                "input_status": statement.excluded.input_status,
+                "input_contract": statement.excluded.input_contract,
+                "input_epoch": statement.excluded.input_epoch, "input_schema": statement.excluded.input_schema,
+                "match_cohort_id": statement.excluded.match_cohort_id,
             }).returning(AiQueryProof.canonical_listing_id)
-            return await session.scalar(returning) is not None
+            if await session.scalar(returning) is None:
+                return False
+            await session.execute(delete(AiLiveProofDependency).where(AiLiveProofDependency.proof_listing_id == listing_id))
+            await session.execute(insert(AiLiveProofDependency).values([
+                {"proof_listing_id": listing_id, "kind": kind, "record_id": record, "token": token}
+                for kind, record, token in deps]))
+            status = await session.scalar(update(AiQueryProof).where(AiQueryProof.canonical_listing_id == listing_id)
+                .values(input_status="current").returning(AiQueryProof.input_status))
+            if status != "current":
+                raise RuntimeError("prepared proof binding rejected")
+            return True

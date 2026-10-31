@@ -5,9 +5,11 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy import event, func, literal, select, text
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from test_current_projection import completed
 from test_query_proofs import guard
 from test_query_proofs import proofs as proof_fixture
+from typed_match_cases import CASES, plan
 
 from app.models import Listing
 from app.repositories import ai_query_proofs
@@ -31,7 +33,7 @@ async def test_fast_path_never_executes_full_digest_but_old_proofs_still_do(pipe
     monkeypatch.setattr(ai_query_proofs, "projection_signature", lambda lid: func.forbidden_digest(lid))
     assert await guard(proofs, source.canonical_listing_id)
     async with sessions() as s, s.begin():
-        await s.execute(text("UPDATE ai_query_proofs SET input_signature=NULL, input_binding=NULL, input_vector=NULL"))
+        await s.execute(text("UPDATE ai_query_proofs SET input_signature=NULL, input_binding=NULL, input_vector=NULL, input_status='legacy'"))
     with pytest.raises(Exception, match="full digest executed"):
         await guard(proofs, source.canonical_listing_id)
     monkeypatch.undo()
@@ -56,7 +58,7 @@ async def test_missing_tokens_fail_closed_and_do_not_fall_back(pipeline, proofs,
     assert not await proofs.prepare(source.canonical_listing_id)
 
 
-@pytest.mark.parametrize("change", ["signature", "resolver_version", "vocabulary_hash", "feature_revision", "input_signature", "input_vector"])
+@pytest.mark.parametrize("change", ["signature", "resolver_version", "vocabulary_hash", "feature_revision", "input_signature", "input_vector", "input_contract"])
 async def test_fast_binding_rejects_tampered_proof_fields(pipeline, proofs, change):
     service, sessions = pipeline
     source = await completed(pipeline)
@@ -198,7 +200,7 @@ async def test_bounded_full_digest_vs_token_plan(pipeline, proofs):
             result = await raw.driver_connection.fetchval("EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) " + sql, *parameters)
             return json.loads(result) if isinstance(result, str) else result
         fast = await explain()
-        await s.execute(text("UPDATE ai_query_proofs SET input_signature=NULL, input_binding=NULL, input_vector=NULL"))
+        await s.execute(text("UPDATE ai_query_proofs SET input_signature=NULL, input_binding=NULL, input_vector=NULL, input_status='legacy'"))
         legacy = await explain()
         assert await s.scalar(query) == 32
         def nodes(node):
@@ -210,10 +212,9 @@ async def test_bounded_full_digest_vs_token_plan(pipeline, proofs):
                        if n.get("Relation Name") == "ai_listing_facts")
         assert full_fact_rows(fast) == 0
         assert full_fact_rows(legacy) >= 32
-        visits = [n for n in nodes(fast[0]["Plan"]) if n.get("Relation Name") == "ai_live_input_versions"
+        visits = [n for n in nodes(fast[0]["Plan"]) if n.get("Relation Name") in {"ai_live_input_versions", "ai_live_proof_dependencies"}
                   and n["Actual Loops"] > 0]
-        assert visits and all(n["Node Type"] in {"Index Scan", "Index Only Scan"} for n in visits)
-        assert sum(n["Actual Rows"] * n["Actual Loops"] for n in visits) == 32*3
+        assert visits == [], "unchanged proofs must not read dependencies per candidate"
         print("LIVE_INPUT_BOUNDED_PLAN=" + json.dumps({"listings": 32, "capacity_acceptance": False,
             "token": fast, "legacy": legacy}))
 
@@ -298,3 +299,113 @@ async def test_replica_session_cannot_bypass_input_invalidation(pipeline, proofs
         await s.execute(text("SET LOCAL session_replication_role=replica"))
         await s.execute(text("UPDATE external_listing_sources SET raw_payload=jsonb_build_object('replica',true)"))
     assert not await guard(proofs, source.canonical_listing_id)
+
+
+async def test_deleted_dependency_and_stale_status_cannot_be_marked_current(pipeline, proofs):
+    _, sessions = pipeline
+    source = await completed(pipeline)
+    assert await proofs.prepare(source.canonical_listing_id)
+    async with sessions() as s, s.begin():
+        await s.execute(text("DELETE FROM ai_live_proof_dependencies WHERE kind='external'"))
+    assert not await guard(proofs, source.canonical_listing_id)
+    with pytest.raises(IntegrityError, match="live proof dependencies missing"):
+        async with sessions() as s, s.begin():
+            await s.execute(text("UPDATE ai_query_proofs SET input_status='current'"))
+    assert await proofs.prepare(source.canonical_listing_id)
+    async with sessions() as s, s.begin():
+        await s.execute(text("UPDATE external_listing_sources SET raw_payload=jsonb_build_object('stale',true)"))
+    with pytest.raises(IntegrityError, match="live proof input snapshot changed"):
+        async with sessions() as s, s.begin():
+            await s.execute(text("UPDATE ai_query_proofs SET input_status='current'"))
+    assert not await guard(proofs, source.canonical_listing_id)
+
+
+async def test_foreign_key_invalidation_sees_proof_prepared_after_rr_writer_snapshot(pipeline, proofs):
+    _, sessions = pipeline
+    source = await completed(pipeline)
+    serialized = False
+    try:
+        async with sessions() as old_writer, old_writer.begin():
+            await old_writer.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"))
+            await old_writer.execute(text("SELECT count(*) FROM ai_live_input_versions"))
+            assert await proofs.prepare(source.canonical_listing_id)
+            await old_writer.execute(text("UPDATE external_listing_sources SET raw_payload=jsonb_build_object('rr',true)"))
+    except DBAPIError as error:
+        assert getattr(error.orig, "sqlstate", None) == "40001"
+        serialized = True
+    if serialized:
+        assert await guard(proofs, source.canonical_listing_id)  # failed write rolled back
+        async with sessions() as writer, writer.begin():
+            await writer.execute(text("UPDATE external_listing_sources SET raw_payload=jsonb_build_object('rr',true)"))
+    assert not await guard(proofs, source.canonical_listing_id)
+
+
+async def test_shared_cohorts_are_immutable_and_deletion_invalidates_both_proofs(pipeline, proofs):
+    _, sessions = pipeline
+    sources = [await completed(pipeline), await completed(pipeline)]
+    for source in sources:
+        assert await proofs.prepare(source.canonical_listing_id)
+    async with sessions() as s:
+        assert await s.scalar(text("SELECT count(*) FROM ai_live_match_cohorts")) == 1
+    with pytest.raises(IntegrityError, match="immutable"):
+        async with sessions() as s, s.begin():
+            await s.execute(text("UPDATE ai_live_match_cohorts SET id=encode(sha256(convert_to('[]','UTF8')),'hex'),features='[]'::jsonb"))
+    async with sessions() as s, s.begin():
+        await s.execute(text("DELETE FROM ai_live_match_cohorts"))
+    for source in sources:
+        assert not await guard(proofs, source.canonical_listing_id)
+    assert await proofs.prepare(sources[0].canonical_listing_id)
+    assert await guard(proofs, sources[0].canonical_listing_id)
+    assert not await guard(proofs, sources[1].canonical_listing_id)
+
+
+async def test_wrong_cohort_cannot_grant_matching(pipeline, proofs):
+    _, sessions = pipeline
+    source = await completed(pipeline)
+    assert await proofs.prepare(source.canonical_listing_id)
+    async with sessions() as s, s.begin():
+        await s.execute(text("INSERT INTO ai_live_match_cohorts SELECT encode(sha256(convert_to('[]','UTF8')),'hex'),'[]'::jsonb"))
+        await s.execute(text("UPDATE ai_query_proofs SET match_cohort_id=encode(sha256(convert_to('[]','UTF8')),'hex')"))
+    assert not await guard(proofs, source.canonical_listing_id)
+    assert await proofs.prepare(source.canonical_listing_id)
+    assert await guard(proofs, source.canonical_listing_id)
+
+
+async def test_scoped_cohorts_do_not_scan_unrelated_catalog_profiles(pipeline, proofs):
+    from app.models.ai_query_proof import AiQueryProof
+    service, sessions = pipeline
+    sources = [await completed(pipeline), await completed(pipeline)]
+    ids = [source.canonical_listing_id for source in sources]
+    for source in sources:
+        assert await proofs.prepare(source.canonical_listing_id)
+    async with sessions() as s, s.begin():
+        await s.execute(text("""INSERT INTO ai_live_match_cohorts
+            SELECT encode(sha256(convert_to(features::text,'UTF8')),'hex'),features FROM (
+                SELECT jsonb_build_array(jsonb_build_object('key','unrelated','status','unknown',
+                    'typed_value',NULL,'qualifiers',jsonb_build_object('noise',g))) AS features
+                FROM generate_series(1,4096) g OFFSET 0
+            ) profiles"""))
+        await s.execute(text("ANALYZE"))
+        scope = select(AiQueryProof.match_cohort_id).where(AiQueryProof.canonical_listing_id.in_(ids)).distinct().correlate(None)
+        compiled = plan(next(case for case in CASES if case["name"] == "pets"))
+        query = select(func.count()).select_from(Listing).where(Listing.id.in_(ids),
+            current_projection_predicate(Listing.id, resolver_version=service.resolver_version,
+                vocabulary_hash=service.vocabulary_hash, match_plan=compiled, cohort_scope=scope))
+        captured = []
+        def capture(connection, cursor, statement, parameters, context, executemany):
+            captured.append((statement, parameters))
+        event.listen(s.bind.sync_engine, "before_cursor_execute", capture)
+        try:
+            assert await s.scalar(query) == 2
+        finally:
+            event.remove(s.bind.sync_engine, "before_cursor_execute", capture)
+        raw = await (await s.connection()).get_raw_connection()
+        sql, parameters = captured[-1]
+        result = await raw.driver_connection.fetchval("EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) " + sql, *parameters)
+        result = json.loads(result) if isinstance(result, str) else result
+        def nodes(node):
+            yield node
+            for child in node.get("Plans", []): yield from nodes(child)
+        scans = [n for n in nodes(result[0]["Plan"]) if n.get("Relation Name") == "ai_live_match_cohorts" and n["Actual Loops"] > 0]
+        assert scans and all(n["Node Type"] in {"Index Scan", "Index Only Scan"} for n in scans)
+        assert sum(n["Actual Rows"] * n["Actual Loops"] for n in scans) == 1
