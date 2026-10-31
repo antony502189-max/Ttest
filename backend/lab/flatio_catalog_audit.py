@@ -14,12 +14,11 @@ from xml.etree import ElementTree
 
 import httpx
 
-from app.external_sources import FlatioSource, json_ld
+from app.external_sources import FlatioSource, is_in_import_scope, json_ld
 from app.schemas.ai_fact_bridge import BridgeReference
 from app.schemas.ai_listing_facts import FactKey
 from app.services.ai_flatio_pilot import prepare_flatio_room
 from app.services.rental_price_limit import long_term_price_allowed
-from app.spain_provinces import canonical_province
 
 
 async def collect(output: Path):
@@ -90,7 +89,9 @@ async def collect(output: Path):
                 address = room.get("address") or {}
                 price = next((f.typed_value.amount for f in ready.facts if f.key == "price"), None)
                 reasons = []
-                if canonical_province(address.get("addressRegion", "")) != "Santa Cruz de Tenerife":
+                location = {"province": address.get("addressRegion"), "city": address.get("addressLocality"),
+                            "country": address.get("addressCountry")}
+                if not is_in_import_scope(location, "santa_cruz"):
                     reasons.append("unconfirmed_province")
                 small_unit = "/rent/room/" in url or room.get("accommodationCategory") == "Studio" or room.get("numberOfBedrooms") == 1
                 if not small_unit:
@@ -101,7 +102,7 @@ async def collect(output: Path):
                     reasons.append("not_in_stock")
                 record = {"record_id": record_id, "source_id": str(source_id), "listing_id": str(listing_id),
                           "url": url, "checked_at": datetime.now(UTC).isoformat(), "eligible": not reasons,
-                          "exclusions": reasons, "source_hash": hashlib.sha256(json.dumps(room,sort_keys=True).encode()).hexdigest(),
+                          "exclusions": reasons, "location_policy": "existing_santa_cruz_structured_location", "source_hash": hashlib.sha256(json.dumps(room,sort_keys=True).encode()).hexdigest(),
                           "fields": ready.sanitized_fields, "facts": [f.model_dump(mode="json") for f in ready.facts]}
                 records.append(record)
                 for f in ready.facts:

@@ -53,3 +53,9 @@ def test_capacity_is_not_available_spots_and_false_furnished_is_confirmed():
     assert facts["capacity_total"].qualifiers.inventory_scope == "rented_unit"
     assert facts["furnished"].typed_value.value is False
     assert not {"available_spots", "availability", "couples", "children"} & facts.keys()
+
+
+def test_existing_santa_cruz_policy_accepts_structured_tenerife_but_not_other_island():
+    from app.external_sources import is_in_import_scope
+    assert is_in_import_scope({"province": "Tenerife", "city": "Santa Cruz de Tenerife", "country": "ES"}, "santa_cruz")
+    assert not is_in_import_scope({"province": "Las Palmas", "city": "Las Palmas", "country": "ES"}, "santa_cruz")
