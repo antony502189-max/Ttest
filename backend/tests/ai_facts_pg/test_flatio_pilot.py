@@ -6,7 +6,7 @@ from pathlib import Path
 from uuid import UUID
 
 import pytest
-from sqlalchemy import func, literal, select, text
+from sqlalchemy import func, select, text
 from test_query_proofs import guard
 from test_query_proofs import proofs as proof_fixture
 from typed_match_cases import intent
