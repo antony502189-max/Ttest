@@ -7,7 +7,7 @@ source-health freshness by elapsed time or complete listing eligibility.
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import DateTime, Text, and_, case, func, literal, or_, select, text
+from sqlalchemy import DateTime, Text, and_, case, func, literal, or_, select, text, true
 from sqlalchemy.dialects.postgresql import JSONB, aggregate_order_by, insert
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.sql.elements import ColumnElement
@@ -139,25 +139,34 @@ def live_vector_signature(vector):
     return _hash(vector)
 
 
-def _current_input_vector(listing_id):
+def _input_context():
     vector = AiQueryProof.input_vector
-    version = AiLiveInputVersion.__table__.alias()
     epoch = select(AiLiveInputEpoch.epoch).where(AiLiveInputEpoch.id == 1).scalar_subquery()
     # Uncorrelated scalar subquery is a statement-wide InitPlan: schema/trigger
     # readiness is not recomputed for every candidate.
     schema = select(func.ai_live_input_schema_signature()).scalar_subquery()
-    checks = [vector["schema"].astext == schema, vector["epoch"].astext == epoch.cast(Text),
-        vector["contract"].astext == "live-inputs.v1",
-        select(1).select_from(version).where(version.c.kind == "listing", version.c.record_id == listing_id,
-            version.c.token == vector["listing"].astext.cast(PGUUID)).offset(0).correlate_except(version).exists()]
+    return and_(vector["schema"].astext == schema, vector["epoch"].astext == epoch.cast(Text),
+                vector["contract"].astext == "live-inputs.v1")
+
+
+def _current_input_vector(listing_id, *, match_tokens=True):
+    vector = AiQueryProof.input_vector
+    version = AiLiveInputVersion.__table__.alias()
+    listing_checks = [version.c.kind == "listing", version.c.record_id == listing_id]
+    if match_tokens:
+        listing_checks.append(version.c.token == vector["listing"].astext.cast(PGUUID))
+    checks = [select(1).select_from(version).where(*listing_checks).offset(0).correlate_except(version).exists()]
     for field, kind in (("authority", "external"), ("batches", "batch")):
         entries = func.jsonb_array_elements(vector[field]).table_valued("value").alias()
         value = entries.c.value.cast(JSONB)
         versions = AiLiveInputVersion.__table__.alias()
-        missing = select(1).select_from(entries.outerjoin(versions,
-            and_(versions.c.kind == kind, versions.c.record_id == value[0].astext.cast(PGUUID)))).where(
-                or_(versions.c.token.is_(None), versions.c.token != value[1].astext.cast(PGUUID)))
-        checks.append(~missing.correlate_except(entries, versions).exists())
+        live = select(versions.c.token).where(versions.c.kind == kind,
+            versions.c.record_id == value[0].astext.cast(PGUUID)).offset(0).correlate_except(versions).lateral()
+        invalid = live.c.token.is_(None)
+        if match_tokens:
+            invalid = or_(invalid, live.c.token != value[1].astext.cast(PGUUID))
+        missing = select(1).select_from(entries.outerjoin(live, true())).where(invalid)
+        checks.append(~missing.correlate_except(entries, live).exists())
     return and_(*checks)
 
 
@@ -167,16 +176,22 @@ def current_projection_predicate(listing_id, *, resolver_version: str, vocabular
     # semi-join scans the complete proof catalog for a small viewport and can
     # evaluate the expensive signature again when rechecking the hash match.
     # OFFSET 0 changes neither membership nor the before-LIMIT guard contract.
+    binding_valid = and_(_input_context(), AiQueryProof.input_signature == _hash(AiQueryProof.input_vector),
+        AiQueryProof.input_binding == input_binding(AiQueryProof.signature, AiQueryProof.input_signature,
+            AiQueryProof.resolver_version, AiQueryProof.vocabulary_hash, AiQueryProof.feature_revision))
+    # TRUE is the unchanged-input shortcut. FALSE is fail-closed missing or
+    # corrupted state. NULL requests the exact original v2 check: legacy proofs
+    # or changed tokens with all dependencies present. This preserves live
+    # keyset restoration semantics without treating a stale token as permission.
+    decision = case((AiQueryProof.input_signature.is_not(None),
+        case((binding_valid, case((_current_input_vector(listing_id), True),
+                                 (_current_input_vector(listing_id, match_tokens=False), None), else_=False)),
+             else_=False)), else_=None)
     return select(1).select_from(AiQueryProof).where(
         AiQueryProof.canonical_listing_id == listing_id,
         AiQueryProof.resolver_version == resolver_version,
         AiQueryProof.vocabulary_hash == vocabulary_hash,
-        case((AiQueryProof.input_signature.is_not(None),
-              _current_input_vector(listing_id) &
-              (AiQueryProof.input_signature == _hash(AiQueryProof.input_vector)) &
-              (AiQueryProof.input_binding == input_binding(AiQueryProof.signature, AiQueryProof.input_signature,
-                  AiQueryProof.resolver_version, AiQueryProof.vocabulary_hash, AiQueryProof.feature_revision))),
-             else_=AiQueryProof.signature == projection_signature(listing_id)),
+        func.coalesce(decision, AiQueryProof.signature == projection_signature(listing_id)),
     ).offset(0).correlate_except(AiQueryProof).exists()
 
 

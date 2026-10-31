@@ -56,12 +56,14 @@ async def test_missing_tokens_fail_closed_and_do_not_fall_back(pipeline, proofs,
     assert not await proofs.prepare(source.canonical_listing_id)
 
 
-@pytest.mark.parametrize("change", ["signature", "resolver_version", "vocabulary_hash", "feature_revision", "input_signature"])
+@pytest.mark.parametrize("change", ["signature", "resolver_version", "vocabulary_hash", "feature_revision", "input_signature", "input_vector"])
 async def test_fast_binding_rejects_tampered_proof_fields(pipeline, proofs, change):
     service, sessions = pipeline
     source = await completed(pipeline)
     assert await proofs.prepare(source.canonical_listing_id)
     value = "feature_revision+1" if change == "feature_revision" else "'other.v1'" if change == "resolver_version" else "repeat('f',64)"
+    if change == "input_vector":
+        value = "jsonb_build_object('broken',true)"
     async with sessions() as s, s.begin():
         await s.execute(text(f"UPDATE ai_query_proofs SET {change}={value}"))
     assert not await guard(proofs, source.canonical_listing_id)
@@ -99,6 +101,9 @@ async def test_restore_noops_rollback_and_independent_concurrent_writers(pipelin
                         {"id": first.source_record_id})
         # Restoring old values cannot accidentally reuse a formerly captured token.
         assert await signature(s, first.canonical_listing_id) != before
+    # Equality with the originally verified v2 data is still allowed, but now
+    # requires the original full live check until explicit re-preparation.
+    assert await guard(proofs, first.canonical_listing_id)
 
 
 async def test_old_rr_writer_updates_batch_token_after_relationship_changes(pipeline, proofs):
