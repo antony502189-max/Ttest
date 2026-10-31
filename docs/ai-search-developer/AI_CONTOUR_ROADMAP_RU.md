@@ -278,3 +278,8 @@ Offline source × field инвентарь и golden проверки подго
 intent; реальные объявления и внешние модели не использовались. Real coverage
 и freshness остаются unknown; пункт 5 НЕ завершён. Подробности и предложенная
 политика pilot: [отчёт](../../reports/AI_FACT_QUALITY_OFFLINE_20261101.md).
+
+Продолжение пункта 5 без ключей: реализованы явные counters, SQL freshness guard
+и физическая очистка AI evidence с проверками proof/rollback. Это закрытые
+primitives, не активация production и не измерение real coverage.
+[Контракт](AI_FACT_QUALITY_POLICY_RU.md), [результат](../../reports/AI_FACT_QUALITY_NEXT_20261101.md).

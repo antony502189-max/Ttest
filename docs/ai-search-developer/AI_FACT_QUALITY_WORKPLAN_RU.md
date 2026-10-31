@@ -51,3 +51,11 @@ minimization/retention и отдельная изолированная конф
 подтверждений и отдельный bounded PG прогон. Реальное coverage/freshness неизвестно;
 пункт 5 не завершён. Конкретные пробелы, ограничения и предложение минимального
 pilot payload/retention/freshness: [отчёт](../../reports/AI_FACT_QUALITY_OFFLINE_20261101.md).
+
+## Counters и политики закрытого контура
+
+Следующий offline шаг реализован: bounded quality audit, SQL freshness guard и
+транзакционная очистка AI evidence с proof invalidation/reprepare. Production
+автоматически не включается; global TTL нет. Полный контракт:
+[policy](AI_FACT_QUALITY_POLICY_RU.md), [отчёт](../../reports/AI_FACT_QUALITY_NEXT_20261101.md).
+Настоящий каталог по-прежнему не измерен; пункт 5 открыт.
