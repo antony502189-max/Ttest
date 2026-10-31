@@ -21,7 +21,8 @@ class AssemblyGuards(unittest.TestCase):
             require_lab()
         for field, forbidden in {"APP_ENV": "production", "DATABASE_URL": DATABASE.replace("ai_text_lab", "ttest"),
                                  "REDIS_URL": "redis://shared:6379", "FRONTEND_ORIGINS": "*",
-                                 "OPENAI_API_KEY": "not-a-real-key", "SMTP_HOST": "smtp.invalid"}.items():
+                                 "OPENAI_API_KEY": "not-a-real-key", "AI_INTENT_EVAL_DEEPSEEK_KEY": "synthetic",
+                                 "SMTP_HOST": "smtp.invalid"}.items():
             with (self.subTest(field=field), patch.dict(os.environ, config | {field: forbidden}, clear=True),
                   self.assertRaises(RuntimeError)):
                 require_lab()

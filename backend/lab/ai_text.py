@@ -21,7 +21,8 @@ def require_lab():
     if any(os.environ.get(key) != value for key, value in expected.items()):
         raise RuntimeError("use only the dedicated ai-text-lab launcher/configuration")
     for name in ("STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "SMTP_HOST", "SENTRY_DSN",
-                 "GOOGLE_CLIENT_ID", "WEB_PUSH_PRIVATE_KEY", "OPENAI_API_KEY", "DEEPSEEK_API_KEY"):
+                 "GOOGLE_CLIENT_ID", "WEB_PUSH_PRIVATE_KEY", "OPENAI_API_KEY", "DEEPSEEK_API_KEY",
+                 "AI_INTENT_EVAL_DEEPSEEK_KEY"):
         if os.environ.get(name):
             raise RuntimeError("real credentials/providers are forbidden in this synthetic lab")
 
