@@ -134,16 +134,29 @@ session с прежним committed result. Проверить ошибки и �
 
 ## 3. Производительность — параллельное направление
 
-**Статус: в работе. Первый отдельный шаг — O(1) версия каталога фактов.**
+**Статус: в работе; новый 100k прогон SLO не прошёл.**
 Миграция `0076_ai_fact_population` устраняет полный cursor count/sum при
 чтении карточек; прямые SQL writers охвачены транзакционными триггерами.
 [Контракт и воспроизведение](AI_FACT_POPULATION_RU.md),
 [отчёт и планы](../../reports/AI_FACT_POPULATION_20261031.md).
-Полный live digest сохранён; ISSUE-004 OPEN / capacity BLOCKED.
-Пункт 3 этим шагом не закрыт, новых больших нагрузок нет.
+Следующий шаг реализован в `a38a4f3d`: версии входов, FK-backed атомарная
+инвалидация proof и общие неизменяемые профили matching. При неизменных входах
+больше не читаются facts/dependencies на каждого кандидата; changed/legacy
+проверяются исходным live v2 digest, missing state исключается. Public и
+time-dependent guards остаются живыми до count/LIMIT/aggregate.
+Все 11 обязательных CI и локальные 1566 unit / 315 PG / 68 integration / 5
+composition checks успешны. Точный capacity source `ea333e15` дополнительно
+делает single-writer только synthetic setup, без ослабления нагрузки поиска.
 
-Главный расход — полный live digest каждого кандидата на широких выборках.
-Прототипировать атомарно инвалидируемые проекции/версии и агрегаты на пути записи.
+Свежий experiment `3056bd59405546c984354b07f2382a1f`: 100k объектов,
+18 сценариев, 3600 попыток, 1161 ошибок, 0 SLO-pass. 100k evidence полное;
+трёхмасштабный протокол INCOMPLETE, 500k/1m отложены до новой оптимизации.
+Стенд остановлен, raw artifacts сохранены. ISSUE-004 OPEN / capacity BLOCKED.
+[Контракт, результаты и следующий bottleneck](../../reports/AI_LIVE_INPUTS_20261031.md).
+
+Текущие планы показывают повторный обход кандидатов для cohort, 100k отдельных
+proof probes на широком viewport и стоимость сборки SQL graph в приложении.
+Устранить эти расходы; далее рассмотреть агрегаты на пути записи.
 Покрыть source changes, canonical/room, facts/batches, remap/delete, direct SQL,
 concurrency/rollback/CAS и актуальную public eligibility. Учесть moderation,
 blocked owners и изменения по времени, включая TOP/freshness policy.

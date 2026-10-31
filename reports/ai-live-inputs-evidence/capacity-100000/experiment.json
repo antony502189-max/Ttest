@@ -1,0 +1,12 @@
+{
+  "experiment_id": "3056bd59405546c984354b07f2382a1f",
+  "code_revision": "ea333e156d74bc441f66d27a9314fdaad59bc5d5",
+  "runner_image_id": "sha256:1ff5de84b825934599a53fd69add14bb6784d6399a1464e4a38255b2d234a902",
+  "archive_sha256": "3ee96d4952623d3d1278a1a60d30ef4251466374c809afb8a24d7e5b358ca1a0",
+  "db_container_id": "0bae1792d5a963880bb8f37d310e7310f658b6b6ed4bf6d81f3b3fe2708c98ca",
+  "db_image_id": "sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5",
+  "sources": 2,
+  "observations": 20,
+  "seed_id": "3056bd59405546c984354b07f2382a1f",
+  "protocol_version": "r01-capacity.v2"
+}

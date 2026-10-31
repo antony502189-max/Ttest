@@ -74,6 +74,15 @@ constraints, application indexes and the trigger remain present. No trigger is
 changed in application code or in any application database. Fixture creation
 throughput is not a measurement of real importer throughput.
 
+From source `ea333e15` the new live-proof/population fixture uses one writer
+for both input and proof setup. Eight writers contended on transactional
+population counters before any 100k measurement. Only setup was serialized;
+the measured 50/100/200 concurrency, pool 30, deadlines and SLO are unchanged.
+The failed setup remains historical; fresh experiment
+`3056bd59405546c984354b07f2382a1f` completed 100k with SLO FAIL. Its larger
+scales are deferred until the next optimization, not silently counted as done.
+[Result and evidence](../../reports/AI_LIVE_INPUTS_20261031.md).
+
 ## Isolation and resources
 
 Use a fresh PostGIS 16/3.4 container pinned to the same digest as integration CI,

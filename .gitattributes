@@ -1,1 +1,2 @@
 backend/alembic/versions/*.py text eol=lf
+reports/ai-live-inputs-evidence/** -text
