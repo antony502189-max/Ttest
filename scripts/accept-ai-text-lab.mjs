@@ -138,7 +138,7 @@ try {
   // One authenticated client for non-UI semantic and live-mutation matrix.
   const api = await request.newContext({ ignoreHTTPSErrors: true })
   await json(await call(api, 'POST', '/api/v1/ai-search/identity'))
-  const login = await json(await call(api, 'POST', '/api/v1/auth/login', { email: 'user@synthetic.example', password: 'Synthetic-Lab-Only-2026!' }))
+  const login = await json(await call(api, 'POST', '/api/v1/auth/login', { email: 'acceptance-user@synthetic.example', password: 'Synthetic-Lab-Only-2026!' }))
   const auth = { Authorization: 'Bearer ' + login.accessToken }
   const intent = await owned(api, 'holiday', auth)
   let q = await query(api, intent, 'все варианты', auth)
@@ -158,8 +158,15 @@ try {
   const ref = base.answer.operation.receipt.result_ref
   const bounds = { north: 28.2, south: 28.05, west: -16.8, east: -16.65, zoom: 14 }
   for (const kind of ['source', 'moderation', 'price', 'hidden']) {
+    const before = await json(await call(api, 'POST', `/api/v1/ai-search/results/${ref}/cards`, { search: { limit: 1 } }, auth))
     await control({ action: 'change', name: 'g', kind })
     try {
+      const next = await call(api, 'POST', `/api/v1/ai-search/results/${ref}/cards`, { search: { limit: 1, cursor: before.cards.nextCursor } }, auth)
+      if (next.status() === 409) assert.equal((await next.json()).detail, 'AI_REQUERY_REQUIRED')
+      else {
+        const livePage = await json(next)
+        assert.equal(livePage.cards.total, 6); assert.ok(!ids(livePage.cards.items).includes(fixture.g))
+      }
       const page = await json(await call(api, 'POST', `/api/v1/ai-search/results/${ref}/cards`, { search: { limit: 50 } }, auth))
       const map = await json(await call(api, 'POST', `/api/v1/ai-search/results/${ref}/map`, { search: bounds }, auth))
       assert.equal(page.cards.total, 6); assert.ok(!ids(page.cards.items).includes(fixture.g))
@@ -177,6 +184,90 @@ try {
   await json(await call(api, 'POST', `/api/v1/ai-search/results/${ref}/cards`, { search: {} }, auth), 409)
   record('expired session/result cannot page or silently regain access')
   await api.dispose()
+  {
+    const { ctx, page } = await guest('es', 320)
+    await submit(page, 'туризм', all)
+    const hard = ['a', 'b', 'd', 'f'].map(n => fixture[n])
+    await submit(page, 'обязательно с балконом', hard)
+    await submit(page, 'до 40 евро за ночь', [])
+    await expect(page.getByText('No encontramos opciones con todas las condiciones confirmadas.', { exact: false })).toBeVisible()
+    record('real mobile UI zero-result and hard unknown exclusion')
+    await ctx.close()
+  }
+  {
+    const { ctx, page } = await guest()
+    const found = await submit(page, 'туризм', all)
+    const sid = found.body.session_id, ref = found.answer.operation.receipt.result_ref
+    const raw = await page.evaluate(() => sessionStorage.getItem('112233:ai-continuation:v1:guest'))
+    let dropped = false
+    await page.route('**/api/v1/ai-search/sessions/*', async route => {
+      if (!dropped && route.request().method() === 'GET') {
+        dropped = true; await route.fetch(); await route.abort('failed')
+      } else await route.continue()
+    })
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.locator('.home-ai-search__action').click()
+    await expect(page.getByRole('button', { name: 'Reintentar sincronización', exact: true })).toBeVisible()
+    assert.equal(await page.evaluate(() => sessionStorage.getItem('112233:ai-continuation:v1:guest')), raw)
+    await page.getByRole('button', { name: 'Reintentar sincronización', exact: true }).click()
+    await expect(page.locator('.ai-search-dialog__cards > div')).toHaveCount(6)
+    record('reload acknowledgement loss retains locator; explicit retry restores real cards')
+    const foreign = await guest()
+    await foreign.page.evaluate(value => sessionStorage.setItem('112233:ai-continuation:v1:guest', value), raw)
+    await foreign.page.reload({ waitUntil: 'networkidle' })
+    await foreign.page.locator('.home-ai-search__action').click()
+    await expect(foreign.page.locator('#ai-rental-mode')).toBeEnabled()
+    await expect(foreign.page.locator('.ai-search-dialog__cards')).toHaveCount(0)
+    assert.equal((await json(await foreign.ctx.request.get(origin + '/api/v1/ai-search/quota'))).used, 0)
+    record('foreign guest storage locators grant no session or result authority')
+    await foreign.ctx.close()
+    await control({ action: 'change', name: 'a', kind: 'missing' })
+    try {
+      await page.locator('.ai-search-dialog nav button').last().click()
+      await expect(page.getByText('Los resultados ya no están disponibles.', { exact: false })).toBeVisible()
+      await expect(page.locator('.ai-search-dialog__cards')).toHaveCount(0)
+      await expect(page.locator('.ai-search-dialog nav button').last()).toBeDisabled()
+      record('missing proof invalidates cursor; stale visible cards are removed, editable session remains')
+    } finally { await control({ action: 'change', name: 'a', kind: 'restore' }) }
+    await control({ action: 'expire', session_id: sid })
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.locator('.home-ai-search__action').click()
+    await expect(page.locator('#ai-rental-mode')).toBeEnabled()
+    await expect(page.locator('.ai-search-dialog__cards')).toHaveCount(0)
+    const expired = await json(await call(ctx.request, 'POST', '/api/v1/ai-search/query', found.body))
+    assert.equal(expired.replay, true); assert.equal(expired.operation.used, 1)
+    assert.equal(expired.cards, null); assert.equal(expired.cards_error, 'RESULT_EXPIRED_REQUERY_REQUIRED')
+    await json(await call(ctx.request, 'GET', '/api/v1/ai-search/results/' + ref), 409)
+    record('expiry across reload clears presentation; old receipt replay never debits again')
+    await ctx.close()
+  }
+  {
+    const { ctx, page } = await guest()
+    const intent = await owned(ctx.request)
+    const body = { idempotency_key: crypto.randomUUID(), session_id: intent.session_id, expected_version: 0,
+      text: 'все варианты', search: { limit: 1 } }
+    await control({ action: 'arm', session_id: intent.session_id, version: 0, fault: 'delay' })
+    const first = call(ctx.request, 'POST', '/api/v1/ai-search/query', body)
+    // Await actual parser entry, rather than inferring it from elapsed time.
+    for (let i = 0; i < 20; i++) {
+      if ((await control({ action: 'inspect', session_id: intent.session_id, version: 0 })).calls) break
+      await sleep(100)
+    }
+    const second = await json(await call(ctx.request, 'POST', '/api/v1/ai-search/query', body))
+    assert.ok(['running', 'succeeded'].includes(second.operation.status))
+    const completed = await json(await first)
+    const repeated = await json(await call(ctx.request, 'POST', '/api/v1/ai-search/query', body))
+    assert.equal(completed.operation.status, 'succeeded'); assert.equal(repeated.replay, true)
+    assert.equal(repeated.operation.used, 1)
+    await json(await call(ctx.request, 'POST', '/api/v1/ai-search/query', { ...body, text: 'туризм' }), 409)
+    const observed = await control({ action: 'inspect', session_id: intent.session_id, version: 0 })
+    assert.equal(observed.calls, 1); assert.equal(observed.requests.length, 1)
+    const conflict = await json(await call(ctx.request, 'POST', '/api/v1/ai-search/query', { ...body, idempotency_key: crypto.randomUUID() }))
+    assert.equal(conflict.operation.status, 'failed'); assert.equal(conflict.operation.failure_code, 'SESSION_VERSION_CONFLICT')
+    assert.equal((await control({ action: 'inspect', session_id: intent.session_id, version: 0 })).calls, 1)
+    record('concurrent duplicate, terminal replay, payload conflict and stale version: one parser call, one debit')
+    await ctx.close()
+  }
   // Lost replies are network faults after route.fetch completed on the REAL API.
   for (const phase of ['query', 'sessions', 'reset']) {
     const { ctx, page } = await guest()

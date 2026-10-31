@@ -45,6 +45,10 @@ async def seed():
     from app.models import ExternalListingSource, Listing, User
     from app.repositories.listings import point
     async with SessionLocal.begin() as conn:
+        if await conn.get(User, identifier("user")) is None:
+            conn.add(User(id=identifier("user"), email="acceptance-user@synthetic.example",
+                password_hash=hash_password("Synthetic-Lab-Only-2026!"), name="Acceptance User",
+                role="tenant", initials="AU", email_verified=True))
         actual = set(await conn.scalars(select(Listing.id).where(Listing.owner_user_id == identifier("host"))))
         if actual:
             if actual != {identifier(name) for name, *_ in CASES}:
@@ -134,7 +138,7 @@ async def command(payload):
             return {"ids": await seed()}
         if action == "change":
             name, kind = payload["name"], payload["kind"]
-            if name not in {item[0] for item in CASES} or kind not in {"source", "price", "moderation", "hidden", "restore", "proof"}:
+            if name not in {item[0] for item in CASES} or kind not in {"source", "price", "moderation", "hidden", "restore", "proof", "missing"}:
                 raise ValueError("bounded acceptance fixture change required")
             lid, sid = identifier(name), identifier("source-" + name)
             async with SessionLocal.begin() as conn:
@@ -156,6 +160,9 @@ async def command(payload):
                     await conn.execute(delete(ListingRestriction).where(ListingRestriction.id == identifier("restriction-" + name)))
                     await conn.execute(update(ExternalListingSource).where(ExternalListingSource.id == sid)
                                        .values(raw_payload={"description": description_for(name)}))
+                elif kind == "missing":
+                    from app.models.ai_query_proof import AiQueryProof
+                    await conn.execute(delete(AiQueryProof).where(AiQueryProof.canonical_listing_id == lid))
             if kind == "proof":
                 return {"prepared": await QueryProofs(pipeline(SessionLocal)).prepare(lid)}
             if kind == "restore":
