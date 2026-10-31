@@ -116,8 +116,11 @@ try {
     await expect(next).toBeEnabled()
     await next.click()
     await expect(page.locator('.ai-search-dialog__cards > div')).toHaveCount(1)
+    const lastIds = await page.locator('.ai-search-dialog__cards [data-listing-id]').evaluateAll(nodes => nodes.map(n => n.dataset.listingId))
+    assert.deepEqual([...ids(first.answer.cards.cards.items), ...lastIds].sort(), all)
     await page.locator('.ai-search-dialog nav button').first().click()
     await expect(page.locator('.ai-search-dialog__cards > div')).toHaveCount(6)
+    assert.deepEqual(await page.locator('.ai-search-dialog__cards [data-listing-id]').evaluateAll(nodes => nodes.map(n => n.dataset.listingId).sort()), ids(first.answer.cards.cards.items))
     const followed = await submit(page, 'с маленькой собакой', dog)
     const ref = followed.answer.operation.receipt.result_ref
     const meta = await json(await call(ctx.request, 'GET', '/api/v1/ai-search/results/' + ref))
