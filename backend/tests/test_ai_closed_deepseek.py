@@ -1,9 +1,11 @@
 """Offline certification of closed provider and semantic evaluator; no paid IO."""
 import asyncio
+import importlib.util
 import json
 import ssl
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import httpx
 import pytest
@@ -25,7 +27,16 @@ from app.services.ai_closed_deepseek import (
     _BudgetTransport,
 )
 from app.services.ai_deepseek_intent import ProviderFailure
-from lab.intent_eval import SyntheticCorpusGate, evaluate, load_corpus, manifest, state
+
+# The console `pytest` entrypoint does not add backend/ to sys.path. Load the
+# test-only CLI by path, like other repository toolchain tests; do not package
+# lab with the application or change the global test/application import path.
+_spec = importlib.util.spec_from_file_location("intent_evaluation_cli", Path(__file__).parents[1] / "lab/intent_eval.py")
+assert _spec is not None and _spec.loader is not None
+evaluation = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(evaluation)
+SyntheticCorpusGate, evaluate, load_corpus = evaluation.SyntheticCorpusGate, evaluation.evaluate, evaluation.load_corpus
+manifest, state = evaluation.manifest, evaluation.state
 
 
 def completion(*, status="patch", patch=None, usage=None):
@@ -226,7 +237,7 @@ def test_explicit_activation_and_real_transport_factory(tmp_path):
 
 @pytest.mark.parametrize("variant", ["no_approval", "wrong_hash", "no_key"])
 async def test_live_cli_requires_all_explicit_gates_before_transport_construction(tmp_path, monkeypatch, variant):
-    import lab.intent_eval as cli
+    cli = evaluation
     _, digest = load_corpus()
     args = ["intent_eval", "--live", "--output", str(tmp_path / "result.json"),
             "--journal", str(tmp_path / "budget.sqlite3"), "--approval",
