@@ -40,7 +40,7 @@ async def audit_catalog(pipeline: FactPipeline, *, eligibility: ColumnElement[bo
         ).order_by(Listing.id).limit(limit + 1))).all()
         if len(ids) > limit:
             raise ValueError("cohort bound exceeded; counts unavailable")
-        now = await session.scalar(select(func.statement_timestamp()))
+        now = (await session.execute(select(func.statement_timestamp()))).scalar_one()
         outcomes = []
         for listing_id in ids:
             sources = (await session.execute(select(
