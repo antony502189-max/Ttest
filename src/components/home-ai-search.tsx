@@ -13,14 +13,15 @@ import { AIResultMap } from '@/components/ai-result-map'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import '@/home-ai-search.css'
+import { readAIContinuation, storeAIContinuation } from '@/api/ai-continuation'
 
 // Keying by identity discards private in-memory conversation on login/logout.
 export function HomeAISearch({ homeMode }: { homeMode: RentalMode }) {
   const { currentUser } = useApp()
-  return <AISearchPanel key={currentUser?.id ?? 'guest'} homeMode={homeMode} />
+  return <AISearchPanel key={currentUser?.id ?? 'guest'} identity={currentUser?.id ?? 'guest'} homeMode={homeMode} />
 }
 
-function AISearchPanel({ homeMode }: { homeMode: RentalMode }) {
+function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity: string }) {
   const { t } = useI18n()
   const [enabled, setEnabled] = useState(false)
   const [mapEnabled, setMapEnabled] = useState(false)
@@ -32,6 +33,7 @@ function AISearchPanel({ homeMode }: { homeMode: RentalMode }) {
   const [needsConversation, setNeedsConversation] = useState(false)
   const [pending, setPending] = useState<AIMessage | null>(null)
   const [result, setResult] = useState<{ ref: string; hash: string; committed: AICommittedIntent; prices: AIBudgetPrice[]; page: ListingCardPage } | null>(null)
+  const [resultInvalid, setResultInvalid] = useState(false)
   const [remaining, setRemaining] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [syncingSession, setSyncingSession] = useState(false)
@@ -43,6 +45,59 @@ function AISearchPanel({ homeMode }: { homeMode: RentalMode }) {
   const lock = useRef(false)
   const command = useRef<{ key: string; source: AISession | null; mode?: RentalMode } | null>(null)
   const [changingSession, setChangingSession] = useState(false)
+  const [restoring, setRestoring] = useState(true)
+  const [restoreFailed, setRestoreFailed] = useState(false)
+  const [restoreEpoch, setRestoreEpoch] = useState(0)
+  const restoreTranslate = useRef(t)
+  restoreTranslate.current = t
+
+  useEffect(() => {
+    const saved = readAIContinuation(identity)
+    if (!saved) { lock.current = false; setRestoring(false); return }
+    const controller = new AbortController()
+    setRestoring(true)
+    lock.current = true
+    void (async () => {
+      try {
+        // Neither storage nor the former UI state grants access. Validate every
+        // locator against today's cookie/bearer and current session lifetime.
+        const owned = await getAISession(saved.sessionId, controller.signal)
+        if (controller.signal.aborted) return
+        setSession(owned); setModeChoice('keep')
+        if (saved.resultRef) {
+          const committed = await getAIResult(saved.resultRef, controller.signal)
+          if (committed.intent.session_id !== saved.sessionId) throw new Error('Result session mismatch')
+          const response = await aiResultPage(saved.resultRef, undefined, controller.signal)
+          if (response.intent_hash !== committed.intent_hash || aiConditionRows(committed.intent, restoreTranslate.current) === null)
+            throw new Error('Result binding mismatch')
+          if (controller.signal.aborted) return
+          setResult({ ref: committed.result_ref, hash: committed.intent_hash, committed,
+            prices: response.budget_prices ?? [], page: aiCardPage(response) })
+        }
+        setRestoreFailed(false); setNotice('')
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          if (error instanceof ApiError && (error.status === 0 || error.status === 429 || error.status >= 500)) {
+            setRestoreFailed(true)
+            setNotice('No se pudo actualizar el diálogo. Conservamos tu búsqueda. Reintenta la sincronización.')
+          } else {
+            storeAIContinuation(identity, null)
+            // No cached cards or substitution of the editable intent for a
+            // failed committed-result read. Explicit new search stays available.
+            setResult(null)
+          }
+        }
+      } finally {
+        if (!controller.signal.aborted) { lock.current = false; setRestoring(false) }
+      }
+    })()
+    return () => controller.abort()
+  }, [identity, restoreEpoch])
+
+  useEffect(() => {
+    if (!restoring && !restoreFailed) storeAIContinuation(identity, session && !needsConversation
+      ? { sessionId: session.intent.session_id, ...(result && pagingAvailable ? { resultRef: result.ref } : {}) } : null)
+  }, [identity, restoring, restoreFailed, session, result, pagingAvailable, needsConversation])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -88,6 +143,7 @@ function AISearchPanel({ homeMode }: { homeMode: RentalMode }) {
   }
 
   function staleResults() {
+    setResultInvalid(true)
     setPagingAvailable(false)
     setNotice('Los resultados ya no están disponibles. Repite la búsqueda para obtener páginas nuevas.')
   }
@@ -110,6 +166,7 @@ function AISearchPanel({ homeMode }: { homeMode: RentalMode }) {
   }
 
   function lostConversation() {
+    setResultInvalid(true)
     forgetCommand()
     setNeedsConversation(true)
     setNeedsSync(false)
@@ -139,7 +196,7 @@ function AISearchPanel({ homeMode }: { homeMode: RentalMode }) {
   }
 
   async function newConversation() {
-    if (lock.current || pending || syncingSession || needsSync) return
+    if (restoring || restoreFailed || lock.current || pending || syncingSession || needsSync) return
     lock.current = true
     setBusy(true)
     const controller = new AbortController()
@@ -169,7 +226,7 @@ function AISearchPanel({ homeMode }: { homeMode: RentalMode }) {
   }
 
   async function submit() {
-    if (lock.current || (!pending && ((changingSession && session !== null) || needsConversation || needsSync || syncingSession || !text.trim() || !modeChoice || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))) return
+    if (restoring || restoreFailed || lock.current || (!pending && ((changingSession && session !== null) || needsConversation || needsSync || syncingSession || !text.trim() || !modeChoice || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))) return
     lock.current = true
     setBusy(true)
     setNotice('Buscando opciones con condiciones confirmadas…')
@@ -204,6 +261,7 @@ function AISearchPanel({ homeMode }: { homeMode: RentalMode }) {
             || committed.count !== answer.operation.receipt.count) throw new Error('Result binding mismatch')
           if (controller.signal.aborted) return
           setPagingAvailable(true)
+          setResultInvalid(false)
           setResult({ ref: answer.operation.receipt.result_ref, hash: answer.cards.intent_hash, committed,
             prices: answer.cards.budget_prices ?? [], page: aiCardPage(answer.cards) })
           setText('')
@@ -283,7 +341,7 @@ function AISearchPanel({ homeMode }: { homeMode: RentalMode }) {
     <DialogContent className="ai-search-dialog">
       <DialogHeader><DialogTitle>{t('Encuentra tu habitación')}</DialogTitle><DialogDescription>{t('Usamos condiciones confirmadas de los anuncios para buscar opciones.')}</DialogDescription></DialogHeader>
       <label htmlFor="ai-rental-mode">{t('Modo para esta búsqueda')}</label>
-      <select id="ai-rental-mode" value={modeChoice} disabled={busy || pending !== null || changingSession}
+      <select id="ai-rental-mode" value={modeChoice} disabled={busy || restoring || pending !== null || changingSession}
         onChange={event => setModeChoice(event.target.value as typeof modeChoice)}>
         <option value="" disabled>{t('Elige cómo usar el modo de alquiler')}</option>
         {session ? <option value="keep">{t('Conservar las condiciones actuales de IA')}</option> : null}
@@ -295,19 +353,27 @@ function AISearchPanel({ homeMode }: { homeMode: RentalMode }) {
       <small>{t('El modo de inicio no cambia una conversación existente. Los demás filtros no se añaden a IA.')}</small>
       {session ? <AIConditions intent={session.intent} title="Condiciones para el próximo mensaje" /> : null}
       <label htmlFor="ai-search-text">{t(result ? '¿Qué quieres cambiar?' : 'Cuéntanos qué necesitas')}</label>
-      <textarea id="ai-search-text" data-i18n-exempt value={text} onChange={event => setText(event.target.value)} disabled={busy || pending !== null}
+      <textarea id="ai-search-text" data-i18n-exempt value={text} onChange={event => setText(event.target.value)} disabled={busy || restoring || pending !== null}
         maxLength={16000} rows={3} autoComplete="off" spellCheck={false} placeholder={t('Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
-      <Button type="button" className="home-ai-search__action" disabled={busy || (!pending && ((changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
+      <Button type="button" className="home-ai-search__action" disabled={busy || restoring || restoreFailed || (!pending && ((changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
         onClick={() => void submit()}>{t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : result ? 'Actualizar búsqueda' : 'Buscar habitaciones')}</Button>
+      {busy && pending ? <Button type="button" variant="outline" onClick={() => {
+        flight.current?.abort(); setBusy(false)
+        setNotice('No se pudo confirmar el resultado. Reintenta el mismo intento para comprobar su estado.')
+      }}>{t('Cancelar')}</Button> : null}
+      {restoreFailed ? <Button type="button" variant="outline" disabled={restoring} onClick={() => {
+        setRestoring(true); setRestoreFailed(false); setRestoreEpoch(value => value + 1)
+      }}>{t('Reintentar sincronización')}</Button> : null}
       {(session || needsConversation || changingSession) ? <Button type="button" variant="outline" disabled={busy || syncingSession || needsSync || pending !== null}
         onClick={() => void newConversation()}>{t('Iniciar nueva conversación')}</Button> : null}
       {needsSync && session ? <Button type="button" variant="outline" disabled={syncingSession || busy}
         onClick={() => void refreshSession(session.intent.session_id, true)}>{t('Reintentar sincronización')}</Button> : null}
-      {result && !pagingAvailable ? <p>{t('Los resultados anteriores siguen visibles. Inicia una nueva búsqueda para ver más páginas.')}</p> : null}
+      {result && !pagingAvailable && !resultInvalid ? <p>{t('Los resultados anteriores siguen visibles. Inicia una nueva búsqueda para ver más páginas.')}</p> : null}
       <div role="status" aria-live="polite">{notice ? t(notice) : null}</div>
       {remaining !== null ? <small>{t('Búsquedas disponibles hoy')}: {remaining}</small> : null}
       {result ? <section aria-label={t('Resultados confirmados')} aria-busy={busy}>
         <AIConditions intent={result.committed.intent} title="Condiciones de estos resultados" />
+        {!resultInvalid ? <>
         <h3>{result.page.total} {t('opciones con condiciones confirmadas')}</h3>
         <p>{t('Los anuncios y su orden pueden cambiar entre páginas. Actualiza la lista para ver cambios desde el principio.')}</p>
         <Button type="button" variant="outline" disabled={busy || changingSession || pending !== null || !pagingAvailable} onClick={() => void page()}>{t('Actualizar resultados sin gastar una búsqueda')}</Button>
@@ -322,6 +388,7 @@ function AISearchPanel({ homeMode }: { homeMode: RentalMode }) {
             <PropertyCard listing={listing} />
           </div>
         })}</div>
+        </> : null}
         <nav aria-label={t('Páginas de resultados')}>
           <Button type="button" variant="outline" disabled={busy || changingSession || pending !== null || !pagingAvailable || !result.page.previousCursor} onClick={() => void page(result.page.previousCursor!)}>{t('Anterior')}</Button>
           <Button type="button" variant="outline" disabled={busy || changingSession || pending !== null || !pagingAvailable || !result.page.nextCursor} onClick={() => void page(result.page.nextCursor!)}>{t('Siguiente')}</Button>

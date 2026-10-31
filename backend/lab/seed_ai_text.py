@@ -37,10 +37,16 @@ async def seed():
     # Fail closed on any existing catalogue; never truncate or overwrite data.
     async with SessionLocal() as connection:
         if await connection.scalar(select(func.count()).select_from(Listing)):
+            from lab.acceptance import CASES as ACCEPTANCE_CASES
+            from lab.acceptance import identifier as acceptance_id
             actual = set(await connection.scalars(select(Listing.id)))
-            jobs = await connection.scalar(select(func.count()).select_from(AiFactJob).where(AiFactJob.status == "succeeded"))
+            base_ids = {identifier(name) for name, _, _ in CASES}
+            extra_ids = {acceptance_id(name) for name, *_ in ACCEPTANCE_CASES}
+            jobs = await connection.scalar(select(func.count()).select_from(AiFactJob).where(
+                AiFactJob.status == "succeeded", AiFactJob.canonical_listing_id.in_(base_ids)))
             proofs = set(await connection.scalars(select(AiQueryProof.canonical_listing_id)))
-            if actual != {identifier(name) for name, _, _ in CASES} or jobs != 7 or proofs != actual:
+            if (actual not in (base_ids, base_ids | extra_ids) or jobs != 7 or
+                    not base_ids <= proofs or not proofs <= base_ids | extra_ids):
                 raise RuntimeError("incomplete or unexpected synthetic catalogue; refusing to overwrite")
             print(json.dumps({"status": "already-seeded", "ids": {n: str(identifier(n)) for n, _, _ in CASES}}))
             await engine.dispose()

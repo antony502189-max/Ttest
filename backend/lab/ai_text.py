@@ -64,6 +64,11 @@ class SyntheticParser:
             changes = {"balcony": {"strength": "soft", "value": True}}
         elif command == "обязательно с балконом":
             changes = {"balcony": {"strength": "hard", "value": True}}
+        elif command == "туризм":
+            changes = {"rental_mode": {"strength": "hard", "value": "holiday"}}
+        elif command in {"до 60 евро за ночь", "до 40 евро за ночь"}:
+            changes = {"budget": {"strength": "hard", "value": {
+                "amount": "60" if "60" in command else "40", "currency": "EUR", "period": "nightly"}}}
         else:
             raise ValueError("unsupported synthetic phrase")
         from app.schemas.ai_search_intent import IntentPatch
@@ -110,7 +115,11 @@ def create_app():
                               IntentVocabulary(frozenset(), frozenset(), frozenset()))
     cards = VerifiedCardSearch(pipeline(SessionLocal), sessions,
                                signing_key=b"synthetic-lab-cursor-independent-key-v1")
-    execution = TextSearchExecution(sessions, SyntheticParser(),
+    from redis.asyncio import from_url
+
+    from lab.acceptance import ObservedParser
+    parser_redis = from_url(REDIS, decode_responses=True)
+    execution = TextSearchExecution(sessions, ObservedParser(SyntheticParser(), parser_redis),
                                    AIAttemptGate(limiter, attempts=12, window_seconds=60), cards)
     active = AISearchRuntime(sessions, cards, execution,
         GuestTokens(key=b"synthetic-lab-guest-independent-key-v1", policy=GuestPolicy(ttl_seconds=3600)),
@@ -129,6 +138,7 @@ def create_app():
             finally:
                 del application.state.ai_search_runtime
                 await limiter.close()
+                await parser_redis.aclose()
 
     app.router.lifespan_context = lifespan
     return app
