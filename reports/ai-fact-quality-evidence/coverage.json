@@ -1,0 +1,1896 @@
+{
+  "schema": "offline-source-field.v1",
+  "real_records_measured": 0,
+  "rows": [
+    {
+      "adapter": "bridge_text",
+      "field": "accommodation",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "amenity",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "availability",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "available_spots",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "balcony",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "bills_included",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "capacity_total",
+      "capability": "supported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "reviewed mapping and exact evidence required; smoking/capacity require scope"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "children",
+      "capability": "supported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "reviewed mapping and exact evidence required; smoking/capacity require scope"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "couples",
+      "capability": "supported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "reviewed mapping and exact evidence required; smoking/capacity require scope"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "current_room_residents",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "deposit",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "furnished",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "geography",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "maximum_stay",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "minimum_stay",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "pets",
+      "capability": "supported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "reviewed mapping and exact evidence required; smoking/capacity require scope"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "price",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "rental_mode",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "smoking",
+      "capability": "supported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "reviewed mapping and exact evidence required; smoking/capacity require scope"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "tenant_groups",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_text",
+      "field": "terrace",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "accommodation",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "amenity",
+      "capability": "supported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "reviewed mapping and exact evidence required; smoking/capacity require scope"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "availability",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "available_spots",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "balcony",
+      "capability": "supported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "reviewed mapping and exact evidence required; smoking/capacity require scope"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "bills_included",
+      "capability": "supported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "reviewed mapping and exact evidence required; smoking/capacity require scope"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "capacity_total",
+      "capability": "supported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "reviewed mapping and exact evidence required; smoking/capacity require scope"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "children",
+      "capability": "supported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "reviewed mapping and exact evidence required; smoking/capacity require scope"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "couples",
+      "capability": "supported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "reviewed mapping and exact evidence required; smoking/capacity require scope"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "current_room_residents",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "deposit",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "furnished",
+      "capability": "supported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "reviewed mapping and exact evidence required; smoking/capacity require scope"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "geography",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "maximum_stay",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "minimum_stay",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "pets",
+      "capability": "supported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "reviewed mapping and exact evidence required; smoking/capacity require scope"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "price",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "rental_mode",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "smoking",
+      "capability": "supported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "reviewed mapping and exact evidence required; smoking/capacity require scope"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "tenant_groups",
+      "capability": "unsupported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "bridge_structured",
+      "field": "terrace",
+      "capability": "supported",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/services/ai_fact_bridge.py:bridge_packet",
+      "condition": "reviewed mapping and exact evidence required; smoking/capacity require scope"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "accommodation",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "amenity",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "availability",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "available_spots",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "balcony",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "bills_included",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "capacity_total",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "children",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "couples",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "current_room_residents",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "deposit",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "furnished",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "geography",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "maximum_stay",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "minimum_stay",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "pets",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "price",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "rental_mode",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "smoking",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "tenant_groups",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "AlquilerDocenteCanariasSource",
+      "field": "terrace",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:AlquilerDocenteCanariasSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "accommodation",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "amenity",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "availability",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "available_spots",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "balcony",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "bills_included",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "capacity_total",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "children",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "couples",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "current_room_residents",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "deposit",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "furnished",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "geography",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "maximum_stay",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "minimum_stay",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "pets",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "price",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "rental_mode",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "smoking",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "tenant_groups",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FlatioSource",
+      "field": "terrace",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FlatioSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "accommodation",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "amenity",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "availability",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "available_spots",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "balcony",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "bills_included",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "capacity_total",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "children",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "couples",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "current_room_residents",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "deposit",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "furnished",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "geography",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "maximum_stay",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "minimum_stay",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "pets",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "price",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "rental_mode",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "smoking",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "tenant_groups",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "FotocasaSource",
+      "field": "terrace",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:FotocasaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "accommodation",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "amenity",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "availability",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "available_spots",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "balcony",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "bills_included",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "capacity_total",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "children",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "couples",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "current_room_residents",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "deposit",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "furnished",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "geography",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "maximum_stay",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "minimum_stay",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "pets",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "price",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "rental_mode",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "smoking",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "tenant_groups",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "IdealistaSource",
+      "field": "terrace",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:IdealistaSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "accommodation",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "amenity",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "availability",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "available_spots",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "balcony",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "bills_included",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "capacity_total",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "children",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "couples",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "current_room_residents",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "deposit",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "furnished",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "geography",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "maximum_stay",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "minimum_stay",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "pets",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "price",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "rental_mode",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "smoking",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "tenant_groups",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "MilanunciosSource",
+      "field": "terrace",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:MilanunciosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "accommodation",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "amenity",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "availability",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "available_spots",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "balcony",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "bills_included",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "capacity_total",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "children",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "couples",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "current_room_residents",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "deposit",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "furnished",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "geography",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "maximum_stay",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "minimum_stay",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "pets",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "price",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "rental_mode",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "smoking",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "tenant_groups",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisoCompartidoSource",
+      "field": "terrace",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisoCompartidoSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "accommodation",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "amenity",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "availability",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "available_spots",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "balcony",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "bills_included",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "capacity_total",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "children",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "couples",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "current_room_residents",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "deposit",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "furnished",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "geography",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "maximum_stay",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "minimum_stay",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "pets",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "price",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "rental_mode",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "smoking",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "tenant_groups",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "PisosSource",
+      "field": "terrace",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:PisosSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "accommodation",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "amenity",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "availability",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "available_spots",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "balcony",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "bills_included",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "capacity_total",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "children",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "couples",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "current_room_residents",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "deposit",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "furnished",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "geography",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "maximum_stay",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "minimum_stay",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "pets",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "price",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "rental_mode",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "smoking",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "tenant_groups",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    },
+    {
+      "adapter": "ThinkSpainSource",
+      "field": "terrace",
+      "capability": "unknown",
+      "real_coverage": "unknown",
+      "real_freshness": "unknown",
+      "evidence": "app/external_sources.py:ThinkSpainSource",
+      "condition": "no attested source-to-AI-field mapping"
+    }
+  ]
+}
