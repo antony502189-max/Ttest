@@ -1,0 +1,30 @@
+PASS UI es 320px: paging, follow-up, reload, conditions, map, privacy, quota
+PASS UI es 768px: paging, follow-up, reload, conditions, map, privacy, quota
+PASS UI es 1440px: paging, follow-up, reload, conditions, map, privacy, quota
+PASS UI en 320px: paging, follow-up, reload, conditions, map, privacy, quota
+PASS UI en 768px: paging, follow-up, reload, conditions, map, privacy, quota
+PASS UI en 1440px: paging, follow-up, reload, conditions, map, privacy, quota
+PASS UI ru 320px: paging, follow-up, reload, conditions, map, privacy, quota
+PASS UI ru 768px: paging, follow-up, reload, conditions, map, privacy, quota
+PASS UI ru 1440px: paging, follow-up, reload, conditions, map, privacy, quota
+PASS hard/soft, explicit deny, unknown facts, intersecting hard criteria and zero result
+PASS live source change between pages: excluded before count, cards and map
+PASS live moderation change between pages: excluded before count, cards and map
+PASS live price change between pages: excluded before count, cards and map
+PASS live hidden change between pages: excluded before count, cards and map
+PASS committed result remains distinct from newer editable session
+PASS expired session/result cannot page or silently regain access
+PASS real browser login and refresh: auth reload, 200/day, guest/auth ownership separation
+PASS real mobile UI zero-result and hard unknown exclusion
+PASS reload acknowledgement loss retains locator; explicit retry restores real cards
+PASS foreign guest storage locators grant no session or result authority
+PASS missing proof invalidates cursor; stale visible cards are removed, editable session remains
+PASS expiry across reload clears presentation; old receipt replay never debits again
+PASS concurrent duplicate, terminal replay, payload conflict and stale version: one parser call, one debit
+PASS lost query acknowledgement: actual backend commit, exact retry, no duplicate effect
+PASS lost sessions acknowledgement: actual backend commit, exact retry, no duplicate effect
+PASS lost reset acknowledgement: actual backend commit, exact retry, no duplicate effect
+PASS parser failure: real lifecycle + retry once, bounded quota semantics
+PASS parser cancel: real lifecycle + retry once, bounded quota semantics
+PASS parser delay: real lifecycle + retry once, bounded quota semantics
+{"source":"70330a138cdb1a8313fc0ed61bc69b7ecbfc4985","status":"PASS","cases":29}

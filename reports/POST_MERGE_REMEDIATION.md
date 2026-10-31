@@ -1,5 +1,16 @@
 # Исправления замечаний post-merge аудита
 
+## Функциональная приёмка текстового стенда, 31 октября
+
+Пункт 2 выполнен: source `70330a138cdb1a8313fc0ed61bc69b7ecbfc4985`,
+29 реальных UI/API/DB сценариев PASS, 50 прежних browser regressions PASS.
+Добавлены owned reload recovery без сохранения текста, безопасная презентация
+invalidated results, исправление overflow 320 px и local acceptance CLI/fixtures.
+[Матрица и доказательства](AI_TEXT_ACCEPTANCE_20261031.md).
+По просьбе пользователя стенд остановлен перед выключением ноутбука, volumes
+сохранены. ISSUE-004 OPEN / capacity BLOCKED, пункты 3–8 не приняты.
+Следующий раздел описывает исторический итог пункта 1 и его source.
+
 ## Закрытый текстовый стенд, 31 октября
 
 Пункт 1 AI-контура выполнен на отдельном local-loopback synthetic стенде:

@@ -1,0 +1,146 @@
+{
+  "source": "70330a138cdb1a8313fc0ed61bc69b7ecbfc4985",
+  "origin": "https://localhost:9443",
+  "apiMocks": false,
+  "model": "finite synthetic parser only",
+  "cases": [
+    {
+      "name": "UI es 320px: paging, follow-up, reload, conditions, map, privacy, quota",
+      "count": 3,
+      "first": 7,
+      "passed": true
+    },
+    {
+      "name": "UI es 768px: paging, follow-up, reload, conditions, map, privacy, quota",
+      "count": 3,
+      "first": 7,
+      "passed": true
+    },
+    {
+      "name": "UI es 1440px: paging, follow-up, reload, conditions, map, privacy, quota",
+      "count": 3,
+      "first": 7,
+      "passed": true
+    },
+    {
+      "name": "UI en 320px: paging, follow-up, reload, conditions, map, privacy, quota",
+      "count": 3,
+      "first": 7,
+      "passed": true
+    },
+    {
+      "name": "UI en 768px: paging, follow-up, reload, conditions, map, privacy, quota",
+      "count": 3,
+      "first": 7,
+      "passed": true
+    },
+    {
+      "name": "UI en 1440px: paging, follow-up, reload, conditions, map, privacy, quota",
+      "count": 3,
+      "first": 7,
+      "passed": true
+    },
+    {
+      "name": "UI ru 320px: paging, follow-up, reload, conditions, map, privacy, quota",
+      "count": 3,
+      "first": 7,
+      "passed": true
+    },
+    {
+      "name": "UI ru 768px: paging, follow-up, reload, conditions, map, privacy, quota",
+      "count": 3,
+      "first": 7,
+      "passed": true
+    },
+    {
+      "name": "UI ru 1440px: paging, follow-up, reload, conditions, map, privacy, quota",
+      "count": 3,
+      "first": 7,
+      "passed": true
+    },
+    {
+      "name": "hard/soft, explicit deny, unknown facts, intersecting hard criteria and zero result",
+      "passed": true
+    },
+    {
+      "name": "live source change between pages: excluded before count, cards and map",
+      "passed": true
+    },
+    {
+      "name": "live moderation change between pages: excluded before count, cards and map",
+      "passed": true
+    },
+    {
+      "name": "live price change between pages: excluded before count, cards and map",
+      "passed": true
+    },
+    {
+      "name": "live hidden change between pages: excluded before count, cards and map",
+      "passed": true
+    },
+    {
+      "name": "committed result remains distinct from newer editable session",
+      "passed": true
+    },
+    {
+      "name": "expired session/result cannot page or silently regain access",
+      "passed": true
+    },
+    {
+      "name": "real browser login and refresh: auth reload, 200/day, guest/auth ownership separation",
+      "passed": true
+    },
+    {
+      "name": "real mobile UI zero-result and hard unknown exclusion",
+      "passed": true
+    },
+    {
+      "name": "reload acknowledgement loss retains locator; explicit retry restores real cards",
+      "passed": true
+    },
+    {
+      "name": "foreign guest storage locators grant no session or result authority",
+      "passed": true
+    },
+    {
+      "name": "missing proof invalidates cursor; stale visible cards are removed, editable session remains",
+      "passed": true
+    },
+    {
+      "name": "expiry across reload clears presentation; old receipt replay never debits again",
+      "passed": true
+    },
+    {
+      "name": "concurrent duplicate, terminal replay, payload conflict and stale version: one parser call, one debit",
+      "passed": true
+    },
+    {
+      "name": "lost query acknowledgement: actual backend commit, exact retry, no duplicate effect",
+      "passed": true
+    },
+    {
+      "name": "lost sessions acknowledgement: actual backend commit, exact retry, no duplicate effect",
+      "passed": true
+    },
+    {
+      "name": "lost reset acknowledgement: actual backend commit, exact retry, no duplicate effect",
+      "passed": true
+    },
+    {
+      "name": "parser failure: real lifecycle + retry once, bounded quota semantics",
+      "passed": true
+    },
+    {
+      "name": "parser cancel: real lifecycle + retry once, bounded quota semantics",
+      "passed": true
+    },
+    {
+      "name": "parser delay: real lifecycle + retry once, bounded quota semantics",
+      "passed": true
+    }
+  ],
+  "externalRequests": [],
+  "pageErrors": [],
+  "backpressure": [],
+  "status": "PASS"
+}

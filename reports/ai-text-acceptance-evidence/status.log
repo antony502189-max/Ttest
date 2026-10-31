@@ -1,0 +1,26 @@
+{
+  "snapshot": "C:\\Users\\HONOR\\.codex\\worktrees\\main-integration-audit\\Ttest\\output\\ai-text-lab\\70330a138cdb1a8313fc0ed61bc69b7ecbfc4985",
+  "frontendBase": "ttest-main-audit-frontend:7d4c1255",
+  "backendBase": "ttest-main-audit-backend:7d4c1255",
+  "source": "70330a138cdb1a8313fc0ed61bc69b7ecbfc4985"
+}
+NAME                         IMAGE                                                                 COMMAND                  SERVICE    CREATED         STATUS                    PORTS
+ttest-ai-text-lab-backend    ttest-ai-text-lab-backend:70330a138cdb1a8313fc0ed61bc69b7ecbfc4985    "uvicorn lab.ai_text…"   backend    8 minutes ago   Up 8 minutes (healthy)    8000/tcp
+ttest-ai-text-lab-frontend   ttest-ai-text-lab-frontend:70330a138cdb1a8313fc0ed61bc69b7ecbfc4985   "/docker-entrypoint.…"   frontend   8 minutes ago   Up 8 minutes              127.0.0.1:9443->8443/tcp
+ttest-ai-text-lab-postgres   mirror.gcr.io/postgis/postgis:16-3.4                                  "docker-entrypoint.s…"   postgres   8 minutes ago   Up 8 minutes (healthy)    5432/tcp
+ttest-ai-text-lab-redis      mirror.gcr.io/library/redis:7.4-alpine                                "docker-entrypoint.s…"   redis      8 minutes ago   Up 28 seconds (healthy)   6379/tcp
+       version_num
+--------------------------
+ 0075_ai_proof_population
+(1 row)
+
+ listings
+----------
+       14
+(1 row)
+
+ proofs
+--------
+     14
+(1 row)
+

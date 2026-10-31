@@ -1,6 +1,7 @@
 # Закрытый текстовый synthetic стенд
 
-Только пункт 1 roadmap. Реальные React UI/FastAPI/PostGIS/Redis и прежние
+Базовый стенд пункта 1 roadmap; [функциональная матрица пункта 2](AI_TEXT_ACCEPTANCE_RU.md)
+расширяет его отдельными synthetic fixtures. Реальные React UI/FastAPI/PostGIS/Redis и прежние
 repositories/services; тестовые подмены только вместо intent model и extraction.
 `SyntheticParser` — конечный список точных фраз, **не LLM**. Извлечение — явно
 созданные синтетические FactBatch с цитатами. Карточки и маркеры берутся из SQL.
@@ -139,4 +140,5 @@ volumes и не использует down/remove-orphans/prune. Capacity/audit/s
 workers, real crawl/backfill, платежи/уведомления не запускаются.
 
 Smoke сохраняет `output/ai-text-lab-smoke/result.json` и PNG. Полная матрица
-этапа 2, release/public activation и performance остаются отдельными задачами.
+этапа 2 описана в отдельной инструкции выше. Release/public activation и
+performance остаются отдельными задачами.
