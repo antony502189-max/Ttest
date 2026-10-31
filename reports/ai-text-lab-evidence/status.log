@@ -1,25 +1,25 @@
 {
   "backendBase": "ttest-main-audit-backend:7d4c1255",
-  "snapshot": "C:\\Users\\HONOR\\.codex\\worktrees\\main-integration-audit\\Ttest\\output\\ai-text-lab\\e398287a241d4fb3aef1c3f15a0a14475b0ab821",
-  "source": "e398287a241d4fb3aef1c3f15a0a14475b0ab821",
-  "frontendBase": "ttest-main-audit-frontend:7d4c1255"
+  "snapshot": "C:\\Users\\HONOR\\.codex\\worktrees\\main-integration-audit\\Ttest\\output\\ai-text-lab\\3693f897e79cbe2e426b8ea3e5c04b4310acdc0b",
+  "frontendBase": "ttest-main-audit-frontend:7d4c1255",
+  "source": "3693f897e79cbe2e426b8ea3e5c04b4310acdc0b"
 }
-NAME                         IMAGE                                                                     COMMAND                  SERVICE    CREATED         STATUS                        PORTS
-ttest-ai-text-lab-backend    sha256:cbcf4fe9a0727402b1870ad16490d5b2ced21388af49a408aa502ff3e19e3fa0   "uvicorn lab.ai_text…"   backend    3 minutes ago   Up About a minute (healthy)   8000/tcp
-ttest-ai-text-lab-frontend   sha256:5931cb92fa9f0be531390e1b3b660165fc676a1dd714a1fb94a7f1706c28664c   "/docker-entrypoint.…"   frontend   3 minutes ago   Up About a minute             127.0.0.1:9443->8443/tcp
-ttest-ai-text-lab-postgres   mirror.gcr.io/postgis/postgis:16-3.4                                      "docker-entrypoint.s…"   postgres   3 minutes ago   Up About a minute (healthy)   5432/tcp
-ttest-ai-text-lab-redis      mirror.gcr.io/library/redis:7.4-alpine                                    "docker-entrypoint.s…"   redis      3 minutes ago   Up 22 seconds (healthy)       6379/tcp
-       version_num        
+NAME                         IMAGE                                                                     COMMAND                  SERVICE    CREATED          STATUS                    PORTS
+ttest-ai-text-lab-backend    sha256:7890ad9baac29d8966f2628bd20d1262980cbd8bdc48d057a7c0e2ee5714755f   "uvicorn lab.ai_text…"   backend    2 minutes ago    Up 24 seconds (healthy)   8000/tcp
+ttest-ai-text-lab-frontend   ttest-ai-text-lab-frontend:3693f897e79cbe2e426b8ea3e5c04b4310acdc0b       "/docker-entrypoint.…"   frontend   25 seconds ago   Up 24 seconds             127.0.0.1:9443->8443/tcp
+ttest-ai-text-lab-postgres   mirror.gcr.io/postgis/postgis:16-3.4                                      "docker-entrypoint.s…"   postgres   3 minutes ago    Up 37 seconds (healthy)   5432/tcp
+ttest-ai-text-lab-redis      mirror.gcr.io/library/redis:7.4-alpine                                    "docker-entrypoint.s…"   redis      3 minutes ago    Up 8 seconds (healthy)    6379/tcp
+       version_num
 --------------------------
  0075_ai_proof_population
 (1 row)
 
- listings 
+ listings
 ----------
         7
 (1 row)
 
- proofs 
+ proofs
 --------
       7
 (1 row)

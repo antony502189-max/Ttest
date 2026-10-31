@@ -1,5 +1,5 @@
 {
-  "source": "e398287a241d4fb3aef1c3f15a0a14475b0ab821",
+  "source": "3693f897e79cbe2e426b8ea3e5c04b4310acdc0b",
   "checks": [
     "isolated resources; only frontend loopback TLS published; backend has no default route",
     "shared Redis gate + dedicated database marker: PASS",
@@ -49,8 +49,8 @@
     },
     {
       "name": "ttest-ai-text-lab-backend",
-      "imageId": "sha256:cbcf4fe9a0727402b1870ad16490d5b2ced21388af49a408aa502ff3e19e3fa0",
-      "image": "ttest-ai-text-lab-backend:e398287a241d4fb3aef1c3f15a0a14475b0ab821",
+      "imageId": "sha256:7890ad9baac29d8966f2628bd20d1262980cbd8bdc48d057a7c0e2ee5714755f",
+      "image": "ttest-ai-text-lab-backend:3693f897e79cbe2e426b8ea3e5c04b4310acdc0b",
       "networks": [
         "ttest-ai-text-lab-network"
       ],
@@ -72,8 +72,8 @@
     },
     {
       "name": "ttest-ai-text-lab-frontend",
-      "imageId": "sha256:5931cb92fa9f0be531390e1b3b660165fc676a1dd714a1fb94a7f1706c28664c",
-      "image": "ttest-ai-text-lab-frontend:e398287a241d4fb3aef1c3f15a0a14475b0ab821",
+      "imageId": "sha256:cbe1fb5476120061f637621836002af450eee2f3ba0a4d9526538360ade2976c",
+      "image": "ttest-ai-text-lab-frontend:3693f897e79cbe2e426b8ea3e5c04b4310acdc0b",
       "networks": [
         "ttest-ai-text-lab-loopback",
         "ttest-ai-text-lab-network"

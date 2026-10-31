@@ -52,7 +52,7 @@ artifacts не изменять и не переиспользовать для 
 
 **Статус: выполнен 31 октября 2026; закрытый функциональный smoke PASS.**
 
-Проверенный source `e398287a241d4fb3aef1c3f15a0a14475b0ab821`,
+Проверенный source `3693f897e79cbe2e426b8ea3e5c04b4310acdc0b`,
 UI/API `https://localhost:9443`, отдельные PostGIS/Redis/backend/frontend.
 13 проверок реального Chromium smoke, 5 unit guards, shared Redis/fail-closed
 проверки и воспроизводимый stop/start прошли; обычный production runtime disabled.

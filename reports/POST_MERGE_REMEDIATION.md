@@ -3,7 +3,7 @@
 ## Закрытый текстовый стенд, 31 октября
 
 Пункт 1 AI-контура выполнен на отдельном local-loopback synthetic стенде:
-source `e398287a241d4fb3aef1c3f15a0a14475b0ab821`, https://localhost:9443.
+source `3693f897e79cbe2e426b8ea3e5c04b4310acdc0b`, https://localhost:9443.
 Реальные UI/API/PostGIS/Redis, явная test-only сборка, FactPipeline → projections
 → QueryProofs.prepare, детерминированный parser вместо LLM. Сквозной Chromium
 smoke: 13 PASS; isolation/Redis failure/recovery, 5 unit guards, 50 прежних

@@ -30,7 +30,11 @@ labels контейнеров фиксируют source SHA. Незакомми�
 
 По умолчанию используются уже имеющиеся dependency images
 `ttest-main-audit-backend:7d4c1255` и `ttest-main-audit-frontend:7d4c1255`.
-Их **код полностью перекрывается** кодом snapshot / новым dist. На другой машине
+Их **код полностью перекрывается** кодом snapshot / новым dist.
+Backend lab image также переустанавливает runtime dependencies по текущему
+`backend/constraints.txt` и выполняет `pip check`; старый cached dependency
+не может обойти обновлённый lock.
+На другой машине
 сначала собрать базовые images стандартными `backend/Dockerfile` и `Dockerfile`,
 затем передать `-BackendBase <image> -FrontendBase <image>` launcher. Для Node
 нужны dependencies из package-lock (`npm ci`, если npm доступен). В отчёте

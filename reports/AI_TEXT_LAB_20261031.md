@@ -6,7 +6,7 @@
 
 ## Source, адрес, запуск
 
-- Проверенный source: `e398287a241d4fb3aef1c3f15a0a14475b0ab821`.
+- Проверенный source: `3693f897e79cbe2e426b8ea3e5c04b4310acdc0b`.
 - Worktree: `C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest`,
   ветка `codex/post-merge-remediation`, существующий draft PR #403, **не мержить**.
   Плановый commit `c9268aad` сохранён в истории. Исходный Documents checkout не менялся.
@@ -55,6 +55,20 @@ notice, lab map и parser отсутствуют.
 
 ## Проверки
 
+При публикации CI выявил четыре новых advisory для прежнего pyasn1 0.6.4
+(CVE-2026-119194/119195/119196/119197). Lock обновлён до
+[официального релиза 0.6.5](https://pypi.org/project/pyasn1/0.6.5/), lab image
+теперь разрешает зависимости по текущему constraints, не оставляя старый пакет
+из cached base. В accepted runtime реально установлен 0.6.5; `pip check` PASS,
+[локальный pip-audit 2.10.1](ai-text-lab-evidence/dependency-audit.log) — no known
+vulnerabilities, [CI security run](https://github.com/antony502189-max/Ttest/actions/runs/41149028238)
+точного source PASS. Audit ignores/thresholds не менялись. Browser/isolation,
+unit guards и stop/start повторены на новом source. Полный набор CI отдельно
+продолжает выполняться; локальный smoke не выдаётся за прохождение всех workflows.
+Новый CI step composition guards тоже PASS на этом source:
+[facts workflow](https://github.com/antony502189-max/Ttest/actions/runs/41149028215).
+[Установленные runtime зависимости](ai-text-lab-evidence/runtime-dependencies.json).
+
 [Реальный Chromium smoke](ai-text-lab-evidence/browser-smoke.json): **13 PASS**,
 в том числе повтор после полного stop/start:
 
@@ -95,11 +109,16 @@ notice, lab map и parser отсутствуют.
   Vite сообщает существующий warning о chunk >500 KiB; он не скрыт.
 - [50 existing browser contracts PASS](ai-text-lab-evidence/existing-browser-contracts.log),
   включая обычный Google Maps test SDK путь. Эти отдельные mocked contracts
-  не подменяют настоящий browser smoke стенда.
+  не подменяют настоящий browser smoke стенда. Они выполнялись на frontend
+  source e398287a; frontend после этого не менялся (финальный patch — dependency
+  lock и переустановка dependencies в lab image).
 - [Повторный seed — проверенный no-op](ai-text-lab-evidence/reseed.log),
   [stop](ai-text-lab-evidence/stop.log), [все четыре остановлены](ai-text-lab-evidence/stopped-state.log),
   [повторный start до ready](ai-text-lab-evidence/restart.log). Launcher не очищал
   volumes. Неполный/неожиданный seed вызывает отказ перезаписи.
+
+Текстовые logs в отчёте нормализованы только по trailing whitespace/line endings;
+исходные local output logs сохранены. Числа, результаты и timings не менялись.
 
 ## Собственные ресурсы и ограничения
 

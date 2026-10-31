@@ -1,24 +1,24 @@
- succeeded_jobs 
+ succeeded_jobs
 ----------------
               7
 (1 row)
 
- batches 
+ batches
 ---------
        7
 (1 row)
 
- facts 
+ facts
 -------
     20
 (1 row)
 
- projections 
+ projections
 -------------
            7
 (1 row)
 
- proofs 
+ proofs
 --------
       7
 (1 row)
