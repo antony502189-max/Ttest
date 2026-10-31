@@ -31,7 +31,7 @@ def test_denial_is_mismatch_but_scoped_permission_is_not_broad_denial():
     features[0].update(status="explicit_deny", typed_value={"kind": "policy", "allowed": False})
     assert assess(case, features) == "mismatch"
     features[0].update(status="explicit_allow", typed_value={"kind": "policy", "allowed": True})
-    features[0]["qualifiers"]["approval_required"] = True
+    features[0]["qualifiers"]["species"] = "cat"
     assert assess(case, features) == "unknown"
 
 
@@ -52,3 +52,4 @@ def test_price_uses_shorter_window_and_counts_partition_eligible():
     assert result["eligible"] == 7 == sum(v for k, v in result.items() if k != "eligible")
     with pytest.raises(ValueError, match="timezone"):
         assess(case, case["features"], now=NOW.replace(tzinfo=None))
+

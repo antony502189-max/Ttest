@@ -3,6 +3,8 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import func, literal, select, text
 from test_current_projection import completed
+from test_query_proofs import guard
+from test_query_proofs import proofs as proof_fixture
 from typed_match_cases import CASES, plan
 
 from app.models import Listing
@@ -11,6 +13,7 @@ from app.repositories.ai_fact_quality import audit_catalog, source_freshness_pre
 from app.services.ai_fact_quality import FactQualityPolicy
 
 pytestmark = pytest.mark.integration
+proofs = proof_fixture
 POLICY = FactQualityPolicy(price_max_age_seconds=60, policy_max_age_seconds=120, evidence_retention_seconds=1)
 PLAN = plan(next(c for c in CASES if c["name"] == "pets"))
 
@@ -40,7 +43,7 @@ async def test_freshness_sql_before_count_and_limit_and_audit_reasons(pipeline):
     assert source.canonical_listing_id
 
 
-async def test_retention_physically_deletes_evidence_and_rebuilds_pending_barrier(pipeline):
+async def test_retention_physically_deletes_evidence_and_rebuilds_pending_barrier(pipeline, proofs):
     service, sessions = pipeline
     source = await completed(pipeline)
     assert await service.purge_expired_evidence(source.canonical_listing_id, retention_seconds=300) == 0
@@ -50,7 +53,10 @@ async def test_retention_physically_deletes_evidence_and_rebuilds_pending_barrie
         await session.execute(text("UPDATE ai_listing_fact_batches SET observed_at=:old, "
                                    "last_successful_check_at=NULL,last_content_change_at=NULL,last_check_error_at=NULL"),
                               {"old": now - timedelta(days=1)})
+    assert await proofs.prepare(source.canonical_listing_id)
+    assert await guard(proofs, source.canonical_listing_id)
     assert await service.purge_expired_evidence(source.canonical_listing_id, retention_seconds=1) == 1
+    assert not await guard(proofs, source.canonical_listing_id)
     async with sessions() as session:
         assert await session.scalar(select(func.count()).select_from(AiListingFact)) == 0
         assert await session.scalar(select(func.count()).select_from(AiListingFactBatch)) == 0
@@ -63,3 +69,31 @@ async def test_retention_physically_deletes_evidence_and_rebuilds_pending_barrie
     assert claim.generation == 2
     await service.complete(claim, fake_extract(claim), {"description": "Pets allowed"})
     assert await service.read_current_projection(source.canonical_listing_id) is not None
+    assert await proofs.prepare(source.canonical_listing_id)
+    assert await guard(proofs, source.canonical_listing_id)
+
+
+async def test_catalog_overflow_does_not_publish_partial_counters(pipeline):
+    service, _ = pipeline
+    await completed(pipeline)
+    await completed(pipeline)
+    with pytest.raises(ValueError, match="cohort bound"):
+        await audit_catalog(service, eligibility=literal(True), plan=PLAN, policy=POLICY, limit=1)
+
+
+async def test_cleanup_failure_rolls_back_evidence_and_proof(pipeline, proofs, monkeypatch):
+    service, sessions = pipeline
+    source = await completed(pipeline)
+    async with sessions() as session, session.begin():
+        await session.execute(text("UPDATE ai_listing_fact_batches SET observed_at=clock_timestamp()-interval '1 day', "
+                                   "last_successful_check_at=NULL,last_content_change_at=NULL,last_check_error_at=NULL"))
+    assert await proofs.prepare(source.canonical_listing_id)
+    async def fail(*args):
+        raise RuntimeError("synthetic transaction failure")
+    with monkeypatch.context() as patch:
+        patch.setattr(service, "_publish", fail)
+        with pytest.raises(RuntimeError):
+            await service.purge_expired_evidence(source.canonical_listing_id, retention_seconds=1)
+    assert await guard(proofs, source.canonical_listing_id)
+    async with sessions() as session:
+        assert await session.scalar(select(func.count()).select_from(AiListingFact)) == 1
