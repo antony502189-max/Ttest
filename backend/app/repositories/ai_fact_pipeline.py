@@ -438,3 +438,40 @@ class FactPipeline:
         for listing_id in ids:
             await self.reconcile_listing(listing_id)
         return list(ids)
+
+    async def purge_expired_evidence(self, listing_id: UUID, *, retention_seconds: int) -> int:
+        """Explicit bounded cleanup under normal writer locks; no legacy/raw deletion.
+
+        Deletes AI batches/evidence, clears current pointers, fences jobs and
+        republishes the pending barrier in the same transaction. No scheduler.
+        """
+        from sqlalchemy import delete
+
+        if type(retention_seconds) is not int or not 1 <= retention_seconds <= 31_536_000:
+            raise ValueError("explicit bounded evidence retention required")
+        async with self.sessions() as session, session.begin():
+            anchor = await self._anchor(session, listing_id)
+            visible, authority = await self._authority(session, listing_id)
+            cutoff = await _now(session) - timedelta(seconds=retention_seconds)
+            expired = (await session.scalars(select(AiListingFactBatch.id).where(
+                AiListingFactBatch.canonical_listing_id == listing_id,
+                AiListingFactBatch.observed_at < cutoff).order_by(AiListingFactBatch.id).limit(1025))).all()
+            if len(expired) > 1024:
+                raise ValueError("cleanup batch bound exceeded")
+            if not expired:
+                return 0
+            sources = (await session.scalars(select(AiFactSource).where(
+                AiFactSource.canonical_listing_id == listing_id).order_by(AiFactSource.source_record_id)
+                .with_for_update())).all()
+            for source in sources:
+                if source.batch_id in expired:
+                    source.batch_id = None
+                    source.generation += 1
+                    await session.execute(update(AiFactJob).where(
+                        AiFactJob.source_record_id == source.source_record_id,
+                        AiFactJob.status.in_(["pending", "running"])
+                    ).values(status="superseded", lease_until=None))
+            await session.flush()
+            await session.execute(delete(AiListingFactBatch).where(AiListingFactBatch.id.in_(expired)))
+            await self._publish(session, anchor, visible, authority)
+            return len(expired)
