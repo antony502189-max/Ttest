@@ -24,13 +24,16 @@ export function AIResultMap({ resultRef, intentHash }: { resultRef: string; inte
   }, [resultRef, intentHash, zoom, span, west])
   return <section aria-label="Локальная координатная карта" data-i18n-exempt>
     <p>Локальная карта Adeje · координатная сетка, без внешних тайлов</p>
-    <button type="button" onClick={() => setZoom(value => value === 14 ? 15 : 14)}>Масштаб {zoom}</button>{' '}
-    <button type="button" onClick={() => setOffset(value => value === 0 ? .075 : 0)}>Сдвинуть область</button>
+    <button type="button" style={{ padding: '.4rem .7rem', border: '1px solid #657558', borderRadius: '.5rem' }}
+      onClick={() => setZoom(value => value === 14 ? 15 : 14)}>Масштаб {zoom}</button>{' '}
+    <button type="button" style={{ padding: '.4rem .7rem', border: '1px solid #657558', borderRadius: '.5rem' }}
+      onClick={() => setOffset(value => value === 0 ? .075 : 0)}>Сдвинуть область</button>
     <p role="status">{error || (loaded ? `Маркеров: ${markers.length}` : 'Чтение карты…')}</p>
     <svg viewBox="0 0 700 300" role="img" aria-label="Маркеры из verified map API" style={{ width: '100%', background: '#e8f2e1', border: '1px solid #657558' }}>
       {[0, 1, 2, 3, 4, 5].map(i => <g key={i} stroke="#bcccb5">
         <path d={`M${i * 140} 0V300 M0 ${i * 60}H700`} />
         <text x={i * 140 + 2} y="295" fill="#33412d" fontSize="10">{(west + i * span / 5).toFixed(3)}°</text>
+        <text x="2" y={i * 60 + 12} fill="#33412d" fontSize="10">{(south + span - i * span / 5).toFixed(3)}°</text>
       </g>)}
       {markers.map(marker => <g key={marker.id} data-listing-id={marker.id}
         transform={`translate(${(marker.longitude - west) / span * 700},${300 - (marker.latitude - south) / span * 300})`}

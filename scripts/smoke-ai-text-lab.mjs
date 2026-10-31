@@ -65,8 +65,19 @@ try {
   await expect(page.getByRole('region', { name: 'Resultados confirmados' })).toContainText('Perro')
   await page.getByRole('button', { name: 'Ver mapa', exact: true }).click()
   await expect(page.getByText('Маркеров: 2', { exact: true })).toBeVisible()
-  assert.deepEqual(await page.locator('[data-listing-id]').evaluateAll(nodes => nodes.map(n => n.dataset.listingId).sort()), expected.dog.sort())
-  await page.screenshot({ path: new URL('dog-map.png', out).pathname.replace(/^\/([A-Za-z]:)/, '$1'), fullPage: true })
+  assert.deepEqual(await page.getByRole('region', { name: 'Локальная координатная карта' }).locator('[data-listing-id]')
+    .evaluateAll(nodes => nodes.map(n => n.dataset.listingId).sort()), expected.dog.sort())
+  const localMap = page.getByRole('region', { name: 'Локальная координатная карта' })
+  await localMap.locator('[role="button"]').first().click()
+  await expect(localMap).toContainText('Выбран ID:')
+  await localMap.screenshot({ path: new URL('dog-map.png', out).pathname.replace(/^\/([A-Za-z]:)/, '$1') })
+  await localMap.getByRole('button', { name: 'Масштаб 14' }).click()
+  await expect(page.getByText('Маркеров: 2', { exact: true })).toBeVisible()
+  await localMap.getByRole('button', { name: 'Сдвинуть область' }).click()
+  await expect(page.getByText('Маркеров: 0', { exact: true })).toBeVisible()
+  await localMap.getByRole('button', { name: 'Сдвинуть область' }).click()
+  await expect(page.getByText('Маркеров: 2', { exact: true })).toBeVisible()
+  record('real map viewport query + local zoom/pan + marker selection')
   const final = await submit('до 600 евро в месяц', false, expected.dog600)
   await expect(page.getByText('Маркеров: 1', { exact: true })).toBeVisible()
   const ref = final.operation.receipt.result_ref
@@ -75,7 +86,8 @@ try {
   assert.equal(meta.intent.criteria.budget.value.amount, '600')
   assert.equal(meta.intent.criteria.pets.strength, 'hard')
   record('follow-up preserves typed hard criteria + map', { criteria: meta.intent.criteria })
-  await page.screenshot({ path: new URL('budget-map.png', out).pathname.replace(/^\/([A-Za-z]:)/, '$1'), fullPage: true })
+  await localMap.screenshot({ path: new URL('budget-map.png', out).pathname.replace(/^\/([A-Za-z]:)/, '$1') })
+  await page.locator('.ai-search-dialog__cards').screenshot({ path: new URL('budget-card.png', out).pathname.replace(/^\/([A-Za-z]:)/, '$1') })
   const sid = initialBody.session_id
   const replay = await json(await post('/ai-search/query', initialBody))
   assert.equal(replay.replay, true); assert.equal(replay.operation.used, 3)
@@ -104,9 +116,12 @@ try {
     const login = await json(await post('/auth/login', { email: 'user@synthetic.example', password: 'Synthetic-Lab-Only-2026!' }, other))
     const auth = { Authorization: 'Bearer ' + login.accessToken }
     await json(await other.get(origin + '/api/v1/ai-search/sessions/' + sid, { headers: auth }), 404)
-    const session = await json(await post('/ai-search/sessions', { idempotency_key: crypto.randomUUID(), rental_mode: 'long' }, other, auth))
-    let version = 0
-    for (const [phrase, count] of [['с маленькой собакой', 2], ['до 400 евро в месяц', 0], ['все варианты', 4], ['обязательно с балконом', 0]]) {
+    const before = await json(await other.get(origin + '/api/v1/ai-search/quota', { headers: auth }))
+    assert.ok(before.remaining >= 5, 'synthetic auth quota has fewer than five operations remaining')
+    // Reuse the same owned test session across smoke reruns; never reset quota.
+    const session = await json(await post('/ai-search/sessions', { idempotency_key: 'c3ddbe7a-53d3-480d-afba-51ac1cb17f39', rental_mode: 'long' }, other, auth))
+    let version = session.intent.version
+    for (const [phrase, count] of [['все варианты', 4], ['с маленькой собакой', 2], ['до 400 евро в месяц', 0], ['все варианты', 4], ['обязательно с балконом', 0]]) {
       const result = await json(await post('/ai-search/query', { session_id: session.intent.session_id, expected_version: version++,
         idempotency_key: crypto.randomUUID(), text: phrase, search: { limit: 6 } }, other, auth))
       assert.equal(result.operation.status, 'succeeded', JSON.stringify(result))
@@ -115,7 +130,7 @@ try {
     record('auth login + own session + 200/day + incompatible hard criteria + missing facts')
     const unsupported = await json(await post('/ai-search/query', { session_id: session.intent.session_id, expected_version: version,
       idempotency_key: crypto.randomUUID(), text: 'unsupported model instruction', search: { limit: 6 } }, other, auth))
-    assert.equal(unsupported.operation.status, 'failed'); assert.equal(unsupported.operation.used, 4)
+    assert.equal(unsupported.operation.status, 'failed'); assert.equal(unsupported.operation.used, before.used + 5)
     record('unsupported deterministic phrase fails without debit')
   } finally { await other.dispose() }
   record('foreign guest/auth ownership + origin + CSRF rejection')

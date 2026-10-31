@@ -18,6 +18,7 @@ git status --short                    # изменения должны быть
 ./scripts/ai-text-lab.ps1 status
 ./scripts/ai-text-lab.ps1 seed         # проверенный no-op после полного seed
 node scripts/smoke-ai-text-lab.mjs     # реальный Chromium, без page.route/API mocks
+node scripts/check-ai-text-lab-isolation.mjs # topology + shared gate + own Redis stop/recovery
 ./scripts/ai-text-lab.ps1 stop         # только четыре собственных service, volumes сохраняются
 ```
 
