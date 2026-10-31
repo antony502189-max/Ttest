@@ -5,8 +5,36 @@
 отказ отменён в рамках этого теста. Ключ прочитан только локальным launcher,
 передан через env-file одноразовому контейнеру; в evidence/Git его нет.
 
-**LIVE TRANSPORT PASS; INITIAL SEMANTICS 21/24; TARGETED FIX 3/3.**
-**Полная приёмка новой версии инструкций ещё не выполнена.**
+**FULL LIVE REGRESSION PASS: 24/24 на исправленных инструкциях.**
+Начальный прогон 21/24 и targeted fix 3/3 сохранены ниже как отдельные результаты.
+
+## Полный повтор после согласования лимита
+
+Пользователь разрешил общий лимит **56 HTTP-попыток / $0.75 резервов**.
+Source `3b476ce2ca556849e09a8332f55470d1cbb22b84` отличается от исправления
+81a1fb30 только этими двумя числовыми лимитами. Prompt, corpus и эталоны прежние.
+Перед live проверкой 32 offline closed-provider tests PASS, включая атомарный
+лимит и сохранение резерва при restart/targeted test.
+
+Полный повтор: **24/24 semantic PASS**, 14 правильных typed patches и 10
+правильных clarification/no_change/unsupported. 24 новых HTTP-попытки, все с
+usage, без retries/transport failures. Медиана parse latency 1982.21 ms,
+максимум 5931.54 ms, сумма 56.594 s. Ни p95/SLO, ни UI/DB performance этим
+малым provider-прогоном не сертифицируются.
+
+[full-repeat-result.json](ai-intent-live-evidence/full-repeat-result.json),
+[точный source/image/archive](ai-intent-live-evidence/full-repeat-source.json),
+[итог и накопительный расход](ai-intent-live-evidence/full-repeat-summary.json).
+
+В том же journal суммарно **51/56 попыток**, 51 ответ с usage, 184 094 input /
+1134 output tokens. Peak/cache-miss estimate **$0.056589** за все три прогона,
+не выписка billing. Полный не возвращаемый резерв **$0.564060 из $0.75**.
+Резервы первых 27 попыток сохранены, журнал не пересоздавался.
+
+Первый сценарий закрытого intent contour прошёл согласованный небольшой corpus.
+Это не доказательство обобщения, не public activation и не приёмка настоящего
+parser в UI/HTTP; голос также остаётся выключен. Прежние неуспешные результаты
+не скрываются и не заменяются последним score.
 
 ## Первый результат
 
@@ -53,7 +81,7 @@ mypy app: 159 source files PASS. Полный прежний unit/PG/browser н�
 проверка обобщения на незнакомые запросы. Full-corpus regression нового prompt
 остаётся необходимым до семантической приёмки.
 
-## Расход и лимиты
+## Расход первых двух прогонов (исторический снимок до расширения)
 
 Один persistent journal, всего **27 из 32** согласованных HTTP-попыток,
 27 ответов с usage. Всего 96 307 input и 588 output tokens.
