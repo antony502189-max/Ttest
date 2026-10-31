@@ -76,6 +76,7 @@ const translations: Record<string, Translation> = {
   'Buscando…': { ru: 'Ищем…', en: 'Searching…' },
   'Actualizar búsqueda': { ru: 'Уточнить поиск', en: 'Update search' },
   'Comprobar el mismo intento': { ru: 'Проверить этот запрос', en: 'Check the same attempt' },
+  'Dejar de esperar': { ru: 'Прекратить ожидание', en: 'Stop waiting' },
   'Buscando opciones con condiciones confirmadas…': { ru: 'Ищем варианты с подтверждёнными условиями…', en: 'Searching for options with confirmed conditions…' },
   'La búsqueda sigue en curso. Consulta de nuevo el mismo intento.': { ru: 'Поиск ещё выполняется. Проверьте этот же запрос повторно.', en: 'The search is still running. Check the same attempt again.' },
   'Iniciar nueva conversación': { ru: 'Начать новый диалог', en: 'Start a new conversation' },

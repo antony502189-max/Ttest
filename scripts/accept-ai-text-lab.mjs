@@ -1,19 +1,17 @@
 // Functional acceptance against real HTTPS UI/API/PostGIS/Redis. No API fixtures.
 import assert from 'node:assert/strict'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { chromium, request, expect } from '@playwright/test'
+import { labControl as control } from './ai-text-lab-control.mjs'
 
-const exec = promisify(execFile), origin = 'https://localhost:9443'
+const origin = 'https://localhost:9443'
 const dir = new URL('../output/ai-text-acceptance/', import.meta.url)
 await mkdir(dir, { recursive: true })
 const source = JSON.parse(await readFile(new URL('../output/ai-text-lab/source.json', import.meta.url), 'utf8')).source
 const headers = { Origin: origin, 'X-AI-Request': '1' }
 const report = { source, origin, apiMocks: false, model: 'finite synthetic parser only', cases: [], externalRequests: [], pageErrors: [], backpressure: [] }
 const record = (name, details = {}) => { report.cases.push({ name, ...details, passed: true }); console.log('PASS ' + name) }
-const control = async payload => JSON.parse((await exec('docker', ['exec', 'ttest-ai-text-lab-backend', 'python', '-m', 'lab.acceptance', JSON.stringify(payload)], { timeout: 30000 })).stdout)
 const fixture = (await control({ action: 'seed' })).ids
 const all = Object.values(fixture).sort(), dog = ['a', 'b', 'c', 'f', 'g'].map(n => fixture[n]).sort()
 const budget = ['a', 'b', 'c'].map(n => fixture[n]).sort()
@@ -21,6 +19,18 @@ const ids = items => items.map(item => item.id).sort()
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 const browser = await chromium.launch()
 const contexts = [], sessions = new Set()
+async function openAI(page) {
+  // Mobile product intentionally replays its onboarding on reload. Complete
+  // that real flow instead of treating the landing screen as an AI failure.
+  for (let i = 0; i < 3; i++) {
+    const next = page.locator('.m2-onboarding .m2-primary')
+    if (!await next.count()) break
+    await next.click()
+  }
+  const skip = page.locator('.m2-auth-skip')
+  if (await skip.count()) await skip.click()
+  await page.locator('.home-ai-search__action').click()
+}
 async function json(response, status = 200) {
   assert.equal(response.status(), status, await response.text())
   return response.json()
@@ -50,7 +60,7 @@ async function guest(language = 'es', width = 1280) {
     localStorage.setItem('112233:mobile-onboarding:v1', 'done:refreshable')
   }, language)
   await page.goto(origin, { waitUntil: 'networkidle' })
-  await page.locator('.home-ai-search__action').click()
+  await openAI(page)
   await expect(page.locator('#ai-rental-mode')).toBeEnabled()
   await page.locator('#ai-rental-mode').selectOption('none')
   return { ctx, page }
@@ -110,15 +120,15 @@ try {
     await expect(page.locator('.ai-search-dialog__cards > div')).toHaveCount(6)
     const followed = await submit(page, 'с маленькой собакой', dog)
     const ref = followed.answer.operation.receipt.result_ref
-    const meta = await json(await ctx.request.get(origin + '/api/v1/ai-search/results/' + ref))
+    const meta = await json(await call(ctx.request, 'GET', '/api/v1/ai-search/results/' + ref))
     assert.equal(meta.intent.criteria.pets.strength, 'hard')
     await page.reload({ waitUntil: 'networkidle' })
-    await page.locator('.home-ai-search__action').click()
+    await openAI(page)
     await expect(page.locator('.ai-search-dialog__cards > div')).toHaveCount(5)
     await expect(page.locator('#ai-rental-mode')).toHaveValue('keep')
     // Restored session is current, committed result conditions remain bound.
     const third = await submit(page, 'до 60 евро за ночь', budget)
-    const result = await json(await ctx.request.get(origin + '/api/v1/ai-search/results/' + third.answer.operation.receipt.result_ref))
+    const result = await json(await call(ctx.request, 'GET', '/api/v1/ai-search/results/' + third.answer.operation.receipt.result_ref))
     assert.equal(result.intent.version, 3)
     assert.equal(result.intent.criteria.budget.value.period, 'nightly')
     const mapButton = page.locator('section[aria-busy] > button[aria-pressed]')
@@ -129,11 +139,12 @@ try {
     const locator = Object.entries(storage).find(([key]) => key.startsWith('112233:ai-continuation:'))?.[1]
     assert.deepEqual(Object.keys(JSON.parse(locator)).sort(), ['resultRef', 'sessionId'])
     await page.getByRole('region', { name: 'Локальная координатная карта' }).screenshot({ path: fileURLToPath(new URL(`${language}-${width}-map.png`, dir)) })
-    const quota = await json(await ctx.request.get(origin + '/api/v1/ai-search/quota'))
+    const quota = await json(await call(ctx.request, 'GET', '/api/v1/ai-search/quota'))
     assert.equal(quota.used, 3); assert.equal(quota.reserved, 0)
     record(`UI ${language} ${width}px: paging, follow-up, reload, conditions, map, privacy, quota`, { count: 3, first: first.answer.cards.cards.total })
     await control({ action: 'expire', session_id: third.body.session_id })
     await ctx.close()
+    await sleep(2000)
   }
   // One authenticated client for non-UI semantic and live-mutation matrix.
   const api = await request.newContext({ ignoreHTTPSErrors: true })
@@ -185,6 +196,37 @@ try {
   record('expired session/result cannot page or silently regain access')
   await api.dispose()
   {
+    const { ctx, page } = await guest()
+    const guestResult = await submit(page, 'туризм', all)
+    await page.goto(origin + '/#/acceso')
+    await page.getByRole('button', { name: 'Iniciar sesión con email', exact: true }).click()
+    await page.getByLabel('Email', { exact: true }).fill('acceptance-user@synthetic.example')
+    await page.getByLabel('Contraseña', { exact: true }).fill('Synthetic-Lab-Only-2026!')
+    const logged = page.waitForResponse(r => r.url().endsWith('/api/v1/auth/login'))
+    await page.locator('form button[type=submit]').click()
+    const identity = await json(await logged)
+    await page.waitForURL(origin + '/#/')
+    await openAI(page)
+    await expect(page.locator('.ai-search-dialog__cards')).toHaveCount(0)
+    await page.locator('#ai-rental-mode').selectOption('none')
+    const authResult = await submit(page, 'туризм', all)
+    const authHeaders = { Authorization: 'Bearer ' + identity.accessToken }
+    const before = await json(await call(ctx.request, 'GET', '/api/v1/ai-search/quota', undefined, authHeaders))
+    assert.equal(before.limit, 200)
+    await json(await call(ctx.request, 'GET', '/api/v1/ai-search/sessions/' + guestResult.body.session_id, undefined, authHeaders), 404)
+    await json(await call(ctx.request, 'GET', '/api/v1/ai-search/sessions/' + authResult.body.session_id), 404)
+    const refreshed = page.waitForResponse(r => r.url().endsWith('/api/v1/auth/refresh'))
+    await page.reload({ waitUntil: 'networkidle' })
+    const refreshedIdentity = await json(await refreshed)
+    await openAI(page)
+    await expect(page.locator('.ai-search-dialog__cards > div')).toHaveCount(6)
+    const after = await json(await call(ctx.request, 'GET', '/api/v1/ai-search/quota', undefined,
+      { Authorization: 'Bearer ' + refreshedIdentity.accessToken }))
+    assert.equal(after.used, before.used)
+    record('real browser login and refresh: auth reload, 200/day, guest/auth ownership separation')
+    await ctx.close()
+  }
+  {
     const { ctx, page } = await guest('es', 320)
     await submit(page, 'туризм', all)
     const hard = ['a', 'b', 'd', 'f'].map(n => fixture[n])
@@ -206,7 +248,7 @@ try {
       } else await route.continue()
     })
     await page.reload({ waitUntil: 'networkidle' })
-    await page.locator('.home-ai-search__action').click()
+    await openAI(page)
     await expect(page.getByRole('button', { name: 'Reintentar sincronización', exact: true })).toBeVisible()
     assert.equal(await page.evaluate(() => sessionStorage.getItem('112233:ai-continuation:v1:guest')), raw)
     await page.getByRole('button', { name: 'Reintentar sincronización', exact: true }).click()
@@ -215,10 +257,10 @@ try {
     const foreign = await guest()
     await foreign.page.evaluate(value => sessionStorage.setItem('112233:ai-continuation:v1:guest', value), raw)
     await foreign.page.reload({ waitUntil: 'networkidle' })
-    await foreign.page.locator('.home-ai-search__action').click()
+    await openAI(foreign.page)
     await expect(foreign.page.locator('#ai-rental-mode')).toBeEnabled()
     await expect(foreign.page.locator('.ai-search-dialog__cards')).toHaveCount(0)
-    assert.equal((await json(await foreign.ctx.request.get(origin + '/api/v1/ai-search/quota'))).used, 0)
+    assert.equal((await json(await call(foreign.ctx.request, 'GET', '/api/v1/ai-search/quota'))).used, 0)
     record('foreign guest storage locators grant no session or result authority')
     await foreign.ctx.close()
     await control({ action: 'change', name: 'a', kind: 'missing' })
@@ -231,7 +273,7 @@ try {
     } finally { await control({ action: 'change', name: 'a', kind: 'restore' }) }
     await control({ action: 'expire', session_id: sid })
     await page.reload({ waitUntil: 'networkidle' })
-    await page.locator('.home-ai-search__action').click()
+    await openAI(page)
     await expect(page.locator('#ai-rental-mode')).toBeEnabled()
     await expect(page.locator('.ai-search-dialog__cards')).toHaveCount(0)
     const expired = await json(await call(ctx.request, 'POST', '/api/v1/ai-search/query', found.body))
@@ -288,6 +330,8 @@ try {
       await expect(page.getByRole('status').filter({ hasText: 'No se pudo iniciar' })).toBeVisible()
       await page.getByRole('button', { name: 'Iniciar nueva conversación', exact: true }).click()
       assert.ok(committed.intent.session_id)
+      await expect.poll(async () => page.evaluate(() => JSON.parse(sessionStorage.getItem('112233:ai-continuation:v1:guest') || 'null')?.sessionId))
+        .toBe(committed.intent.session_id)
     } else {
       await page.locator('#ai-search-text').fill('туризм')
       await page.locator('.ai-search-dialog > .home-ai-search__action').click()
@@ -296,11 +340,15 @@ try {
       await page.locator('.ai-search-dialog > .home-ai-search__action').click()
       assert.deepEqual((await retried).request().postDataJSON(), body)
       await expect(page.locator('.ai-search-dialog__cards > div')).toHaveCount(6)
+      if (phase === 'sessions') {
+        const saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem('112233:ai-continuation:v1:guest')))
+        assert.equal(saved.sessionId, committed.intent.session_id)
+      }
       if (phase === 'query') {
         const inspect = await control({ action: 'inspect', session_id: body.session_id, version: body.expected_version })
         assert.equal(inspect.calls, 1); assert.equal(inspect.requests.length, 1)
         assert.equal(inspect.requests[0].result_ref, committed.operation.receipt.result_ref)
-        assert.equal((await json(await ctx.request.get(origin + '/api/v1/ai-search/quota'))).used, 1)
+        assert.equal((await json(await call(ctx.request, 'GET', '/api/v1/ai-search/quota'))).used, 1)
       }
     }
     record(`lost ${phase} acknowledgement: actual backend commit, exact retry, no duplicate effect`)
@@ -312,7 +360,7 @@ try {
     // Persist only the locator so the UI obtains the owned server session.
     await page.evaluate(sid => sessionStorage.setItem('112233:ai-continuation:v1:guest', JSON.stringify({ sessionId: sid })), state.session_id)
     await page.reload({ waitUntil: 'networkidle' })
-    await page.locator('.home-ai-search__action').click()
+    await openAI(page)
     await expect(page.locator('#ai-rental-mode')).toHaveValue('keep')
     await control({ action: 'arm', session_id: state.session_id, version: 0, fault })
     await page.locator('#ai-search-text').fill('все варианты')
@@ -320,7 +368,7 @@ try {
     await page.locator('.ai-search-dialog > .home-ai-search__action').click()
     const body = (await sent).postDataJSON()
     if (fault === 'delay') {
-      await page.getByRole('button', { name: 'Cancelar', exact: true }).click()
+      await page.getByRole('button', { name: 'Dejar de esperar', exact: true }).click()
       await expect(page.locator('.ai-search-dialog > .home-ai-search__action')).toHaveText('Comprobar el mismo intento')
       await sleep(3300)
     } else if (fault === 'failure') {
@@ -328,11 +376,19 @@ try {
     } else {
       await expect(page.locator('.ai-search-dialog > .home-ai-search__action')).toHaveText('Comprobar el mismo intento')
     }
+    if (fault !== 'failure') {
+      const checked = page.waitForResponse(r => r.url().endsWith('/ai-search/query'))
+      await page.locator('.ai-search-dialog > .home-ai-search__action').click()
+      const terminal = await checked
+      assert.deepEqual(terminal.request().postDataJSON(), body)
+      assert.equal((await json(terminal)).operation.status, fault === 'delay' ? 'succeeded' : 'failed')
+      await expect(page.locator('#ai-search-text')).toBeEnabled()
+    }
     const replay = await json(await call(ctx.request, 'POST', '/api/v1/ai-search/query', body))
     const observed = await control({ action: 'inspect', session_id: state.session_id, version: 0 })
     assert.equal(observed.calls, 1)
     assert.equal(observed.requests.length, 1)
-    const quota = await json(await ctx.request.get(origin + '/api/v1/ai-search/quota'))
+    const quota = await json(await call(ctx.request, 'GET', '/api/v1/ai-search/quota'))
     if (fault === 'delay') { assert.equal(replay.operation.status, 'succeeded'); assert.equal(quota.used, 1) }
     else { assert.equal(replay.operation.status, 'failed'); assert.equal(quota.used, 0) }
     assert.equal(quota.reserved, 0)
@@ -344,6 +400,11 @@ try {
   report.status = 'PASS'
 } catch (error) {
   report.status = 'FAIL'; report.failure = String(error.stack || error)
+  report.pages = []
+  for (const ctx of contexts) for (const page of ctx.pages()) if (!page.isClosed()) {
+    report.pages.push({ url: page.url(), text: (await page.locator('body').innerText().catch(() => '')).slice(0,5000) })
+    await page.screenshot({ path: fileURLToPath(new URL('failure.png', dir)), fullPage: true }).catch(() => {})
+  }
   throw error
 } finally {
   for (const name of Object.keys(fixture)) await control({ action: 'change', name, kind: 'restore' }).catch(() => {})

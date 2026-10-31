@@ -360,7 +360,7 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
       {busy && pending ? <Button type="button" variant="outline" onClick={() => {
         flight.current?.abort(); setBusy(false)
         setNotice('No se pudo confirmar el resultado. Reintenta el mismo intento para comprobar su estado.')
-      }}>{t('Cancelar')}</Button> : null}
+      }}>{t('Dejar de esperar')}</Button> : null}
       {restoreFailed ? <Button type="button" variant="outline" disabled={restoring} onClick={() => {
         setRestoring(true); setRestoreFailed(false); setRestoreEpoch(value => value + 1)
       }}>{t('Reintentar sincronización')}</Button> : null}
