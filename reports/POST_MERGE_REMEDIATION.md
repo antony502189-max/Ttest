@@ -1,5 +1,21 @@
 # Исправления замечаний post-merge аудита
 
+## Производительность: первый шаг пункта 3, 31 октября
+
+Source `53cf3171e0f8e7ae5be6bbdbe77c34f240dca856`: cursor fact-catalog
+count/sum заменён на транзакционную O(1) identity, migration
+`0076_ai_fact_population`. На ограниченной диагностике 4096 catalog rows
+заменены одним state row; full live digest и eligibility сохранены.
+Локально: 1563 unit, 247 PostgreSQL, 68 existing integration и 5 composition
+guards PASS; Ruff/mypy/migrations/pip check PASS. CI exact source: все
+11 исполнявшихся workflows PASS, два conditional visual skipped.
+Собственные диагностические
+контейнеры остановлены; выключение ноутбука отменено пользователем.
+[Отчёт и планы](AI_FACT_POPULATION_20261031.md).
+Пункт 3 продолжается; ISSUE-004 OPEN / capacity BLOCKED. Новых больших
+нагрузок нет, результаты старой certification на новый SHA не переносятся.
+Ниже сохранена история приёмки пунктов 1–2 и прежних capacity экспериментов.
+
 ## Функциональная приёмка текстового стенда, 31 октября
 
 Пункт 2 выполнен: source `70330a138cdb1a8313fc0ed61bc69b7ecbfc4985`,
