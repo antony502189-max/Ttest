@@ -2,6 +2,7 @@
 import json
 import os
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from uuid import UUID
 
@@ -51,7 +52,7 @@ async def test_authorized_flatio_sample_pipeline_proof_quality_and_cleanup(pipel
             await session.execute(text("INSERT INTO listings(id,status,monthly_price,rental_mode,source_price_currency,"
                                        "source_price_is_from,room_capacity) VALUES(:id,:status,:price,'long','EUR',false,:capacity)"),
                                   {"id": listing_id, "status": "published" if record["eligible"] else "hidden",
-                                   "price": price, "capacity": capacity})
+                                   "price": Decimal(price) if price is not None else None, "capacity": capacity})
             await session.execute(text("INSERT INTO external_listing_sources(id,canonical_listing_id,fingerprint,current_status,"
                                        "last_success_at,normalized_payload,source_name,external_id,source_url) VALUES "
                                        "(:id,:listing,:fingerprint,'active',:checked,CAST(:payload AS jsonb),'Flatio',:external,:url)"),
