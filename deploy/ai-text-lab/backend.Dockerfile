@@ -4,6 +4,7 @@ FROM ${BACKEND_BASE}
 USER root
 WORKDIR /app
 COPY --chown=app:app backend/ /app/
+RUN pip install --constraint constraints.txt . && pip check
 RUN chmod -R a+rX /app && chmod 644 /app/lab/*.py \
     && mkdir -p /lab-tls /app/var/lab-media && chown app:app /lab-tls /app/var/lab-media
 USER app
