@@ -1,0 +1,114 @@
+{
+  "started_at": "2026-10-31T22:08:20.322117+00:00",
+  "raw_persisted": false,
+  "external_llm_calls": 0,
+  "maximum_unique_details": 100,
+  "scope": "santa_cruz",
+  "failures": {},
+  "robots_sha256": "d9113d88d8e3f8482c33ee6c3792868f5de918a75a2e0566eb379b8385657488",
+  "discovered_in_scope_routes": 73,
+  "finished_at": "2026-10-31T22:09:36.028025+00:00",
+  "attempted": 73,
+  "parsed": 73,
+  "eligible": 0,
+  "exclusions": {
+    "unconfirmed_province": 73,
+    "economic_guard": 58,
+    "not_in_stock": 30,
+    "out_of_scope_unit": 26
+  },
+  "source_field_status": {
+    "amenity:explicit_allow": 73,
+    "bills_included:explicit_allow": 73,
+    "capacity_total:explicit_allow": 73,
+    "furnished:explicit_allow": 73,
+    "price:explicit_allow": 73,
+    "pets:explicit_allow": 9
+  },
+  "source_field_denominators": {
+    "pets": {
+      "records": 73,
+      "observed": 9
+    },
+    "smoking": {
+      "records": 73,
+      "observed": 0
+    },
+    "couples": {
+      "records": 73,
+      "observed": 0
+    },
+    "children": {
+      "records": 73,
+      "observed": 0
+    },
+    "tenant_groups": {
+      "records": 73,
+      "observed": 0
+    },
+    "capacity_total": {
+      "records": 73,
+      "observed": 73
+    },
+    "current_room_residents": {
+      "records": 73,
+      "observed": 0
+    },
+    "available_spots": {
+      "records": 73,
+      "observed": 0
+    },
+    "price": {
+      "records": 73,
+      "observed": 73
+    },
+    "deposit": {
+      "records": 73,
+      "observed": 0
+    },
+    "furnished": {
+      "records": 73,
+      "observed": 73
+    },
+    "bills_included": {
+      "records": 73,
+      "observed": 73
+    },
+    "balcony": {
+      "records": 73,
+      "observed": 0
+    },
+    "terrace": {
+      "records": 73,
+      "observed": 0
+    },
+    "amenity": {
+      "records": 73,
+      "observed": 73
+    },
+    "rental_mode": {
+      "records": 73,
+      "observed": 0
+    },
+    "accommodation": {
+      "records": 73,
+      "observed": 0
+    },
+    "geography": {
+      "records": 73,
+      "observed": 0
+    },
+    "availability": {
+      "records": 73,
+      "observed": 0
+    },
+    "minimum_stay": {
+      "records": 73,
+      "observed": 0
+    },
+    "maximum_stay": {
+      "records": 73,
+      "observed": 0
+    }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "scanned": 73,
+  "eligible": 8,
+  "pipeline_complete": 8,
+  "proof_prepared": 8,
+  "quality": {
+    "pets_small_dog": {
+      "eligible": 8,
+      "match": 3,
+      "mismatch": 0,
+      "unknown": 5,
+      "conditional": 0,
+      "conflict": 0,
+      "stale": 0,
+      "source_error": 0
+    },
+    "budget_1000_monthly": {
+      "eligible": 8,
+      "match": 8,
+      "mismatch": 0,
+      "unknown": 0,
+      "conditional": 0,
+      "conflict": 0,
+      "stale": 0,
+      "source_error": 0
+    },
+    "budget_1_monthly": {
+      "eligible": 8,
+      "match": 0,
+      "mismatch": 8,
+      "unknown": 0,
+      "conditional": 0,
+      "conflict": 0,
+      "stale": 0,
+      "source_error": 0
+    },
+    "wifi": {
+      "eligible": 8,
+      "match": 8,
+      "mismatch": 0,
+      "unknown": 0,
+      "conditional": 0,
+      "conflict": 0,
+      "stale": 0,
+      "source_error": 0
+    },
+    "party_two_adults": {
+      "eligible": 8,
+      "match": 0,
+      "mismatch": 0,
+      "unknown": 8,
+      "conditional": 0,
+      "conflict": 0,
+      "stale": 0,
+      "source_error": 0
+    }
+  },
+  "local_retirement_invalidates_proof": true,
+  "retention_30_days_keeps_new_evidence": true,
+  "dataset_teardown": "fresh schema dropped by fixture"
+}

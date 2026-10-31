@@ -2,7 +2,8 @@
 
 1 ноября 2026, Europe/Moscow. Подготовка возможна до живой проверки пункта 4.
 Этот документ не разрешает crawling, real-content ingestion или исходящие
-данные. Пункты 4 и 5 пока не приняты как выполненные.
+данные. Пункт 4 live пока не принят; пункт 5 принят в согласованном Flatio pilot scope
+(итоговое обновление ниже). Исторический offline план сохранён.
 
 ## Проверенная исходная база
 
@@ -59,3 +60,12 @@ pilot payload/retention/freshness: [отчёт](../../reports/AI_FACT_QUALITY_OF
 автоматически не включается; global TTL нет. Полный контракт:
 [policy](AI_FACT_QUALITY_POLICY_RU.md), [отчёт](../../reports/AI_FACT_QUALITY_NEXT_20261101.md).
 Настоящий каталог по-прежнему не измерен; пункт 5 открыт.
+
+## Приёмка согласованного Flatio pilot
+
+1 ноября пользователь выбрал до 100 публичных Flatio records и согласовал
+24h raw /30d cleaned evidence /24h price+availability /7d policy freshness.
+Измерены 73 настоящие записи, 8 прошли eligibility/pipeline/proof. Пункт 5
+выполнен в этом согласованном closed pilot scope; неподдерживаемые fields не
+объявлены покрытыми, данные удалены. [Итог](../../reports/AI_FLATIO_PILOT_20261101.md).
+Операционная/public интеграция относится к последующим этапам.

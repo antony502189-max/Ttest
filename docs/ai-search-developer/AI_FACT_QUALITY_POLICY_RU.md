@@ -52,3 +52,9 @@ backup/export/copy, receipt или всех следов записи; для re
 Проверки и exact source: [отчёт](../../reports/AI_FACT_QUALITY_NEXT_20261101.md).
 Настоящий каталог, coverage, source health, права на экспорт и утверждение сроков
 остаются необходимыми для закрытия пункта 5. LLM extraction необязателен.
+
+1 ноября согласованы pilot сроки: raw ≤24h, cleaned evidence ≤30d, price и
+availability freshness ≤24h, остальные policy fields ≤7d. Они применены к
+[реальному Flatio pilot](../../reports/AI_FLATIO_PILOT_20261101.md): после прогона
+все индивидуальные записи удалены раньше максимального срока. Это не global
+production default и не разрешение на постоянный ingestion.

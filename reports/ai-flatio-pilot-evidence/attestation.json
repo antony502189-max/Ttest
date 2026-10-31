@@ -1,0 +1,11 @@
+{
+  "source": "32b4af3271eb9197a5538a9b3760bad7f6b7bd25",
+  "collection_source": "d48c57fe",
+  "collection_runtime_identical": true,
+  "backend_files": 474,
+  "python_files": 439,
+  "all_git_blobs_match": true,
+  "raw_html_retained": false,
+  "external_llm_calls": 0,
+  "tools_image": "sha256:1ff5de84b825934599a53fd69add14bb6784d6399a1464e4a38255b2d234a902"
+}
