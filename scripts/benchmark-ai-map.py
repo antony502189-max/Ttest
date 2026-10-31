@@ -50,7 +50,10 @@ from sqlalchemy.sql.elements import BooleanClauseList
 DSN = "postgresql+asyncpg://r01:r01-synthetic-only@r01-db:5432/r01_synthetic"
 OUT = Path("/results")
 RESOLVER = "r01-synthetic.v1"
-SEED_WRITERS = 8
+# Population identities serialize catalog/proof writes transactionally. Keep
+# bulk setup single-writer rather than timing out on those counters; measured
+# map concurrency/pool/deadlines below are unchanged.
+SEED_WRITERS = 1
 PROTOCOL_VERSION = "r01-capacity.v2"
 PROVENANCE = {}
 RUN_ID = None
