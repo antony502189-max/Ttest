@@ -119,9 +119,14 @@ async def main():
     cli.add_argument("--approval")
     cli.add_argument("--approved-corpus-sha256")
     cli.add_argument("--journal", type=Path)
+    cli.add_argument("--case-id", action="append", default=[], help="Subset of the SAME approved corpus; same journal")
     cli.add_argument("--output", type=Path, required=True)
     args = cli.parse_args()
     cases, digest = load_corpus()
+    selected = set(args.case_id)
+    if selected - {case["id"] for case in cases}:
+        cli.error("unknown case ID; only the approved corpus is allowed")
+    evaluation_cases = [case for case in cases if not selected or case["id"] in selected]
     plan = manifest(cases, digest)
     if args.output.exists():
         cli.error("evidence output already exists; preserve previous results")
@@ -134,9 +139,10 @@ async def main():
         budget = EvaluationBudget(args.journal, corpus_sha256=digest)
         parser = ClosedDeepSeekIntent(key=SecretStr(key), gate=SyntheticCorpusGate(cases),
                                       budget=budget, approval=args.approval)
-        result = await evaluate(parser, cases)
+        result = await evaluate(parser, evaluation_cases)
         result.update(schema="ai-intent-evaluation-result.v1", mode="LIVE", corpus_sha256=digest,
-                      provider="deepseek", model=POLICY.model, budget=budget.summary())
+                      provider="deepseek", model=POLICY.model, budget=budget.summary(),
+                      full_corpus_size=len(cases), selected_case_ids=[case["id"] for case in evaluation_cases])
     else:
         result = plan
     # x preserves immutable evidence on racing invocations too. Never dump inputs,

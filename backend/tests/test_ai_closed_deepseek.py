@@ -273,6 +273,41 @@ def tls_contexts(tmp_path, *, trusted):
     return server, client
 
 
+async def test_targeted_cli_uses_same_corpus_gate_hash_and_journal(tmp_path, monkeypatch):
+    cases, digest = load_corpus()
+    selected = cases[9]
+    captured = {}
+    class LocalParser:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+        async def parse(self, text, current):
+            assert text == selected["text"]
+            await captured["gate"].prepare(text, current)
+            raise ProviderFailure("INTENT_CLARIFICATION_REQUIRED")
+    journal = tmp_path / "budget.sqlite3"
+    existing = EvaluationBudget(journal, corpus_sha256=digest)
+    existing.reserve()
+    output = tmp_path / "result.json"
+    monkeypatch.setenv("AI_INTENT_EVAL_DEEPSEEK_KEY", "synthetic")
+    monkeypatch.setattr(evaluation, "ClosedDeepSeekIntent", LocalParser)
+    monkeypatch.setattr("sys.argv", ["eval", "--live", "--approval", APPROVAL,
+        "--approved-corpus-sha256", digest, "--journal", str(journal), "--output", str(output),
+        "--case-id", selected["id"]])
+    assert await evaluation.main() == 1  # Wrong semantics still fail a targeted run.
+    result = json.loads(output.read_text())
+    assert result["evaluated"] == 1 and result["full_corpus_size"] == 24
+    assert result["selected_case_ids"] == [selected["id"]] and result["corpus_sha256"] == digest
+    assert result["budget"]["attempts"] == 1  # Existing reservation was NOT reset.
+
+
+async def test_unknown_target_rejected_before_key_or_io(tmp_path, monkeypatch):
+    monkeypatch.setattr("sys.argv", ["eval", "--live", "--output", str(tmp_path / "result.json"),
+                                    "--case-id", "invented-private-case"])
+    with pytest.raises(SystemExit) as error:
+        await evaluation.main()
+    assert error.value.code == 2 and not list(tmp_path.iterdir())
+
+
 @pytest.mark.parametrize("trusted", [True, False])
 async def test_real_httpx_tls_wire_on_loopback_without_provider_network(tmp_path, trusted):
     """Real sockets/TLS/HTTPX, routed to a local TLS server by a TEST-ONLY backend.

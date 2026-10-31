@@ -2,7 +2,8 @@ param(
     [ValidateSet('Prepare', 'Live')][string]$Action = 'Prepare',
     [string]$Approval = '',
     [string]$ApprovedCorpusSHA256 = '',
-    [string]$TestKeyFile = ''
+    [string]$TestKeyFile = '',
+    [string[]]$CaseId = @()
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -54,6 +55,7 @@ $dockerArgs = @('run', '--rm', '--name', "ttest-ai-intent-$runId", '--pull', 'ne
 if ($Action -eq 'Prepare') { $dockerArgs += @('--network', 'none') }
 else { $dockerArgs += @('--network', 'bridge', '--env-file', $TestKeyFile) }
 $dockerArgs += @($imageId, 'python', '-m', 'lab.intent_eval', '--output', "/evidence/$runId/result.json")
+foreach ($case in $CaseId) { $dockerArgs += @('--case-id', $case) }
 if ($Action -eq 'Live') {
     # Keep the SAME journal across runs/restarts. Creating/deleting it to reset
     # spending requires a new approval; no automatic reset/cleanup is provided.
