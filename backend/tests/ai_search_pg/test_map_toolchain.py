@@ -1,4 +1,5 @@
 """Tiny PostgreSQL evidence/cancellation regressions, never a capacity run."""
+import asyncio
 import importlib.util
 import json
 from pathlib import Path
@@ -21,7 +22,8 @@ def benchmark():
 
 @pytest.mark.parametrize("damage", [None, "entities", "listings", "listing_room_details",
     "external_listing_sources", "ai_fact_catalogs", "ai_listing_fact_batches", "ai_fact_sources",
-    "ai_listing_facts", "ai_listing_search_features", "ai_query_proofs", "profile", "trigger", "generation"])
+    "ai_listing_facts", "ai_listing_search_features", "ai_query_proofs", "profile", "trigger", "generation",
+    "live_contract", "legacy_proof", "live_trigger"])
 async def test_exact_dataset_validation_on_postgres(pg, tmp_path, monkeypatch, damage):
     bench = benchmark()
     db = pg[1].kw["bind"]
@@ -37,6 +39,15 @@ async def test_exact_dataset_validation_on_postgres(pg, tmp_path, monkeypatch, d
             # Identifiers come only from the fixed model list above.
             await c.execute(text(f"CREATE TABLE {table} (id int, source_name text)"))
             await c.execute(text(f"INSERT INTO {table} SELECT g, 'synth-' || (g%5)::text FROM generate_series(1,:n) g"), {"n":count})
+        # Minimal synthetic fields for coverage validation only; real live
+        # token triggers/proofs are tested separately on the actual schema.
+        await c.execute(text("ALTER TABLE ai_query_proofs ADD input_signature text DEFAULT repeat('a',64), "
+                             "ADD input_binding text DEFAULT repeat('b',64), ADD input_vector jsonb DEFAULT '{}'::jsonb, "
+                             "ADD input_status text DEFAULT 'current', ADD input_contract text DEFAULT 'query-proof.v2', "
+                             "ADD input_epoch uuid DEFAULT gen_random_uuid(), ADD input_schema text DEFAULT repeat('c',64), "
+                             "ADD match_cohort_id text DEFAULT repeat('d',64)"))
+        ready = "NULL::text" if damage == "live_trigger" else "'synthetic-ready'::text"
+        await c.execute(text(f"CREATE FUNCTION ai_live_input_schema_signature() RETURNS text LANGUAGE sql AS $$ SELECT {ready} $$"))
         await c.execute(text("CREATE TABLE r01_entities AS SELECT generate_series(1,3) AS n"))
         await c.execute(text("CREATE TABLE r01_meta (data jsonb)"))
         await c.execute(text("INSERT INTO r01_meta VALUES (CAST(:v AS jsonb))"), {"v":json.dumps({
@@ -47,11 +58,15 @@ async def test_exact_dataset_validation_on_postgres(pg, tmp_path, monkeypatch, d
             await c.execute(text("ALTER TABLE listings DISABLE TRIGGER listings_catalog_version"))
         elif damage == "entities":
             await c.execute(text("DELETE FROM r01_entities WHERE n=3"))
+        elif damage == "legacy_proof":
+            await c.execute(text("UPDATE ai_query_proofs SET input_signature=NULL WHERE id=1"))
         elif damage in counts:
             await c.execute(text(f"DELETE FROM {damage} WHERE id=1"))
     (tmp_path / "template.json").write_text(json.dumps({"sources":2,"observations":20,"provenance":provenance}))
     (tmp_path / "dataset-3.json").write_text(json.dumps({"listings":3,"source_records_per_listing":2,
-        "observations_per_listing":20,"counts_including_template":counts,"distinct_providers":5,"provenance":provenance,"seed_generation":1}))
+        "observations_per_listing":20,"counts_including_template":counts,"distinct_providers":5,"provenance":provenance,"seed_generation":1,
+        "live_inputs_contract":"wrong" if damage == "live_contract" else "live-inputs.v1","fast_proof_count":4,
+        "validity_contract":"live-validity.fk.v1"}))
     async with db.connect() as c:
         await c.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
         if damage is None:
@@ -124,6 +139,107 @@ async def test_measurement_freeze_blocks_writes_and_ddl_and_releases_on_exit(pg,
     assert value["stable"] is (not failure) and value["write_frozen"]
     async with db.begin() as c:
         await c.execute(text("INSERT INTO freeze_fixture VALUES (2)"))
+
+
+@pytest.mark.parametrize("vacuum", [False, True])
+async def test_seed_maintenance_waits_for_lock_and_restores_query_timeout(pg, vacuum):
+    bench = benchmark()
+    db = pg[1].kw["bind"]
+    async with db.begin() as connection:
+        await connection.execute(text("CREATE TABLE seed_vacuum_fixture (id int)"))
+    async with db.connect() as blocker, db.connect() as maintenance:
+        await blocker.execute(text("LOCK TABLE seed_vacuum_fixture IN SHARE UPDATE EXCLUSIVE MODE"))
+        await maintenance.execution_options(isolation_level="AUTOCOMMIT")
+        await maintenance.execute(text("SET lock_timeout='1000ms'"))
+        pid = await maintenance.scalar(text("SELECT pg_backend_pid()"))
+        task = asyncio.create_task(bench.maintain_seed_database(maintenance, vacuum=vacuum))
+        try:
+            for _ in range(200):
+                async with db.connect() as observer:
+                    blocked = await observer.scalar(text("SELECT cardinality(pg_blocking_pids(:pid)) > 0"), {"pid": pid})
+                if blocked:
+                    break
+                await asyncio.sleep(0.01)
+            assert blocked, "VACUUM never reached the held maintenance lock"
+            await asyncio.sleep(1.2)
+            assert not task.done(), "setup inherited the measured-query lock timeout"
+        finally:
+            await blocker.rollback()
+            await task
+        assert await maintenance.scalar(text("SHOW lock_timeout")) == "1s"
+
+
+@pytest.mark.parametrize("vacuum", [False, True])
+async def test_seed_maintenance_restores_timeout_after_statement_failure(pg, vacuum):
+    bench = benchmark()
+    db = pg[1].kw["bind"]
+    async with db.begin() as connection:
+        await connection.execute(text("CREATE TABLE seed_vacuum_failure_fixture (id int)"))
+    async with db.begin() as blocker, db.connect() as maintenance:
+        await blocker.execute(text("LOCK TABLE seed_vacuum_failure_fixture IN SHARE UPDATE EXCLUSIVE MODE"))
+        await maintenance.execution_options(isolation_level="AUTOCOMMIT")
+        await maintenance.execute(text("SET lock_timeout='1000ms'"))
+        await maintenance.execute(text("SET statement_timeout='100ms'"))
+        with pytest.raises(DBAPIError) as error:
+            await bench.maintain_seed_database(maintenance, vacuum=vacuum)
+        assert error.value.orig.sqlstate == "57014"
+        assert await maintenance.scalar(text("SHOW lock_timeout")) == "1s"
+
+
+@pytest.mark.parametrize("failure", [False, True])
+async def test_preflight_has_separate_read_only_deadline_and_restores_query_limit(pg, monkeypatch, failure):
+    bench = benchmark()
+    db = create_async_engine(pg[1].kw["bind"].url, pool_size=1, max_overflow=0,
+        connect_args={"server_settings": {"statement_timeout": "50"}})
+    async def validate(connection, total):
+        assert total == 3
+        assert await connection.scalar(text("SHOW transaction_read_only")) == "on"
+        assert await connection.scalar(text("SHOW transaction_isolation")) == "repeatable read"
+        assert await connection.scalar(text("SHOW statement_timeout")) == "1min"
+        await connection.execute(text("SELECT pg_sleep(0.1)"))
+        if failure:
+            raise RuntimeError("synthetic invalid dataset")
+    monkeypatch.setattr(bench, "validate_dataset", validate)
+    try:
+        if failure:
+            with pytest.raises(RuntimeError, match="invalid dataset"):
+                await bench.preflight_dataset(db, 3)
+        else:
+            await bench.preflight_dataset(db, 3)
+        async with db.connect() as connection:
+            assert await connection.scalar(text("SHOW statement_timeout")) == "50ms"
+            assert await connection.scalar(text("SHOW transaction_read_only")) == "off"
+            with pytest.raises(DBAPIError) as error:
+                await connection.execute(text("SELECT pg_sleep(0.1)"))
+            assert error.value.orig.sqlstate == "57014"
+    finally:
+        await db.dispose()
+
+
+@pytest.mark.parametrize("failure", [False, True])
+async def test_initialize_guard_allows_concurrent_index_and_releases_session_lock(pg, failure):
+    bench = benchmark()
+    db = pg[1].kw["bind"]
+    async with db.begin() as connection:
+        await connection.execute(text("CREATE TABLE initialize_index_fixture (id int)"))
+    async def initialize():
+        async with bench.phase_database_guard(db, "initialize", 3):
+            async with db.connect() as connection:
+                await connection.execution_options(isolation_level="AUTOCOMMIT")
+                await connection.execute(text("SET statement_timeout='2000ms'"))
+                await connection.execute(text("CREATE INDEX CONCURRENTLY initialize_fixture_index ON initialize_index_fixture(id)"))
+            with pytest.raises(RuntimeError, match="another synthetic"):
+                async with bench.phase_database_guard(db, "seed", 3):
+                    pytest.fail("initializer did not exclude concurrent phases")
+            if failure:
+                raise RuntimeError("synthetic initialization failure")
+    if failure:
+        with pytest.raises(RuntimeError, match="synthetic initialization failure"):
+            await initialize()
+    else:
+        await initialize()
+    async with bench.phase_database_guard(db, "seed", 3):
+        pass
 
 
 async def test_capture_keeps_ctes_comments_and_explicit_control_and_explains_every_query(pg):

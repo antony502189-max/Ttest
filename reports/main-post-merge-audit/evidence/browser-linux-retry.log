@@ -1,0 +1,49 @@
+
+Running 2 tests using 1 worker
+
+[1/2] [chromium] › tests/apk-regression-recovery.spec.ts:98:3 › PR43 regression recovery › polygon exposes Search this area and survives map-list-reload
+  1) [chromium] › tests/apk-regression-recovery.spec.ts:98:3 › PR43 regression recovery › polygon exposes Search this area and survives map-list-reload
+
+    Error: expect(page).not.toHaveURL(expected) failed
+
+    Expected pattern: not /dibujar=1/
+    Received string: "http://127.0.0.1:4173/#/buscar?q=Tenerife&alquiler=long&vista=mapa&dibujar=1&poligono=28.00000%2C-16.79000%3B28.00000%2C-16.50000%3B28.17000%2C-16.50000%3B28.17000%2C-16.79000&mapAuto=1&mapLat=28.26305&mapLng=-16.50971&mapZoom=9.50"
+    Timeout: 7000ms
+
+    Call log:
+      - Expect "not toHaveURL" with timeout 7000ms
+        18 × unexpected value "http://127.0.0.1:4173/#/buscar?q=Tenerife&alquiler=long&vista=mapa&dibujar=1&poligono=28.00000%2C-16.79000%3B28.00000%2C-16.50000%3B28.17000%2C-16.50000%3B28.17000%2C-16.79000&mapAuto=1&mapLat=28.26305&mapLng=-16.50971&mapZoom=9.50"
+
+
+      105 |     await searchArea.click()
+      106 |     await expect(page).toHaveURL(/vista=mapa/)
+    > 107 |     await expect(page).not.toHaveURL(/dibujar=1/)
+          |                            ^
+      108 |     await expect(page).toHaveURL(/poligono=/)
+      109 |
+      110 |     await page.getByRole('button', { name: 'Listado' }).click()
+        at /audit-src/tests/apk-regression-recovery.spec.ts:107:28
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/apk-regression-recovery-PR-31f27-nd-survives-map-list-reload-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/apk-regression-recovery-PR-31f27-nd-survives-map-list-reload-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/apk-regression-recovery-PR-31f27-nd-survives-map-list-reload-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/apk-regression-recovery-PR-31f27-nd-survives-map-list-reload-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/apk-regression-recovery-PR-31f27-nd-survives-map-list-reload-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[2/2] [chromium] › tests/listing-card-hierarchy.spec.ts:58:1 › desktop full cards render restrictions first, price second and description afterwards
+  1 failed
+    [chromium] › tests/apk-regression-recovery.spec.ts:98:3 › PR43 regression recovery › polygon exposes Search this area and survives map-list-reload
+  1 passed (19.5s)

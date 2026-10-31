@@ -1,0 +1,150 @@
+
+Running 2 tests using 1 worker
+
+{
+  "url": "http://127.0.0.1:4173/#/buscar?q=Tenerife&alquiler=long&vista=mapa&dibujar=1&poligono=28.00000%2C-16.79000%3B28.00000%2C-16.50000%3B28.17000%2C-16.50000%3B28.17000%2C-16.79000&mapAuto=1&mapLat=28.15000&mapLng=-16.62000&mapZoom=9.50",
+  "events": [
+    {
+      "method": "replaceState",
+      "url": "undefined",
+      "stack": "Error\n    at history.<computed> [as replaceState] (<anonymous>:15:18)\n    at getUrlBasedHistory (http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:295:17)\n    at createHashHistory (http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:204:9)\n    at HashRouter (http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:9522:55)\n    at Object.react_stack_bottom_frame (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:12865:12)\n    at renderWithHooks (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:4212:19)\n    at updateFunctionComponent (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:5568:16)\n    at beginWork (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:6139:20)\n    at runWithFiberInDEV (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:850:66)\n    at performUnitOfWork (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:8428:92)"
+    },
+    {
+      "method": "replaceState",
+      "url": "#/buscar?q=Tenerife&alquiler=long&vista=mapa&dibujar=1&poligono=28.00000%2C-16.79000%3B28.00000%2C-16.50000%3B28.17000%2C-16.50000%3B28.17000%2C-16.79000&mapAuto=1&mapLat=28.26305&mapLng=-16.50971&mapZoom=5.25",
+      "stack": "Error\n    at history.<computed> [as replaceState] (<anonymous>:15:18)\n    at replace (http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:340:17)\n    at http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:4897:59\n    at Object.commitMapCamera [as current] (http://127.0.0.1:4173/src/components/mobile-app-v2.tsx:3352:3)\n    at http://127.0.0.1:4173/src/components/mobile-app-v2.tsx:1559:19\n    at http://127.0.0.1:4173/src/lib/google-maps/test-sdk.ts:114:51\n    at Set.forEach (<anonymous>)\n    at TestMap.emit (http://127.0.0.1:4173/src/lib/google-maps/test-sdk.ts:114:29)\n    at TestMap.fitBounds (http://127.0.0.1:4173/src/lib/google-maps/test-sdk.ts:136:8)\n    at createMarkers (http://127.0.0.1:4173/src/components/mobile-map-listings-layer.tsx:754:9)"
+    },
+    {
+      "method": "replaceState",
+      "url": "#/buscar?q=Tenerife&alquiler=long&vista=mapa&dibujar=1&poligono=28.00000%2C-16.79000%3B28.00000%2C-16.50000%3B28.17000%2C-16.50000%3B28.17000%2C-16.79000&mapAuto=1&mapLat=28.26305&mapLng=-16.50971&mapZoom=9.50",
+      "stack": "Error\n    at history.<computed> [as replaceState] (<anonymous>:15:18)\n    at replace (http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:340:17)\n    at http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:4897:59\n    at commitMapCamera (http://127.0.0.1:4173/src/components/mobile-app-v2.tsx:3352:3)\n    at http://127.0.0.1:4173/src/components/mobile-app-v2.tsx:3364:3\n    at Object.react_stack_bottom_frame (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:12901:13)\n    at runWithFiberInDEV (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:850:66)\n    at commitHookEffectListMount (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:6616:153)\n    at commitHookPassiveMountEffects (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:6651:55)\n    at commitPassiveMountOnFiber (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:7617:22)"
+    },
+    {
+      "method": "pushState",
+      "url": "#/buscar?q=Tenerife&alquiler=long&vista=mapa&poligono=28.00000%2C-16.79000%3B28.00000%2C-16.50000%3B28.17000%2C-16.50000%3B28.17000%2C-16.79000&mapAuto=1&mapLat=28.26305&mapLng=-16.50971&mapZoom=9.50",
+      "stack": "Error\n    at history.<computed> [as pushState] (<anonymous>:15:18)\n    at push (http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:322:18)\n    at http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:4897:59\n    at searchThisMapArea (http://127.0.0.1:4173/src/components/mobile-app-v2.tsx:3391:3)\n    at executeDispatch (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:9140:5)\n    at runWithFiberInDEV (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:850:66)\n    at processDispatchQueue (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:9166:27)\n    at http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:9453:5\n    at batchedUpdates$1 (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:2043:12)\n    at dispatchEventForPluginEventSystem (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:9239:4)"
+    },
+    {
+      "method": "replaceState",
+      "url": "#/buscar?q=Tenerife&alquiler=long&vista=mapa&dibujar=1&poligono=28.00000%2C-16.79000%3B28.00000%2C-16.50000%3B28.17000%2C-16.50000%3B28.17000%2C-16.79000&mapAuto=1&mapLat=28.15000&mapLng=-16.62000&mapZoom=9.50",
+      "stack": "Error\n    at history.<computed> [as replaceState] (<anonymous>:15:18)\n    at replace (http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:340:17)\n    at http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:4897:59\n    at Object.commitMapCamera [as current] (http://127.0.0.1:4173/src/components/mobile-app-v2.tsx:3352:3)\n    at http://127.0.0.1:4173/src/components/mobile-app-v2.tsx:1559:19\n    at http://127.0.0.1:4173/src/lib/google-maps/test-sdk.ts:114:51\n    at Set.forEach (<anonymous>)\n    at TestMap.emit (http://127.0.0.1:4173/src/lib/google-maps/test-sdk.ts:114:29)\n    at TestMap.setCenter (http://127.0.0.1:4173/src/lib/google-maps/test-sdk.ts:121:8)\n    at <anonymous>:22:51"
+    }
+  ]
+}
+  ✘  1 [chromium] › tests/audit_map_transition.spec.ts:4:1 › audit: search-area navigation and delayed camera updates retain one route authority (8.8s)
+{
+  "url": "http://127.0.0.1:4173/#/buscar?q=Tenerife&alquiler=long&vista=mapa&dibujar=1&poligono=28.00000%2C-16.79000%3B28.00000%2C-16.50000%3B28.17000%2C-16.50000%3B28.17000%2C-16.79000&mapAuto=1&mapLat=28.15000&mapLng=-16.62000&mapZoom=9.50",
+  "events": [
+    {
+      "method": "replaceState",
+      "url": "undefined",
+      "stack": "Error\n    at history.<computed> [as replaceState] (<anonymous>:15:18)\n    at getUrlBasedHistory (http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:295:17)\n    at createHashHistory (http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:204:9)\n    at HashRouter (http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:9522:55)\n    at Object.react_stack_bottom_frame (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:12865:12)\n    at renderWithHooks (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:4212:19)\n    at updateFunctionComponent (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:5568:16)\n    at beginWork (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:6139:20)\n    at runWithFiberInDEV (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:850:66)\n    at performUnitOfWork (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:8428:92)"
+    },
+    {
+      "method": "replaceState",
+      "url": "#/buscar?q=Tenerife&alquiler=long&vista=mapa&dibujar=1&poligono=28.00000%2C-16.79000%3B28.00000%2C-16.50000%3B28.17000%2C-16.50000%3B28.17000%2C-16.79000&mapAuto=1&mapLat=28.26305&mapLng=-16.50971&mapZoom=5.25",
+      "stack": "Error\n    at history.<computed> [as replaceState] (<anonymous>:15:18)\n    at replace (http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:340:17)\n    at http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:4897:59\n    at Object.commitMapCamera [as current] (http://127.0.0.1:4173/src/components/mobile-app-v2.tsx:3352:3)\n    at http://127.0.0.1:4173/src/components/mobile-app-v2.tsx:1559:19\n    at http://127.0.0.1:4173/src/lib/google-maps/test-sdk.ts:114:51\n    at Set.forEach (<anonymous>)\n    at TestMap.emit (http://127.0.0.1:4173/src/lib/google-maps/test-sdk.ts:114:29)\n    at TestMap.fitBounds (http://127.0.0.1:4173/src/lib/google-maps/test-sdk.ts:136:8)\n    at createMarkers (http://127.0.0.1:4173/src/components/mobile-map-listings-layer.tsx:754:9)"
+    },
+    {
+      "method": "replaceState",
+      "url": "#/buscar?q=Tenerife&alquiler=long&vista=mapa&dibujar=1&poligono=28.00000%2C-16.79000%3B28.00000%2C-16.50000%3B28.17000%2C-16.50000%3B28.17000%2C-16.79000&mapAuto=1&mapLat=28.26305&mapLng=-16.50971&mapZoom=9.50",
+      "stack": "Error\n    at history.<computed> [as replaceState] (<anonymous>:15:18)\n    at replace (http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:340:17)\n    at http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:4897:59\n    at commitMapCamera (http://127.0.0.1:4173/src/components/mobile-app-v2.tsx:3352:3)\n    at http://127.0.0.1:4173/src/components/mobile-app-v2.tsx:3364:3\n    at Object.react_stack_bottom_frame (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:12901:13)\n    at runWithFiberInDEV (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:850:66)\n    at commitHookEffectListMount (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:6616:153)\n    at commitHookPassiveMountEffects (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:6651:55)\n    at commitPassiveMountOnFiber (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:7617:22)"
+    },
+    {
+      "method": "pushState",
+      "url": "#/buscar?q=Tenerife&alquiler=long&vista=mapa&poligono=28.00000%2C-16.79000%3B28.00000%2C-16.50000%3B28.17000%2C-16.50000%3B28.17000%2C-16.79000&mapAuto=1&mapLat=28.26305&mapLng=-16.50971&mapZoom=9.50",
+      "stack": "Error\n    at history.<computed> [as pushState] (<anonymous>:15:18)\n    at push (http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:322:18)\n    at http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:4897:59\n    at searchThisMapArea (http://127.0.0.1:4173/src/components/mobile-app-v2.tsx:3391:3)\n    at executeDispatch (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:9140:5)\n    at runWithFiberInDEV (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:850:66)\n    at processDispatchQueue (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:9166:27)\n    at http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:9453:5\n    at batchedUpdates$1 (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:2043:12)\n    at dispatchEventForPluginEventSystem (http://127.0.0.1:4173/node_modules/.vite/deps/react-dom_client.js?v=1b70b387:9239:4)"
+    },
+    {
+      "method": "replaceState",
+      "url": "#/buscar?q=Tenerife&alquiler=long&vista=mapa&dibujar=1&poligono=28.00000%2C-16.79000%3B28.00000%2C-16.50000%3B28.17000%2C-16.50000%3B28.17000%2C-16.79000&mapAuto=1&mapLat=28.15000&mapLng=-16.62000&mapZoom=9.50",
+      "stack": "Error\n    at history.<computed> [as replaceState] (<anonymous>:15:18)\n    at replace (http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:340:17)\n    at http://127.0.0.1:4173/node_modules/.vite/deps/react-router.js?v=1b70b387:4897:59\n    at Object.commitMapCamera [as current] (http://127.0.0.1:4173/src/components/mobile-app-v2.tsx:3352:3)\n    at http://127.0.0.1:4173/src/components/mobile-app-v2.tsx:1559:19\n    at http://127.0.0.1:4173/src/lib/google-maps/test-sdk.ts:114:51\n    at Set.forEach (<anonymous>)\n    at TestMap.emit (http://127.0.0.1:4173/src/lib/google-maps/test-sdk.ts:114:29)\n    at TestMap.setCenter (http://127.0.0.1:4173/src/lib/google-maps/test-sdk.ts:121:8)\n    at <anonymous>:22:51"
+    }
+  ]
+}
+  ✘  2 [chromium] › tests/audit_map_transition.spec.ts:4:1 › audit: search-area navigation and delayed camera updates retain one route authority (8.7s)
+
+
+  1) [chromium] › tests/audit_map_transition.spec.ts:4:1 › audit: search-area navigation and delayed camera updates retain one route authority
+
+    Error: expect(page).not.toHaveURL(expected) failed
+
+    Expected pattern: not /dibujar=1/
+    Received string: "http://127.0.0.1:4173/#/buscar?q=Tenerife&alquiler=long&vista=mapa&dibujar=1&poligono=28.00000%2C-16.79000%3B28.00000%2C-16.50000%3B28.17000%2C-16.50000%3B28.17000%2C-16.79000&mapAuto=1&mapLat=28.15000&mapLng=-16.62000&mapZoom=9.50"
+    Timeout: 7000ms
+
+    Call log:
+      - Expect "not toHaveURL" with timeout 7000ms
+        18 × unexpected value "http://127.0.0.1:4173/#/buscar?q=Tenerife&alquiler=long&vista=mapa&dibujar=1&poligono=28.00000%2C-16.79000%3B28.00000%2C-16.50000%3B28.17000%2C-16.50000%3B28.17000%2C-16.79000&mapAuto=1&mapLat=28.15000&mapLng=-16.62000&mapZoom=9.50"
+
+
+      31 |   await search.click()
+      32 |   try {
+    > 33 |     await expect(page).not.toHaveURL(/dibujar=1/)
+         |                            ^
+      34 |   } finally {
+      35 |     console.log(JSON.stringify(await page.evaluate(() => ({
+      36 |       url: location.href,
+        at /audit-src/tests/audit_map_transition.spec.ts:33:28
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/audit_map_transition-audit-9387f--retain-one-route-authority-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/audit_map_transition-audit-9387f--retain-one-route-authority-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/audit_map_transition-audit-9387f--retain-one-route-authority-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/audit_map_transition-audit-9387f--retain-one-route-authority-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/audit_map_transition-audit-9387f--retain-one-route-authority-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests/audit_map_transition.spec.ts:4:1 › audit: search-area navigation and delayed camera updates retain one route authority
+
+    Error: expect(page).not.toHaveURL(expected) failed
+
+    Expected pattern: not /dibujar=1/
+    Received string: "http://127.0.0.1:4173/#/buscar?q=Tenerife&alquiler=long&vista=mapa&dibujar=1&poligono=28.00000%2C-16.79000%3B28.00000%2C-16.50000%3B28.17000%2C-16.50000%3B28.17000%2C-16.79000&mapAuto=1&mapLat=28.15000&mapLng=-16.62000&mapZoom=9.50"
+    Timeout: 7000ms
+
+    Call log:
+      - Expect "not toHaveURL" with timeout 7000ms
+        18 × unexpected value "http://127.0.0.1:4173/#/buscar?q=Tenerife&alquiler=long&vista=mapa&dibujar=1&poligono=28.00000%2C-16.79000%3B28.00000%2C-16.50000%3B28.17000%2C-16.50000%3B28.17000%2C-16.79000&mapAuto=1&mapLat=28.15000&mapLng=-16.62000&mapZoom=9.50"
+
+
+      31 |   await search.click()
+      32 |   try {
+    > 33 |     await expect(page).not.toHaveURL(/dibujar=1/)
+         |                            ^
+      34 |   } finally {
+      35 |     console.log(JSON.stringify(await page.evaluate(() => ({
+      36 |       url: location.href,
+        at /audit-src/tests/audit_map_transition.spec.ts:33:28
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/audit_map_transition-audit-9387f--retain-one-route-authority-chromium-repeat1/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/audit_map_transition-audit-9387f--retain-one-route-authority-chromium-repeat1/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/audit_map_transition-audit-9387f--retain-one-route-authority-chromium-repeat1/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/audit_map_transition-audit-9387f--retain-one-route-authority-chromium-repeat1/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/audit_map_transition-audit-9387f--retain-one-route-authority-chromium-repeat1/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [chromium] › tests/audit_map_transition.spec.ts:4:1 › audit: search-area navigation and delayed camera updates retain one route authority
+    [chromium] › tests/audit_map_transition.spec.ts:4:1 › audit: search-area navigation and delayed camera updates retain one route authority

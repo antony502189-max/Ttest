@@ -1,0 +1,58 @@
+OFFLINE, no DB, profiled CPU only 8 mean_ms 26.50119416999587 compilations 3
+         2296819 function calls (2062167 primitive calls) in 2.540 seconds
+
+   Ordered by: cumulative time
+   List reduced from 734 to 20 due to restriction <20>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+      100    0.016    0.000    2.649    0.026 ai_verified_cards.py:174(_map_intent)
+      100    0.001    0.000    1.121    0.011 ai_verified_cards.py:189(verified_intent_predicate)
+      100    0.008    0.000    1.115    0.011 listings.py:741(_search_filtered_map)
+      100    0.001    0.000    1.095    0.011 ai_verified_cards.py:201(_verified_intent_predicate)
+      100    0.009    0.000    1.088    0.011 ai_query_proofs.py:158(current_projection_predicate)
+      200    0.079    0.000    0.914    0.005 profile-query-build.py:20(execute)
+      200    0.003    0.000    0.907    0.005 ai_hard_matching.py:20(hard_match_predicate)
+      200    0.017    0.000    0.803    0.004 ai_hard_matching.py:28(one)
+      202    0.001    0.000    0.766    0.004 langhelpers.py:1246(oneshot)
+      200    0.006    0.000    0.764    0.004 cache_key.py:411(_generate_cache_key)
+      200    0.002    0.000    0.758    0.004 cache_key.py:347(_generate_cache_key)
+124500/200    0.396    0.000    0.756    0.004 cache_key.py:221(_gen_cache_key)
+    18510    0.017    0.000    0.681    0.000 elements.py:1528(operate)
+67646/67246    0.204    0.000    0.640    0.000 coercions.py:314(expect)
+    18510    0.035    0.000    0.531    0.000 type_api.py:202(operate)
+    12510    0.027    0.000    0.311    0.000 default_comparator.py:50(_boolean_compare)
+    13900    0.039    0.000    0.284    0.000 elements.py:1974(__init__)
+21420/7210    0.012    0.000    0.276    0.000 operators.py:577(__eq__)
+      100    0.009    0.000    0.267    0.003 listings.py:272(visible_query)
+14220/7220    0.007    0.000    0.254    0.000 {built-in method _operator.eq}
+
+
+OFFLINE, no DB, profiled CPU only 13 mean_ms 24.482919460006087 compilations 2
+         2364606 function calls (2134606 primitive calls) in 2.348 seconds
+
+   Ordered by: cumulative time
+   List reduced from 454 to 20 due to restriction <20>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+      100    0.003    0.000    2.447    0.024 ai_verified_cards.py:174(_map_intent)
+      100    0.004    0.000    1.079    0.011 listings.py:741(_search_filtered_map)
+      100    0.022    0.000    1.067    0.011 listings.py:781(_single_pass_map)
+      100    0.001    0.000    1.011    0.010 ai_verified_cards.py:189(verified_intent_predicate)
+      100    0.001    0.000    0.993    0.010 ai_verified_cards.py:201(_verified_intent_predicate)
+      100    0.007    0.000    0.987    0.010 ai_query_proofs.py:158(current_projection_predicate)
+      200    0.004    0.000    0.806    0.004 ai_hard_matching.py:20(hard_match_predicate)
+      200    0.058    0.000    0.788    0.004 profile-query-build.py:20(execute)
+      200    0.001    0.000    0.723    0.004 langhelpers.py:1246(oneshot)
+      200    0.006    0.000    0.721    0.004 cache_key.py:411(_generate_cache_key)
+      200    0.001    0.000    0.715    0.004 cache_key.py:347(_generate_cache_key)
+129400/200    0.375    0.000    0.713    0.004 cache_key.py:221(_gen_cache_key)
+      200    0.020    0.000    0.703    0.004 ai_hard_matching.py:28(one)
+    18800    0.017    0.000    0.642    0.000 elements.py:1528(operate)
+73200/72800    0.199    0.000    0.546    0.000 coercions.py:314(expect)
+    18800    0.035    0.000    0.509    0.000 type_api.py:202(operate)
+    12800    0.026    0.000    0.306    0.000 default_comparator.py:50(_boolean_compare)
+21800/7300    0.013    0.000    0.266    0.000 operators.py:577(__eq__)
+16700/15900    0.015    0.000    0.246    0.000 langhelpers.py:1119(__get__)
+14500/7300    0.009    0.000    0.244    0.000 {built-in method _operator.eq}
+
+

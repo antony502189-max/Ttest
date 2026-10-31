@@ -1,1 +1,4 @@
 backend/alembic/versions/*.py text eol=lf
+backend/lab/intent_cases.v1.json text eol=lf
+reports/ai-live-inputs-evidence/** -text
+reports/ai-intent-model-evidence/** -text whitespace=cr-at-eol

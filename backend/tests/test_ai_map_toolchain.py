@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import sys
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
@@ -13,6 +14,20 @@ import pytest
 
 ROOT = Path(__file__).parents[2]
 PS = shutil.which("pwsh") or shutil.which("powershell")
+
+
+def test_evidence_intervals_survive_wall_clock_steps(monkeypatch):
+    bench = module("benchmark-ai-map")
+    anchor = datetime(2026, 10, 30, tzinfo=UTC)
+    monkeypatch.setattr(bench, "_CLOCK_UTC", anchor)
+    monkeypatch.setattr(bench, "_CLOCK_MONOTONIC", 100.0)
+    monkeypatch.setattr(bench, "time", Mock(perf_counter=Mock(side_effect=[100.0, 101.0, 102.0])))
+    wall_clock = Mock()
+    wall_clock.now.side_effect = [anchor, anchor-timedelta(seconds=4), anchor+timedelta(minutes=10)]
+    monkeypatch.setattr(bench, "datetime", wall_clock)
+    observed = [datetime.fromisoformat(bench.now()) for _ in range(3)]
+    assert observed == [anchor, anchor+timedelta(seconds=1), anchor+timedelta(seconds=2)]
+    wall_clock.now.assert_not_called()
 
 
 def module(name):
@@ -132,6 +147,42 @@ def report(root, monkeypatch):
     monkeypatch.setattr("sys.argv", ["summarize-ai-map-capacity.py", str(root)])
     module("summarize-ai-map-capacity").main()
     return (root / "REPORT_RU.md").read_text(encoding="utf-8"), json.loads((root / "summary.json").read_text())
+
+
+@pytest.mark.parametrize("damage", [None, "missing_config", "wrong_config", "missing_plan_setting", "unknown_contract", "extra_query"])
+def test_single_pass_contract_attests_jit_dispatch_and_explain_settings(tmp_path, damage):
+    complete(tmp_path)
+    records = json.loads((tmp_path / "baseline-100000.json").read_text())
+    for record in records:
+        old = [row for row in record["statements"] if row["category"] == "map-query"]
+        plan = json.loads((tmp_path / old[0]["plan_file"]).read_text())
+        for row in old:
+            (tmp_path / row["plan_file"]).unlink()
+        filename = f"plan-100000-{record['candidates']}-z{record['zoom']}-2.json"
+        plan.update(statement_index=2, query_settings={"jit":"off"})
+        write(tmp_path, filename, plan)
+        config = {"category":"query-config", "ordinal":1, "sql":"SET LOCAL jit = off",
+                  "sql_sha256":hashlib.sha256(b"SET LOCAL jit = off").hexdigest(), "parameters":[]}
+        record.update(query_contract="single-pass-jit.v1", query_settings={"jit":"off"},
+                      capture_count=3, query_count=1, plan_count=1,
+                      statements=[record["statements"][0], config, {**old[0], "ordinal":2,"plan_file":filename}])
+    if damage == "missing_config":
+        records[0]["statements"].pop(1)
+    elif damage == "wrong_config":
+        records[0]["statements"][1]["sql"] = "SET jit = off"
+    elif damage == "missing_plan_setting":
+        filename = records[0]["statements"][2]["plan_file"]
+        plan = json.loads((tmp_path / filename).read_text())
+        del plan["query_settings"]
+        write(tmp_path, filename, plan)
+    elif damage == "unknown_contract":
+        records[0]["query_contract"] = "unattested.v2"
+    elif damage == "extra_query":
+        records[0]["statements"].append({**records[0]["statements"][2], "ordinal":3})
+        records[0].update(capture_count=4, query_count=2, plan_count=2)
+    write(tmp_path, "baseline-100000.json", records)
+    result = module("summarize-ai-map-capacity").summarize(tmp_path)
+    assert result["completed_scales"] == ([100000] if damage is None else [])
 
 
 @pytest.mark.parametrize("sources,expected", [(2, "200,000"), (10, "1,000,000")])
@@ -442,18 +493,22 @@ def test_experiment_is_immutable(tmp_path, monkeypatch, field):
 
 @pytest.mark.parametrize("damage", ["entities","meta_sources","template","provenance", "providers", "trigger",
     "listings","listing_room_details","external_listing_sources","ai_fact_catalogs","ai_listing_fact_batches",
-    "ai_fact_sources","ai_listing_facts","ai_listing_search_features","ai_query_proofs"])
+    "ai_fact_sources","ai_listing_facts","ai_listing_search_features","ai_query_proofs",
+    "live_contract","live_coverage","live_trigger"])
 async def test_measure_validates_dataset_before_timed_sql(tmp_path, monkeypatch, damage):
     bench = module("benchmark-ai-map")
     models = (bench.Listing, bench.ListingRoomDetails, bench.ExternalListingSource, bench.AiFactCatalog,
         bench.AiListingFactBatch, bench.AiFactSource, bench.AiListingFact, bench.AiListingSearchFeatures, bench.AiQueryProof)
     counts = {model.__tablename__:101*(20 if model is bench.AiListingFact else 2 if model in
         (bench.ExternalListingSource,bench.AiFactSource,bench.AiListingFactBatch) else 1) for model in models}
-    assert damage in {"entities","meta_sources","template","provenance","providers","trigger",*counts}
+    assert damage in {"entities","meta_sources","template","provenance","providers","trigger",
+                     "live_contract","live_coverage","live_trigger",*counts}
     provenance = {"sources":2}
     meta = {"synthetic_only":True,"sources":2,"provenance":provenance,"generation":1}
     template = {"listing":"synthetic","sources":2,"observations":20,"provenance":provenance}
-    value = {**dataset(100),"counts_including_template":counts,"distinct_providers":10,"provenance":provenance}
+    value = {**dataset(100),"counts_including_template":counts,"distinct_providers":10,"provenance":provenance,
+             "live_inputs_contract":"wrong" if damage == "live_contract" else "live-inputs.v1","fast_proof_count":101,
+             "validity_contract":"live-validity.fk.v1"}
     if damage == "meta_sources": meta["sources"] = 10
     if damage == "template": template["sources"] = 10
     if damage == "provenance": value["provenance"] = {}
@@ -463,7 +518,8 @@ async def test_measure_validates_dataset_before_timed_sql(tmp_path, monkeypatch,
     connection.__aenter__.return_value = connection
     connection.scalar.side_effect = [meta, 99 if damage == "entities" else 100,
         *[number-1 if name == damage else number for name,number in counts.items()],
-        9 if damage == "providers" else 10,"D" if damage == "trigger" else "O"]
+        9 if damage == "providers" else 10,"D" if damage == "trigger" else "O",
+        100 if damage == "live_coverage" else 101,None if damage == "live_trigger" else "ready"]
     db = Mock()
     db.connect.return_value = connection
     db.dispose = AsyncMock()

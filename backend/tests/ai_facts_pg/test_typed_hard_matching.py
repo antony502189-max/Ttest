@@ -25,10 +25,14 @@ def test_sql_and_typed_match_agree_on_all_criteria(pg, case):
         for features in cases:
             expected = not evaluate_hard_match(compiled, projection(features))
             for value in (features, projection(features).model_dump(mode="json")["features"]):
-                assert connection.scalar(select(hard_match_predicate(literal(value, type_=JSONB), compiled))) is expected
+                for key_prefilter in (True, False):
+                    assert connection.scalar(select(hard_match_predicate(literal(value, type_=JSONB), compiled,
+                        key_prefilter=key_prefilter))) is expected
         # Duplicated/invalid stored relevant feature never counts as confirmation.
         for bad in (None, {}, "bad", case["features"] + [case["features"][0]]):
-            assert connection.scalar(select(hard_match_predicate(literal(bad, type_=JSONB), compiled))) is False
+            for key_prefilter in (True, False):
+                assert connection.scalar(select(hard_match_predicate(literal(bad, type_=JSONB), compiled,
+                    key_prefilter=key_prefilter))) is False
 
 
 @pytest.mark.parametrize("case,features,expected", edge_cases())
@@ -82,3 +86,19 @@ def test_full_typed_predicate_precedes_count_order_seek_and_limit(pg):
         second = connection.execute(eligible.where(candidates.c.paid_rank < first.paid_rank).order_by(
             candidates.c.paid_rank.desc()).limit(1)).one()
         assert second.id == 4
+
+
+@pytest.mark.parametrize("bad", [None, [], "bad", True, 3, {}, {"max_count": 1}])
+def test_key_prefilter_retains_malformed_duplicates_and_unrelated_rows(pg, bad):
+    engine, _ = pg
+    case = next(c for c in CASES if c["name"] == "pets")
+    malformed = copy.deepcopy(case["features"][0])
+    malformed["qualifiers"] = bad
+    with engine.connect() as connection:
+        values = [case["features"] + [extra] for extra in
+                  (malformed, {**malformed, "key": "unrelated"}, [malformed], {"key": ["pets"]}, {}, None, "pets")]
+        values += [[case["features"]], [[[case["features"][0]]]]]
+        for value in values:
+            old = connection.scalar(select(hard_match_predicate(literal(value, type_=JSONB), plan(case), key_prefilter=False)))
+            new = connection.scalar(select(hard_match_predicate(literal(value, type_=JSONB), plan(case))))
+            assert new is old

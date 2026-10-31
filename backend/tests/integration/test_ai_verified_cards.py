@@ -28,6 +28,40 @@ from app.services.ai_card_cursors import InvalidAICursor
 pytestmark = pytest.mark.integration
 
 
+async def test_fact_catalog_generation_rejects_same_sum_changes_and_restoration():
+    from app.models.ai_fact_pipeline import AiFactCatalog
+    query, subject, session_id, _, _ = await setup("long")
+    # Unrelated synthetic entries isolate cursor context from live proof edits.
+    extra = [uuid4(), uuid4()]
+    async with SessionLocal() as session, session.begin():
+        session.add_all([AiFactCatalog(canonical_listing_id=extra[0], revision=1),
+                         AiFactCatalog(canonical_listing_id=extra[1], revision=2)])
+    payload = ListingCardSearchRequest(limit=1)
+    first = await query.search_owned(subject, session_id, 1, payload)
+    assert first.cards.nextCursor
+    async with SessionLocal() as session, session.begin():
+        await session.execute(text("UPDATE ai_fact_catalogs SET revision=3-revision WHERE canonical_listing_id IN (:a,:b)"),
+                              {"a": extra[0], "b": extra[1]})
+    with pytest.raises(InvalidAICursor):
+        await query.search_owned(subject, session_id, 1, payload.model_copy(update={"cursor": first.cards.nextCursor}))
+    async with SessionLocal() as session, session.begin():
+        await session.execute(text("UPDATE ai_fact_catalogs SET revision=3-revision WHERE canonical_listing_id IN (:a,:b)"),
+                              {"a": extra[0], "b": extra[1]})
+    with pytest.raises(InvalidAICursor):
+        await query.search_owned(subject, session_id, 1, payload.model_copy(update={"cursor": first.cards.nextCursor}))
+    assert (await query.search_owned(subject, session_id, 1, payload)).cards.total == first.cards.total == 3
+
+
+async def test_missing_fact_population_fails_closed_without_quota_debit():
+    query, subject, session_id, _, _ = await setup("long")
+    async with SessionLocal() as session, session.begin():
+        await session.execute(text("DELETE FROM ai_fact_population"))
+    with pytest.raises(RuntimeError, match="fact-catalog population state is missing"):
+        await query.search_owned(subject, session_id, 1, ListingCardSearchRequest())
+    async with SessionLocal() as session:
+        assert await session.scalar(select(func.count()).select_from(AIUsageDay)) == 0
+
+
 async def setup(rental_mode, *, price=None, vocabulary=None, count=4, positions=None):
     vocabulary = vocabulary or FactVocabulary(amenity_codes=frozenset(), catalog_other_codes=frozenset(),
                                              tenant_group_codes=frozenset(), municipality_zones=frozenset())
@@ -441,6 +475,7 @@ async def test_dense_ai_map_thresholds_edges_and_live_proof_changes(record_prope
             case = {"valid":len(expected),"zoom":zoom,"authority_plans":0,"loops":0,"visited_rows":0,"buffer_touches":0,"execution_ms":0,"node_types":set()}
             async with SessionLocal() as session, session.begin():
                 await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+                await session.execute(text("SET LOCAL jit = off"))
                 raw = await (await session.connection()).get_raw_connection()
                 for sql,parameters in captured:
                     plan = await raw.driver_connection.fetchval("EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) "+sql,*parameters)
@@ -455,7 +490,7 @@ async def test_dense_ai_map_thresholds_edges_and_live_proof_changes(record_prope
                         case["visited_rows"] += node["Actual Loops"]*(node["Actual Rows"]+node.get("Rows Removed by Filter",0))
                         case["buffer_touches"] += node.get("Shared Hit Blocks",0)+node.get("Shared Read Blocks",0)
                         case["node_types"].add(node["Node Type"])
-            assert case["authority_plans"] == (2 if zoom >= 13 and len(expected) > 300 else 1),case
+            assert case["authority_plans"] == 1,case
             assert "Seq Scan" not in case["node_types"],case
             assert case["loops"] <= 32*(len(expected)+1),case
             assert case["visited_rows"] <= 32*(len(expected)+1),case

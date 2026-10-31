@@ -1,0 +1,10 @@
+{
+  "source": "fc0fbd39c6ef760d7f8efcea9b27dda794b47cf3",
+  "base": "5fb1c464bd11129ebe17c27e977a438808af024d",
+  "archive_sha256": "0799f9afcbce1d41c31ebc9242d3b93397d0b9790da4c4f6649b72af929d919b",
+  "tools_image": "sha256:1ff5de84b825934599a53fd69add14bb6784d6399a1464e4a38255b2d234a902",
+  "real_records": 0,
+  "external_provider_calls": 0,
+  "network": "none; PG runner shares isolated PG network namespace",
+  "public_activation": false
+}

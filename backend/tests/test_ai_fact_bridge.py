@@ -294,3 +294,21 @@ def test_policy_field_types_never_coerce_boolean_and_capacity(old_key, value):
 def test_mapping_capacity_attestation_requires_exact_provider_field():
     with pytest.raises(ValidationError, match="capacity scope"):
         mapping(rented_unit_capacity_fields=frozenset({"rules.pets"}))
+
+@pytest.mark.parametrize("description", [
+    "EUR 500 monthly. No parties. Two bedrooms.",
+    "USD 500 nightly. Parties allowed. Available now.",
+    "EUR 500 weekly. Ideal for pets and couples.",
+])
+def test_marketing_prices_party_and_categories_do_not_manufacture_bridge_facts(description):
+    data = packet("marketing_capacity_unknown").model_dump()
+    data.update(description=description)
+    ready = prepare(rehash(data))
+    assert all(f.status == "unknown" for f in ready.facts)
+    assert not {"price", "availability", "available_spots", "tenant_groups", "accommodation"} & {f.key for f in ready.facts}
+
+
+def test_missing_policy_is_not_a_confirmed_permission():
+    ready = prepare(packet("marketing_capacity_unknown"))
+    pets = next(f for f in ready.facts if f.key == "pets")
+    assert pets.status == "unknown" and pets.typed_value is None and not pets.evidence

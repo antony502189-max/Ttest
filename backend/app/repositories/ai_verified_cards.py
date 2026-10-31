@@ -6,7 +6,9 @@ must use quota finalize; page reads reuse an already-owned normalized session.
 Pagination is live keyset, not a frozen result set. Each page rechecks current
 source/public eligibility and TOP ordering in its own repeatable-read snapshot.
 Signed context detects intent/filter/config/catalog/fact/prepared-proof changes,
-but direct source, user/moderation changes and clock-driven TOP changes can
+with conservative invalidation when another resolver's proofs change or a
+previous proof set is restored. Identical preparation preserves the cursor.
+Direct source, user/moderation changes and clock-driven TOP changes can
 alter totals/order without rejecting a cursor. Restart without a cursor to
 discover rows newly eligible or moved before the seek point. No stale card is
 kept merely to preserve an earlier page's total or order.
@@ -14,11 +16,10 @@ kept merely to preserve an earlier page's total or order.
 from dataclasses import dataclass
 from uuid import UUID
 
-from sqlalchemy import and_, func, select, text
+from sqlalchemy import and_, select, text
 
 from ..models import CatalogState, Listing
-from ..models.ai_fact_pipeline import AiFactCatalog
-from ..models.ai_listing_facts import AiListingSearchFeatures
+from ..models.ai_query_proof import AiQueryProof
 from ..schemas.ai_listing_facts import digest
 from ..schemas.ai_search_intent import SearchIntent
 from ..schemas.ai_search_quota import QuotaSubject
@@ -32,8 +33,9 @@ from ..services.ai_card_cursors import AICardCursors
 from ..services.ai_hard_matching import HardMatchPlan, compile_hard_match
 from .ai_card_values import current_card_values_predicate
 from .ai_fact_pipeline import FactPipeline
-from .ai_hard_matching import hard_match_predicate
+from .ai_fact_population import fact_population_signature
 from .ai_query_proofs import PROOF_CONTRACT_VERSION, current_projection_predicate, proof_population_signature
+from .ai_query_settings import configure_ai_query
 from .ai_search_sessions import SearchSessions, SessionError, intent_hash
 from .listings import (
     _cursor_fingerprint,
@@ -107,22 +109,29 @@ class VerifiedCardSearch:
 
     async def _query_intent(self, session, subject: QuotaSubject, intent: SearchIntent,
                             payload: ListingCardSearchRequest) -> VerifiedCardResult:
+        await configure_ai_query(session)
         payload = ListingCardSearchRequest.model_validate(payload.model_dump())
         compiled = compile_hard_match(intent, self.pipeline.vocabulary)
         normalized_hash = intent_hash(intent)
         catalog = await session.scalar(select(CatalogState.version).where(CatalogState.id == 1))
-        facts = (await session.execute(select(func.count(), func.coalesce(func.sum(AiFactCatalog.revision), 0)))).one()
+        facts = await session.scalar(select(fact_population_signature()))
+        if facts is None:
+            raise RuntimeError("fact-catalog population state is missing")
         proofs = await session.scalar(select(proof_population_signature(
             resolver_version=self.pipeline.resolver_version, vocabulary_hash=self.pipeline.vocabulary_hash)))
+        if proofs is None:
+            raise RuntimeError("prepared-proof population state is missing")
         context = digest({"subject": [subject.kind, str(subject.id)], "intent": normalized_hash,
             "filters": _cursor_fingerprint(payload), "catalog": catalog,
-            "facts": [facts[0], str(facts[1])], "proofs": proofs, "resolver": self.pipeline.resolver_version,
+            "facts": facts, "proofs": proofs, "resolver": self.pipeline.resolver_version,
             "vocabulary": self.pipeline.vocabulary_hash, "proof_contract": PROOF_CONTRACT_VERSION})
         raw_cursor = self.cursors.decode(payload.cursor, context)
         payload = payload.model_copy(update={"cursor": raw_cursor})
         # EXISTS preserves one catalog row per listing and the existing
         # commercial ordering/gallery/redirect pipeline. No post-page filter.
-        filtered = apply_search_filters(visible_query(), payload).where(_verified_intent_predicate(self.pipeline, intent, compiled))
+        base = apply_search_filters(visible_query(), payload)
+        filtered = base.where(_verified_intent_predicate(self.pipeline, intent, compiled,
+            cohort_scope=_candidate_cohorts(base, self.pipeline)))
         cards = await _search_filtered_cards(session, payload, filtered, _cursor_fingerprint(payload))
         cards = cards.model_copy(update={"nextCursor": self.cursors.encode(cards.nextCursor, context),
                                          "previousCursor": self.cursors.encode(cards.previousCursor, context)})
@@ -163,9 +172,11 @@ class VerifiedCardSearch:
             return await self._map_intent(session, committed.intent, payload)
 
     async def _map_intent(self, session, intent: SearchIntent, payload: ListingMapRequest) -> "VerifiedMapResult":
+        await configure_ai_query(session)
         bounded = payload.model_copy(update={"minLatitude": payload.south, "maxLatitude": payload.north,
                                              "minLongitude": payload.west, "maxLongitude": payload.east})
-        filtered = apply_search_filters(visible_query(), bounded).where(verified_intent_predicate(self.pipeline, intent))
+        base = apply_search_filters(visible_query(), bounded)
+        filtered = base.where(verified_intent_predicate(self.pipeline, intent, cohort_scope=_candidate_cohorts(base, self.pipeline)))
         return VerifiedMapResult(await _search_filtered_map(session, payload, filtered), intent_hash(intent))
 
 
@@ -175,17 +186,20 @@ class VerifiedMapResult:
     intent_hash: str
 
 
-def verified_intent_predicate(pipeline: FactPipeline, intent: SearchIntent):
+def verified_intent_predicate(pipeline: FactPipeline, intent: SearchIntent, *, cohort_scope=None):
     """Identical evidence/current card-value contract for cards, map and later saved matching."""
-    return _verified_intent_predicate(pipeline, intent, compile_hard_match(intent, pipeline.vocabulary))
+    return _verified_intent_predicate(pipeline, intent, compile_hard_match(intent, pipeline.vocabulary), cohort_scope=cohort_scope)
 
 
-def _verified_intent_predicate(pipeline: FactPipeline, intent: SearchIntent, compiled: HardMatchPlan):
+def _candidate_cohorts(base, pipeline):
+    candidates = base.with_only_columns(Listing.id, maintain_column_froms=True).order_by(None).correlate(None)
+    return select(AiQueryProof.match_cohort_id).where(AiQueryProof.canonical_listing_id.in_(candidates),
+        AiQueryProof.input_status == "current", AiQueryProof.resolver_version == pipeline.resolver_version,
+        AiQueryProof.vocabulary_hash == pipeline.vocabulary_hash, AiQueryProof.match_cohort_id.is_not(None)).distinct().correlate(None)
+
+
+def _verified_intent_predicate(pipeline: FactPipeline, intent: SearchIntent, compiled: HardMatchPlan, *, cohort_scope=None):
     # Cards reuse this exact plan for reason codes; map compiles once above.
-    facts = select(1).select_from(AiListingSearchFeatures).where(
-        AiListingSearchFeatures.canonical_listing_id == Listing.id,
-        current_projection_predicate(Listing.id, resolver_version=pipeline.resolver_version,
-                                     vocabulary_hash=pipeline.vocabulary_hash),
-        hard_match_predicate(AiListingSearchFeatures.__table__.c.features, compiled),
-    ).correlate(Listing).exists()
+    facts = current_projection_predicate(Listing.id, resolver_version=pipeline.resolver_version,
+        vocabulary_hash=pipeline.vocabulary_hash, match_plan=compiled, cohort_scope=cohort_scope)
     return and_(facts, current_card_values_predicate(intent))

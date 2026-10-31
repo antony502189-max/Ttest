@@ -1,0 +1,952 @@
+{
+  "ai_fact_catalogs": {
+    "columns": [
+      "canonical_listing_id",
+      "revision"
+    ],
+    "indexes": [],
+    "foreign_keys": [],
+    "checks": [
+      {
+        "name": "ck_ai_catalog_revision",
+        "sqltext": "revision >= 0",
+        "comment": null
+      }
+    ]
+  },
+  "ai_fact_sources": {
+    "columns": [
+      "batch_id",
+      "canonical_listing_id",
+      "content_hash",
+      "extractor_version",
+      "generation",
+      "schema_version",
+      "snapshot_hash",
+      "source_fingerprint",
+      "source_record_id",
+      "source_status",
+      "taxonomy_version"
+    ],
+    "indexes": [
+      {
+        "name": "ix_ai_source_canonical",
+        "unique": false,
+        "column_names": [
+          "canonical_listing_id"
+        ],
+        "include_columns": [],
+        "dialect_options": {
+          "postgresql_include": []
+        }
+      }
+    ],
+    "foreign_keys": [
+      {
+        "name": "ai_fact_sources_batch_id_fkey",
+        "constrained_columns": [
+          "batch_id"
+        ],
+        "referred_schema": null,
+        "referred_table": "ai_listing_fact_batches",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {},
+        "comment": null
+      },
+      {
+        "name": "ai_fact_sources_canonical_listing_id_fkey",
+        "constrained_columns": [
+          "canonical_listing_id"
+        ],
+        "referred_schema": null,
+        "referred_table": "ai_fact_catalogs",
+        "referred_columns": [
+          "canonical_listing_id"
+        ],
+        "options": {},
+        "comment": null
+      }
+    ],
+    "checks": [
+      {
+        "name": "ck_ai_source_extractor",
+        "sqltext": "extractor_version::text ~ '^[a-zA-Z0-9][a-zA-Z0-9._-]*$'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_source_generation",
+        "sqltext": "generation > 0",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_source_hashes",
+        "sqltext": "content_hash::text ~ '^[0-9a-f]{64}$'::text AND source_fingerprint::text ~ '^[0-9a-f]{64}$'::text AND snapshot_hash::text ~ '^[0-9a-f]{64}$'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_source_status",
+        "sqltext": "source_status::text = ANY (ARRAY['active'::character varying, 'unknown'::character varying, 'unavailable'::character varying, 'retired'::character varying]::text[])",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_source_versions",
+        "sqltext": "schema_version::text = 'ai-facts.v1'::text AND taxonomy_version::text = 'ai-search.v1'::text",
+        "comment": null
+      }
+    ]
+  },
+  "ai_fact_jobs": {
+    "columns": [
+      "attempts",
+      "available_at",
+      "canonical_listing_id",
+      "content_hash",
+      "extractor_version",
+      "failure_code",
+      "fence",
+      "generation",
+      "id",
+      "lease_until",
+      "result_hash",
+      "result_revision",
+      "schema_version",
+      "snapshot_hash",
+      "source_record_id",
+      "status",
+      "taxonomy_version"
+    ],
+    "indexes": [
+      {
+        "name": "ix_ai_job_claim",
+        "unique": false,
+        "column_names": [
+          "available_at",
+          "id"
+        ],
+        "include_columns": [],
+        "dialect_options": {
+          "postgresql_where": "((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]))",
+          "postgresql_include": []
+        }
+      },
+      {
+        "name": "uq_ai_job_generation",
+        "unique": true,
+        "column_names": [
+          "source_record_id",
+          "generation"
+        ],
+        "duplicates_constraint": "uq_ai_job_generation",
+        "include_columns": [],
+        "dialect_options": {
+          "postgresql_include": []
+        }
+      }
+    ],
+    "foreign_keys": [
+      {
+        "name": "ai_fact_jobs_source_record_id_fkey",
+        "constrained_columns": [
+          "source_record_id"
+        ],
+        "referred_schema": null,
+        "referred_table": "ai_fact_sources",
+        "referred_columns": [
+          "source_record_id"
+        ],
+        "options": {},
+        "comment": null
+      }
+    ],
+    "checks": [
+      {
+        "name": "ck_ai_job_counters",
+        "sqltext": "generation > 0 AND fence >= 0 AND attempts >= 0",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_job_extractor",
+        "sqltext": "extractor_version::text ~ '^[a-zA-Z0-9][a-zA-Z0-9._-]*$'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_job_failure",
+        "sqltext": "failure_code IS NULL OR (failure_code::text = ANY (ARRAY['EXTRACTOR_FAILED'::character varying, 'INVALID_RESULT'::character varying, 'ATTEMPTS_EXHAUSTED'::character varying]::text[]))",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_job_hash",
+        "sqltext": "content_hash::text ~ '^[0-9a-f]{64}$'::text AND snapshot_hash::text ~ '^[0-9a-f]{64}$'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_job_lease",
+        "sqltext": "status::text = 'running'::text) = (lease_until IS NOT NULL",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_job_result",
+        "sqltext": "status::text = 'succeeded'::text AND result_revision IS NOT NULL AND result_hash IS NOT NULL OR status::text <> 'succeeded'::text AND result_revision IS NULL AND result_hash IS NULL",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_job_result_hash",
+        "sqltext": "result_hash IS NULL OR result_hash::text ~ '^[0-9a-f]{64}$'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_job_revision",
+        "sqltext": "result_revision IS NULL OR result_revision > 0",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_job_status",
+        "sqltext": "status::text = ANY (ARRAY['pending'::character varying, 'running'::character varying, 'succeeded'::character varying, 'failed'::character varying, 'superseded'::character varying]::text[])",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_job_versions",
+        "sqltext": "schema_version::text = 'ai-facts.v1'::text AND taxonomy_version::text = 'ai-search.v1'::text",
+        "comment": null
+      }
+    ]
+  },
+  "ai_fact_rematch_events": {
+    "columns": [
+      "canonical_listing_id",
+      "created_at",
+      "feature_revision",
+      "id",
+      "input_hash"
+    ],
+    "indexes": [
+      {
+        "name": "uq_ai_rematch_revision",
+        "unique": true,
+        "column_names": [
+          "canonical_listing_id",
+          "feature_revision"
+        ],
+        "duplicates_constraint": "uq_ai_rematch_revision",
+        "include_columns": [],
+        "dialect_options": {
+          "postgresql_include": []
+        }
+      }
+    ],
+    "foreign_keys": [
+      {
+        "name": "ai_fact_rematch_events_canonical_listing_id_fkey",
+        "constrained_columns": [
+          "canonical_listing_id"
+        ],
+        "referred_schema": null,
+        "referred_table": "ai_fact_catalogs",
+        "referred_columns": [
+          "canonical_listing_id"
+        ],
+        "options": {},
+        "comment": null
+      }
+    ],
+    "checks": [
+      {
+        "name": "ck_ai_rematch_hash",
+        "sqltext": "input_hash::text ~ '^[0-9a-f]{64}$'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_rematch_revision",
+        "sqltext": "feature_revision > 0",
+        "comment": null
+      }
+    ]
+  },
+  "ai_listing_fact_batches": {
+    "columns": [
+      "canonical_listing_id",
+      "content_hash",
+      "extractor_version",
+      "id",
+      "last_check_error_at",
+      "last_content_change_at",
+      "last_successful_check_at",
+      "observed_at",
+      "schema_version",
+      "source_generation",
+      "source_record_id",
+      "source_status",
+      "taxonomy_version"
+    ],
+    "indexes": [
+      {
+        "name": "ix_ai_batch_listing",
+        "unique": false,
+        "column_names": [
+          "canonical_listing_id"
+        ],
+        "include_columns": [],
+        "dialect_options": {
+          "postgresql_include": []
+        }
+      },
+      {
+        "name": "ix_ai_batch_source_generation",
+        "unique": false,
+        "column_names": [
+          "source_record_id",
+          "source_generation"
+        ],
+        "include_columns": [],
+        "dialect_options": {
+          "postgresql_include": []
+        }
+      },
+      {
+        "name": "uq_ai_batch_identity",
+        "unique": true,
+        "column_names": [
+          "canonical_listing_id",
+          null,
+          null,
+          "source_generation",
+          "content_hash",
+          "extractor_version",
+          "schema_version",
+          "taxonomy_version"
+        ],
+        "expressions": [
+          "canonical_listing_id",
+          "(source_record_id IS NULL)",
+          "COALESCE(source_record_id, canonical_listing_id)",
+          "source_generation",
+          "content_hash",
+          "extractor_version",
+          "schema_version",
+          "taxonomy_version"
+        ],
+        "include_columns": [],
+        "dialect_options": {
+          "postgresql_include": []
+        }
+      }
+    ],
+    "foreign_keys": [],
+    "checks": [
+      {
+        "name": "ck_ai_batch_extractor",
+        "sqltext": "extractor_version::text ~ '^[a-zA-Z0-9][a-zA-Z0-9._-]*$'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_batch_generation",
+        "sqltext": "source_generation > 0",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_batch_hash",
+        "sqltext": "content_hash::text ~ '^[0-9a-f]{64}$'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_batch_status",
+        "sqltext": "source_status::text = ANY (ARRAY['active'::character varying, 'unknown'::character varying, 'unavailable'::character varying, 'retired'::character varying]::text[])",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_batch_timestamps",
+        "sqltext": "last_successful_check_at <= observed_at AND last_content_change_at <= observed_at AND last_check_error_at <= observed_at",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_batch_versions",
+        "sqltext": "schema_version::text = 'ai-facts.v1'::text AND taxonomy_version::text = 'ai-search.v1'::text",
+        "comment": null
+      }
+    ]
+  },
+  "ai_listing_facts": {
+    "columns": [
+      "batch_id",
+      "evidence",
+      "id",
+      "key",
+      "origin",
+      "qualifiers",
+      "scope_hash",
+      "status",
+      "typed_value"
+    ],
+    "indexes": [
+      {
+        "name": "uq_ai_fact_identity",
+        "unique": true,
+        "column_names": [
+          "batch_id",
+          "key",
+          "scope_hash",
+          "origin"
+        ],
+        "duplicates_constraint": "uq_ai_fact_identity",
+        "include_columns": [],
+        "dialect_options": {
+          "postgresql_include": []
+        }
+      }
+    ],
+    "foreign_keys": [
+      {
+        "name": "ai_listing_facts_batch_id_fkey",
+        "constrained_columns": [
+          "batch_id"
+        ],
+        "referred_schema": null,
+        "referred_table": "ai_listing_fact_batches",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {
+          "ondelete": "CASCADE"
+        },
+        "comment": null
+      }
+    ],
+    "checks": [
+      {
+        "name": "ck_ai_fact_evidence",
+        "sqltext": "jsonb_typeof(evidence) = 'array'::text AND jsonb_array_length(evidence) <= 16 AND octet_length(evidence::text) <= 65536 AND ((status::text = ANY (ARRAY['unknown'::character varying, 'legacy_unverified'::character varying]::text[])) AND jsonb_array_length(evidence) = 0 OR (status::text <> ALL (ARRAY['unknown'::character varying, 'legacy_unverified'::character varying]::text[])) AND jsonb_array_length(evidence) > 0)",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_fact_key",
+        "sqltext": "key::text = ANY (ARRAY['pets'::character varying, 'smoking'::character varying, 'couples'::character varying, 'children'::character varying, 'tenant_groups'::character varying, 'capacity_total'::character varying, 'current_room_residents'::character varying, 'available_spots'::character varying, 'price'::character varying, 'deposit'::character varying, 'furnished'::character varying, 'bills_included'::character varying, 'balcony'::character varying, 'terrace'::character varying, 'amenity'::character varying, 'rental_mode'::character varying, 'accommodation'::character varying, 'geography'::character varying, 'availability'::character varying, 'minimum_stay'::character varying, 'maximum_stay'::character varying]::text[])",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_fact_legacy",
+        "sqltext": "origin::text = 'legacy_default'::text) = (status::text = 'legacy_unverified'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_fact_origin",
+        "sqltext": "origin::text = ANY (ARRAY['owner_explicit'::character varying, 'source_structured'::character varying, 'source_text'::character varying, 'model_extracted'::character varying, 'legacy_default'::character varying]::text[])",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_fact_qualifiers",
+        "sqltext": "jsonb_typeof(qualifiers) = 'object'::text AND octet_length(qualifiers::text) <= 2048",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_fact_scope_hash",
+        "sqltext": "scope_hash::text ~ '^[0-9a-f]{64}$'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_fact_status",
+        "sqltext": "status::text = ANY (ARRAY['explicit_allow'::character varying, 'explicit_deny'::character varying, 'conditional'::character varying, 'unknown'::character varying, 'conflict'::character varying, 'legacy_unverified'::character varying]::text[])",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_fact_value_shape",
+        "sqltext": "typed_value IS NULL OR jsonb_typeof(typed_value) = 'object'::text AND octet_length(typed_value::text) <= 4096",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_fact_value_status",
+        "sqltext": "(status::text = ANY (ARRAY['unknown'::character varying, 'conflict'::character varying, 'legacy_unverified'::character varying]::text[])) AND typed_value IS NULL OR (status::text = ANY (ARRAY['explicit_allow'::character varying, 'explicit_deny'::character varying]::text[])) AND typed_value IS NOT NULL OR status::text = 'conditional'::text",
+        "comment": null
+      }
+    ]
+  },
+  "ai_listing_search_features": {
+    "columns": [
+      "canonical_listing_id",
+      "computed_at",
+      "feature_revision",
+      "features",
+      "input_hash",
+      "resolver_version",
+      "schema_version",
+      "taxonomy_version"
+    ],
+    "indexes": [],
+    "foreign_keys": [],
+    "checks": [
+      {
+        "name": "ck_ai_projection_features",
+        "sqltext": "jsonb_typeof(features) = 'array'::text AND jsonb_array_length(features) <= 128 AND octet_length(features::text) <= 524288",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_projection_hash",
+        "sqltext": "input_hash::text ~ '^[0-9a-f]{64}$'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_projection_resolver",
+        "sqltext": "resolver_version::text ~ '^[a-zA-Z0-9][a-zA-Z0-9._-]*$'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_projection_revision",
+        "sqltext": "feature_revision > 0",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_projection_versions",
+        "sqltext": "schema_version::text = 'ai-facts.v1'::text AND taxonomy_version::text = 'ai-search.v1'::text",
+        "comment": null
+      }
+    ]
+  },
+  "ai_query_proofs": {
+    "columns": [
+      "canonical_listing_id",
+      "feature_revision",
+      "resolver_version",
+      "signature",
+      "vocabulary_hash"
+    ],
+    "indexes": [],
+    "foreign_keys": [],
+    "checks": [
+      {
+        "name": "ck_ai_query_proof_hashes",
+        "sqltext": "signature::text ~ '^[0-9a-f]{64}$'::text AND vocabulary_hash::text ~ '^[0-9a-f]{64}$'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_query_proof_resolver",
+        "sqltext": "resolver_version::text ~ '^[a-zA-Z0-9][a-zA-Z0-9._-]*$'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_query_proof_revision",
+        "sqltext": "feature_revision > 0",
+        "comment": null
+      }
+    ]
+  },
+  "ai_saved_searches": {
+    "columns": [
+      "criteria",
+      "enabled",
+      "intent_hash",
+      "matcher",
+      "name",
+      "revision",
+      "saved_search_id",
+      "schema_version",
+      "taxonomy_version",
+      "user_id"
+    ],
+    "indexes": [
+      {
+        "name": "ix_ai_saved_searches_user_id",
+        "unique": false,
+        "column_names": [
+          "user_id"
+        ],
+        "include_columns": [],
+        "dialect_options": {
+          "postgresql_include": []
+        }
+      }
+    ],
+    "foreign_keys": [
+      {
+        "name": "fk_ai_saved_search_owner",
+        "constrained_columns": [
+          "user_id"
+        ],
+        "referred_schema": null,
+        "referred_table": "users",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {
+          "ondelete": "CASCADE"
+        },
+        "comment": null
+      }
+    ],
+    "checks": [
+      {
+        "name": "ck_ai_saved_criteria",
+        "sqltext": "jsonb_typeof(criteria) = 'object'::text AND octet_length(criteria::text) <= 65536",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_saved_hash",
+        "sqltext": "intent_hash::text ~ '^[0-9a-f]{64}$'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_saved_matcher",
+        "sqltext": "matcher::text = 'ai.v1'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_saved_revision",
+        "sqltext": "revision > 0",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_saved_versions",
+        "sqltext": "schema_version::text = 'ai-search.v1'::text AND taxonomy_version::text = 'rental.v1'::text",
+        "comment": null
+      }
+    ]
+  },
+  "ai_saved_search_commands": {
+    "columns": [
+      "fingerprint",
+      "idempotency_key",
+      "saved_search_id",
+      "user_id"
+    ],
+    "indexes": [],
+    "foreign_keys": [
+      {
+        "name": "fk_ai_saved_command_owner",
+        "constrained_columns": [
+          "user_id"
+        ],
+        "referred_schema": null,
+        "referred_table": "users",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {
+          "ondelete": "CASCADE"
+        },
+        "comment": null
+      },
+      {
+        "name": "fk_ai_saved_command_snapshot",
+        "constrained_columns": [
+          "saved_search_id"
+        ],
+        "referred_schema": null,
+        "referred_table": "ai_saved_searches",
+        "referred_columns": [
+          "saved_search_id"
+        ],
+        "options": {
+          "ondelete": "SET NULL"
+        },
+        "comment": null
+      }
+    ],
+    "checks": [
+      {
+        "name": "ck_ai_saved_command_hash",
+        "sqltext": "fingerprint::text ~ '^[0-9a-f]{64}$'::text",
+        "comment": null
+      }
+    ]
+  },
+  "ai_usage_days": {
+    "columns": [
+      "madrid_date",
+      "quota_limit",
+      "reserved",
+      "subject_id",
+      "subject_kind",
+      "used"
+    ],
+    "indexes": [],
+    "foreign_keys": [],
+    "checks": [
+      {
+        "name": "ck_ai_usage_bounds",
+        "sqltext": "used >= 0 AND reserved >= 0 AND (used + reserved) <= quota_limit",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_usage_subject_kind",
+        "sqltext": "subject_kind::text = ANY (ARRAY['guest'::character varying, 'auth'::character varying]::text[])",
+        "comment": null
+      }
+    ]
+  },
+  "ai_search_requests": {
+    "columns": [
+      "channel",
+      "completed_at",
+      "created_at",
+      "expected_session_version",
+      "failure_code",
+      "fence",
+      "idempotency_key",
+      "lease_until",
+      "madrid_date",
+      "recover_after",
+      "request_hash",
+      "result_count",
+      "result_ref",
+      "session_id",
+      "status",
+      "subject_id",
+      "subject_kind"
+    ],
+    "indexes": [
+      {
+        "name": "ix_ai_request_recovery",
+        "unique": false,
+        "column_names": [
+          "recover_after"
+        ],
+        "include_columns": [],
+        "dialect_options": {
+          "postgresql_where": "((status)::text = ANY ((ARRAY['reserved'::character varying, 'running'::character varying])::text[]))",
+          "postgresql_include": []
+        }
+      }
+    ],
+    "foreign_keys": [
+      {
+        "name": "fk_ai_request_day",
+        "constrained_columns": [
+          "subject_kind",
+          "subject_id",
+          "madrid_date"
+        ],
+        "referred_schema": null,
+        "referred_table": "ai_usage_days",
+        "referred_columns": [
+          "subject_kind",
+          "subject_id",
+          "madrid_date"
+        ],
+        "options": {},
+        "comment": null
+      }
+    ],
+    "checks": [
+      {
+        "name": "ck_ai_request_channel",
+        "sqltext": "channel::text = ANY (ARRAY['text'::character varying, 'voice'::character varying]::text[])",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_request_failure",
+        "sqltext": "status::text = 'failed'::text) = (failure_code IS NOT NULL",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_request_hash",
+        "sqltext": "request_hash::text ~ '^[0-9a-f]{64}$'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_request_recovery",
+        "sqltext": "recover_after >= lease_until",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_request_result",
+        "sqltext": "status::text = 'succeeded'::text) = (result_ref IS NOT NULL) AND (status::text = 'succeeded'::text) = (result_count IS NOT NULL) AND (result_count IS NULL OR result_count >= 0",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_request_status",
+        "sqltext": "status::text = ANY (ARRAY['reserved'::character varying, 'running'::character varying, 'succeeded'::character varying, 'failed'::character varying]::text[])",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_request_versions",
+        "sqltext": "expected_session_version >= 0 AND fence >= 0",
+        "comment": null
+      }
+    ]
+  },
+  "ai_search_sessions": {
+    "columns": [
+      "closed_at",
+      "created_at",
+      "criteria",
+      "expires_at",
+      "id",
+      "schema_version",
+      "subject_id",
+      "subject_kind",
+      "taxonomy_version",
+      "updated_at",
+      "version"
+    ],
+    "indexes": [
+      {
+        "name": "ix_ai_session_owner",
+        "unique": false,
+        "column_names": [
+          "subject_kind",
+          "subject_id"
+        ],
+        "include_columns": [],
+        "dialect_options": {
+          "postgresql_include": []
+        }
+      }
+    ],
+    "foreign_keys": [],
+    "checks": [
+      {
+        "name": "ck_ai_session_criteria",
+        "sqltext": "jsonb_typeof(criteria) = 'object'::text AND octet_length(criteria::text) <= 65536",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_session_subject",
+        "sqltext": "subject_kind::text = ANY (ARRAY['guest'::character varying, 'auth'::character varying]::text[])",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_session_version",
+        "sqltext": "version >= 0",
+        "comment": null
+      }
+    ]
+  },
+  "ai_search_results": {
+    "columns": [
+      "created_at",
+      "id",
+      "idempotency_key",
+      "intent",
+      "intent_hash",
+      "result_count",
+      "session_id",
+      "session_version",
+      "subject_id",
+      "subject_kind"
+    ],
+    "indexes": [
+      {
+        "name": "uq_ai_result_operation",
+        "unique": true,
+        "column_names": [
+          "subject_kind",
+          "subject_id",
+          "idempotency_key"
+        ],
+        "duplicates_constraint": "uq_ai_result_operation",
+        "include_columns": [],
+        "dialect_options": {
+          "postgresql_include": []
+        }
+      }
+    ],
+    "foreign_keys": [
+      {
+        "name": "ai_search_results_session_id_fkey",
+        "constrained_columns": [
+          "session_id"
+        ],
+        "referred_schema": null,
+        "referred_table": "ai_search_sessions",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {},
+        "comment": null
+      },
+      {
+        "name": "fk_ai_result_operation",
+        "constrained_columns": [
+          "subject_kind",
+          "subject_id",
+          "idempotency_key"
+        ],
+        "referred_schema": null,
+        "referred_table": "ai_search_requests",
+        "referred_columns": [
+          "subject_kind",
+          "subject_id",
+          "idempotency_key"
+        ],
+        "options": {},
+        "comment": null
+      }
+    ],
+    "checks": [
+      {
+        "name": "ck_ai_result_counts",
+        "sqltext": "session_version > 0 AND result_count >= 0",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_result_hash",
+        "sqltext": "intent_hash::text ~ '^[0-9a-f]{64}$'::text",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_result_intent",
+        "sqltext": "jsonb_typeof(intent) = 'object'::text AND octet_length(intent::text) <= 65536",
+        "comment": null
+      }
+    ]
+  },
+  "ai_session_commands": {
+    "columns": [
+      "action",
+      "created_at",
+      "expected_version",
+      "idempotency_key",
+      "result_id",
+      "seed_mode",
+      "source_id",
+      "subject_id",
+      "subject_kind"
+    ],
+    "indexes": [],
+    "foreign_keys": [
+      {
+        "name": "ai_session_commands_result_id_fkey",
+        "constrained_columns": [
+          "result_id"
+        ],
+        "referred_schema": null,
+        "referred_table": "ai_search_sessions",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {},
+        "comment": null
+      },
+      {
+        "name": "ai_session_commands_source_id_fkey",
+        "constrained_columns": [
+          "source_id"
+        ],
+        "referred_schema": null,
+        "referred_table": "ai_search_sessions",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {},
+        "comment": null
+      }
+    ],
+    "checks": [
+      {
+        "name": "ck_ai_command_action",
+        "sqltext": "action::text = 'create'::text AND source_id IS NULL AND expected_version IS NULL OR action::text = 'reset'::text AND source_id IS NOT NULL AND expected_version IS NOT NULL AND expected_version >= 0",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_command_seed",
+        "sqltext": "seed_mode IS NULL OR (seed_mode::text = ANY (ARRAY['long'::character varying, 'holiday'::character varying]::text[]))",
+        "comment": null
+      },
+      {
+        "name": "ck_ai_command_subject",
+        "sqltext": "subject_kind::text = ANY (ARRAY['guest'::character varying, 'auth'::character varying]::text[])",
+        "comment": null
+      }
+    ]
+  }
+}

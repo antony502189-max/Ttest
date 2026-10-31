@@ -1,0 +1,3 @@
+app/repositories/ai_query_proofs.py:55: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+app/repositories/ai_fact_quality.py:55: error: Argument "now" to "classify" has incompatible type "Any | None"; expected "datetime"  [arg-type]
+Found 1 error in 1 file (checked 158 source files)

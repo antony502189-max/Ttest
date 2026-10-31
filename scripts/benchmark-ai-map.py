@@ -17,7 +17,7 @@ import platform
 import re
 import time
 from contextlib import asynccontextmanager, contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -28,11 +28,12 @@ from app.models.ai_listing_facts import (
     AiListingFactBatch,
     AiListingSearchFeatures,
 )
-from app.models.ai_query_proof import AiQueryProof
+from app.models.ai_query_proof import AiLiveMatchCohort, AiQueryProof
 from app.models.room_details import ListingRoomDetails
 from app.repositories.ai_fact_pipeline import FactPipeline
 from app.repositories.ai_fact_snapshots import source_snapshot_hash
-from app.repositories.ai_query_proofs import QueryProofs, projection_signature
+from app.repositories.ai_query_proofs import PROOF_CONTRACT_VERSION, QueryProofs, input_binding, live_vector_signature, projection_signature
+from app.repositories.ai_query_settings import configure_ai_query
 from app.repositories.ai_verified_cards import VerifiedCardSearch
 from app.repositories.listings import point
 from app.schemas.ai_fact_pipeline import FactQueuePolicy, SourceInput
@@ -40,6 +41,8 @@ from app.schemas.ai_listing_facts import FactBatch, FactVocabulary, digest
 from app.schemas.ai_search_intent import SearchIntent
 from app.schemas.listings import ListingMapRequest
 from sqlalchemy import event, func, literal, select, text, update
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.sql import operators, visitors
 from sqlalchemy.sql.elements import BooleanClauseList
@@ -47,14 +50,21 @@ from sqlalchemy.sql.elements import BooleanClauseList
 DSN = "postgresql+asyncpg://r01:r01-synthetic-only@r01-db:5432/r01_synthetic"
 OUT = Path("/results")
 RESOLVER = "r01-synthetic.v1"
-SEED_WRITERS = 8
+# Population identities serialize catalog/proof writes transactionally. Keep
+# bulk setup single-writer rather than timing out on those counters; measured
+# map concurrency/pool/deadlines below are unchanged.
+SEED_WRITERS = 1
 PROTOCOL_VERSION = "r01-capacity.v2"
 PROVENANCE = {}
 RUN_ID = None
+_CLOCK_UTC = datetime.now(UTC)
+_CLOCK_MONOTONIC = time.perf_counter()
 
 
 def now():
-    return datetime.now(UTC).isoformat()
+    # Preserve UTC correlation while measuring elapsed time on one clock.
+    # NTP/VM wall-clock steps must not shorten or invert measured intervals.
+    return (_CLOCK_UTC + timedelta(seconds=time.perf_counter() - _CLOCK_MONOTONIC)).isoformat()
 
 
 def save(name, value):
@@ -91,6 +101,18 @@ def engine(pool=1, timeout=5000):
     return create_async_engine(DSN, pool_size=pool, max_overflow=0, pool_timeout=30,
         connect_args={"server_settings": {"statement_timeout": str(timeout),
             "lock_timeout": "1000", "application_name": "codex-r01-synthetic"}})
+
+
+async def maintain_seed_database(connection, *, vacuum=False):
+    # Bulk ingestion can overlap autovacuum's ShareUpdateExclusive relation
+    # lock. The measured-query 1s timeout is too short for setup maintenance.
+    # Bound this wait separately and restore the query setting on every exit.
+    previous = await connection.scalar(text("SHOW lock_timeout"))
+    await connection.execute(text("SELECT set_config('lock_timeout', '60s', false)"))
+    try:
+        await connection.execute(text("VACUUM ANALYZE" if vacuum else "ANALYZE"))
+    finally:
+        await connection.execute(text("SELECT set_config('lock_timeout', :value, false)"), {"value": previous})
 
 
 def bind_experiment(sources, phase):
@@ -165,6 +187,19 @@ def phase_file_lock():
 @asynccontextmanager
 async def phase_database_guard(db, phase, total):
     # This lock is database-wide, including different output/experiment IDs.
+    if phase == "initialize":
+        # CREATE INDEX CONCURRENTLY waits for older transaction snapshots.
+        # Keep the same advisory-lock namespace without pinning a transaction
+        # across the migration subprocess; session locks survive autocommit.
+        async with db.connect() as c:
+            await c.execution_options(isolation_level="AUTOCOMMIT")
+            if not await c.scalar(text("SELECT pg_try_advisory_lock(401, 1)")):
+                raise RuntimeError("another synthetic initialize/seed/measure owns the database")
+            try:
+                yield
+            finally:
+                await c.execute(text("SELECT pg_advisory_unlock(401, 1)"))
+        return
     async with db.begin() as c:
         if not await c.scalar(text("SELECT pg_try_advisory_xact_lock(401, 1)")):
             raise RuntimeError("another synthetic initialize/seed/measure owns the database")
@@ -234,6 +269,15 @@ async def validate_dataset(c, total):
         raise RuntimeError("dataset provider profile mismatch")
     if await c.scalar(text("SELECT tgenabled::text FROM pg_trigger WHERE tgrelid='listings'::regclass AND tgname='listings_catalog_version'")) != "O":
         raise RuntimeError("setup trigger must be restored before measurements")
+    if (dataset.get("live_inputs_contract") != "live-inputs.v1" or dataset.get("fast_proof_count") != total+1
+            or dataset.get("validity_contract") != "live-validity.fk.v1"):
+        raise RuntimeError("dataset live-input coverage metadata mismatch")
+    fast = await c.scalar(select(func.count()).select_from(AiQueryProof).where(
+        AiQueryProof.input_signature.is_not(None), AiQueryProof.input_binding.is_not(None), AiQueryProof.input_vector.is_not(None),
+        AiQueryProof.input_status == "current", AiQueryProof.input_contract == PROOF_CONTRACT_VERSION,
+        AiQueryProof.input_epoch.is_not(None), AiQueryProof.input_schema.is_not(None), AiQueryProof.match_cohort_id.is_not(None)))
+    if fast != total+1 or await c.scalar(select(func.ai_live_input_schema_signature())) is None:
+        raise RuntimeError("dataset contains legacy proofs or live input triggers are not ready")
 
 
 def pipeline(factory):
@@ -450,7 +494,7 @@ async def seed(total, chunk=5000):
         await asyncio.gather(*(seed_chunk(lo) for lo in range(base,min(total+1,base+chunk*SEED_WRITERS),chunk)))
     async with db.connect() as c:
         await c.execution_options(isolation_level="AUTOCOMMIT")
-        await c.execute(text("ANALYZE"))
+        await maintain_seed_database(c)
     # Verify actual production Python resolver/hash/card-value checks BEFORE
     # bulk certification, not merely the fact that rows exist.
     for n in sorted({1, max(1,total//2), total}):
@@ -463,14 +507,48 @@ async def seed(total, chunk=5000):
         hi = min(total, lo+chunk-1)
         async with db.begin() as c:
             entities = text("r01_entities")
-            proof_select = select(Listing.id, fixture_signature(Listing.id), literal(pipe.vocabulary_hash),
-                literal(RESOLVER), AiListingSearchFeatures.feature_revision).join(
+            prepared = select(Listing.id, fixture_signature(Listing.id).label("signature"),
+                AiListingSearchFeatures.feature_revision.label("revision"),
+                func.ai_live_input_vector(Listing.id).cast(JSONB).label("vector"),
+                func.ai_live_match_features(Listing.id).cast(JSONB).label("matching")).join(
                     AiListingSearchFeatures, AiListingSearchFeatures.canonical_listing_id == Listing.id).where(
                     Listing.id.in_(select(text("id")).select_from(entities).where(text("n BETWEEN :lo AND :hi"))),
-                    ~select(AiQueryProof.canonical_listing_id).where(AiQueryProof.canonical_listing_id == Listing.id).exists())
+                    ~select(AiQueryProof.canonical_listing_id).where(AiQueryProof.canonical_listing_id == Listing.id).exists()
+                ).cte("prepared_live_inputs").prefix_with("MATERIALIZED")
+            inputs = live_vector_signature(prepared.c.vector)
+            proof_select = select(prepared.c.id, prepared.c.signature, literal(pipe.vocabulary_hash), literal(RESOLVER),
+                prepared.c.revision, inputs, input_binding(prepared.c.signature, inputs, literal(RESOLVER),
+                    literal(pipe.vocabulary_hash), prepared.c.revision), prepared.c.vector, literal("missing"),
+                    literal(PROOF_CONTRACT_VERSION), prepared.c.vector["epoch"].astext.cast(PGUUID),
+                    prepared.c.vector["schema"].astext, live_vector_signature(prepared.c.matching)).where(prepared.c.vector.is_not(None))
             from sqlalchemy.dialects.postgresql import insert as pg_insert
-            statement = pg_insert(AiQueryProof).from_select(["canonical_listing_id", "signature", "vocabulary_hash", "resolver_version", "feature_revision"], proof_select)
+            normalized = select(func.ai_live_match_features(Listing.id).cast(JSONB).label("features")).where(
+                Listing.id.in_(select(text("id")).select_from(entities).where(text("n BETWEEN :lo AND :hi")))
+                ).cte().prefix_with("MATERIALIZED")
+            await c.execute(pg_insert(AiLiveMatchCohort).from_select(["id","features"],
+                select(live_vector_signature(normalized.c.features),normalized.c.features).distinct()).on_conflict_do_nothing(),
+                {"lo":lo,"hi":hi})
+            statement = pg_insert(AiQueryProof).from_select(["canonical_listing_id", "signature", "vocabulary_hash",
+                "resolver_version", "feature_revision", "input_signature", "input_binding", "input_vector", "input_status", "input_contract",
+                "input_epoch", "input_schema", "match_cohort_id"], proof_select)
             await c.execute(statement.on_conflict_do_nothing(), {"lo": lo, "hi": hi})
+            await c.execute(text("""INSERT INTO ai_live_proof_dependencies (proof_listing_id,kind,record_id,token)
+                SELECT p.canonical_listing_id, 'listing', p.canonical_listing_id, (p.input_vector->>'listing')::uuid
+                FROM ai_query_proofs p JOIN r01_entities e ON e.id=p.canonical_listing_id
+                WHERE e.n BETWEEN :lo AND :hi AND p.input_status='missing'
+                UNION ALL
+                SELECT p.canonical_listing_id, 'external', (v->>0)::uuid, (v->>1)::uuid
+                FROM ai_query_proofs p JOIN r01_entities e ON e.id=p.canonical_listing_id
+                CROSS JOIN LATERAL jsonb_array_elements(p.input_vector->'authority') v
+                WHERE e.n BETWEEN :lo AND :hi AND p.input_status='missing'
+                UNION ALL
+                SELECT p.canonical_listing_id, 'batch', (v->>0)::uuid, (v->>1)::uuid
+                FROM ai_query_proofs p JOIN r01_entities e ON e.id=p.canonical_listing_id
+                CROSS JOIN LATERAL jsonb_array_elements(p.input_vector->'batches') v
+                WHERE e.n BETWEEN :lo AND :hi AND p.input_status='missing'
+                ON CONFLICT (proof_listing_id,kind,record_id) DO NOTHING"""), {"lo":lo,"hi":hi})
+            await c.execute(text("UPDATE ai_query_proofs SET input_status='current' WHERE input_status='missing' "
+                "AND canonical_listing_id IN (SELECT id FROM r01_entities WHERE n BETWEEN :lo AND :hi)"), {"lo":lo,"hi":hi})
         log("proof_chunk", lo=lo, hi=hi)
     for base in range(1,total+1,chunk*SEED_WRITERS):
         await asyncio.gather(*(proof_chunk(lo) for lo in range(base,min(total+1,base+chunk*SEED_WRITERS),chunk)))
@@ -487,7 +565,7 @@ async def seed(total, chunk=5000):
     save(f"proof-verification-{total}.json",{"actual_production_digest_equal":True,"ordinals":checked,"seed_generation":generation})
     async with db.connect() as c:
         await c.execution_options(isolation_level="AUTOCOMMIT")
-        await c.execute(text("VACUUM ANALYZE"))
+        await maintain_seed_database(c, vacuum=True)
         counts = {m.__tablename__: await c.scalar(select(func.count()).select_from(m)) for m in models+[AiQueryProof]}
         for model in models+[AiQueryProof]:
             multiplier = (20 if model is AiListingFact else template["sources"] if model in (
@@ -495,7 +573,13 @@ async def seed(total, chunk=5000):
             assert counts[model.__tablename__] == (total+1)*multiplier, f"wrong fixture row count for {model.__tablename__}"
         provider_count=await c.scalar(select(func.count(func.distinct(ExternalListingSource.source_name))))
         assert provider_count == min(10,total+template["sources"])
+        fast_count=await c.scalar(select(func.count()).select_from(AiQueryProof).where(
+            AiQueryProof.input_signature.is_not(None),AiQueryProof.input_binding.is_not(None),AiQueryProof.input_vector.is_not(None),
+            AiQueryProof.input_status == "current", AiQueryProof.input_contract == PROOF_CONTRACT_VERSION,
+            AiQueryProof.input_epoch.is_not(None), AiQueryProof.input_schema.is_not(None), AiQueryProof.match_cohort_id.is_not(None)))
+        assert fast_count == total+1
         metadata = {"listings": total, "counts_including_template": counts,"seed_generation":generation,
+            "live_inputs_contract":"live-inputs.v1","validity_contract":"live-validity.fk.v1","fast_proof_count":fast_count,
             "distinct_providers":provider_count,"observations_per_listing":20,"source_records_per_listing":template["sources"],
             "size_bytes": await c.scalar(text("SELECT pg_database_size(current_database())")),
             "version": await c.scalar(text("SELECT version()")), "postgis": await c.scalar(text("SELECT postgis_full_version()")),
@@ -517,7 +601,9 @@ def viewport(count, total, zoom):
 def capture_statement(context, statement, parameters):
     # Capture every explicit dispatch during the map call. SET is categorized
     # by our own execution option; query text/CTEs/comments are never filtered.
-    return {"category":"transaction-control" if context.execution_options.get("r01_control") else "map-query",
+    category = ("transaction-control" if context.execution_options.get("r01_control") else
+                "query-config" if context.execution_options.get("ai_query_config") else "map-query")
+    return {"category":category,
         "sql":statement,"parameters":parameters,"sql_sha256":hashlib.sha256(statement.encode()).hexdigest()}
 
 
@@ -525,6 +611,7 @@ async def explain_statement(db, statement, parameters):
     async def fetch(prefix):
         async with db.connect() as c:
             await c.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+            await configure_ai_query(c)
             raw = await c.get_raw_connection()
             value = await raw.driver_connection.fetchval(prefix + statement,*parameters)
             return json.loads(value) if isinstance(value,str) else value
@@ -548,9 +635,7 @@ async def measure(total, samples, candidate=None, baseline_only=False):
 
 async def measure_dataset(db, total, samples, candidate, baseline_only):
     await verify_database_identity(db)
-    async with db.connect() as c:
-        await c.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
-        await validate_dataset(c, total)
+    await preflight_dataset(db, total)
     factory = async_sessionmaker(db, expire_on_commit=False)
     pipe = pipeline(factory)
     # Direct _map_intent measures the complete shared map query/DTO path;
@@ -567,7 +652,7 @@ async def measure_dataset(db, total, samples, candidate, baseline_only):
             captured.append(capture_statement(context,statement,parameters))
     async def request(view):
         start = time.perf_counter()
-        result = {"ok": False, "started_at": now()}
+        result = {"ok": False, "started_at": now(), "wall_started_at": datetime.now(UTC).isoformat()}
         after_pool = None
         try:
             async with factory() as s, s.begin():
@@ -584,6 +669,7 @@ async def measure_dataset(db, total, samples, candidate, baseline_only):
                 result["query_ms"] = (time.perf_counter()-after_pool)*1000
         result["ms"] = (time.perf_counter()-start)*1000
         result["ended_at"] = now()
+        result["wall_ended_at"] = datetime.now(UTC).isoformat()
         return result
     records = []
     for count in ([candidate] if candidate is not None else sorted({0,*(min(n,total) for n in (299,300,301,302,10000)),total})):
@@ -599,6 +685,7 @@ async def measure_dataset(db, total, samples, candidate, baseline_only):
             if first["ok"]:
                 assert first["count"] == count, (count, zoom, first)
             record = {"total":total,"candidates": count, "zoom": zoom, "first_touch": first,
+                "query_contract":"single-pass-jit.v1", "query_settings":{"jit":"off"},
                 "started_at":first["started_at"],"ended_at":first["ended_at"],
                 "capture_count":len(captured),"query_count":sum(row["category"] == "map-query" for row in captured),
                 "plan_count":0,"statements":[{**row,"ordinal":i} for i,row in enumerate(captured)]}
@@ -612,6 +699,7 @@ async def measure_dataset(db, total, samples, candidate, baseline_only):
                 filename = f"plan-{total}-{count}-z{zoom}-{trace['ordinal']}.json"
                 plan = await explain_statement(db,trace["sql"],trace["parameters"])
                 save(filename,{**plan,"total":total,"candidates":count,"zoom":zoom,
+                    "query_settings":{"jit":"off"},
                     "statement_index":trace["ordinal"],"sql_sha256":trace["sql_sha256"],"parameters":trace["parameters"]})
                 trace.update(plan_file=filename,plan_status=plan["status"])
                 record["plan_count"] += plan["status"] in ("actual","estimated-only")
@@ -645,6 +733,7 @@ async def measure_dataset(db, total, samples, candidate, baseline_only):
                 def percentile(q, ordered=values):
                     return ordered[min(len(ordered)-1, math.ceil(q*len(ordered))-1)]
                 summary={"total":total,"candidates":count,"zoom":zoom,"concurrency":concurrency,
+                    "query_contract":"single-pass-jit.v1", "query_settings":{"jit":"off"},
                     "started_at":started_at,"ended_at":now(),"mode":"load" if samples == 200 else "probe",
                     "samples":len(results),"requested_samples":samples,"stopped_after_failed_wave":len(results)<samples,
                     "seconds":time.perf_counter()-start,"failures":sum(not r["ok"] for r in results),
@@ -655,6 +744,15 @@ async def measure_dataset(db, total, samples, candidate, baseline_only):
                 save(f"load-{total}.json",scenarios)
                 log("load",**{k:v for k,v in summary.items() if k!="results"})
     save(f"cancellation-{total}.json", await cancellation_check(db, factory, request, total))
+
+
+async def preflight_dataset(db, total):
+    # Counting up to 20 million fixture facts is setup, outside every timed
+    # request. SET LOCAL cannot relax the engine's measured-query deadline.
+    async with db.connect() as connection:
+        await connection.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+        await connection.execute(text("SET LOCAL statement_timeout='60s'"))
+        await validate_dataset(connection, total)
 
 
 async def cancellation_check(db, factory, request, total):
@@ -763,8 +861,16 @@ async def main():
             "dependencies":{name:importlib.metadata.version(name) for name in ("SQLAlchemy","asyncpg","pydantic","geoalchemy2","psycopg")},
             "source_hashes":{name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in (
                 "/code/scripts/benchmark-ai-map.py","/code/backend/app/repositories/ai_verified_cards.py",
-                "/code/backend/app/repositories/ai_query_proofs.py","/code/backend/app/repositories/listings.py")},
-            "started_at":now(),"sources":sources,"status":"running"}
+                "/code/backend/app/repositories/ai_query_proofs.py","/code/backend/app/repositories/ai_query_settings.py",
+                "/code/backend/alembic/versions/0075_ai_proof_population.py",
+                "/code/backend/alembic/versions/0076_ai_fact_population.py",
+                "/code/backend/alembic/versions/0077_ai_live_inputs.py","/code/backend/app/models/ai_query_proof.py",
+                "/code/backend/alembic/versions/0078_ai_live_validity.py",
+                "/code/backend/app/repositories/ai_hard_matching.py",
+                "/code/backend/app/repositories/ai_fact_population.py","/code/backend/app/repositories/listings.py")},
+            "started_at":now(),"sources":sources,"status":"running",
+            "clock":{"contract":"utc-anchored-monotonic.v1","anchor_utc":_CLOCK_UTC.isoformat(),
+                "wall_started_at":datetime.now(UTC).isoformat()}}
         manifest_name = f"runner-{args.phase}-{args.total}-{RUN_ID}.json"
         save(manifest_name,metadata)
         guard_db = engine(timeout=60000)

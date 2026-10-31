@@ -1,0 +1,3 @@
+/src/output/main-integration-audit/verify_schema_canary.py:16: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "media_assets, users", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+  raw=compare_metadata(MigrationContext.configure(c,opts={'include_object':parity._include_application_object,'compare_type':True}),Base.metadata)
+["add_column: ai_session_commands.seed_mode", "remove_column: ai_session_commands.audit_drift_seed_mode"]

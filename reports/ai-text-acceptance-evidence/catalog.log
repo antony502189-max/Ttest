@@ -1,0 +1,31 @@
+ rental_mode | count
+-------------+-------
+ holiday     |     7
+ long        |     7
+(2 rows)
+
+ batches
+---------
+      14
+(1 row)
+
+ facts
+-------
+    45
+(1 row)
+
+ projections
+-------------
+          14
+(1 row)
+
+ proofs
+--------
+     14
+(1 row)
+
+ pending_operations
+--------------------
+                  0
+(1 row)
+

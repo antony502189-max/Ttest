@@ -1,0 +1,4 @@
+time="2026-10-31T03:16:25+03:00" level=warning msg="volume \"ttest-ai-text-lab-pg-v1\" carries the compose label \"pg\" but does not match the compose file (using \"ttest-ai-text-lab-pg-v2\"); it is left untouched — remove it manually if it is no longer needed"
+ Container ttest-ai-text-lab-backend-run-f76245c53954 Creating
+ Container ttest-ai-text-lab-backend-run-f76245c53954 Created
+{"status": "already-seeded", "ids": {"allow-500": "0f721c39-b8cf-5879-bea1-522514de63d1", "allow-700": "a242160c-aa54-5e29-bde3-9a53ac8b5674", "deny-450": "a9fa78c3-7515-5a80-bb79-4bc5770c0e03", "unknown-550": "36c2741e-0d7c-5610-bbbe-19f32de52155", "stale-510": "29d213f8-efc4-5545-af7f-a41a1bfdc08b", "hidden-520": "3affab0b-45b7-5c44-bcb5-13cc285338af", "price-changed-530": "4300e4c1-e51e-5847-a146-a1c2a608584c"}}

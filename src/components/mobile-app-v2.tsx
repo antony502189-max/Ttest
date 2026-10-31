@@ -878,6 +878,13 @@ export function MobileAppV2() {
   useEffect(() => {
     if (onMapRoute) mapOpenedInCurrentDocument = true
   }, [onMapRoute])
+  const browserRouteSearch = new URL(window.location.hash.slice(1) || '/', window.location.href).search
+  if (pendingRouteSearchRef.current && pendingRouteSearchRef.current !== browserRouteSearch) {
+    // Back/direct hash navigation can supersede a queued camera replace.
+    // Drop that pending route rather than waiting forever for its old URL.
+    pendingRouteSearchRef.current = null
+    latestPendingCameraRef.current = null
+  }
   if (pendingRouteSearchRef.current === location.search) pendingRouteSearchRef.current = null
   if (!pendingRouteSearchRef.current) routeSearchRef.current = location.search
   const backToHome = useAppBack('/')
@@ -1045,6 +1052,14 @@ export function MobileAppV2() {
   const handleLanguageContinue = () => { if (origin === 'language-settings') { setStep('done'); setPage('tabs'); setTab('menu') } else setStep('country') }
   const handleCountryContinue = () => { if (origin === 'region-location') { setStep('done'); navigate('/?panel=ubicacion'); return }; if (origin === 'region-settings') { setStep('done'); navigate('/menu'); return }; setStep('privacy') }
   const authBack = () => { if (origin === 'startup') setStep('privacy'); else returnToApp() }
+  const commitMapRoute = (params: URLSearchParams, replace = false) => {
+    // Publish the route before Router can yield to a Maps idle callback.
+    // Camera and semantic navigation must read the same current URL authority.
+    routeSearchRef.current = `?${params.toString()}`
+    pendingRouteSearchRef.current = routeSearchRef.current
+    if (!replace) latestPendingCameraRef.current = null
+    navigate(`/buscar${routeSearchRef.current}`, { replace })
+  }
   const openMap = (mode: MapMode, query = '') => {
     const searchMode = homeMode === 'turismo' ? 'holiday' : 'long'
     const nextFilters = mobileHomeSearchFilters(filters, searchMode)
@@ -1056,7 +1071,7 @@ export function MobileAppV2() {
     params.set('alquiler', searchMode)
     if (mapPolygon.length >= 3) params.set('poligono', mapPolygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(';'))
     if (mode === 'draw') params.set('dibujar', '1')
-    navigate(`/buscar?${params.toString()}`)
+    commitMapRoute(params)
   }
   const openNearby = async () => {
     setNearbyStatus('loading')
@@ -1074,18 +1089,26 @@ export function MobileAppV2() {
     params.set('lng', String(result.coordinates.lng))
     params.set('alquiler', searchMode)
     setNearbyStatus('success')
-    navigate(`/buscar?${params.toString()}`)
+    commitMapRoute(params)
+  }
+  const mapRouteMatchesBrowser = () => {
+    // HashRouter can defer its render after Back or a fallback replace. An
+    // unmounting Maps instance must not overwrite the URL already visited.
+    const browserRoute = new URL(window.location.hash.slice(1) || '/', window.location.href)
+    return browserRoute.pathname === '/buscar' && browserRoute.search === routeSearchRef.current
   }
   const commitMobilePolygon = (polygon: MapPoint[]) => {
-    setMapPolygon(polygon)
     const params = new URLSearchParams(routeSearchRef.current)
+    if (!mapRouteMatchesBrowser() || location.pathname !== '/buscar' || params.get('vista') !== 'mapa') return
+    setMapPolygon(polygon)
     if (polygon.length >= 3) params.set('poligono', polygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(';'))
     else params.delete('poligono')
-    routeSearchRef.current = `?${params.toString()}`
-    pendingRouteSearchRef.current = routeSearchRef.current
-    navigate(`${location.pathname}?${params.toString()}`, { replace: true })
+    commitMapRoute(params, true)
   }
   const commitMapCamera = (camera: MapCamera, interacted = false) => {
+    const params = new URLSearchParams(routeSearchRef.current)
+    // A final idle from the unmounting map cannot modify List/Filters routes.
+    if (!mapRouteMatchesBrowser() || location.pathname !== '/buscar' || params.get('vista') !== 'mapa') return
     // Keep Back/deep-link camera state on the URL, but only real map exploration
     // contributes to the next SEARCH's remembered 70 km circle.
     if (interacted) rememberMapViewport(camera)
@@ -1095,7 +1118,6 @@ export function MobileAppV2() {
       latestPendingCameraRef.current = { camera, query: new URLSearchParams(routeSearchRef.current).get('q') }
       return
     }
-    const params = new URLSearchParams(routeSearchRef.current)
     const lat = camera.lat.toFixed(5)
     const lng = camera.lng.toFixed(5)
     const zoom = camera.zoom.toFixed(2)
@@ -1106,9 +1128,7 @@ export function MobileAppV2() {
     params.set('mapLat', lat)
     params.set('mapLng', lng)
     params.set('mapZoom', zoom)
-    routeSearchRef.current = `?${params.toString()}`
-    pendingRouteSearchRef.current = routeSearchRef.current
-    navigate(`${location.pathname}?${params.toString()}`, { replace: true })
+    commitMapRoute(params, true)
   }
   useEffect(() => {
     if (pendingRouteSearchRef.current || !latestPendingCameraRef.current) return
@@ -1127,7 +1147,7 @@ export function MobileAppV2() {
   }, [location.pathname, location.search])
 
   const navigateFromMap = (target: 'list' | 'filters' | 'area') => {
-    const params = new URLSearchParams(location.search)
+    const params = new URLSearchParams(routeSearchRef.current)
     params.delete('dibujar')
     params.delete('vista')
     params.delete('mapLat')
@@ -1139,16 +1159,16 @@ export function MobileAppV2() {
     if (target === 'area' && mapPolygon.length >= 3) {
       params.set('poligono', mapPolygon.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(';'))
     }
-    navigate(`/buscar?${params.toString()}`)
+    commitMapRoute(params)
   }
   const searchThisMapArea = () => {
-    const params = new URLSearchParams(location.search)
+    const params = new URLSearchParams(routeSearchRef.current)
     const keepMap = params.get('dibujar') === '1'
     params.delete('dibujar')
     if (!keepMap) params.delete('vista')
     params.delete('pagina')
     params.delete('panel')
-    navigate(`/buscar?${params.toString()}`)
+    commitMapRoute(params)
   }
   const chooseCommunity = (id: string) => {
     const region = getSearchPlace(id)

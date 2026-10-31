@@ -1,0 +1,31 @@
+{
+  "schema": "ai-intent-offline-evidence.v1",
+  "date_local": "2026-11-01",
+  "timezone": "Europe/Moscow",
+  "status": "OFFLINE_CONTRACT_PASS",
+  "source_sha": "24cf7d09aff5b6c4ee66d23d4d649c81c3f5d517",
+  "initial_implementation_sha": "d00833a8a696b6823df46216e7fb8c07e53d04e0",
+  "provider_calls": 0,
+  "model_quality": "NOT_MEASURED",
+  "live_authorization": "DENIED_BY_USER_OFFLINE_ONLY",
+  "corpus_live_approval": "NOT_APPROVED",
+  "corpus_sha256": "7b722ab6caa0bf3377a0ace8fcddecf6daa7f7cb9bcebec515ab0cac9997d288",
+  "unit": {
+    "passed": 1596,
+    "skipped": 39,
+    "deselected": 1007,
+    "new_closed_provider_tests": 30
+  },
+  "lab_guards": {
+    "passed": 5,
+    "subtests_passed": 7
+  },
+  "ruff": "PASS",
+  "mypy": {
+    "status": "PASS",
+    "source_files": 156
+  },
+  "network": "none; loopback TLS fixtures only",
+  "budget_journal_created": false,
+  "performance": "NOT_RUN; point 3 skipped; ISSUE-004 OPEN/capacity BLOCKED"
+}
