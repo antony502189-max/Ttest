@@ -97,3 +97,17 @@ async def test_cleanup_failure_rolls_back_evidence_and_proof(pipeline, proofs, m
     assert await guard(proofs, source.canonical_listing_id)
     async with sessions() as session:
         assert await session.scalar(select(func.count()).select_from(AiListingFact)) == 1
+
+async def test_retired_peer_does_not_override_active_support(pipeline):
+    from test_fact_pipeline import seed
+    service, sessions = pipeline
+    source = await completed(pipeline)
+    peer = await seed(pipeline, listing_id=source.canonical_listing_id)
+    async with sessions() as session, session.begin():
+        await session.execute(text("UPDATE external_listing_sources SET current_status='removed' WHERE id=:id"),
+                              {"id": peer.source_record_id})
+    await service.reconcile_listing(source.canonical_listing_id)
+    report = await audit_catalog(service, eligibility=literal(True), plan=PLAN, policy=POLICY, limit=10)
+    assert report["match"] == 1
+    async with sessions() as session:
+        assert await session.scalar(select(source_freshness_predicate(literal(source.canonical_listing_id), PLAN, POLICY)))

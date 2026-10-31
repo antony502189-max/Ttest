@@ -81,9 +81,10 @@ def classify(plan: HardMatchPlan, projection: SearchProjection | None, *,
             reasons.add("unknown" if evaluate_hard_match(structural, shape) else "mismatch")
     # Uncertainty takes priority over a known failed criterion: no false claim
     # that the complete requested criteria were checked against verified data.
-    for reason in ("conflict", "conditional", "unknown", "mismatch"):
+    priority: tuple[Quality, ...] = ("conflict", "conditional", "unknown", "mismatch")
+    for reason in priority:
         if reason in reasons:
-            return reason  # type: ignore[return-value]
+            return reason
     return "match"
 
 
