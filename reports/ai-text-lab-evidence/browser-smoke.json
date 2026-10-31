@@ -1,0 +1,115 @@
+{
+  "source": "e398287a241d4fb3aef1c3f15a0a14475b0ab821",
+  "url": "https://localhost:9443",
+  "parser": "synthetic-exact-phrases-v1 (not LLM)",
+  "apiMocks": false,
+  "checks": [
+    {
+      "check": "browser query + real SQL cards",
+      "phrase": "все варианты",
+      "ids": [
+        "0f721c39-b8cf-5879-bea1-522514de63d1",
+        "36c2741e-0d7c-5610-bbbe-19f32de52155",
+        "a242160c-aa54-5e29-bde3-9a53ac8b5674",
+        "a9fa78c3-7515-5a80-bb79-4bc5770c0e03"
+      ],
+      "count": 4,
+      "passed": true
+    },
+    {
+      "check": "Secure HttpOnly Strict guest cookie over HTTPS",
+      "passed": true
+    },
+    {
+      "check": "browser query + real SQL cards",
+      "phrase": "с маленькой собакой",
+      "ids": [
+        "0f721c39-b8cf-5879-bea1-522514de63d1",
+        "a242160c-aa54-5e29-bde3-9a53ac8b5674"
+      ],
+      "count": 2,
+      "passed": true
+    },
+    {
+      "check": "real map viewport query + local zoom/pan + marker selection",
+      "passed": true
+    },
+    {
+      "check": "browser query + real SQL cards",
+      "phrase": "до 600 евро в месяц",
+      "ids": [
+        "0f721c39-b8cf-5879-bea1-522514de63d1"
+      ],
+      "count": 1,
+      "passed": true
+    },
+    {
+      "check": "follow-up preserves typed hard criteria + map",
+      "criteria": {
+        "rental_mode": {
+          "strength": "hard",
+          "value": "long"
+        },
+        "budget": {
+          "strength": "hard",
+          "value": {
+            "amount": "600",
+            "currency": "EUR",
+            "period": "monthly"
+          }
+        },
+        "pets": {
+          "strength": "hard",
+          "value": [
+            {
+              "species": "dog",
+              "size": "small",
+              "count": 1
+            }
+          ]
+        }
+      },
+      "passed": true
+    },
+    {
+      "check": "quota 3/day + zero debit reads + idempotent replay",
+      "quota": {
+        "madrid_date": "2026-10-31",
+        "reset_at": "2026-10-31T23:00:00Z",
+        "limit": 3,
+        "used": 3,
+        "reserved": 0,
+        "remaining": 0
+      },
+      "passed": true
+    },
+    {
+      "check": "owned session/result/card/map reads + signed pagination",
+      "passed": true
+    },
+    {
+      "check": "auth login + own session + 200/day + incompatible hard criteria + missing facts",
+      "passed": true
+    },
+    {
+      "check": "unsupported deterministic phrase fails without debit",
+      "passed": true
+    },
+    {
+      "check": "foreign guest/auth ownership + origin + CSRF rejection",
+      "passed": true
+    },
+    {
+      "check": "ordinary public search uses existing API path",
+      "total": 6,
+      "passed": true
+    },
+    {
+      "check": "no external browser requests or page errors",
+      "passed": true
+    }
+  ],
+  "externalRequests": [],
+  "browserErrors": [],
+  "status": "PASS"
+}

@@ -1,5 +1,19 @@
 # Исправления замечаний post-merge аудита
 
+## Закрытый текстовый стенд, 31 октября
+
+Пункт 1 AI-контура выполнен на отдельном local-loopback synthetic стенде:
+source `e398287a241d4fb3aef1c3f15a0a14475b0ab821`, https://localhost:9443.
+Реальные UI/API/PostGIS/Redis, явная test-only сборка, FactPipeline → projections
+→ QueryProofs.prepare, детерминированный parser вместо LLM. Сквозной Chromium
+smoke: 13 PASS; isolation/Redis failure/recovery, 5 unit guards, 50 прежних
+browser contracts и stop/start PASS. Production default остаётся disabled.
+[Отчёт и ограничения](AI_TEXT_LAB_20261031.md),
+[инструкция](../docs/ai-search-developer/AI_TEXT_LAB_RU.md).
+Стенд оставлен запущенным; старые audit/capacity containers не запускались.
+ISSUE-004 OPEN / capacity BLOCKED без новых измерений; пункты 2–8 не приняты.
+PR #403 остаётся draft, merge/public AI/providers/deploy не выполнялись.
+
 ## Актуальный результат продолжения, 31 октября
 
 Runtime `06af013856798f4eb93572433b522796edc69fdc`, тот же draft PR #403.
