@@ -25,8 +25,8 @@ from .ai_deepseek_intent import (
 )
 
 APPROVAL = "deepseek-synthetic-intent-v1"
-MAX_CALLS = 32
-MAX_MICRO_USD = 500_000  # USD 0.50; persistent across restarts of this evaluation.
+MAX_CALLS = 56  # Owner approved full regression after the first 27 cumulative attempts.
+MAX_MICRO_USD = 750_000  # USD 0.75 cumulative; retain the SAME journal and old reservations.
 INPUT_TOKEN_ALLOWANCE = 32_768
 OUTPUT_TOKENS = 1024
 # Peak cache-miss ceilings checked against official pricing on 2026-10-31:
