@@ -7,14 +7,15 @@ source-health freshness by elapsed time or complete listing eligibility.
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import DateTime, Text, func, literal, select, text
+from sqlalchemy import DateTime, Text, and_, case, func, literal, or_, select, text
 from sqlalchemy.dialects.postgresql import JSONB, aggregate_order_by, insert
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.sql.elements import ColumnElement
 
 from ..models import ExternalListingSource, Listing
 from ..models.ai_fact_pipeline import AiFactCatalog, AiFactSource
 from ..models.ai_listing_facts import AiListingFact, AiListingFactBatch, AiListingSearchFeatures
-from ..models.ai_query_proof import AiProofPopulation, AiQueryProof
+from ..models.ai_query_proof import AiLiveInputEpoch, AiLiveInputVersion, AiProofPopulation, AiQueryProof
 from ..models.room_details import ListingRoomDetails
 from ..schemas.ai_listing_facts import Category, DateRange, Money, Quantity, SearchProjection
 from .ai_fact_pipeline import FactPipeline
@@ -127,6 +128,39 @@ def proof_population_signature(*, resolver_version: str, vocabulary_hash: str):
                               state.epoch, ":", state.revision)).where(state.id == 1).scalar_subquery()
 
 
+def input_binding(signature, inputs, resolver, vocabulary, revision):
+    # Bind the new shortcut to every original persisted proof field. Changing
+    # a stored signature/scope cannot silently reuse an earlier input token.
+    return _hash(func.jsonb_build_object("contract", "live-proof-binding.v1", "proof_contract", PROOF_CONTRACT_VERSION,
+        "signature", signature, "inputs", inputs, "resolver", resolver, "vocabulary", vocabulary, "revision", revision))
+
+
+def live_vector_signature(vector):
+    return _hash(vector)
+
+
+def _current_input_vector(listing_id):
+    vector = AiQueryProof.input_vector
+    version = AiLiveInputVersion.__table__.alias()
+    epoch = select(AiLiveInputEpoch.epoch).where(AiLiveInputEpoch.id == 1).scalar_subquery()
+    # Uncorrelated scalar subquery is a statement-wide InitPlan: schema/trigger
+    # readiness is not recomputed for every candidate.
+    schema = select(func.ai_live_input_schema_signature()).scalar_subquery()
+    checks = [vector["schema"].astext == schema, vector["epoch"].astext == epoch.cast(Text),
+        vector["contract"].astext == "live-inputs.v1",
+        select(1).select_from(version).where(version.c.kind == "listing", version.c.record_id == listing_id,
+            version.c.token == vector["listing"].astext.cast(PGUUID)).offset(0).correlate_except(version).exists()]
+    for field, kind in (("authority", "external"), ("batches", "batch")):
+        entries = func.jsonb_array_elements(vector[field]).table_valued("value").alias()
+        value = entries.c.value.cast(JSONB)
+        versions = AiLiveInputVersion.__table__.alias()
+        missing = select(1).select_from(entries.outerjoin(versions,
+            and_(versions.c.kind == kind, versions.c.record_id == value[0].astext.cast(PGUUID)))).where(
+                or_(versions.c.token.is_(None), versions.c.token != value[1].astext.cast(PGUUID)))
+        checks.append(~missing.correlate_except(entries, versions).exists())
+    return and_(*checks)
+
+
 def current_projection_predicate(listing_id, *, resolver_version: str, vocabulary_hash: str) -> ColumnElement[bool]:
     """Use with existing eligibility and hard matching BEFORE count/order/seek/limit."""
     # Preserve the correlated PK lookup. Flattening this EXISTS into a hash
@@ -137,7 +171,12 @@ def current_projection_predicate(listing_id, *, resolver_version: str, vocabular
         AiQueryProof.canonical_listing_id == listing_id,
         AiQueryProof.resolver_version == resolver_version,
         AiQueryProof.vocabulary_hash == vocabulary_hash,
-        AiQueryProof.signature == projection_signature(listing_id),
+        case((AiQueryProof.input_signature.is_not(None),
+              _current_input_vector(listing_id) &
+              (AiQueryProof.input_signature == _hash(AiQueryProof.input_vector)) &
+              (AiQueryProof.input_binding == input_binding(AiQueryProof.signature, AiQueryProof.input_signature,
+                  AiQueryProof.resolver_version, AiQueryProof.vocabulary_hash, AiQueryProof.feature_revision))),
+             else_=AiQueryProof.signature == projection_signature(listing_id)),
     ).offset(0).correlate_except(AiQueryProof).exists()
 
 
@@ -209,14 +248,25 @@ class QueryProofs:
             if projection is None or not await _canonical_values_agree(session, listing_id, projection):
                 return False
             signature = await session.scalar(select(projection_signature(literal(listing_id))))
+            snapshot = select(func.ai_live_input_vector(literal(listing_id)).cast(JSONB).label("vector")).offset(0).subquery()
+            vector, inputs = (await session.execute(select(snapshot.c.vector, live_vector_signature(snapshot.c.vector)))).one()
+            if inputs is None:
+                return False
         async with self.pipeline.sessions() as session, session.begin():
             values = select(literal(listing_id), literal(signature), literal(self.pipeline.vocabulary_hash),
-                            literal(self.pipeline.resolver_version), literal(projection.feature_revision)).where(
-                projection_signature(literal(listing_id)) == signature)
+                            literal(self.pipeline.resolver_version), literal(projection.feature_revision), literal(inputs),
+                            input_binding(literal(signature), literal(inputs), literal(self.pipeline.resolver_version),
+                                literal(self.pipeline.vocabulary_hash), literal(projection.feature_revision)),
+                            literal(vector, type_=JSONB)).where(
+                projection_signature(literal(listing_id)) == signature,
+                func.ai_live_input_signature(literal(listing_id)) == inputs)
             statement = insert(AiQueryProof).from_select(
-                ["canonical_listing_id", "signature", "vocabulary_hash", "resolver_version", "feature_revision"], values)
+                ["canonical_listing_id", "signature", "vocabulary_hash", "resolver_version", "feature_revision",
+                 "input_signature", "input_binding", "input_vector"], values)
             returning = statement.on_conflict_do_update(index_elements=[AiQueryProof.canonical_listing_id], set_={
                 "signature": statement.excluded.signature, "vocabulary_hash": statement.excluded.vocabulary_hash,
                 "resolver_version": statement.excluded.resolver_version, "feature_revision": statement.excluded.feature_revision,
+                "input_signature": statement.excluded.input_signature, "input_binding": statement.excluded.input_binding,
+                "input_vector": statement.excluded.input_vector,
             }).returning(AiQueryProof.canonical_listing_id)
             return await session.scalar(returning) is not None

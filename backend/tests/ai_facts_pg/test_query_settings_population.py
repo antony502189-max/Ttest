@@ -24,7 +24,8 @@ async def population(pipeline):
     async with sessions() as session, session.begin():
         def migrate(connection):
             with Operations.context(MigrationContext.configure(connection)):
-                for name in ("0071_ai_query_proofs", "0075_ai_proof_population"):
+                connection.execute(text("CREATE TABLE listing_room_details (listing_id uuid PRIMARY KEY)"))
+                for name in ("0071_ai_query_proofs", "0075_ai_proof_population", "0077_ai_live_inputs"):
                     path = Path(__file__).parents[2] / "alembic/versions" / (name + ".py")
                     spec = importlib.util.spec_from_file_location(name, path)
                     module = importlib.util.module_from_spec(spec)

@@ -126,13 +126,14 @@ async def proofs(pipeline):
         columns = ", ".join(f'"{c.name}" {c.type.compile(dialect=session.bind.dialect)}'
                             for c in ListingRoomDetails.__table__.columns)
         await session.execute(text(f"CREATE TABLE listing_room_details ({columns})"))
-        path = Path(__file__).parents[2] / "alembic/versions/0071_ai_query_proofs.py"
-        spec = importlib.util.spec_from_file_location("query_proof_migration", path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
         def migrate(connection):
             with Operations.context(MigrationContext.configure(connection)):
-                module.upgrade()
+                for name in ("0071_ai_query_proofs", "0077_ai_live_inputs"):
+                    path = Path(__file__).parents[2] / "alembic/versions" / (name + ".py")
+                    spec = importlib.util.spec_from_file_location(name, path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    module.upgrade()
         await (await session.connection()).run_sync(migrate)
     return QueryProofs(service)
 
@@ -232,6 +233,9 @@ async def test_correlated_guard_uses_only_candidate_proofs_and_one_digest_per_li
     for source in sources:
         assert await proofs.prepare(source.canonical_listing_id)
     async with sessions() as session, session.begin():
+        # Retain the legacy fallback's plan regression separately from the
+        # version-based path; old binaries/proofs still use this contract.
+        await session.execute(text("UPDATE ai_query_proofs SET input_signature=NULL, input_binding=NULL, input_vector=NULL"))
         await session.execute(text("INSERT INTO ai_query_proofs "
             "(canonical_listing_id, signature, vocabulary_hash, resolver_version, feature_revision) "
             "SELECT md5('unrelated-proof:'||g::text)::uuid,repeat('0',64),:vocab,:resolver,1 "

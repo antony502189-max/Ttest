@@ -493,18 +493,21 @@ def test_experiment_is_immutable(tmp_path, monkeypatch, field):
 
 @pytest.mark.parametrize("damage", ["entities","meta_sources","template","provenance", "providers", "trigger",
     "listings","listing_room_details","external_listing_sources","ai_fact_catalogs","ai_listing_fact_batches",
-    "ai_fact_sources","ai_listing_facts","ai_listing_search_features","ai_query_proofs"])
+    "ai_fact_sources","ai_listing_facts","ai_listing_search_features","ai_query_proofs",
+    "live_contract","live_coverage","live_trigger"])
 async def test_measure_validates_dataset_before_timed_sql(tmp_path, monkeypatch, damage):
     bench = module("benchmark-ai-map")
     models = (bench.Listing, bench.ListingRoomDetails, bench.ExternalListingSource, bench.AiFactCatalog,
         bench.AiListingFactBatch, bench.AiFactSource, bench.AiListingFact, bench.AiListingSearchFeatures, bench.AiQueryProof)
     counts = {model.__tablename__:101*(20 if model is bench.AiListingFact else 2 if model in
         (bench.ExternalListingSource,bench.AiFactSource,bench.AiListingFactBatch) else 1) for model in models}
-    assert damage in {"entities","meta_sources","template","provenance","providers","trigger",*counts}
+    assert damage in {"entities","meta_sources","template","provenance","providers","trigger",
+                     "live_contract","live_coverage","live_trigger",*counts}
     provenance = {"sources":2}
     meta = {"synthetic_only":True,"sources":2,"provenance":provenance,"generation":1}
     template = {"listing":"synthetic","sources":2,"observations":20,"provenance":provenance}
-    value = {**dataset(100),"counts_including_template":counts,"distinct_providers":10,"provenance":provenance}
+    value = {**dataset(100),"counts_including_template":counts,"distinct_providers":10,"provenance":provenance,
+             "live_inputs_contract":"wrong" if damage == "live_contract" else "live-inputs.v1","fast_proof_count":101}
     if damage == "meta_sources": meta["sources"] = 10
     if damage == "template": template["sources"] = 10
     if damage == "provenance": value["provenance"] = {}
@@ -514,7 +517,8 @@ async def test_measure_validates_dataset_before_timed_sql(tmp_path, monkeypatch,
     connection.__aenter__.return_value = connection
     connection.scalar.side_effect = [meta, 99 if damage == "entities" else 100,
         *[number-1 if name == damage else number for name,number in counts.items()],
-        9 if damage == "providers" else 10,"D" if damage == "trigger" else "O"]
+        9 if damage == "providers" else 10,"D" if damage == "trigger" else "O",
+        100 if damage == "live_coverage" else 101,None if damage == "live_trigger" else "ready"]
     db = Mock()
     db.connect.return_value = connection
     db.dispose = AsyncMock()

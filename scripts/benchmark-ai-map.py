@@ -32,7 +32,7 @@ from app.models.ai_query_proof import AiQueryProof
 from app.models.room_details import ListingRoomDetails
 from app.repositories.ai_fact_pipeline import FactPipeline
 from app.repositories.ai_fact_snapshots import source_snapshot_hash
-from app.repositories.ai_query_proofs import QueryProofs, projection_signature
+from app.repositories.ai_query_proofs import QueryProofs, input_binding, live_vector_signature, projection_signature
 from app.repositories.ai_query_settings import configure_ai_query
 from app.repositories.ai_verified_cards import VerifiedCardSearch
 from app.repositories.listings import point
@@ -41,6 +41,7 @@ from app.schemas.ai_listing_facts import FactBatch, FactVocabulary, digest
 from app.schemas.ai_search_intent import SearchIntent
 from app.schemas.listings import ListingMapRequest
 from sqlalchemy import event, func, literal, select, text, update
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.sql import operators, visitors
 from sqlalchemy.sql.elements import BooleanClauseList
@@ -264,6 +265,12 @@ async def validate_dataset(c, total):
         raise RuntimeError("dataset provider profile mismatch")
     if await c.scalar(text("SELECT tgenabled::text FROM pg_trigger WHERE tgrelid='listings'::regclass AND tgname='listings_catalog_version'")) != "O":
         raise RuntimeError("setup trigger must be restored before measurements")
+    if dataset.get("live_inputs_contract") != "live-inputs.v1" or dataset.get("fast_proof_count") != total+1:
+        raise RuntimeError("dataset live-input coverage metadata mismatch")
+    fast = await c.scalar(select(func.count()).select_from(AiQueryProof).where(
+        AiQueryProof.input_signature.is_not(None), AiQueryProof.input_binding.is_not(None), AiQueryProof.input_vector.is_not(None)))
+    if fast != total+1 or await c.scalar(select(func.ai_live_input_schema_signature())) is None:
+        raise RuntimeError("dataset contains legacy proofs or live input triggers are not ready")
 
 
 def pipeline(factory):
@@ -493,13 +500,20 @@ async def seed(total, chunk=5000):
         hi = min(total, lo+chunk-1)
         async with db.begin() as c:
             entities = text("r01_entities")
-            proof_select = select(Listing.id, fixture_signature(Listing.id), literal(pipe.vocabulary_hash),
-                literal(RESOLVER), AiListingSearchFeatures.feature_revision).join(
+            prepared = select(Listing.id, fixture_signature(Listing.id).label("signature"),
+                AiListingSearchFeatures.feature_revision.label("revision"),
+                func.ai_live_input_vector(Listing.id).cast(JSONB).label("vector")).join(
                     AiListingSearchFeatures, AiListingSearchFeatures.canonical_listing_id == Listing.id).where(
                     Listing.id.in_(select(text("id")).select_from(entities).where(text("n BETWEEN :lo AND :hi"))),
-                    ~select(AiQueryProof.canonical_listing_id).where(AiQueryProof.canonical_listing_id == Listing.id).exists())
+                    ~select(AiQueryProof.canonical_listing_id).where(AiQueryProof.canonical_listing_id == Listing.id).exists()
+                ).cte("prepared_live_inputs").prefix_with("MATERIALIZED")
+            inputs = live_vector_signature(prepared.c.vector)
+            proof_select = select(prepared.c.id, prepared.c.signature, literal(pipe.vocabulary_hash), literal(RESOLVER),
+                prepared.c.revision, inputs, input_binding(prepared.c.signature, inputs, literal(RESOLVER),
+                    literal(pipe.vocabulary_hash), prepared.c.revision), prepared.c.vector).where(prepared.c.vector.is_not(None))
             from sqlalchemy.dialects.postgresql import insert as pg_insert
-            statement = pg_insert(AiQueryProof).from_select(["canonical_listing_id", "signature", "vocabulary_hash", "resolver_version", "feature_revision"], proof_select)
+            statement = pg_insert(AiQueryProof).from_select(["canonical_listing_id", "signature", "vocabulary_hash",
+                "resolver_version", "feature_revision", "input_signature", "input_binding", "input_vector"], proof_select)
             await c.execute(statement.on_conflict_do_nothing(), {"lo": lo, "hi": hi})
         log("proof_chunk", lo=lo, hi=hi)
     for base in range(1,total+1,chunk*SEED_WRITERS):
@@ -525,7 +539,11 @@ async def seed(total, chunk=5000):
             assert counts[model.__tablename__] == (total+1)*multiplier, f"wrong fixture row count for {model.__tablename__}"
         provider_count=await c.scalar(select(func.count(func.distinct(ExternalListingSource.source_name))))
         assert provider_count == min(10,total+template["sources"])
+        fast_count=await c.scalar(select(func.count()).select_from(AiQueryProof).where(
+            AiQueryProof.input_signature.is_not(None),AiQueryProof.input_binding.is_not(None),AiQueryProof.input_vector.is_not(None)))
+        assert fast_count == total+1
         metadata = {"listings": total, "counts_including_template": counts,"seed_generation":generation,
+            "live_inputs_contract":"live-inputs.v1","fast_proof_count":fast_count,
             "distinct_providers":provider_count,"observations_per_listing":20,"source_records_per_listing":template["sources"],
             "size_bytes": await c.scalar(text("SELECT pg_database_size(current_database())")),
             "version": await c.scalar(text("SELECT version()")), "postgis": await c.scalar(text("SELECT postgis_full_version()")),
@@ -810,6 +828,7 @@ async def main():
                 "/code/backend/app/repositories/ai_query_proofs.py","/code/backend/app/repositories/ai_query_settings.py",
                 "/code/backend/alembic/versions/0075_ai_proof_population.py",
                 "/code/backend/alembic/versions/0076_ai_fact_population.py",
+                "/code/backend/alembic/versions/0077_ai_live_inputs.py","/code/backend/app/models/ai_query_proof.py",
                 "/code/backend/app/repositories/ai_fact_population.py","/code/backend/app/repositories/listings.py")},
             "started_at":now(),"sources":sources,"status":"running",
             "clock":{"contract":"utc-anchored-monotonic.v1","anchor_utc":_CLOCK_UTC.isoformat(),

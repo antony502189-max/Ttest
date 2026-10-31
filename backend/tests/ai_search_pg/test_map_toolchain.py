@@ -22,7 +22,8 @@ def benchmark():
 
 @pytest.mark.parametrize("damage", [None, "entities", "listings", "listing_room_details",
     "external_listing_sources", "ai_fact_catalogs", "ai_listing_fact_batches", "ai_fact_sources",
-    "ai_listing_facts", "ai_listing_search_features", "ai_query_proofs", "profile", "trigger", "generation"])
+    "ai_listing_facts", "ai_listing_search_features", "ai_query_proofs", "profile", "trigger", "generation",
+    "live_contract", "legacy_proof", "live_trigger"])
 async def test_exact_dataset_validation_on_postgres(pg, tmp_path, monkeypatch, damage):
     bench = benchmark()
     db = pg[1].kw["bind"]
@@ -38,6 +39,12 @@ async def test_exact_dataset_validation_on_postgres(pg, tmp_path, monkeypatch, d
             # Identifiers come only from the fixed model list above.
             await c.execute(text(f"CREATE TABLE {table} (id int, source_name text)"))
             await c.execute(text(f"INSERT INTO {table} SELECT g, 'synth-' || (g%5)::text FROM generate_series(1,:n) g"), {"n":count})
+        # Minimal synthetic fields for coverage validation only; real live
+        # token triggers/proofs are tested separately on the actual schema.
+        await c.execute(text("ALTER TABLE ai_query_proofs ADD input_signature text DEFAULT repeat('a',64), "
+                             "ADD input_binding text DEFAULT repeat('b',64), ADD input_vector jsonb DEFAULT '{}'::jsonb"))
+        ready = "NULL::text" if damage == "live_trigger" else "'synthetic-ready'::text"
+        await c.execute(text(f"CREATE FUNCTION ai_live_input_schema_signature() RETURNS text LANGUAGE sql AS $$ SELECT {ready} $$"))
         await c.execute(text("CREATE TABLE r01_entities AS SELECT generate_series(1,3) AS n"))
         await c.execute(text("CREATE TABLE r01_meta (data jsonb)"))
         await c.execute(text("INSERT INTO r01_meta VALUES (CAST(:v AS jsonb))"), {"v":json.dumps({
@@ -48,11 +55,14 @@ async def test_exact_dataset_validation_on_postgres(pg, tmp_path, monkeypatch, d
             await c.execute(text("ALTER TABLE listings DISABLE TRIGGER listings_catalog_version"))
         elif damage == "entities":
             await c.execute(text("DELETE FROM r01_entities WHERE n=3"))
+        elif damage == "legacy_proof":
+            await c.execute(text("UPDATE ai_query_proofs SET input_signature=NULL WHERE id=1"))
         elif damage in counts:
             await c.execute(text(f"DELETE FROM {damage} WHERE id=1"))
     (tmp_path / "template.json").write_text(json.dumps({"sources":2,"observations":20,"provenance":provenance}))
     (tmp_path / "dataset-3.json").write_text(json.dumps({"listings":3,"source_records_per_listing":2,
-        "observations_per_listing":20,"counts_including_template":counts,"distinct_providers":5,"provenance":provenance,"seed_generation":1}))
+        "observations_per_listing":20,"counts_including_template":counts,"distinct_providers":5,"provenance":provenance,"seed_generation":1,
+        "live_inputs_contract":"wrong" if damage == "live_contract" else "live-inputs.v1","fast_proof_count":4}))
     async with db.connect() as c:
         await c.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
         if damage is None:

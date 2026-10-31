@@ -20,7 +20,7 @@ def test_linear_combined_schema_matches_all_ai_models(pg):
     engine, _ = pg
     names = ("0067_ai_search_quota", "0068_ai_search_sessions", "0069_ai_listing_facts", "0070_ai_fact_pipeline",
              "0071_ai_query_proofs", "0072_ai_session_commands", "0073_ai_command_seed", "0074_ai_saved_searches",
-             "0075_ai_proof_population", "0076_ai_fact_population")
+             "0075_ai_proof_population", "0076_ai_fact_population", "0077_ai_live_inputs")
     previous = "0066_complimentary_ads"
     modules = []
     for name in names:
@@ -39,6 +39,9 @@ def test_linear_combined_schema_matches_all_ai_models(pg):
             # Clearly synthetic pre-0072 legacy parents; the complete historical
             # chain is independently upgraded and checked by this CI job.
             connection.execute(text("CREATE TABLE users (id uuid PRIMARY KEY)"))
+            connection.execute(text("CREATE TABLE listings (id uuid PRIMARY KEY)"))
+            connection.execute(text("CREATE TABLE listing_room_details (listing_id uuid PRIMARY KEY)"))
+            connection.execute(text("CREATE TABLE external_listing_sources (id uuid PRIMARY KEY, canonical_listing_id uuid)"))
             connection.execute(text("CREATE TYPE rental_mode AS ENUM ('long','holiday')"))
             connection.execute(text("CREATE TABLE saved_searches (id uuid PRIMARY KEY, "
                 "user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE, name varchar(120) NOT NULL, "
@@ -55,8 +58,13 @@ def test_linear_combined_schema_matches_all_ai_models(pg):
             for table in Base.metadata.tables.values():
                 if table.name.startswith("ai_"):
                     table.to_metadata(metadata)
-            assert len([name for name in metadata.tables if name.startswith("ai_")]) == 17
-            assert set(inspect(connection).get_table_names()) == set(metadata.tables)
+            assert len([name for name in metadata.tables if name.startswith("ai_")]) == 19
+            standins = {"listings", "listing_room_details", "external_listing_sources"}
+            assert set(inspect(connection).get_table_names()) == set(metadata.tables) | standins
+            # These three clearly synthetic tables only allow the live-input
+            # triggers to be installed. Their real schema is checked in CI.
+            for name in standins:
+                Table(name, metadata, autoload_with=connection, resolve_fks=False)
             assert compare_metadata(MigrationContext.configure(connection, opts={"compare_type": True}), metadata) == []
             for table in metadata.tables.values():
                 expected = {c.name for c in table.constraints if c.__class__.__name__ == "CheckConstraint"}

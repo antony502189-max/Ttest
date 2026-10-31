@@ -79,7 +79,7 @@ try {
     $labArchive = Join-Path $labSnapshotParent 'source.tar'
     $labSnapshot = Join-Path $labSnapshotParent 'code'
     New-Item -ItemType Directory -Path $labSnapshot | Out-Null
-    git -C $labRoot archive --format=tar --output=$labArchive $labRevision
+    git -C $labRoot -c core.autocrlf=false archive --format=tar --output=$labArchive $labRevision
     if ($LASTEXITCODE -ne 0) { throw 'Cannot export committed source' }
     $labArchiveHash = (Get-FileHash -LiteralPath $labArchive -Algorithm SHA256).Hash.ToLowerInvariant()
     $labExperimentPath = Join-Path $labOutput 'experiment.json'
