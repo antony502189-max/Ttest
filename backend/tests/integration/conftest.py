@@ -144,7 +144,8 @@ async def clean_database() -> AsyncIterator[None]:
                     text(
                         "SELECT tablename FROM pg_tables "
                         "WHERE schemaname = 'public' "
-                        "AND tablename NOT IN ('alembic_version', 'spatial_ref_sys', 'ai_proof_population')"
+                        "AND tablename NOT IN ('alembic_version', 'spatial_ref_sys', "
+                        "'ai_proof_population', 'ai_fact_population')"
                     )
                 )
             )

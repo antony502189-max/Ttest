@@ -808,7 +808,9 @@ async def main():
             "source_hashes":{name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in (
                 "/code/scripts/benchmark-ai-map.py","/code/backend/app/repositories/ai_verified_cards.py",
                 "/code/backend/app/repositories/ai_query_proofs.py","/code/backend/app/repositories/ai_query_settings.py",
-                "/code/backend/alembic/versions/0075_ai_proof_population.py","/code/backend/app/repositories/listings.py")},
+                "/code/backend/alembic/versions/0075_ai_proof_population.py",
+                "/code/backend/alembic/versions/0076_ai_fact_population.py",
+                "/code/backend/app/repositories/ai_fact_population.py","/code/backend/app/repositories/listings.py")},
             "started_at":now(),"sources":sources,"status":"running",
             "clock":{"contract":"utc-anchored-monotonic.v1","anchor_utc":_CLOCK_UTC.isoformat(),
                 "wall_started_at":datetime.now(UTC).isoformat()}}

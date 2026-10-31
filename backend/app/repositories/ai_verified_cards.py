@@ -16,10 +16,9 @@ kept merely to preserve an earlier page's total or order.
 from dataclasses import dataclass
 from uuid import UUID
 
-from sqlalchemy import and_, func, select, text
+from sqlalchemy import and_, select, text
 
 from ..models import CatalogState, Listing
-from ..models.ai_fact_pipeline import AiFactCatalog
 from ..models.ai_listing_facts import AiListingSearchFeatures
 from ..schemas.ai_listing_facts import digest
 from ..schemas.ai_search_intent import SearchIntent
@@ -34,6 +33,7 @@ from ..services.ai_card_cursors import AICardCursors
 from ..services.ai_hard_matching import HardMatchPlan, compile_hard_match
 from .ai_card_values import current_card_values_predicate
 from .ai_fact_pipeline import FactPipeline
+from .ai_fact_population import fact_population_signature
 from .ai_hard_matching import hard_match_predicate
 from .ai_query_proofs import PROOF_CONTRACT_VERSION, current_projection_predicate, proof_population_signature
 from .ai_query_settings import configure_ai_query
@@ -115,14 +115,16 @@ class VerifiedCardSearch:
         compiled = compile_hard_match(intent, self.pipeline.vocabulary)
         normalized_hash = intent_hash(intent)
         catalog = await session.scalar(select(CatalogState.version).where(CatalogState.id == 1))
-        facts = (await session.execute(select(func.count(), func.coalesce(func.sum(AiFactCatalog.revision), 0)))).one()
+        facts = await session.scalar(select(fact_population_signature()))
+        if facts is None:
+            raise RuntimeError("fact-catalog population state is missing")
         proofs = await session.scalar(select(proof_population_signature(
             resolver_version=self.pipeline.resolver_version, vocabulary_hash=self.pipeline.vocabulary_hash)))
         if proofs is None:
             raise RuntimeError("prepared-proof population state is missing")
         context = digest({"subject": [subject.kind, str(subject.id)], "intent": normalized_hash,
             "filters": _cursor_fingerprint(payload), "catalog": catalog,
-            "facts": [facts[0], str(facts[1])], "proofs": proofs, "resolver": self.pipeline.resolver_version,
+            "facts": facts, "proofs": proofs, "resolver": self.pipeline.resolver_version,
             "vocabulary": self.pipeline.vocabulary_hash, "proof_contract": PROOF_CONTRACT_VERSION})
         raw_cursor = self.cursors.decode(payload.cursor, context)
         payload = payload.model_copy(update={"cursor": raw_cursor})

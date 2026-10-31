@@ -20,7 +20,7 @@ def test_linear_combined_schema_matches_all_ai_models(pg):
     engine, _ = pg
     names = ("0067_ai_search_quota", "0068_ai_search_sessions", "0069_ai_listing_facts", "0070_ai_fact_pipeline",
              "0071_ai_query_proofs", "0072_ai_session_commands", "0073_ai_command_seed", "0074_ai_saved_searches",
-             "0075_ai_proof_population")
+             "0075_ai_proof_population", "0076_ai_fact_population")
     previous = "0066_complimentary_ads"
     modules = []
     for name in names:
@@ -55,7 +55,7 @@ def test_linear_combined_schema_matches_all_ai_models(pg):
             for table in Base.metadata.tables.values():
                 if table.name.startswith("ai_"):
                     table.to_metadata(metadata)
-            assert len([name for name in metadata.tables if name.startswith("ai_")]) == 16
+            assert len([name for name in metadata.tables if name.startswith("ai_")]) == 17
             assert set(inspect(connection).get_table_names()) == set(metadata.tables)
             assert compare_metadata(MigrationContext.configure(connection, opts={"compare_type": True}), metadata) == []
             for table in metadata.tables.values():
