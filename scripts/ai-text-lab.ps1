@@ -104,6 +104,7 @@ switch ($Action) {
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'python', '-m', 'lab.certificate'))
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'alembic', 'upgrade', 'head'))
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'python', '-m', 'lab.seed_ai_text'))
+        Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'python', '-m', 'lab.recheck_synthetic'))
         Invoke-Checked docker ($compose + @('up', '-d', '--wait', '--wait-timeout', '60', 'backend', 'frontend', 'maintenance'))
         Write-Output "Synthetic lab: https://localhost:9443 ; source $($state.source)"
     }
