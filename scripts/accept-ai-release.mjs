@@ -165,6 +165,7 @@ try {
   const retry = await retried
   assert.deepEqual(retry.request().postDataJSON(), lostBody)
   const recovered = await json(retry)
+  sessions.push(lostBody.session_id)
   assert.deepEqual(recovered.operation.receipt, committed.operation.receipt)
   assert.equal(recovered.operation.used, committed.operation.used)
   assert.equal((await inspect({ session_id: lostBody.session_id, version: 0 })).calls, 1)
@@ -188,7 +189,8 @@ try {
   await page.screenshot({ path: fileURLToPath(new URL('auth-mobile.png', dir)), fullPage: true })
   const refresh = page.waitForResponse(r => r.url().endsWith('/auth/refresh'))
   await page.reload({ waitUntil: 'networkidle' })
-  await json(await refresh)
+  const refreshedIdentity = await json(await refresh)
+  auth.Authorization = 'Bearer ' + refreshedIdentity.accessToken
   await openAI(page)
   await page.waitForSelector('.ai-search-dialog__cards > div')
   pass('authenticated browser refresh restores owned results')
@@ -199,6 +201,7 @@ try {
       const response = await call(ctx, 'GET', 'ai-search/quota', undefined, auth)
       assert.equal(response.status(), 503)
       assert.ok(response.headers()['cache-control'].includes('no-store'))
+      if (service === 'postgres') await sleep(6000) // include a maintenance tick during the outage
       pass('real ' + service + ' outage: bounded 503, no-store and fail closed')
     } finally { docker('start', 'ttest-ai-text-lab-' + service) }
     let after
@@ -212,6 +215,16 @@ try {
   }
   report.snapshot = JSON.parse(docker('exec', 'ttest-ai-text-lab-backend', 'python', '-m', 'lab.release_status'))
   assert.equal(report.snapshot.recovery_overdue, 0)
+  const metrics = docker('exec', 'ttest-ai-text-lab-backend', 'python', '-c',
+    "import urllib.request; print(urllib.request.urlopen('http://localhost:8000/metrics').read().decode())")
+  for (const privateValue of [...sessions, 'все варианты', 'acceptance-user@synthetic.example', auth.Authorization]) {
+    assert.ok(!metrics.includes(privateValue))
+  }
+  assert.ok(metrics.includes('ttest_ai_execution_total'))
+  assert.ok(metrics.includes('ttest_ai_parser_seconds_count'))
+  assert.ok(metrics.includes('failure="timeout"'))
+  await writeFile(new URL('metrics.prom', dir), metrics)
+  pass('actual execution/parser metrics and aggregate queue/coverage/freshness snapshot; private canaries absent')
   report.status = 'PASS'
 } catch (error) {
   report.status = 'FAIL'

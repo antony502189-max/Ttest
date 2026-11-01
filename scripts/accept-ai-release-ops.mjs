@@ -49,7 +49,7 @@ try {
   const data = { idempotency_key: crypto.randomUUID(), session_id: sid, expected_version: 0,
     text: 'все варианты', search: { limit: 6 } }
   const original = await json(await api.post('/api/v1/ai-search/query', { headers, data }))
-  assert.equal(original.operation.status, 'succeeded')
+  assert.equal(original.operation.status, 'succeeded', original.operation.failure_code)
   const total = await ordinary()
   try {
     const start = performance.now()
@@ -72,12 +72,12 @@ try {
   pass('forward binary restored: receipt and quota preserved')
   try {
     const start = performance.now()
-    exec('powershell.exe', ['-NoProfile', '-File', 'scripts/ai-text-lab.ps1', 'disable-ai'])
+    exec('pwsh.exe', ['-NoProfile', '-File', 'scripts/ai-text-lab.ps1', 'disable-ai'])
     assert.equal((await json(await api.get('/api/v1/ai-search/capabilities'))).text, false)
     assert.equal((await json(await api.post('/api/v1/ai-search/query', { headers, data }), 503)).detail, 'AI_SEARCH_DISABLED')
     assert.equal(await ordinary(), total)
     pass('AI kill switch: disabled capability + 503 while ordinary SQL search stays available', { switchSeconds: Math.round((performance.now() - start) / 1000) })
-  } finally { exec('powershell.exe', ['-NoProfile', '-File', 'scripts/ai-text-lab.ps1', 'enable-ai']) }
+  } finally { exec('pwsh.exe', ['-NoProfile', '-File', 'scripts/ai-text-lab.ps1', 'enable-ai']) }
   assert.equal((await json(await api.get('/api/v1/ai-search/capabilities'))).text, true)
   const after = await json(await api.post('/api/v1/ai-search/query', { headers, data }))
   assert.deepEqual(after.operation.receipt, original.operation.receipt)
