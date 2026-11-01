@@ -71,13 +71,14 @@ try {
   await page.locator('[data-ai-lab-mode="decision-transport-fixture"]').waitFor()
   await page.locator('#ai-rental-mode').selectOption('holiday')
   const action = page.locator('.ai-search-dialog > .home-ai-search__action')
-  let current, receipt, sid
+  let current, receipt, sid, cardsHash
   for (const text of ['с маленькой собакой', 'до 60 евро за ночь', 'желательно с балконом']) {
     await page.locator('#ai-search-text').fill(text)
     const response = page.waitForResponse(r => r.url().endsWith('/ai-search/query'))
     await action.click()
     const result = await json(await response)
     assert.equal(result.operation.status, 'succeeded')
+    cardsHash = result.cards.intent_hash
     receipt = result.operation.receipt
     sid = (await (await response).request().postDataJSON()).session_id
     if (!sessions.includes(sid)) sessions.push(sid)
@@ -93,8 +94,10 @@ try {
   assert.equal(current.criteria.balcony.strength, 'soft')
   const map = await json(await call(ctx, 'POST', 'ai-search/results/' + receipt.result_ref + '/map', {
     search: { west: -17, east: -16, south: 27, north: 29, zoom: 10 } }))
-  assert.ok(map)
+  assert.equal(map.intent_hash, cardsHash)
+  assert.ok(map.map.items.length > 0)
   assert.equal((await json(await call(ctx, 'GET', 'ai-search/quota'))).used, 3)
+  await page.locator('.ai-search-dialog__cards').scrollIntoViewIfNeeded()
   await page.screenshot({ path: fileURLToPath(new URL('guest-cards.png', dir)), fullPage: true })
   pass('real mobile UI -> decision adapter -> typed intent -> owned PG cards/map: hard criteria and guest quota3')
   const refreshGuest = page.waitForResponse(r => r.url().endsWith('/ai-search/sessions/' + sid))
@@ -139,6 +142,7 @@ try {
     const { request, before, count, response } = await send(text)
     const result = await json(response)
     assert.equal(result.operation.failure_code, code)
+    await page.getByRole('status').filter({ hasText: { INTENT_CLARIFICATION_REQUIRED: 'Aclara', INTENT_NO_CHANGE: 'no cambia', INTENT_UNSUPPORTED: 'Reformula' }[code] }).waitFor()
     const replay = await json(await call(ctx, 'POST', 'ai-search/query', request, auth))
     assert.equal(replay.operation.failure_code, code)
     assert.equal(replay.operation.used, before.used)
@@ -161,6 +165,7 @@ try {
       assert.equal(replay.operation.status, 'failed')
       assert.equal(replay.operation.used, before.used)
     }
+    assert.equal((await json(await call(ctx, 'GET', 'ai-search/quota', undefined, auth))).reserved, 0)
     assert.equal((await inspect({ ...state, version: fault === 'commit-ack' ? state.version - 1 : state.version })).calls, count + 1)
     pass('model transport ' + fault + ': bounded HTTP lifecycle, exact retry, one model attempt and expected debit')
   }
@@ -168,7 +173,10 @@ try {
   const stale = { ...body({ ...state, version: 0 }), text: 'с маленькой собакой' }
   await json(await call(ctx, 'POST', 'ai-search/query', stale, auth), 409)
   pass('ownership and stale version rejected before inference')
-  await labControl({ action: 'expire', session_id: state.session_id })
+  const refreshed = page.waitForResponse(r => r.url().endsWith('/auth/refresh'))
+  await page.reload({ waitUntil: 'networkidle' })
+  auth.Authorization = 'Bearer ' + (await json(await refreshed)).accessToken
+  await openAI(page)
   await page.locator('#ai-rental-mode').selectOption('none')
   let lost, committed, dropped = false
   await page.route('**/api/v1/ai-search/query', async route => {
@@ -189,6 +197,24 @@ try {
   sessions.push(lost.session_id)
   assert.equal((await inspect({ session_id: lost.session_id, version: 0 })).calls, 1)
   pass('browser disconnect after real commit: exact payload/receipt recovery without inference/debit duplication')
+  await page.unroute('**/api/v1/ai-search/query')
+  await sleep(11000)
+  const uiState = { session_id: lost.session_id, version: 1 }
+  await arm(uiState, 'delay')
+  await page.locator('#ai-search-text').fill('с маленькой собакой')
+  const sent = page.waitForRequest(r => r.url().endsWith('/ai-search/query'))
+  await action.click()
+  const cancelBody = (await sent).postDataJSON()
+  for (let i = 0; i < 20 && !(await inspect(uiState)).calls; i++) await sleep(100)
+  await page.getByRole('button', { name: 'Dejar de esperar', exact: true }).click()
+  await sleep(3300)
+  const checked = page.waitForResponse(r => r.url().endsWith('/ai-search/query'))
+  await action.click()
+  const checkedResponse = await checked
+  assert.deepEqual(checkedResponse.request().postDataJSON(), cancelBody)
+  assert.equal((await json(checkedResponse)).operation.status, 'succeeded')
+  assert.equal((await inspect(uiState)).calls, 1)
+  pass('browser cancel waiting during model transport: uncertain state and exact one-inference recovery')
   await page.screenshot({ path: fileURLToPath(new URL('auth-recovery.png', dir)), fullPage: true })
   const metrics = docker('exec', 'ttest-ai-text-lab-backend', 'python', '-c', "import urllib.request; print(urllib.request.urlopen('http://localhost:8000/metrics').read().decode())")
   for (const secret of [...sessions, auth.Authorization, 'с маленькой собакой', 'уточнить бюджет']) assert.ok(!metrics.includes(secret))

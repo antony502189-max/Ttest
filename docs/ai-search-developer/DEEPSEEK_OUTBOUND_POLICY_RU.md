@@ -14,7 +14,8 @@ policy не устанавливает для них автоматически 
 раскрывать ключ клиентскому коду. Оператор platform указан как Hangzhou DeepSeek
 Artificial Intelligence Co., Ltd. Отдельные account/DPA условия не подтверждены.
 
-[Общая Privacy Policy](https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html):
+[Общая Privacy Policy](https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html),
+Last Update 10 февраля 2026:
 перечисляет обучение/улучшение среди целей и право opt-out; это не доказательство
 действующего no-training для нашего API account. Указывает прямую обработку и
 хранение в КНР. Retention зависит от цели/обязательств; фиксированный API TTL и

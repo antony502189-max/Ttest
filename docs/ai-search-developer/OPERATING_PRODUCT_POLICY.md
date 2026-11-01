@@ -1,5 +1,12 @@
 # AI-поиск: эксплуатационные и продуктовые правила v1
 
+Дополнение 1 ноября: прежний конечный parser сохраняется как `finite`.
+Новый `decision-transport-fixture` проверяет UI с общим strict provider adapter
+и model completion fixtures на границе transport. Real-user outbound запрещён
+без подтверждённых account условий и минимизации; исполняемый deny guard и
+[review DeepSeek](DEEPSEEK_OUTBOUND_POLICY_RU.md) не включаются JSON/env флагом.
+[Сквозная проверка](../reports/AI_PARSER_UI_COMPOSITION_20261101.md).
+
 Дата: 2026-11-01. Область: закрытый первый текстовый стенд, пункт 6.
 Публичный выпуск, производственный runtime, голос и доставка уведомлений —
 отдельные этапы. Этот документ задаёт правила; фактические проверки перечислены

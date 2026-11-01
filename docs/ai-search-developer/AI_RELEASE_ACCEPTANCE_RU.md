@@ -1,5 +1,14 @@
 # Приёмка и управление закрытым AI-стендом
 
+Новый закрытый режим UI/provider adapter описан в
+[отдельном отчёте](../reports/AI_PARSER_UI_COMPOSITION_20261101.md).
+`./scripts/ai-text-lab.ps1 start -Parser decision-transport-fixture` запускает
+общий strict decision adapter с MockTransport только на границе модели.
+`-Parser finite` (по умолчанию) сохраняет прежний стенд для старых drivers.
+Для нового режима использовать `node scripts/accept-ai-parser-ui.mjs`, а не
+старый release driver: семантические no-op и provider deadlines различаются.
+[Real-user outbound review](DEEPSEEK_OUTBOUND_POLICY_RU.md) остаётся BLOCKED.
+
 Область: только synthetic localhost lab, PR #403. Команды выполняются из
 существующего `main-integration-audit/Ttest`, без merge/main/production.
 Точный проверенный runtime и результаты: [отчёт пункта 7](../reports/AI_RELEASE_ACCEPTANCE_20261101.md).

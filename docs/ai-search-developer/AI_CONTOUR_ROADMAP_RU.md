@@ -1,5 +1,12 @@
 # План сборки и запуска AI-контура
 
+Обновление UI composition 1 ноября: реализован отдельный закрытый режим
+`decision-transport-fixture`: настоящий UI/HTTP/PG/Redis и общий strict adapter
+закрытого HTTPS eval; synthetic подмена только model transport. Это не LIVE
+UI smoke и не разрешение real-user outbound. Account review остаётся BLOCKED.
+[Результат и точный runtime](../reports/AI_PARSER_UI_COMPOSITION_20261101.md),
+[DeepSeek outbound policy](DEEPSEEK_OUTBOUND_POLICY_RU.md).
+
 Дата: 31 октября 2026, Europe/Moscow.
 
 Обновление 1 ноября: пункт 5 выполнен в согласованном закрытом Flatio pilot
