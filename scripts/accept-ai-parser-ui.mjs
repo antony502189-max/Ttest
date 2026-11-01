@@ -99,7 +99,7 @@ try {
   assert.equal((await json(await call(ctx, 'GET', 'ai-search/quota'))).used, 3)
   await page.getByRole('button', { name: 'Ver mapa', exact: true }).click()
   assert.ok(await page.locator('.ai-search-dialog__cards').isHidden())
-  await page.locator('.ai-result-map').waitFor()
+  await page.getByRole('region', { name: 'Локальная координатная карта' }).waitFor()
   await page.getByRole('button', { name: 'Ver lista', exact: true }).click()
   pass('actual mobile exclusive map/list toggle')
   await page.locator('.ai-search-dialog__cards').scrollIntoViewIfNeeded()
