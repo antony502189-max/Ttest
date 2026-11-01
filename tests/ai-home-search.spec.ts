@@ -904,7 +904,7 @@ test('unsettled query blocks stale paging but its exact replay remains available
   expect(messages[2]).toEqual(messages[1])
 })
 
-for (const state of ['succeeded', 'running', 'failed', 'expired-owner'] as const) {
+for (const state of ['succeeded', 'running', 'failed', 'expired-owner', 'not-yet-admitted'] as const) {
   test(`review recovery after hard reload: ${state}, no raw payload or second inference`, async ({ page }) => {
     await setup(page)
     let message: Record<string, unknown>, calls = 0, reads = 0, finish = false
@@ -918,6 +918,7 @@ for (const state of ['succeeded', 'running', 'failed', 'expired-owner'] as const
     await page.route('**/api/v1/ai-search/operations/*', route => {
       reads++
       if (state === 'expired-owner') return route.fulfill({ status: 401, json: { detail: 'AI_GUEST_IDENTITY_INVALID_OR_EXPIRED' } })
+      if (state === 'not-yet-admitted') return route.fulfill({ status: 404, json: { detail: 'OPERATION_NOT_FOUND' } })
       const status = state === 'running' && finish ? 'succeeded' : state
       return route.fulfill({ json: { idempotency_key: message.idempotency_key, status, remaining: 2,
         receipt: status === 'succeeded' ? { result_ref: ref, count: 0 } : null } })
@@ -943,6 +944,10 @@ for (const state of ['succeeded', 'running', 'failed', 'expired-owner'] as const
     if (state === 'succeeded' || state === 'running') {
       await expect(page.getByRole('region', { name: 'Resultados confirmados', exact: true })).toBeVisible()
       await expect(page.getByText('Búsquedas disponibles hoy: 2')).toBeVisible()
+    } else if (state === 'not-yet-admitted') {
+      await expect(page.getByRole('button', { name: 'Reintentar sincronización' })).toBeEnabled()
+      await expect(page.getByRole('button', { name: 'Buscar habitaciones', exact: true })).toBeDisabled()
+      expect(await page.evaluate(() => JSON.stringify({ ...sessionStorage }))).toContain(String(message!.idempotency_key))
     } else {
       await expect(page.getByRole('button', { name: 'Comprobar el mismo intento' })).toHaveCount(0)
       expect(await page.evaluate(() => JSON.stringify({ ...sessionStorage }))).not.toContain(String(message!.idempotency_key))

@@ -118,7 +118,8 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
         setNotice(failedOperation ? 'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.' : '')
       } catch (error) {
         if (!controller.signal.aborted) {
-          if ((error instanceof ApiError && (error.status === 0 || error.status === 429 || error.status >= 500)) ||
+          if ((error instanceof ApiError && (error.status === 0 || error.status === 429 || error.status >= 500 ||
+            (saved.operation && error.status === 404 && error.message === 'OPERATION_NOT_FOUND'))) ||
             (saved.operation && !(error instanceof ApiError))) {
             setRestoreFailed(true)
             setNotice('No se pudo actualizar el diálogo. Conservamos tu búsqueda. Reintenta la sincronización.')
