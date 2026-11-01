@@ -25,6 +25,7 @@ const sessions = []
 async function client() {
   const ctx = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 950 } })
   contexts.push(ctx)
+  ctx.setDefaultTimeout(20000)
   return ctx
 }
 async function call(ctx, method, path, data, auth = {}) {
@@ -87,6 +88,7 @@ try {
   pass('guest three successful operations; fourth rejected without debit')
   // Actual login UI. Token is kept only in memory for authenticated HTTP checks.
   await page.goto(origin + '/#/acceso')
+  console.log('CHECK actual browser email login')
   await page.getByRole('button', { name: 'Iniciar sesión con email', exact: true }).click()
   await page.getByLabel('Email', { exact: true }).fill('acceptance-user@synthetic.example')
   await page.getByLabel('Contraseña', { exact: true }).fill('Synthetic-Lab-Only-2026!')
@@ -209,6 +211,9 @@ try {
 } catch (error) {
   report.status = 'FAIL'
   report.failure = { name: error.name, message: error.message.slice(0, 160) }
+  for (const ctx of contexts) for (const page of ctx.pages()) {
+    await page.screenshot({ path: fileURLToPath(new URL('failure.png', dir)), fullPage: true }).catch(() => {})
+  }
   throw error
 } finally {
   for (const sid of sessions) await labControl({ action: 'expire', session_id: sid }).catch(() => {})

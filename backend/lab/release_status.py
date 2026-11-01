@@ -5,7 +5,7 @@ parser, never a real provider account. Not a catalog capacity benchmark.
 """
 import asyncio
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy import func, select, text
@@ -33,9 +33,9 @@ async def snapshot():
             total = await conn.scalar(select(func.count()).select_from(source))
             fresh = await conn.scalar(select(func.count()).select_from(source).where(
                 source.current_status == "active", source.last_success_at <= now,
-                source.last_success_at >= now - text("interval '24 hours'")))
+                source.last_success_at >= now - timedelta(hours=24)))
             proofs = await conn.scalar(select(func.count()).select_from(AiProofAge).where(
-                AiProofAge.prepared_at <= now, AiProofAge.prepared_at >= now - text("interval '24 hours'")))
+                AiProofAge.prepared_at <= now, AiProofAge.prepared_at >= now - timedelta(hours=24)))
             base = visible_query()
             intent = SearchIntent(schema_version="ai-search.v1", taxonomy_version="rental.v1",
                                   session_id=uuid4(), version=0, criteria={})
