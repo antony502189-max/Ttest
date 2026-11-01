@@ -34,8 +34,12 @@ foreach ($name in @('pg', 'redis', 'tls', 'media', 'erasure')) {
 }
 foreach ($network in @('ttest-ai-text-lab-network', 'ttest-ai-text-lab-loopback')) {
     $raw = & docker network inspect $network 2>$null
-    if ($LASTEXITCODE -eq 0 -and ($raw | ConvertFrom-Json)[0].Labels.'es.ttest.purpose' -ne $purpose) {
-        throw "Foreign lab network: $network"
+    if ($LASTEXITCODE -eq 0) {
+        $item = ($raw | ConvertFrom-Json)[0]
+        if ($item.Labels.'es.ttest.purpose' -ne $purpose) { throw "Foreign lab network: $network" }
+        if ($network -eq 'ttest-ai-text-lab-network' -and -not $item.Internal) {
+            throw 'Synthetic backend network must be internal; refusing outbound connectivity.'
+        }
     }
 }
 $stateDir = Join-Path $root 'output/ai-text-lab'

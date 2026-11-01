@@ -158,4 +158,3 @@ class ClosedDeepSeekIntent(DecisionDeepSeekIntent):
         self.key, self.gate, self.policy = key, gate, POLICY
         self.transport = _BudgetTransport(httpx.AsyncHTTPTransport(retries=0, trust_env=False,
             limits=httpx.Limits(max_connections=1, max_keepalive_connections=0)), budget)
-

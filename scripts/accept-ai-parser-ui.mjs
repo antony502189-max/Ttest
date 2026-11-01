@@ -81,6 +81,9 @@ try {
     receipt = result.operation.receipt
     sid = (await (await response).request().postDataJSON()).session_id
     if (!sessions.includes(sid)) sessions.push(sid)
+    const exact = await json(await call(ctx, 'POST', 'ai-search/query', (await response).request().postDataJSON()))
+    assert.deepEqual(exact.operation.receipt, receipt)
+    await json(await call(ctx, 'POST', 'ai-search/query', { ...(await response).request().postDataJSON(), text: 'ничего не менять' }), 409)
     current = (await json(await call(ctx, 'GET', 'ai-search/sessions/' + sid))).intent
     assert.equal(current.criteria.pets.strength, 'hard')
     if (current.version >= 2) assert.equal(current.criteria.budget.strength, 'hard')
@@ -89,7 +92,7 @@ try {
   assert.equal(current.version, 3)
   assert.equal(current.criteria.balcony.strength, 'soft')
   const map = await json(await call(ctx, 'POST', 'ai-search/results/' + receipt.result_ref + '/map', {
-    search: { bounds: { west: -17, east: -16, south: 27, north: 29 }, zoom: 10 } }))
+    search: { west: -17, east: -16, south: 27, north: 29, zoom: 10 } }))
   assert.ok(map)
   assert.equal((await json(await call(ctx, 'GET', 'ai-search/quota'))).used, 3)
   await page.screenshot({ path: fileURLToPath(new URL('guest-cards.png', dir)), fullPage: true })
@@ -110,14 +113,25 @@ try {
   await page.waitForURL(origin + '/#/'); await openAI(page)
   await json(await call(ctx, 'GET', 'ai-search/sessions/' + sid, undefined, auth), 404)
   await labControl({ action: 'expire', session_id: sid })
-  let state = await owned(ctx, auth)
+  let state
+  await page.locator('#ai-rental-mode').selectOption('none')
   let lastAttempt = 0
   async function send(text, fault) {
     await sleep(Math.max(0, 11000 - (Date.now() - lastAttempt))); lastAttempt = Date.now()
     if (fault) await arm(state, fault)
-    const request = { ...body(state), text }
     const before = await json(await call(ctx, 'GET', 'ai-search/quota', undefined, auth))
-    const count = (await inspect(state)).calls
+    const count = state ? (await inspect(state)).calls : 0
+    if (!fault) {
+      await page.locator('#ai-search-text').fill(text)
+      const waiting = page.waitForResponse(r => r.url().endsWith('/ai-search/query'))
+      await action.click()
+      const response = await waiting
+      const request = response.request().postDataJSON()
+      if (!state) { state = { session_id: request.session_id, version: request.expected_version }; sessions.push(state.session_id) }
+      await page.getByRole('status').waitFor()
+      return { request, before, count, response }
+    }
+    const request = { ...body(state), text }
     const response = await call(ctx, 'POST', 'ai-search/query', request, auth)
     return { request, before, count, response }
   }
@@ -130,7 +144,7 @@ try {
     assert.equal(replay.operation.used, before.used)
     assert.equal((await inspect(state)).calls, count + 1)
     assert.equal((await json(await call(ctx, 'GET', 'ai-search/sessions/' + state.session_id, undefined, auth))).intent.version, 0)
-    pass(code + ': unchanged version, free terminal receipt, retry without model IO')
+    pass(code + ': actual UI fixed message, unchanged version, free terminal receipt, retry without model IO')
   }
   for (const fault of ['failure', 'cancel', 'timeout', 'commit-ack']) {
     const { request, before, count, response } = await send('обязательно с балконом', fault)

@@ -34,6 +34,32 @@ def active(monkeypatch):
     return value
 
 
+def test_dependency_cancellation_is_private_unavailable_not_generic_500(active, caplog):
+    active.sessions.create.side_effect = asyncio.CancelledError("PRIVATE_PROVIDER_CANARY")
+    with TestClient(app, base_url="https://testserver") as client:
+        response = client.post("/api/v1/ai-search/sessions", headers=HEADERS)
+    assert response.status_code == 503
+    assert response.json() == {"detail": "AI_SERVICE_UNAVAILABLE"}
+    assert response.headers["cache-control"] == "no-store"
+    assert "PRIVATE_PROVIDER_CANARY" not in caplog.text
+
+
+async def test_actual_http_task_cancellation_still_propagates(active, monkeypatch):
+    import app.api.v1.ai_search as boundary
+
+    async def cancelled(*args):
+        asyncio.current_task().cancel()
+        await asyncio.sleep(0)
+
+    monkeypatch.setattr(boundary, "bounded_handler", cancelled)
+    route = next(route for route in boundary.router.routes if route.path.endswith("/query"))
+    request = Request({"type": "http", "method": "POST", "path": "/api/v1/ai-search/query",
+                       "headers": [], "app": app})
+    task = asyncio.create_task(route.get_route_handler()(request))
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
 def test_operation_lookup_is_owned_read_only_and_does_not_require_a_live_session(active):
     key = uuid4()
     token, owner = active.guests.issue()

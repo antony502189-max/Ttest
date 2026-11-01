@@ -115,6 +115,16 @@ class PrivateAIRoute(APIRoute):
                     # infer again here; retry the exact operation to read PG.
                     return JSONResponse({"detail": "AI_REQUEST_TIMEOUT_RETRY_SAME_OPERATION"}, 504,
                                         headers={"Cache-Control": "no-store"})
+                except asyncio.CancelledError:
+                    # A dependency can raise CancelledError without cancelling
+                    # the HTTP task. Keep that private failure inside this route
+                    # rather than triggering middleware's generic 500/traceback.
+                    # Genuine task cancellation (disconnect/shutdown) propagates.
+                    task = asyncio.current_task()
+                    if task is not None and task.cancelling():
+                        raise
+                    return JSONResponse({"detail": "AI_SERVICE_UNAVAILABLE"}, 503,
+                                        headers={"Cache-Control": "no-store"})
                 except HTTPException as error:
                     error.headers = {**(error.headers or {}), "Cache-Control": "no-store"}
                     raise
