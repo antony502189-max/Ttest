@@ -3,13 +3,13 @@
 1 ноября 2026. Исходный пользовательский отчёт
 `PR_403_FULL_SECURITY_CODE_REVIEW_20261101.md` относится к
 `fbcb2fab9385b932edd15ee1e757ef7ca9515c4e`. SHA256 исходного файла сохранён в
-[attestation](ai-review-remediation-evidence/attestation.json). Его рекомендации
+[attestation](ai-review-remediation-final-evidence/attestation.json). Его рекомендации
 рассматривались как входные данные review; разрешения на merge, production,
 real-user outbound или большие capacity benchmarks не расширялись.
 
-Runtime исправленного UI: **fd4b7535068780c886046f8ac6a3d7c11b07d4d4**,
+Runtime исправленного UI: **331bbcc74be1eb6c19ef95b8b6c7804cedd73078**,
 `https://localhost:9443`, `decision-transport-fixture`, API mocks=false.
-После runtime менялись только driver selector/docs/evidence; app/migrations/src/
+После runtime менялись только docs/evidence; app/migrations/src/
 Compose/launcher hashes совпадают с итоговой веткой. Старые evidence не переписаны.
 
 ## Диспозиция всех пяти находок
@@ -47,7 +47,8 @@ receipt; session/version/count/ref/hash сверяются с metadata/cards. Me
 
 Исходный payload после reload отсутствует; он не восстанавливается из storage и
 не переотправляется. В той же вкладке прежний exact payload retry сохраняется.
-Concurrent refresh отменяется перед recovery; повторные status GET в React
+При истечении marker очищается также in-memory locator: новый запрос не может
+унаследовать прежний key. Concurrent refresh отменяется перед recovery; повторные status GET в React
 StrictMode безопасны и не имеют model/debit side effects.
 
 ## Migration rehearsal
@@ -57,7 +58,7 @@ backend/app и migrations совпадают с runtime выше. Новая dis
 `ai_quota_test_migration_6db6effea812` в разрешённом loopback PostGIS55479,
 сохранена. Application/lab DB, старые restore DB и volumes не очищались.
 
-[Шесть checks PASS](ai-review-remediation-evidence/migration.json):
+[Шесть checks PASS](ai-review-remediation-final-evidence/migration.json):
 
 - Полная цепочка до0076, 250 synthetic listings, writer держит RowExclusive.
   Upgrade0077 с lock300ms завершается именно lock timeout; revision остаётся0076,
@@ -83,17 +84,17 @@ Released migration files0077–0079 не менялись; governance tests пр
 | Набор | Результат |
 | --- | --- |
 | Полный backend unit |1683 passed /16 skipped /1041 deselected |
-| Полный Home AI browser contracts, настоящий Chrome |55 passed; API mocked |
-| Дополнительный targeted recovery/privacy |12 passed; пересекается с55 |
+| Полный Home AI browser contracts, настоящий Chrome |56 passed; API mocked |
+| Дополнительный targeted recovery/privacy |12 passed; пересекается с56 |
 | Настоящий HTTPS/UI/backend/PG/Redis |15 passed, только model transport fixtures и network response loss |
 | Bounded populated migration/locks/reprepare/old-source |6 passed |
 | Migration timeout/governance unit |11 passed, пересекается с backend unit |
 | Mypy / Ruff |172 app files success / app+tests+новый lab driver PASS |
 | TypeScript/Vite immutable build, syntax, diff |PASS |
 
-Числа не суммировать. [Browser/HTTP](ai-review-remediation-evidence/browser.json),
-[validation](ai-review-remediation-evidence/validation.json),
-[снимок recovery](ai-review-remediation-evidence/auth-recovery.png).
+Числа не суммировать. [Browser/HTTP](ai-review-remediation-final-evidence/browser.json),
+[validation](ai-review-remediation-final-evidence/validation.json),
+[снимок recovery](ai-review-remediation-final-evidence/auth-recovery.png).
 CI точного опубликованного HEAD отслеживается отдельно в PR; локальные результаты
 не объявляют pending CI успешным. Непрошедшие начальные driver artifacts сохранены
 в локальном output, не подменяют успешный итог.

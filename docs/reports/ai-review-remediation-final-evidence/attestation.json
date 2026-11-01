@@ -1,0 +1,17 @@
+{
+  "review_source": "fbcb2fab9385b932edd15ee1e757ef7ca9515c4e",
+  "review_document_sha256": "7870bccc53ee5a748c4d546b3ba92733f0a25b4235c122d3cba412dca02d4b67",
+  "runtime_source": "331bbcc74be1eb6c19ef95b8b6c7804cedd73078",
+  "runtime_inputs": {
+    "backend": "ad4ee2aa1dcfa6f7fb9830d484b4f5a07a96e411",
+    "backend/app": "17ec07de61154642c40383fc66336eaa67d47403",
+    "backend/alembic": "5e109f913041e6bf79f4d01367ba3c77dff5a626",
+    "src": "9d8d75aa729f139456db964a67ae90768caa4b75",
+    "deploy/ai-text-lab": "31063f98f2574b82800d7dc213d4b04883dc98c8",
+    "scripts/ai-text-lab.ps1": "34d2785d79e6b12966bbc714be02948c008990ac"
+  },
+  "browser_driver_sha256": "971a848bac01824ccc8067df3a2854f0b57aaa0c592f62f640e377b1d9441bc7",
+  "migration_driver_sha256": "bf5bda8190e9a5d2441e87c24b0d9d0ccdd3413a9cc0c02ecaa7d1a6cbf959c4",
+  "external_provider_calls": 0,
+  "production_sized_rehearsal": false
+}
