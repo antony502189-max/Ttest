@@ -15,6 +15,10 @@ x-backend: &backend
     APP_ENV: test
     AI_SYNTHETIC_LAB: ttest-ai-text-lab.synthetic.v1
     DATABASE_URL: postgresql+asyncpg://ai_lab:synthetic-local-only@postgres:5432/ai_text_lab
+    AI_MAINTENANCE_DATABASE_URL: postgresql+asyncpg://ai_lab:synthetic-local-only@postgres:5432/ai_text_lab
+    AI_ERASURE_JOURNAL_PATH: /lab-journal/events.sqlite
+    # Synthetic lab key only; never reuse for real users or backups.
+    AI_ERASURE_JOURNAL_KEY: c3ludGhldGljLWxhYi1vbmx5LWtleS0wMDAwMDAwMDA=
     REDIS_URL: redis://redis:6379/0
     JWT_SECRET: synthetic-lab-auth-independent-key-only-v1
     FRONTEND_APP_URL: https://localhost:9443
@@ -37,6 +41,7 @@ x-backend: &backend
   volumes:
     - media:/app/var/lab-media
     - tls:/lab-tls
+    - erasure:/lab-journal
 services:
   postgres:
     image: mirror.gcr.io/postgis/postgis:16-3.4
@@ -91,6 +96,13 @@ services:
     volumes: ["tls:/lab-tls:ro"]
     networks: [lab, edge]
     depends_on: [backend]
+  maintenance:
+    <<: *backend
+    container_name: ttest-ai-text-lab-maintenance
+    command: ["python", "-m", "app.commands.maintain_ai_search", "--loop"]
+    restart: unless-stopped
+    depends_on:
+      backend: { condition: service_healthy }
 networks:
   edge:
     name: ttest-ai-text-lab-loopback
@@ -110,4 +122,7 @@ volumes:
     external: true
   media:
     name: ttest-ai-text-lab-media-v1
+    external: true
+  erasure:
+    name: ttest-ai-text-lab-erasure-v1
     external: true

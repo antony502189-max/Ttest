@@ -52,6 +52,12 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
   restoreTranslate.current = t
 
   useEffect(() => {
+    if (!text || pending) return
+    const timer = window.setTimeout(() => setText(''), 15 * 60 * 1000)
+    return () => window.clearTimeout(timer)
+  }, [text, pending])
+
+  useEffect(() => {
     const saved = readAIContinuation(identity)
     if (!saved) { lock.current = false; setRestoring(false); return }
     const controller = new AbortController()
@@ -271,7 +277,21 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
           staleResults()
         }
       } else {
-        setNotice(answer.operation.failure_code === 'SESSION_VERSION_CONFLICT'
+        const questions: Record<string, string> = {
+          budget_period: '¿El presupuesto es por noche, semana o mes?',
+          rental_mode: '¿Buscas alquiler vacacional o de larga duración?',
+          balcony_requirement: '¿Necesitas un balcón privado o también sirve una terraza compartida?',
+          location: '¿En qué localidad o zona quieres buscar?',
+          dates: '¿Qué fechas necesitas?',
+          unsupported: 'Reformula la petición con ubicación, presupuesto y requisitos de la vivienda.',
+        }
+        const code = answer.operation.failure_code
+        setNotice(answer.clarification ? questions[answer.clarification]
+          : code === 'INTENT_CLARIFICATION_REQUIRED' ? 'Aclara la ubicación, el presupuesto o los requisitos antes de continuar.'
+          : code === 'INTENT_NO_CHANGE' ? 'La petición no cambia los criterios. Añade un requisito nuevo.'
+          : code === 'INTENT_UNSUPPORTED' ? questions.unsupported
+          : code === 'SOURCE_COVERAGE_UNAVAILABLE' ? 'No hay fuentes verificadas recientes disponibles. Prueba la búsqueda con filtros.'
+          : code === 'SESSION_VERSION_CONFLICT'
           ? 'La búsqueda cambió. Revisa tu texto antes de enviarlo de nuevo.'
           : 'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.')
       }
@@ -372,6 +392,7 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
       <div role="status" aria-live="polite">{notice ? t(notice) : null}</div>
       {remaining !== null ? <small>{t('Búsquedas disponibles hoy')}: {remaining}</small> : null}
       {result ? <section aria-label={t('Resultados confirmados')} aria-busy={busy}>
+        <p>{t('Solo mostramos opciones con datos verificados recientes. Puede haber fuentes sin verificar; los resultados no cubren todo el mercado.')}</p>
         <AIConditions intent={result.committed.intent} title="Condiciones de estos resultados" />
         {!resultInvalid ? <>
         <h3>{result.page.total} {t('opciones con condiciones confirmadas')}</h3>

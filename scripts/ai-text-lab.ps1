@@ -15,7 +15,7 @@ function Invoke-Checked([string]$Program, [string[]]$Arguments) {
 }
 $purpose = 'ai-text-synthetic-lab-v1'
 # Check ownership BEFORE any Compose mutation, including volume initialization.
-foreach ($name in @('postgres', 'redis', 'backend', 'frontend')) {
+foreach ($name in @('postgres', 'redis', 'backend', 'frontend', 'maintenance')) {
     $full = "ttest-ai-text-lab-$name"
     $raw = & docker container inspect $full 2>$null
     if ($LASTEXITCODE -eq 0) {
@@ -23,7 +23,7 @@ foreach ($name in @('postgres', 'redis', 'backend', 'frontend')) {
         if ($item.Config.Labels.'es.ttest.purpose' -ne $purpose) { throw "Foreign container: $full" }
     }
 }
-foreach ($name in @('pg', 'redis', 'tls', 'media')) {
+foreach ($name in @('pg', 'redis', 'tls', 'media', 'erasure')) {
     $version = if ($name -eq 'pg') { 'v2' } else { 'v1' }
     $full = "ttest-ai-text-lab-$name-$version"
     $raw = & docker volume inspect $full 2>$null
@@ -81,7 +81,7 @@ switch ($Action) {
         Invoke-Checked docker ($compose + @('build'))
         # Stable labels: Compose must never recreate persistent synthetic data
         # because a source SHA changed. The launcher owns their lifecycle.
-        foreach ($name in @('pg', 'redis', 'tls', 'media')) {
+        foreach ($name in @('pg', 'redis', 'tls', 'media', 'erasure')) {
             $version = if ($name -eq 'pg') { 'v2' } else { 'v1' }
             $volume = "ttest-ai-text-lab-$name-$version"
             & docker volume inspect $volume *> $null
@@ -99,11 +99,12 @@ switch ($Action) {
         }
         Invoke-Checked docker ($compose + @('up', '-d', '--wait', '--wait-timeout', '60', 'postgres', 'redis'))
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', '--user', 'root', 'backend', 'python', '-c',
-            "import os,pwd; u=pwd.getpwnam('app'); os.chown('/app/var/lab-media',u.pw_uid,u.pw_gid)"))
+            "import os,pwd; u=pwd.getpwnam('app'); [os.chown(p,u.pw_uid,u.pw_gid) for p in ('/app/var/lab-media','/lab-journal')]"))
+        Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'python', '-m', 'app.commands.ai_erasure_journal', 'initialize'))
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'python', '-m', 'lab.certificate'))
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'alembic', 'upgrade', 'head'))
         Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'python', '-m', 'lab.seed_ai_text'))
-        Invoke-Checked docker ($compose + @('up', '-d', '--wait', '--wait-timeout', '60', 'backend', 'frontend'))
+        Invoke-Checked docker ($compose + @('up', '-d', '--wait', '--wait-timeout', '60', 'backend', 'frontend', 'maintenance'))
         Write-Output "Synthetic lab: https://localhost:9443 ; source $($state.source)"
     }
     'seed' { Invoke-Checked docker ($compose + @('run', '--rm', '--no-deps', 'backend', 'python', '-m', 'lab.seed_ai_text')) }

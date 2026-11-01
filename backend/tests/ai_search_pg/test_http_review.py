@@ -172,7 +172,7 @@ async def test_lost_ack_expired_success_returns_durable_receipt_without_cards(st
             assert answer["cards"] is None and answer["cards_error"] == "RESULT_EXPIRED_REQUERY_REQUIRED"
             assert await usage(pg, owner) == (1, 0)
         assert parser.calls == query.calls == 1
-        assert gate.calls == 5  # four HTTP requests plus one inference attempt
+        assert gate.calls == 9  # Four IP + four owned-subject gates, one inference attempt.
         async with pg[1]() as conn:
             assert await conn.scalar(select(func.count()).select_from(AISearchRequest)) == 1
         ref = answer["operation"]["receipt"]["result_ref"]

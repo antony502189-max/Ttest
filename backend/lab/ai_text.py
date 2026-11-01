@@ -39,10 +39,13 @@ def pipeline(factory):
     from app.repositories.ai_fact_pipeline import FactPipeline
     from app.schemas.ai_fact_pipeline import FactQueuePolicy
     from app.schemas.ai_listing_facts import FactVocabulary
+    from app.services.ai_fact_quality import FactQualityPolicy
     vocabulary = FactVocabulary(amenity_codes=frozenset(), catalog_other_codes=frozenset(),
                                 tenant_group_codes=frozenset(), municipality_zones=frozenset())
     return FactPipeline(factory, FactQueuePolicy(lease_seconds=60, max_attempts=2, retry_delay_seconds=1),
-                        vocabulary, resolver_version="synthetic-lab.v1")
+                        vocabulary, resolver_version="synthetic-lab.v1",
+                        operating_policy=FactQualityPolicy(price_max_age_seconds=86400,
+                            policy_max_age_seconds=86400, evidence_retention_seconds=604800))
 
 
 class SyntheticParser:
@@ -105,15 +108,15 @@ def create_app():
     from app.schemas.ai_search_quota import LeasePolicy
     from app.services.ai_guest_tokens import GuestPolicy, GuestTokens
     from app.services.ai_http_policy import AIHTTPPolicy
-    from app.services.ai_search_attempts import AIAttemptGate
+    from app.services.ai_operating_limits import OperatingAttemptGate, OperatingHTTPGate
     from app.services.ai_search_execution import TextSearchExecution
     from app.services.rate_limit import RedisRateLimiter
 
     limiter = RedisRateLimiter(REDIS)
     ledger = QuotaLedger(SessionLocal, LeasePolicy(
         reservation_seconds=60, running_seconds=60, recovery_grace_seconds=30))
-    sessions = SearchSessions(ledger, SessionPolicy(inactivity_seconds=3600),
-                              IntentVocabulary(frozenset(), frozenset(), frozenset()))
+    sessions = SearchSessions(ledger, SessionPolicy(inactivity_seconds=86400),
+                              IntentVocabulary(frozenset(), frozenset(), frozenset()), require_auth_owner=True)
     cards = VerifiedCardSearch(pipeline(SessionLocal), sessions,
                                signing_key=b"synthetic-lab-cursor-independent-key-v1")
     from redis.asyncio import from_url
@@ -121,17 +124,25 @@ def create_app():
     from lab.acceptance import ObservedParser
     parser_redis = from_url(REDIS, decode_responses=True)
     execution = TextSearchExecution(sessions, ObservedParser(SyntheticParser(), parser_redis),
-                                   AIAttemptGate(limiter, attempts=12, window_seconds=60), cards)
+                                   OperatingAttemptGate(limiter), cards)
     active = AISearchRuntime(sessions, cards, execution,
-        GuestTokens(key=b"synthetic-lab-guest-independent-key-v1", policy=GuestPolicy(ttl_seconds=3600)),
-        DistributedHTTPGate(limiter), frozenset({ORIGIN}), 32768,
-        AIHTTPPolicy(20, 5, (), ORIGIN))
+        GuestTokens(key=b"synthetic-lab-guest-independent-key-v1", policy=GuestPolicy(ttl_seconds=604800)),
+        OperatingHTTPGate(limiter), frozenset({ORIGIN}), 32768,
+        AIHTTPPolicy(20, 3, (), ORIGIN))
     original_lifespan = app.router.lifespan_context
 
     @asynccontextmanager
     async def lifespan(application):
         await verify_database(SessionLocal)
         await limiter.ping()
+        from app.services.ai_erasure_journal import bind_journal, configured_journal, replay_erasure
+        journal = configured_journal()
+        if journal is None:
+            raise RuntimeError("AI_ERASURE_JOURNAL_REQUIRED")
+        # Only this explicitly marked synthetic lab may establish the initial
+        # DB binding. A replacement journal never matches an existing binding.
+        await bind_journal(SessionLocal, journal, initialize=True)
+        await replay_erasure(SessionLocal, journal)
         async with original_lifespan(application):
             application.state.ai_search_runtime = active
             try:

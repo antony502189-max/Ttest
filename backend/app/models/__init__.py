@@ -447,6 +447,7 @@ class SearchHistory(Base):
 from .advertising_waitlist import AdvertisingWaitlist  # noqa: F401
 from .ai_fact_pipeline import AiFactCatalog, AiFactJob, AiFactPopulation, AiFactRematchEvent, AiFactSource  # noqa: F401
 from .ai_listing_facts import AiListingFact, AiListingFactBatch, AiListingSearchFeatures  # noqa: F401
+from .ai_operating_policy import AiErasureBinding, AiProofAge  # noqa: F401
 from .ai_query_proof import (  # noqa: F401
     AiLiveInputEpoch,
     AiLiveInputVersion,

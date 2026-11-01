@@ -25,7 +25,6 @@ async def seed():
     from app.core.security import hash_password
     from app.db.session import SessionLocal, engine
     from app.models import ExternalListingSource, Listing, User
-    from app.models.ai_fact_pipeline import AiFactJob
     from app.models.ai_query_proof import AiQueryProof
     from app.repositories.ai_query_proofs import QueryProofs
     from app.repositories.listings import point
@@ -42,12 +41,14 @@ async def seed():
             actual = set(await connection.scalars(select(Listing.id)))
             base_ids = {identifier(name) for name, _, _ in CASES}
             extra_ids = {acceptance_id(name) for name, *_ in ACCEPTANCE_CASES}
-            jobs = await connection.scalar(select(func.count()).select_from(AiFactJob).where(
-                AiFactJob.status == "succeeded", AiFactJob.canonical_listing_id.in_(base_ids)))
             proofs = set(await connection.scalars(select(AiQueryProof.canonical_listing_id)))
-            if (actual not in (base_ids, base_ids | extra_ids) or jobs != 7 or
-                    not base_ids <= proofs or not proofs <= base_ids | extra_ids):
+            if actual not in (base_ids, base_ids | extra_ids) or not proofs <= base_ids | extra_ids:
                 raise RuntimeError("incomplete or unexpected synthetic catalogue; refusing to overwrite")
+            # Retention may remove disposable proofs and ineligible AI copies.
+            # Prepare only against current authority; never restore evidence,
+            # mutate fixture listings or pretend to have rechecked a source.
+            for listing_id in sorted(actual):
+                await QueryProofs(service).prepare(listing_id)
             print(json.dumps({"status": "already-seeded", "ids": {n: str(identifier(n)) for n, _, _ in CASES}}))
             await engine.dispose()
             return

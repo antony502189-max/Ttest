@@ -26,6 +26,9 @@ from ..models import (
 from ..models.ai_saved_search import AiSavedSearch, AiSavedSearchCommand
 from ..models.commercial_advertisement import CommercialAdvertisement
 from ..models.moderation import ModerationNotice
+from ..repositories.ai_subject_state import erase_account as erase_ai_account
+from ..repositories.ai_subject_state import lock_subject as lock_ai_subject
+from ..schemas.ai_search_quota import QuotaSubject
 from ..schemas.auth import AvatarUpdateRequest, UserUpdateRequest
 from .catalog import touch_catalog
 from .media_lifecycle import lock_media_assets, lock_media_owner
@@ -133,6 +136,7 @@ async def delete_account(user: User, session: AsyncSession) -> None:
     await lock_collection(DiscardedListing, user.id, session)
     await lock_saved_searches(user.id, session)
     await lock_search_history(user.id, session)
+    await lock_ai_subject(session, QuotaSubject(kind="auth", id=user.id))
 
     locked_user = await session.scalar(
         select(User)
@@ -180,6 +184,7 @@ async def delete_account(user: User, session: AsyncSession) -> None:
     await session.execute(delete(AiSavedSearchCommand).where(AiSavedSearchCommand.user_id == locked_user.id))
     await session.execute(delete(AiSavedSearch).where(AiSavedSearch.user_id == locked_user.id))
     await session.execute(delete(SearchHistory).where(SearchHistory.user_id == locked_user.id))
+    await erase_ai_account(session, locked_user.id)
     await session.execute(
         delete(MessageThread).where(
             (MessageThread.tenant_id == locked_user.id)

@@ -150,7 +150,21 @@ class QuotaLedger:
         if request.request_hash != operation.fingerprint():
             raise QuotaError("IDEMPOTENCY_CONFLICT")
 
-    async def reserve(self, subject: QuotaSubject, operation: QuotaOperation) -> Reservation:
+    async def operation_status(self, subject: QuotaSubject, key: UUID) -> OperationState:
+        """Owned read-only receipt, independent of editable session lifetime.
+
+        Never claims, recovers, renews leases, calls providers or creates rows.
+        """
+        async with self.sessions() as session, session.begin():
+            await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+            request = await self._request(session, subject, key)
+            if request is None:
+                raise QuotaError("OPERATION_NOT_FOUND")
+            return await self._state(session, request)
+
+    async def reserve(self, subject: QuotaSubject, operation: QuotaOperation, *,
+                      admit: Callable[[AsyncSession], Awaitable[None]] | None = None,
+                      serialize: Callable[[AsyncSession], Awaitable[None]] | None = None) -> Reservation:
         async with self.sessions.begin() as session:
             existing = await self._request(session, subject, operation.idempotency_key)
             if existing is not None:
@@ -159,6 +173,8 @@ class QuotaLedger:
                     action="replay" if existing.status in {"succeeded", "failed"} else "inflight",
                     operation=await self._state(session, existing),
                 )
+            if serialize is not None:
+                await serialize(session)
             day, reset = await madrid_window(session)
             await session.execute(
                 insert(AIUsageDay)
@@ -181,6 +197,8 @@ class QuotaLedger:
             # Recheck after day lock: same-key final-slot race must replay.
             existing = await self._request(session, subject, operation.idempotency_key)
             if existing is None:
+                if admit is not None:
+                    await admit(session)
                 if usage.used + usage.reserved >= usage.quota_limit:
                     raise QuotaError("QUOTA_EXHAUSTED", max(1, math.ceil((reset - await _now(session)).total_seconds())))
                 now = await _now(session)
@@ -337,7 +355,7 @@ class QuotaLedger:
         self, subject: QuotaSubject, operation: QuotaOperation, fence: int, failure: FailureCode
     ) -> OperationState:
         if not isinstance(failure, FailureCode):
-            raise TypeError("explicit failure code required; clarification policy is unresolved")
+            raise TypeError("explicit terminal reason code required")
         async with self.sessions.begin() as session:
             usage, request = await self._locked(session, subject, operation.idempotency_key)
             self._check_hash(request, operation)
@@ -383,6 +401,8 @@ class QuotaLedger:
             try:
                 recovered.append(await self.recover(subject, key))
             except QuotaError as error:
-                if error.code != "RECOVERY_NOT_DUE":
+                # Explicit account erasure may remove a selected operation
+                # before its turn. That is not a failed maintenance cycle.
+                if error.code not in {"RECOVERY_NOT_DUE", "OPERATION_NOT_FOUND"}:
                     raise
         return recovered

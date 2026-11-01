@@ -1,5 +1,6 @@
 """AI-08: normalized PG sessions and the real AI-07 finalize callback."""
 
+import asyncio
 import hashlib
 import json
 import math
@@ -8,11 +9,13 @@ from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
 from pydantic import Field
-from sqlalchemy import delete, func, or_, select, text, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..models import User
 from ..models.ai_search_quota import AISearchRequest
 from ..models.ai_search_session import AISearchResult, AISearchSession, AISessionCommand
+from ..schemas.ai_clarification import REASONS
 from ..schemas.ai_search_intent import Criteria, Criterion, IntentPatch, SearchIntent, SessionCreate, apply_patch
 from ..schemas.ai_search_quota import (
     FailureCode,
@@ -23,6 +26,7 @@ from ..schemas.ai_search_quota import (
     StrictContract,
 )
 from .ai_search_quota import QuotaLedger, SessionCommit, SessionCommitRejected, SessionVersionConflict, _now
+from .ai_subject_state import lock_subject
 
 
 class SessionError(Exception):
@@ -33,8 +37,9 @@ class SessionError(Exception):
 
 
 class SessionPolicy(StrictContract):
-    # Explicit engineering configuration, not a 24h or retention product default.
     inactivity_seconds: int = Field(ge=1, le=2_592_000)
+    # The absolute limit also applies to rows created by older binaries.
+    absolute_seconds: int = Field(default=604_800, ge=1, le=604_800)
 
 
 class SessionSnapshot(StrictContract):
@@ -75,8 +80,22 @@ def intent_hash(intent: SearchIntent) -> str:
 
 
 class SearchSessions:
-    def __init__(self, ledger: QuotaLedger, policy: SessionPolicy, vocabulary: IntentVocabulary):
+    def __init__(self, ledger: QuotaLedger, policy: SessionPolicy, vocabulary: IntentVocabulary, *, require_auth_owner: bool = False):
         self.ledger, self.policy, self.vocabulary = ledger, policy, vocabulary
+        self.require_auth_owner = require_auth_owner
+
+    async def lock_subject(self, conn: AsyncSession, subject: QuotaSubject) -> None:
+        await lock_subject(conn, subject)
+        if subject.kind == "auth":
+            from ..services.ai_erasure_journal import configured_journal
+            journal = configured_journal()
+            if journal is not None and await asyncio.to_thread(journal.revoked, subject.id):
+                raise SessionError("SESSION_NOT_FOUND")
+        if self.require_auth_owner and subject.kind == "auth":
+            exists = await conn.scalar(select(User.id).where(User.id == subject.id,
+                User.deleted_at.is_(None), User.blocked.is_(False)))
+            if exists is None:
+                raise SessionError("SESSION_NOT_FOUND")
 
     @staticmethod
     def _owned(subject: QuotaSubject, session_id: UUID):
@@ -104,6 +123,24 @@ class SearchSessions:
         except (ValueError, TypeError) as error:
             raise SessionError("SESSION_STATE_INVALID") from error
 
+    def expiry(self, row: AISearchSession) -> datetime:
+        return min(row.expires_at, row.created_at + timedelta(seconds=self.policy.absolute_seconds))
+
+    async def admit_operation(self, conn: AsyncSession, subject: QuotaSubject, operation: QuotaOperation) -> None:
+        """New operations only; existing keys must replay even after expiry/GC.
+
+        The row lock serializes admission with retention, so removing an old
+        receipt cannot turn an expired session into another inference/debit.
+        """
+        row, _ = await self._read(conn, subject, operation.session_id, lock=True)
+        if row.version != operation.expected_session_version:
+            raise SessionError("SESSION_VERSION_CONFLICT")
+        if operation.clarification_key is not None:
+            question = await self.ledger._request(conn, subject, operation.clarification_key)
+            if (question is None or question.status != "failed" or question.failure_code not in REASONS
+                    or question.session_id != row.id or question.expected_session_version != row.version):
+                raise SessionError("SESSION_STATE_INVALID")
+
     async def _read(
         self,
         conn: AsyncSession,
@@ -120,7 +157,7 @@ class SearchSessions:
         if row is None:
             raise SessionError("SESSION_NOT_FOUND")
         # Clock after lock acquisition, never before a potentially long wait.
-        if not allow_expired and (row.closed_at is not None or row.expires_at <= await _now(conn)):
+        if not allow_expired and (row.closed_at is not None or self.expiry(row) <= await _now(conn)):
             raise SessionError("SESSION_EXPIRED")
         return row, self._decode(row)
 
@@ -133,13 +170,14 @@ class SearchSessions:
         )
         if max_active is not None and (type(max_active) is not int or max_active < 1):
             raise ValueError("explicit positive active session bound required")
-        await conn.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
-                           {"key": f"ai-session-create:{subject.kind}:{subject.id}"})
+        await self.lock_subject(conn, subject)
         now = await _now(conn)
         if max_active is not None:
-            active = select(func.count(), func.min(AISearchSession.expires_at)).where(
+            active = select(func.count(), func.min(func.least(AISearchSession.expires_at,
+                AISearchSession.created_at + timedelta(seconds=self.policy.absolute_seconds)))).where(
                 AISearchSession.subject_kind == subject.kind, AISearchSession.subject_id == subject.id,
-                AISearchSession.closed_at.is_(None), AISearchSession.expires_at > now)
+                AISearchSession.closed_at.is_(None), AISearchSession.expires_at > now,
+                AISearchSession.created_at > now - timedelta(seconds=self.policy.absolute_seconds))
             count, earliest = (await conn.execute(active)).one()
             if count >= max_active:
                 raise SessionError("SESSION_LIMIT", max(1, math.ceil((earliest - now).total_seconds())))
@@ -150,7 +188,7 @@ class SearchSessions:
             version=0,
             criteria=criteria,
         )
-        expiry = now + timedelta(seconds=self.policy.inactivity_seconds)
+        expiry = now + timedelta(seconds=min(self.policy.inactivity_seconds, self.policy.absolute_seconds))
         conn.add(
             AISearchSession(
                 id=intent.session_id,
@@ -173,8 +211,7 @@ class SearchSessions:
                        expected_version: int | None = None, seed_mode: str | None = None) -> SessionSnapshot | None:
         # One lock order for create/reset, including legacy callers. Serialize
         # before reading either command or source row to avoid cap/lock races.
-        await conn.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
-                           {"key": f"ai-session-create:{subject.kind}:{subject.id}"})
+        await self.lock_subject(conn, subject)
         if key is None:
             return None
         if not isinstance(key, UUID):
@@ -185,7 +222,7 @@ class SearchSessions:
         if (command.action, command.source_id, command.expected_version, command.seed_mode) != (action, source_id, expected_version, seed_mode):
             raise SessionError("SESSION_COMMAND_CONFLICT")
         row, intent = await self._read(conn, subject, command.result_id)
-        return SessionSnapshot(intent=intent, expires_at=row.expires_at)
+        return SessionSnapshot(intent=intent, expires_at=self.expiry(row))
 
     @staticmethod
     def _remember(conn: AsyncSession, subject: QuotaSubject, key: UUID | None,
@@ -210,7 +247,7 @@ class SearchSessions:
     async def get(self, subject: QuotaSubject, session_id: UUID) -> SessionSnapshot:
         async with self.ledger.sessions() as conn:
             row, intent = await self._read(conn, subject, session_id)
-            return SessionSnapshot(intent=intent, expires_at=row.expires_at)
+            return SessionSnapshot(intent=intent, expires_at=self.expiry(row))
 
     async def reset(self, subject: QuotaSubject, session_id: UUID, expected_version: int, *, seed: SessionCreate | None = None, max_active: int | None = None,
                     idempotency_key: UUID | None = None) -> SessionSnapshot:
@@ -218,6 +255,7 @@ class SearchSessions:
         if type(expected_version) is not int or not 0 <= expected_version <= 2_147_483_647:
             raise ValueError("a bounded expected version is required")
         async with self.ledger.sessions.begin() as conn:
+            await self.lock_subject(conn, subject)
             seed = SessionCreate() if seed is None else SessionCreate.model_validate(seed.model_dump())
             replay = await self._command(conn, subject, idempotency_key, "reset", session_id, expected_version, seed.rental_mode)
             if replay is not None:
@@ -232,6 +270,17 @@ class SearchSessions:
             snapshot = await self._create(conn, subject, seed, max_active=max_active)
             self._remember(conn, subject, idempotency_key, snapshot, "reset", session_id, expected_version, seed.rental_mode)
             return snapshot
+
+    async def close(self, subject: QuotaSubject, session_id: UUID, expected_version: int) -> None:
+        if type(expected_version) is not int or not 0 <= expected_version <= 2_147_483_647:
+            raise ValueError("bounded expected version required")
+        async with self.ledger.sessions.begin() as conn:
+            await self.lock_subject(conn, subject)
+            row, _ = await self._read(conn, subject, session_id, lock=True, allow_expired=True)
+            if row.version != expected_version:
+                raise SessionError("SESSION_VERSION_CONFLICT")
+            if row.closed_at is None:
+                row.closed_at = row.expires_at = row.updated_at = await _now(conn)
 
     async def cleanup_unused(self, *, older_than: datetime, limit: int) -> int:
         """Explicit offline retention cutoff only; no worker or default policy.
@@ -295,7 +344,8 @@ class SearchSessions:
                     version=candidate.version,
                     criteria=candidate.criteria.model_dump(mode="json", exclude_none=True),
                     updated_at=now,
-                    expires_at=now + timedelta(seconds=self.policy.inactivity_seconds),
+                    expires_at=min(now + timedelta(seconds=self.policy.inactivity_seconds),
+                                   row.created_at + timedelta(seconds=self.policy.absolute_seconds)),
                 )
                 .returning(AISearchSession.id)
             )

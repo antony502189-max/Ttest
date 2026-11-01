@@ -4,6 +4,7 @@ No public activation, default freshness TTL, provider, crawl or backfill. This
 proof establishes equality with explicitly verified stored source state, not
 source-health freshness by elapsed time or complete listing eligibility.
 """
+from datetime import timedelta
 from decimal import Decimal
 from uuid import UUID
 
@@ -15,6 +16,7 @@ from sqlalchemy.sql.elements import ColumnElement
 from ..models import ExternalListingSource, Listing
 from ..models.ai_fact_pipeline import AiFactCatalog, AiFactSource
 from ..models.ai_listing_facts import AiListingFact, AiListingFactBatch, AiListingSearchFeatures
+from ..models.ai_operating_policy import AiProofAge
 from ..models.ai_query_proof import (
     AiLiveInputEpoch,
     AiLiveInputVersion,
@@ -29,6 +31,15 @@ from .ai_fact_pipeline import FactPipeline
 from .ai_hard_matching import hard_match_predicate
 
 PROOF_CONTRACT_VERSION = "query-proof.v2"
+
+
+def proof_age_predicate(listing_id):
+    return select(1).select_from(AiProofAge).join(AiQueryProof,
+        AiQueryProof.canonical_listing_id == AiProofAge.canonical_listing_id).where(
+            AiProofAge.canonical_listing_id == listing_id, AiProofAge.signature == AiQueryProof.signature,
+            AiProofAge.prepared_at <= func.statement_timestamp(),
+            AiProofAge.prepared_at > func.statement_timestamp() - timedelta(hours=24),
+        ).correlate_except(AiProofAge, AiQueryProof).exists()
 
 
 def _hash(value):
@@ -323,4 +334,9 @@ class QueryProofs:
                 .values(input_status="current").returning(AiQueryProof.input_status))
             if status != "current":
                 raise RuntimeError("prepared proof binding rejected")
+            if self.pipeline.operating_policy is not None:
+                await session.execute(insert(AiProofAge).values(canonical_listing_id=listing_id,
+                    signature=signature, prepared_at=func.clock_timestamp()).on_conflict_do_update(
+                    index_elements=[AiProofAge.canonical_listing_id], set_={
+                        "signature": signature, "prepared_at": func.clock_timestamp()}))
             return True

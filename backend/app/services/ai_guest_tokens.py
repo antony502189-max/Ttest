@@ -21,10 +21,15 @@ class GuestPolicy(StrictContract):
 
 
 class GuestTokens:
-    def __init__(self, *, key: bytes, policy: GuestPolicy):
+    def __init__(self, *, key: bytes, policy: GuestPolicy, previous_keys: tuple[bytes, ...] = ()):
         if type(key) is not bytes or len(key) < 32:
             raise ValueError("explicit independent guest signing key required")
+        if (type(previous_keys) is not tuple or len(previous_keys) > 2
+                or any(type(old) is not bytes or len(old) < 32 for old in previous_keys)
+                or len({key, *previous_keys}) != len(previous_keys) + 1):
+            raise ValueError("at most two distinct previous guest verification keys required")
         self.key, self.policy = key, GuestPolicy.model_validate(policy.model_dump())
+        self.verification_keys = (key, *previous_keys)
 
     def issue(self, *, now: int | None = None) -> tuple[str, QuotaSubject]:
         instant = int(time.time()) if now is None else now
@@ -40,7 +45,8 @@ class GuestTokens:
                 raise ValueError("bound")
             encoded, signature = token.split(".")
             body = base64.b64decode(encoded + "=" * (-len(encoded) % 4), altchars=b"-_", validate=True)
-            if not hmac.compare_digest(signature, hmac.new(self.key, body, hashlib.sha256).hexdigest()):
+            if not any(hmac.compare_digest(signature, hmac.new(key, body, hashlib.sha256).hexdigest())
+                       for key in self.verification_keys):
                 raise ValueError("signature")
             data = json.loads(body)
             if type(data) is not dict or set(data) != {"v", "id", "iat", "exp"} or type(data["v"]) is not int or data["v"] != 1:

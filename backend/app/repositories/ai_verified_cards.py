@@ -34,7 +34,13 @@ from ..services.ai_hard_matching import HardMatchPlan, compile_hard_match
 from .ai_card_values import current_card_values_predicate
 from .ai_fact_pipeline import FactPipeline
 from .ai_fact_population import fact_population_signature
-from .ai_query_proofs import PROOF_CONTRACT_VERSION, current_projection_predicate, proof_population_signature
+from .ai_fact_quality import source_freshness_predicate
+from .ai_query_proofs import (
+    PROOF_CONTRACT_VERSION,
+    current_projection_predicate,
+    proof_age_predicate,
+    proof_population_signature,
+)
 from .ai_query_settings import configure_ai_query
 from .ai_search_sessions import SearchSessions, SessionError, intent_hash
 from .listings import (
@@ -63,6 +69,10 @@ class VerifiedCardResult:
     intent_hash: str
     reason_codes: tuple[str, ...]
     budget_prices: tuple[VerifiedBudgetPrice, ...] = ()
+
+
+class SourceCoverageUnavailable(ValueError):
+    pass
 
 
 class VerifiedCardSearch:
@@ -95,6 +105,15 @@ class VerifiedCardSearch:
             if intent_hash(owned) != intent_hash(current):
                 raise SessionError("SESSION_VERSION_CONFLICT")
             self.sessions.vocabulary.validate(candidate.criteria)
+            if self.pipeline.operating_policy is not None:
+                # Check coverage independently of the requested constraints:
+                # zero matches is meaningful only with usable source evidence.
+                baseline = candidate.model_copy(update={"criteria": type(candidate.criteria)()})
+                base = apply_search_filters(visible_query(), payload)
+                covered = base.where(verified_intent_predicate(self.pipeline, baseline,
+                    cohort_scope=_candidate_cohorts(base, self.pipeline)))
+                if not await session.scalar(select(covered.exists())):
+                    raise SourceCoverageUnavailable("SOURCE_COVERAGE_UNAVAILABLE")
             return await self._query_intent(session, subject, candidate, payload)
 
     async def query_result(self, subject: QuotaSubject, result_ref: UUID,
@@ -202,4 +221,8 @@ def _verified_intent_predicate(pipeline: FactPipeline, intent: SearchIntent, com
     # Cards reuse this exact plan for reason codes; map compiles once above.
     facts = current_projection_predicate(Listing.id, resolver_version=pipeline.resolver_version,
         vocabulary_hash=pipeline.vocabulary_hash, match_plan=compiled, cohort_scope=cohort_scope)
-    return and_(facts, current_card_values_predicate(intent))
+    conditions = [facts, current_card_values_predicate(intent)]
+    if pipeline.operating_policy is not None:
+        conditions.append(source_freshness_predicate(Listing.__table__.c.id, compiled, pipeline.operating_policy))
+        conditions.append(proof_age_predicate(Listing.id))
+    return and_(*conditions)

@@ -62,7 +62,8 @@ async def pipeline(pg):
         # Minimal clearly synthetic stand-ins for the selected legacy columns.
         # Full real legacy migrations run independently in CI before these tests.
         connection.execute(text("CREATE TYPE listing_status AS ENUM ('draft','pending','published','hidden','closed','rejected')"))
-        connection.execute(text("CREATE TABLE listings (id uuid PRIMARY KEY, status listing_status NOT NULL, deleted_at timestamptz)"))
+        connection.execute(text("CREATE TABLE users (id uuid PRIMARY KEY, deleted_at timestamptz, blocked boolean NOT NULL DEFAULT false)"))
+        connection.execute(text("CREATE TABLE listings (id uuid PRIMARY KEY, status listing_status NOT NULL, deleted_at timestamptz, owner_user_id uuid)"))
         connection.execute(text("CREATE TABLE external_listing_sources (id uuid PRIMARY KEY, canonical_listing_id uuid NOT NULL, "
                                 "fingerprint text NOT NULL, current_status text NOT NULL, last_success_at timestamptz, "
                                 "content_updated_at timestamptz, raw_payload jsonb NOT NULL DEFAULT '{}', "

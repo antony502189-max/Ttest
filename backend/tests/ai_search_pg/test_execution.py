@@ -10,7 +10,7 @@ from test_sessions import usage
 
 from app.models.ai_search_quota import AIUsageDay
 from app.repositories.ai_search_quota import QuotaError
-from app.repositories.ai_search_sessions import intent_hash
+from app.repositories.ai_search_sessions import SessionError, intent_hash
 from app.repositories.ai_verified_cards import VerifiedCardResult
 from app.schemas.ai_search_intent import IntentPatch
 from app.schemas.ai_search_quota import QuotaOperation, QuotaSubject
@@ -134,6 +134,16 @@ async def test_failure_has_no_debit_or_session_mutation(store, pg, failure):
     op = operation(snapshot)
     if failure == "version":
         op = op.model_copy(update={"expected_session_version": 1})
+    if failure in {"owner", "version"}:
+        # New-key admission now rejects before creating any quota/request row.
+        # Existing keys still replay independently of session expiry/version.
+        for _ in range(2):
+            with pytest.raises(SessionError, match="SESSION_NOT_FOUND" if failure == "owner" else "SESSION_VERSION_CONFLICT"):
+                await service.execute(subject, op, "synthetic message", ListingCardSearchRequest())
+        assert parser.calls == gate.calls == query.calls == 0
+        assert await usage(pg, subject) == (None, None)
+        assert (await store.get(owner, op.session_id)).intent.version == 0
+        return
     result = await service.execute(subject, op, "synthetic message", ListingCardSearchRequest())
     assert result.operation.status == "failed" and result.cards is None
     assert await usage(pg, subject) == (0, 0)

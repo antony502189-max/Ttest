@@ -34,6 +34,25 @@ def active(monkeypatch):
     return value
 
 
+def test_operation_lookup_is_owned_read_only_and_does_not_require_a_live_session(active):
+    key = uuid4()
+    token, owner = active.guests.issue()
+    state = SimpleNamespace(idempotency_key=key, status="succeeded", failure_code=None,
+        receipt={"result_ref": str(uuid4()), "count": 0}, remaining=2)
+    lookup = AsyncMock(return_value=state)
+    active.sessions.ledger = SimpleNamespace(operation_status=lookup)
+    with TestClient(app, base_url="https://testserver") as client:
+        response = client.get(f"/api/v1/ai-search/operations/{key}", headers={"Cookie": "ai_search_guest=" + token})
+        assert response.status_code == 200 and response.json()["status"] == "succeeded"
+        assert response.headers["cache-control"] == "no-store"
+        assert set(response.json()) == {"idempotency_key", "status", "failure_code", "receipt", "remaining"}
+        lookup.assert_awaited_once_with(owner, key)
+        active.sessions.get.assert_not_awaited()
+        lookup.side_effect = QuotaError("OPERATION_NOT_FOUND")
+        missing = client.get(f"/api/v1/ai-search/operations/{uuid4()}", headers={"Cookie": "ai_search_guest=" + token})
+        assert missing.status_code == 404 and missing.json()["detail"] == "OPERATION_NOT_FOUND"
+
+
 def test_proxy_identity_uses_explicit_trust_and_ignores_untrusted_forwarding(active):
     with TestClient(app, base_url="https://testserver", client=("10.0.0.2", 8000)) as client:
         for address in ("198.51.100.1", "198.51.100.2"):
