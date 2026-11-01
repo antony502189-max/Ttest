@@ -46,13 +46,18 @@ const body = state => ({ session_id: state.session_id, expected_version: state.v
 async function inspect(state) { return labControl({ action: 'inspect', session_id: state.session_id, version: state.version }) }
 async function arm(state, fault) { return labControl({ action: 'arm', session_id: state.session_id, version: state.version, fault }) }
 async function openAI(page) {
-  for (let i = 0; i < 3; i++) {
-    const next = page.locator('.m2-onboarding .m2-primary')
-    if (!await next.count()) break
-    await next.click()
+  // Login/reload can mount onboarding asynchronously after the hash changes.
+  // Wait for one actual visible entry, rather than racing a count() snapshot.
+  for (let i = 0; i < 6; i++) {
+    const entry = page.locator('.home-ai-search__action:visible, .m2-onboarding .m2-primary:visible, .m2-auth-skip:visible').first()
+    await entry.waitFor()
+    if (await page.locator('.home-ai-search__action:visible').count()) {
+      await page.locator('.home-ai-search__action:visible').click()
+      return
+    }
+    await entry.click()
   }
-  if (await page.locator('.m2-auth-skip').count()) await page.locator('.m2-auth-skip').click()
-  await page.locator('.home-ai-search__action').click()
+  throw Error('mobile onboarding did not reach home')
 }
 try {
   const ctx = await client()
