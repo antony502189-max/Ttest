@@ -260,6 +260,15 @@ audio/transcripts и provider bodies.
 
 ## 7. Общая приёмка и выпуск
 
+**Статус 1 ноября: закрытая synthetic приёмка PASS; публичный выпуск BLOCKED.**
+Runtime `ed1f9f96360e2ead47c8a8b6b2c186f4319f7bd3`, `https://localhost:9443`.
+Настоящие guest/auth browser/HTTP, model/Redis/DB faults, timeout/commit recovery,
+pg_dump/pg_restore с independent journal и restore barrier, binary rollback и
+AI kill switch проверены локально. [Отчёт и gates](../reports/AI_RELEASE_ACCEPTANCE_20261101.md),
+[runbook](AI_RELEASE_ACCEPTANCE_RU.md). Capacity ISSUE-004 OPEN, real-user provider
+privacy/UI composition и production backup/monitoring gates остаются незакрытыми.
+Ниже сохранён согласованный scope пункта7; он не разрешает merge/public activation.
+
 Провести реальные browser/HTTP guest/auth сценарии, отказы Redis/DB/model,
 network timeout/disconnect/cancel и неопределённый finalize acknowledgement.
 Добавить наблюдаемость latency/errors/queue/provider cost/coverage/freshness
@@ -292,8 +301,8 @@ Voice и delivery не являются условием первого текс
 согласованного запуска. Пункт 5 после отдельного разрешения проверен на 73 публичных Flatio records:
 [реальный pilot](../../reports/AI_FLATIO_PILOT_20261101.md). Это не разрешение
 на постоянный ingestion, другие источники или отправку объявлений LLM.
-Пункт 6 реализован для закрытого текстового стенда по policy v1; пункты 7–8
-остаются отдельной работой. Пункт 3 пропущен владельцем, performance gate
+Пункт 6 реализован для закрытого текстового стенда по policy v1; пункт7 локально
+принят с BLOCKED release gates, пункт8 остаётся отдельной работой. Пункт 3 пропущен владельцем, performance gate
 не закрыт. Если потребуется внешний доступ или настоящий
 provider, сначала подготовить конкретную проверяемую конфигурацию и обозначить
 недостающую авторизацию; независимую локальную работу продолжать.

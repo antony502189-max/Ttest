@@ -1,0 +1,39 @@
+{
+  "source": "24311ac694a3915abfc05f16ea84c2b85dabe793",
+  "databases": [
+    "ai_quota_test_release_c563e084b0b7_source",
+    "ai_quota_test_release_c563e084b0b7_restore"
+  ],
+  "cases": [
+    {
+      "name": "fresh full migration chain to 0079 and real pg_dump manifest",
+      "passed": true
+    },
+    {
+      "name": "real pg_restore reproduces pre-deletion account and private session in isolated DB",
+      "passed": true
+    },
+    {
+      "name": "missing independent journal blocks restore barrier",
+      "passed": true
+    },
+    {
+      "name": "valid blank replacement journal rejected by restored DB UUID binding",
+      "passed": true
+    },
+    {
+      "name": "backup beyond 30-day horizon rejected",
+      "passed": true
+    },
+    {
+      "name": "checkpoint changed after issue blocks restore",
+      "passed": true
+    },
+    {
+      "name": "fresh authoritative checkpoint: replay erases restored private state; second replay idempotent",
+      "passed": true
+    }
+  ],
+  "status": "PASS",
+  "backup_sha256": "14e983abd5504299603868d8c0c09fc21eef7ea52348d6637cdc0e8212fcb0ff"
+}

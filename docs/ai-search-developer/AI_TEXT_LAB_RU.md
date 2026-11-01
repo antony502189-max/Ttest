@@ -122,14 +122,16 @@ comment marker выделенной БД. `app.main:app` сам runtime не с�
 
 Явно собраны QuotaLedger, SearchSessions, FactPipeline, VerifiedCardSearch,
 TextSearchExecution, guest/cursor signing, RedisRateLimiter, AIAttemptGate и HTTP
-gate. В AI gates нет memory fallback: Redis outage даёт закрытый отказ. Политики
-стенда: HTTP 20 s, 32 KiB body, 5 active sessions, 3600 s session/guest lifetime;
-HTTP/IP 240/min, issue 12/min, session create 20/min, parser attempt 12/min;
+gate. В AI gates нет memory fallback: Redis outage даёт закрытый отказ. Текущий
+профиль пункта 6: HTTP 20 s, execution 15 s, 32 KiB body, 3 active sessions;
+session idle24h/absolute7d, guest7d; HTTP/IP120/min, reads60/min/subject,
+guest issue2/min и10/hour/IP, create6/min/subject, attempts6/min/subject и30/min/IP;
+inflight4 global и1/subject;
 quota lease 60/60/grace30 s; SQL 5 s, pool wait30 s, lock2 s. Это bounded test
 policies, не утверждённые product defaults и не capacity SLO.
 
-Ресурсы: четыре контейнера `ttest-ai-text-lab-{postgres,redis,backend,frontend}`;
-volumes `ttest-ai-text-lab-pg-v2`, `ttest-ai-text-lab-{redis,tls,media}-v1`; сети
+Ресурсы: пять контейнеров `ttest-ai-text-lab-{postgres,redis,backend,frontend,maintenance}`;
+volumes `ttest-ai-text-lab-pg-v2`, `ttest-ai-text-lab-{redis,tls,media,erasure}-v1`; сети
 `ttest-ai-text-lab-network` (internal) и `ttest-ai-text-lab-loopback` (только TLS
 frontend). Launcher проверяет label `es.ttest.purpose=ai-text-synthetic-lab-v1`
 до мутаций; при коллизии отказывается. Сети/volumes управляются launcher и
@@ -137,7 +139,11 @@ frontend). Launcher проверяет label `es.ttest.purpose=ai-text-synthetic
 Это локальные lifecycle resources, не внешняя инфраструктура. stop не удаляет
 volumes и не использует down/remove-orphans/prune. Capacity/audit/shared DB
 не переиспользуются. Backend не подключён к egress-сети; модель/источники/ASR,
-workers, real crawl/backfill, платежи/уведомления не запускаются.
+real crawl/backfill, платежи/уведомления не запускаются. Отдельный maintenance
+выполняет bounded recovery/retention и independent journal replay.
+
+Текущие правила: [policy](OPERATING_PRODUCT_POLICY.md).
+Приёмка, отключение AI, binary rollback и restore: [runbook пункта 7](AI_RELEASE_ACCEPTANCE_RU.md).
 
 Smoke сохраняет `output/ai-text-lab-smoke/result.json` и PNG. Полная матрица
 этапа 2 описана в отдельной инструкции выше. Release/public activation и

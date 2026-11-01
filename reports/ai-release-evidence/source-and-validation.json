@@ -1,0 +1,47 @@
+{
+  "releaseGate": "BLOCKED",
+  "ciBaselineSource": "6195a807a35e1491d4ea21c3d82c002bf4d9b4bc",
+  "maintenanceRestartCount": 3,
+  "realIntegration": "18 passed / 1 skipped; includes 4 real Chromium recovery cases",
+  "ciBaseline": "11 success; 2 conditional skipped after failed-only infrastructure retry",
+  "changedSinceRuntime": [
+    "scripts/accept-ai-release-ops.mjs",
+    "scripts/accept-ai-release.mjs"
+  ],
+  "runtimeInputs": [
+    {
+      "runtimeHash": "414d468c76e931949f61d0fb8cd331e81921f7c3",
+      "driverHeadHash": "414d468c76e931949f61d0fb8cd331e81921f7c3",
+      "path": "backend"
+    },
+    {
+      "runtimeHash": "c21e03bcd39dd6829ade7f20a42f095e05550ad9",
+      "driverHeadHash": "c21e03bcd39dd6829ade7f20a42f095e05550ad9",
+      "path": "src"
+    },
+    {
+      "runtimeHash": "24f5c15dbd752765b8d8058bc52130b5aec0e7b2",
+      "driverHeadHash": "24f5c15dbd752765b8d8058bc52130b5aec0e7b2",
+      "path": "deploy/ai-text-lab"
+    },
+    {
+      "runtimeHash": "470ba80de45c06c8e93110c182606b160b4a6a87",
+      "driverHeadHash": "470ba80de45c06c8e93110c182606b160b4a6a87",
+      "path": "scripts/ai-text-lab.ps1"
+    }
+  ],
+  "blockers": [
+    "ISSUE-004 capacity/SLO",
+    "real-user provider account privacy",
+    "real parser UI composition",
+    "production backup/journal/monitoring infrastructure",
+    "owner merge/deploy/public activation decision"
+  ],
+  "driverSource": "6e99bc58104b5d324d715803c40f8a5a0520f564",
+  "runtimeSource": "ed1f9f96360e2ead47c8a8b6b2c186f4319f7bd3",
+  "unit": "1668 passed / 17 skipped",
+  "mypy": "169 source files",
+  "observedMaintenanceRunning": true,
+  "targeted": "161 passed / 3 skipped",
+  "redisRepeat": "3 passed"
+}
