@@ -40,7 +40,7 @@
 | Raw text/provider body | Память текущей операции; серверный execution deadline 15 с, HTTP 20 с |
 | Черновик | Память вкладки; очистка после 15 минут без редактирования, кроме неопределённой операции |
 | Неопределённая операция в UI | Только память текущей вкладки; точный payload нужен для безопасного повтора; reload его не сохраняет |
-| Continuation locator | Только session/result UUID в sessionStorage текущей вкладки; повторная авторизация и проверка TTL на сервере |
+| Continuation locator | Только session/result UUID и незавершённый operation UUID/version/time в sessionStorage текущей вкладки; operation marker ≤24ч, повторная авторизация и проверка TTL на сервере. Нет текста/criteria. После reload только owned GET status → receipt/result, без нового inference |
 | Диалог и результаты | Доступ до 24 ч бездействия, абсолютный предел 7 суток от создания; reset/close прекращает доступ |
 | Приватные criteria/result intent | Физическая очистка после 24 ч от окончания доступа, пакетами до 1000 строк |
 | Неиспользованный seed без команд/операций | Очистка после 1 ч |

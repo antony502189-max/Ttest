@@ -8,7 +8,7 @@ import { chromium } from '@playwright/test'
 import { labControl } from './ai-text-lab-control.mjs'
 
 const origin = 'https://localhost:9443'
-const dir = new URL('../output/ai-parser-ui/', import.meta.url)
+const dir = new URL('../output/ai-review-fixes/', import.meta.url)
 await mkdir(dir, { recursive: true })
 const source = JSON.parse(await readFile(new URL('../output/ai-text-lab/source.json', import.meta.url), 'utf8')).source
 const report = { source, mode: 'decision-transport-fixture', origin, apiMocks: false, providerCalls: 0, cases: [] }
@@ -97,6 +97,11 @@ try {
   assert.equal(map.intent_hash, cardsHash)
   assert.ok(map.map.items.length > 0)
   assert.equal((await json(await call(ctx, 'GET', 'ai-search/quota'))).used, 3)
+  await page.getByRole('button', { name: 'Ver mapa', exact: true }).click()
+  assert.ok(await page.locator('.ai-search-dialog__cards').isHidden())
+  await page.locator('.ai-result-map').waitFor()
+  await page.getByRole('button', { name: 'Ver lista', exact: true }).click()
+  pass('actual mobile exclusive map/list toggle')
   await page.locator('.ai-search-dialog__cards').scrollIntoViewIfNeeded()
   await page.screenshot({ path: fileURLToPath(new URL('guest-cards.png', dir)), fullPage: true })
   pass('real mobile UI -> decision adapter -> typed intent -> owned PG cards/map: hard criteria and guest quota3')
@@ -188,15 +193,20 @@ try {
   await page.locator('#ai-search-text').fill('обязательно с балконом')
   await action.click()
   await page.getByRole('status').filter({ hasText: 'No se pudo' }).waitFor()
-  const retried = page.waitForResponse(r => r.url().endsWith('/ai-search/query'))
-  await action.click()
-  const response = await retried
-  assert.deepEqual(response.request().postDataJSON(), lost)
-  const recovered = await json(response)
-  assert.deepEqual(recovered.operation.receipt, committed.operation.receipt)
+  const pendingStored = await page.evaluate(() => JSON.stringify({ ...sessionStorage }))
+  assert.ok(pendingStored.includes(lost.idempotency_key))
+  assert.ok(!pendingStored.includes(lost.text) && !pendingStored.includes('criteria'))
+  const operationRead = page.waitForResponse(r => r.url().endsWith('/ai-search/operations/' + lost.idempotency_key))
+  const refreshedAfterLoss = page.waitForResponse(r => r.url().endsWith('/auth/refresh'))
+  await page.reload({ waitUntil: 'networkidle' })
+  auth.Authorization = 'Bearer ' + (await json(await refreshedAfterLoss)).accessToken
+  await openAI(page)
+  const recovered = await json(await operationRead)
+  assert.deepEqual(recovered.receipt, committed.operation.receipt)
+  await page.waitForSelector('.ai-search-dialog__cards > div')
   sessions.push(lost.session_id)
   assert.equal((await inspect({ session_id: lost.session_id, version: 0 })).calls, 1)
-  pass('browser disconnect after real commit: exact payload/receipt recovery without inference/debit duplication')
+  pass('real commit -> lost ACK -> hard reload -> owned operation receipt/cards: one inference and debit, no stored raw text')
   await page.unroute('**/api/v1/ai-search/query')
   await sleep(11000)
   const uiState = { session_id: lost.session_id, version: 1 }
@@ -215,6 +225,23 @@ try {
   assert.equal((await json(checkedResponse)).operation.status, 'succeeded')
   assert.equal((await inspect(uiState)).calls, 1)
   pass('browser cancel waiting during model transport: uncertain state and exact one-inference recovery')
+  await sleep(11000)
+  const beforeMetadata = await json(await call(ctx, 'GET', 'ai-search/quota', undefined, auth))
+  let metadataDropped = false
+  await page.route('**/api/v1/ai-search/results/*', async route => {
+    if (metadataDropped) return route.continue()
+    metadataDropped = true
+    const real = await route.fetch(); assert.equal(real.status(), 200)
+    await route.abort('failed')
+  })
+  await page.locator('#ai-search-text').fill('до 60 евро за ночь')
+  await action.click()
+  await page.getByRole('button', { name: 'Reintentar sincronización', exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Reintentar sincronización', exact: true }).click()
+  await page.waitForSelector('.ai-search-dialog__cards > div')
+  assert.equal((await inspect({ session_id: lost.session_id, version: 2 })).calls, 1)
+  assert.equal((await json(await call(ctx, 'GET', 'ai-search/quota', undefined, auth))).used, beforeMetadata.used + 1)
+  pass('real committed receipt survives lost metadata response: read-only retry, one inference/debit')
   await page.screenshot({ path: fileURLToPath(new URL('auth-recovery.png', dir)), fullPage: true })
   const metrics = docker('exec', 'ttest-ai-text-lab-backend', 'python', '-c', "import urllib.request; print(urllib.request.urlopen('http://localhost:8000/metrics').read().decode())")
   for (const secret of [...sessions, auth.Authorization, 'с маленькой собакой', 'уточнить бюджет']) assert.ok(!metrics.includes(secret))

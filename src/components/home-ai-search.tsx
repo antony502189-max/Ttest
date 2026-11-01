@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AudioLines, Search } from 'lucide-react'
 import { ApiError } from '@/api/client'
-import { aiCapabilities, aiCardPage, aiResultPage, createAISession, getAIQuota, getAIResult, getAISession, resetAISession, sendAIMessage, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
+import { aiCapabilities, aiCardPage, aiResultPage, createAISession, getAIOperation, getAIQuota, getAIResult, getAISession, resetAISession, sendAIMessage, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
 import { aiConditionRows, aiModeLabel, type AICommittedIntent } from '@/api/ai-intent'
 import type { RentalMode } from '@/types'
 import { AIConditions } from '@/components/ai-conditions'
@@ -48,6 +48,9 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
   const [restoring, setRestoring] = useState(true)
   const [restoreFailed, setRestoreFailed] = useState(false)
   const [restoreEpoch, setRestoreEpoch] = useState(0)
+  // Independent of in-memory raw payload. The durable locator is written
+  // synchronously before POST, and retained until receipt hydration succeeds.
+  const operationLocator = useRef<import('@/api/ai-continuation').AIOperationLocator | null>(null)
   const restoreTranslate = useRef(t)
   restoreTranslate.current = t
 
@@ -61,33 +64,67 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
     const saved = readAIContinuation(identity)
     if (!saved) { lock.current = false; setRestoring(false); return }
     const controller = new AbortController()
+    syncFlight.current?.abort()
     setRestoring(true)
     lock.current = true
     void (async () => {
       try {
         // Neither storage nor the former UI state grants access. Validate every
         // locator against today's cookie/bearer and current session lifetime.
+        let resultRef = saved.resultRef
+        let receipt: { result_ref: string; count: number } | null = null
+        let failedOperation = false
+        if (saved.operation) {
+          operationLocator.current = saved.operation
+          const status = await getAIOperation(saved.operation.key, controller.signal)
+          if (controller.signal.aborted) return
+          if (status.idempotency_key !== saved.operation.key) throw new Error('Operation binding mismatch')
+          setRemaining(status.remaining)
+          if (status.status === 'running' || status.status === 'reserved') {
+            setRestoreFailed(true)
+            setNotice('La búsqueda sigue en curso. Consulta de nuevo el mismo intento.')
+            return
+          }
+          if (status.status === 'succeeded') {
+            if (!status.receipt) throw new Error('Missing operation receipt')
+            receipt = status.receipt
+            resultRef = receipt.result_ref
+          } else {
+            failedOperation = true
+            operationLocator.current = null
+            storeAIContinuation(identity, { sessionId: saved.sessionId })
+            setNotice('Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.')
+          }
+        }
         const owned = await getAISession(saved.sessionId, controller.signal)
         if (controller.signal.aborted) return
-        setSession(owned); setModeChoice('keep')
-        if (saved.resultRef) {
-          const committed = await getAIResult(saved.resultRef, controller.signal)
-          if (committed.intent.session_id !== saved.sessionId) throw new Error('Result session mismatch')
-          const response = await aiResultPage(saved.resultRef, undefined, controller.signal)
+        setSession(owned); setModeChoice('keep'); setNeedsSync(false); setSyncingSession(false)
+        if (resultRef) {
+          const committed = await getAIResult(resultRef, controller.signal)
+          if (committed.intent.session_id !== saved.sessionId || committed.result_ref !== resultRef ||
+            (receipt && (committed.count !== receipt.count || committed.intent.version !== saved.operation!.expectedVersion + 1)))
+            throw new Error('Result session mismatch')
+          const response = await aiResultPage(resultRef, undefined, controller.signal)
           if (response.intent_hash !== committed.intent_hash || aiConditionRows(committed.intent, restoreTranslate.current) === null)
             throw new Error('Result binding mismatch')
           if (controller.signal.aborted) return
           setResult({ ref: committed.result_ref, hash: committed.intent_hash, committed,
             prices: response.budget_prices ?? [], page: aiCardPage(response) })
+          setPagingAvailable(true); setResultInvalid(false)
         }
-        setRestoreFailed(false); setNotice('')
+        operationLocator.current = null
+        storeAIContinuation(identity, { sessionId: saved.sessionId, ...(resultRef ? { resultRef } : {}) })
+        setRestoreFailed(false)
+        setNotice(failedOperation ? 'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.' : '')
       } catch (error) {
         if (!controller.signal.aborted) {
-          if (error instanceof ApiError && (error.status === 0 || error.status === 429 || error.status >= 500)) {
+          if ((error instanceof ApiError && (error.status === 0 || error.status === 429 || error.status >= 500)) ||
+            (saved.operation && !(error instanceof ApiError))) {
             setRestoreFailed(true)
             setNotice('No se pudo actualizar el diálogo. Conservamos tu búsqueda. Reintenta la sincronización.')
           } else {
             storeAIContinuation(identity, null)
+            operationLocator.current = null
             // No cached cards or substitution of the editable intent for a
             // failed committed-result read. Explicit new search stays available.
             setResult(null)
@@ -102,7 +139,8 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
 
   useEffect(() => {
     if (!restoring && !restoreFailed) storeAIContinuation(identity, session && !needsConversation
-      ? { sessionId: session.intent.session_id, ...(result && pagingAvailable ? { resultRef: result.ref } : {}) } : null)
+      ? { sessionId: session.intent.session_id, ...(result && pagingAvailable ? { resultRef: result.ref } : {}),
+        ...(operationLocator.current ? { operation: operationLocator.current } : {}) } : null)
   }, [identity, restoring, restoreFailed, session, result, pagingAvailable, needsConversation])
 
   useEffect(() => {
@@ -248,6 +286,8 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
       // Never change text, expected version or key until a terminal response.
       const message = pending ?? { idempotency_key: crypto.randomUUID(), session_id: owned.intent.session_id,
         expected_version: owned.intent.version, text }
+      operationLocator.current ??= { key: message.idempotency_key, expectedVersion: message.expected_version, createdAt: Date.now() }
+      storeAIContinuation(identity, { sessionId: message.session_id, operation: operationLocator.current })
       setPending(message)
       const answer = await sendAIMessage(message, controller.signal)
       setRemaining(answer.operation.remaining)
@@ -270,13 +310,20 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
           setResultInvalid(false)
           setResult({ ref: answer.operation.receipt.result_ref, hash: answer.cards.intent_hash, committed,
             prices: answer.cards.budget_prices ?? [], page: aiCardPage(answer.cards) })
+          operationLocator.current = null
+          storeAIContinuation(identity, { sessionId: message.session_id, resultRef: committed.result_ref })
           setText('')
           setNotice('')
-        } catch {
+        } catch (error) {
           if (controller.signal.aborted) return
           staleResults()
+          if (!(error instanceof ApiError) || error.status === 0 || error.status === 429 || error.status >= 500) {
+            setRestoreFailed(true)
+            setNotice('No se pudo actualizar el diálogo. Conservamos tu búsqueda. Reintenta la sincronización.')
+          } else operationLocator.current = null
         }
       } else {
+        operationLocator.current = null
         const questions: Record<string, string> = {
           budget_period: '¿El presupuesto es por noche, semana o mes?',
           rental_mode: '¿Buscas alquiler vacacional o de larga duración?',
@@ -302,16 +349,19 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
     } catch (error) {
       if (controller.signal.aborted) return
       if (guestIdentityLost(error)) {
+        operationLocator.current = null
         // Authentication failed before reservation. An old owner cannot be
         // replayed under a renewed guest identity; keep only draft/results.
         setPending(null)
         lostConversation()
       } else if (error instanceof ApiError && error.status === 429 && error.message === 'QUOTA_EXHAUSTED') {
+        operationLocator.current = null
         // Only this exact code proves reserve rejected before inserting a row.
         setPending(null)
         setRemaining(0)
         setNotice('Has alcanzado el límite diario. Puedes usar la búsqueda con filtros.')
       } else if (error instanceof ApiError && [413, 422].includes(error.status)) {
+        operationLocator.current = null
         // HTTP body/schema rejection happens before operation reservation.
         setPending(null)
         setNotice('Acorta o revisa el texto antes de enviarlo de nuevo.')
@@ -364,13 +414,12 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
         {t('Prueba cerrada con datos y respuestas simuladas. No envíes datos personales.')}
       </p> : null}
       <label htmlFor="ai-rental-mode">{t('Modo para esta búsqueda')}</label>
-      <select id="ai-rental-mode" value={modeChoice} disabled={busy || restoring || pending !== null || changingSession}
+      <select id="ai-rental-mode" value={modeChoice} disabled={busy || restoring || restoreFailed || pending !== null || changingSession}
         onChange={event => setModeChoice(event.target.value as typeof modeChoice)}>
         <option value="" disabled>{t('Elige cómo usar el modo de alquiler')}</option>
         {session ? <option value="keep">{t('Conservar las condiciones actuales de IA')}</option> : null}
         <option value={homeMode}>{t(session ? 'Nueva conversación con el modo de inicio' : 'Usar el modo de inicio')}: {aiModeLabel(homeMode, t)}</option>
-        {(modeChoice === 'long' || modeChoice === 'holiday') && modeChoice !== homeMode
-          ? <option value={modeChoice}>{t('Modo de alquiler')}: {aiModeLabel(modeChoice, t)}</option> : null}
+        <option value={homeMode === 'long' ? 'holiday' : 'long'}>{t('Modo de alquiler')}: {aiModeLabel(homeMode === 'long' ? 'holiday' : 'long', t)}</option>
         <option value="none">{t(session ? 'Nueva conversación sin limitar el modo' : 'Sin limitar el modo de alquiler')}</option>
       </select>
       <small>{t('El modo de inicio no cambia una conversación existente. Los demás filtros no se añaden a IA.')}</small>
@@ -387,9 +436,9 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
       {restoreFailed ? <Button type="button" variant="outline" disabled={restoring} onClick={() => {
         setRestoring(true); setRestoreFailed(false); setRestoreEpoch(value => value + 1)
       }}>{t('Reintentar sincronización')}</Button> : null}
-      {(session || needsConversation || changingSession) ? <Button type="button" variant="outline" disabled={busy || syncingSession || needsSync || pending !== null}
+      {(session || needsConversation || changingSession) ? <Button type="button" variant="outline" disabled={busy || restoreFailed || syncingSession || needsSync || pending !== null}
         onClick={() => void newConversation()}>{t('Iniciar nueva conversación')}</Button> : null}
-      {needsSync && session ? <Button type="button" variant="outline" disabled={syncingSession || busy}
+      {needsSync && session && !restoreFailed ? <Button type="button" variant="outline" disabled={syncingSession || busy}
         onClick={() => void refreshSession(session.intent.session_id, true)}>{t('Reintentar sincronización')}</Button> : null}
       {result && !pagingAvailable && !resultInvalid ? <p>{t('Los resultados anteriores siguen visibles. Inicia una nueva búsqueda para ver más páginas.')}</p> : null}
       <div role="status" aria-live="polite">{notice ? t(notice) : null}</div>
@@ -404,7 +453,7 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
         {mapEnabled ? <Button type="button" variant="outline" aria-pressed={mapVisible} onClick={() => setMapVisible(value => !value)}>{t(mapVisible ? 'Ver lista' : 'Ver mapa')}</Button> : null}
         {!result.page.total ? <p>{t('No encontramos opciones con todas las condiciones confirmadas. Puedes ajustar tu búsqueda.')}</p> : null}
         {mapVisible ? <AIResultMap key={`${result.ref}:${result.hash}`} resultRef={result.ref} intentHash={result.hash} /> : null}
-        <div className="ai-search-dialog__cards">{result.page.items.map(listing => {
+        <div className="ai-search-dialog__cards" hidden={mapVisible} style={{ display: mapVisible ? 'none' : undefined }}>{result.page.items.map(listing => {
           const price = result.prices.find(value => value.listing_id === listing.id)
           const periods = { monthly: 'por mes', weekly: 'por semana', nightly: 'por noche' } as const
           return <div key={listing.id} className="ai-search-dialog__card">

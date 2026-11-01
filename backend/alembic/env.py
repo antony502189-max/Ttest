@@ -2,6 +2,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool, text
 from app.core.config import get_settings
 from app.db.base import Base
+from app.services.ai_migration_limits import migration_limits
 import app.models  # noqa: F401
 
 config = context.config
@@ -44,6 +45,10 @@ def run_migrations_online():
         connection.execute(text("SET search_path TO public"))
         connection.commit()
         context.configure(connection=connection, target_metadata=target_metadata, include_object=include_object, include_name=include_name, include_schemas=True)
-        with context.begin_transaction(): context.run_migrations()
+        with context.begin_transaction():
+            lock_ms, statement_ms = migration_limits(context.get_x_argument(as_dictionary=True))
+            connection.execute(text("SELECT set_config('lock_timeout', :value, true)"), {"value": f"{lock_ms}ms"})
+            connection.execute(text("SELECT set_config('statement_timeout', :value, true)"), {"value": f"{statement_ms}ms"})
+            context.run_migrations()
 if context.is_offline_mode(): run_migrations_offline()
 else: run_migrations_online()

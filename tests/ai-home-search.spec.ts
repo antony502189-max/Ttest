@@ -490,7 +490,7 @@ test('result metadata hash mismatch never labels or replaces previous cards', as
   await page.getByLabel('Modo para esta búsqueda').selectOption('none')
   await page.getByLabel('Cuéntanos qué necesitas').fill(requestText)
   await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Iniciar nueva conversación' })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Reintentar sincronización' })).toBeEnabled()
   await expect(page.getByRole('button', { name: 'Comprobar el mismo intento' })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Resultados confirmados', exact: true })).toHaveCount(0)
 })
@@ -903,3 +903,123 @@ test('unsettled query blocks stale paging but its exact replay remains available
   await expect.poll(() => messages.length).toBe(3)
   expect(messages[2]).toEqual(messages[1])
 })
+
+for (const state of ['succeeded', 'running', 'failed', 'expired-owner'] as const) {
+  test(`review recovery after hard reload: ${state}, no raw payload or second inference`, async ({ page }) => {
+    await setup(page)
+    let message: Record<string, unknown>, calls = 0, reads = 0, finish = false
+    await page.route('**/api/v1/ai-search/sessions', route => route.fulfill({ json: snapshot(0) }))
+    await page.route(`**/api/v1/ai-search/sessions/${sid}`, route => route.fulfill({ json: snapshot(1) }))
+    await page.route(`**/api/v1/ai-search/results/${ref}/cards`, route => route.fulfill({ json: cards() }))
+    await page.route('**/api/v1/ai-search/query', route => {
+      message = route.request().postDataJSON(); calls++
+      return route.abort('failed')
+    })
+    await page.route('**/api/v1/ai-search/operations/*', route => {
+      reads++
+      if (state === 'expired-owner') return route.fulfill({ status: 401, json: { detail: 'AI_GUEST_IDENTITY_INVALID_OR_EXPIRED' } })
+      const status = state === 'running' && finish ? 'succeeded' : state
+      return route.fulfill({ json: { idempotency_key: message.idempotency_key, status, remaining: 2,
+        receipt: status === 'succeeded' ? { result_ref: ref, count: 0 } : null } })
+    })
+    await page.goto('/#/')
+    await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
+    await page.locator('#ai-rental-mode').selectOption('none')
+    await page.locator('#ai-search-text').fill(requestText)
+    await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Comprobar el mismo intento' })).toBeEnabled()
+    const stored = await page.evaluate(() => JSON.stringify({ ...sessionStorage }))
+    expect(stored).toContain(String(message!.idempotency_key))
+    expect(stored).not.toContain(requestText)
+    expect(stored).not.toContain('criteria')
+    await page.reload()
+    await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
+    if (state === 'running') {
+      await expect(page.getByText('La búsqueda sigue en curso.', { exact: false })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Buscar habitaciones', exact: true })).toBeDisabled()
+      finish = true
+      await page.getByRole('button', { name: 'Reintentar sincronización' }).click()
+    }
+    if (state === 'succeeded' || state === 'running') {
+      await expect(page.getByRole('region', { name: 'Resultados confirmados', exact: true })).toBeVisible()
+      await expect(page.getByText('Búsquedas disponibles hoy: 2')).toBeVisible()
+    } else {
+      await expect(page.getByRole('button', { name: 'Comprobar el mismo intento' })).toHaveCount(0)
+      expect(await page.evaluate(() => JSON.stringify({ ...sessionStorage }))).not.toContain(String(message!.idempotency_key))
+    }
+    expect(calls).toBe(1)
+    expect(reads).toBeGreaterThanOrEqual(state === 'running' ? 2 : 1)
+  })
+}
+
+test('review metadata transient failure retains receipt and retries only read-only status/metadata', async ({ page }) => {
+  await setup(page)
+  let message: Record<string, unknown>, queries = 0, metadata = 0
+  await page.route('**/api/v1/ai-search/sessions', route => route.fulfill({ json: snapshot(0) }))
+  await page.route(`**/api/v1/ai-search/sessions/${sid}`, route => route.fulfill({ json: snapshot(1) }))
+  await page.route('**/api/v1/ai-search/query', route => {
+    queries++; message = route.request().postDataJSON()
+    return route.fulfill({ json: { operation: { status: 'succeeded', remaining: 2, receipt: { result_ref: ref, count: 0 } }, cards: cards() } })
+  })
+  await page.route(`**/api/v1/ai-search/results/${ref}`, route => ++metadata === 1
+    ? route.fulfill({ status: 503, json: { detail: 'AI_SERVICE_UNAVAILABLE' } })
+    : route.fulfill({ json: { result_ref: ref, count: 0, intent_hash: 'original-intent', intent: intent(1) } }))
+  await page.route(`**/api/v1/ai-search/results/${ref}/cards`, route => route.fulfill({ json: cards() }))
+  await page.route('**/api/v1/ai-search/operations/*', route => route.fulfill({ json: {
+    idempotency_key: message.idempotency_key, status: 'succeeded', remaining: 2, receipt: { result_ref: ref, count: 0 } } }))
+  await page.goto('/#/')
+  await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
+  await page.locator('#ai-rental-mode').selectOption('none')
+  await page.locator('#ai-search-text').fill(requestText)
+  await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+  await page.getByRole('button', { name: 'Reintentar sincronización' }).click()
+  await expect(page.getByRole('region', { name: 'Resultados confirmados', exact: true })).toBeVisible()
+  expect(queries).toBe(1); expect(metadata).toBe(2)
+})
+
+for (const width of [390, 1440]) test(`review both rental modes and exclusive map/list at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 950 })
+  await setup(page)
+  let mode: string | undefined
+  await page.route('**/api/v1/ai-search/sessions', route => {
+    mode = route.request().postDataJSON().rental_mode
+    return route.fulfill({ json: snapshot(0) })
+  })
+  await page.route(`**/api/v1/ai-search/sessions/${sid}`, route => route.fulfill({ json: snapshot(1) }))
+  await page.route('**/api/v1/ai-search/query', route => route.fulfill({ json: {
+    operation: { status: 'succeeded', remaining: 2, receipt: { result_ref: ref, count: 0 } }, cards: cards() } }))
+  await page.route(`**/api/v1/ai-search/results/${ref}/map`, route => route.fulfill({ json: { intent_hash: 'original-intent', map: { items: [] } } }))
+  await page.goto('/#/')
+  await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
+  for (const choice of ['long', 'holiday']) await expect(page.locator(`#ai-rental-mode option[value=${choice}]`)).toHaveCount(1)
+  await page.locator('#ai-rental-mode').selectOption(width === 390 ? 'holiday' : 'long')
+  await page.locator('#ai-search-text').fill(requestText)
+  await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Resultados confirmados', exact: true })).toBeVisible()
+  expect(mode).toBe(width === 390 ? 'holiday' : 'long')
+  await page.getByRole('button', { name: 'Ver mapa', exact: true }).click()
+  await expect(page.locator('.ai-result-map')).toBeVisible()
+  await expect(page.locator('.ai-search-dialog__cards')).toBeHidden()
+  await page.getByRole('button', { name: 'Ver lista', exact: true }).click()
+  await expect(page.locator('.ai-result-map')).toHaveCount(0)
+  await expect(page.locator('.ai-search-dialog__cards')).toHaveCSS('display', 'grid')
+})
+
+for (const invalid of ['expired', 'future', 'foreign-identity', 'extra-payload'] as const) {
+  test(`review operation locator rejects ${invalid} without status access`, async ({ page }) => {
+    await setup(page)
+    let reads = 0
+    await page.route('**/api/v1/ai-search/operations/*', route => { reads++; return route.fulfill({ status: 404, json: { detail: 'OPERATION_NOT_FOUND' } }) })
+    await page.addInitScript(({ invalid, sid }) => {
+      const operation = { key: '00000000-0000-4000-8000-000000000005', expectedVersion: 0,
+        createdAt: Date.now() + (invalid === 'expired' ? -86400001 : invalid === 'future' ? 60000 : 0),
+        ...(invalid === 'extra-payload' ? { text: 'PRIVATE_LOCATOR_CANARY' } : {}) }
+      sessionStorage.setItem('112233:ai-continuation:v1:' + (invalid === 'foreign-identity' ? 'another-owner' : 'guest'),
+        JSON.stringify({ sessionId: sid, operation }))
+    }, { invalid, sid })
+    await page.goto('/#/')
+    await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
+    await expect(page.locator('#ai-rental-mode')).toBeEnabled()
+    expect(reads).toBe(0)
+  })
+}

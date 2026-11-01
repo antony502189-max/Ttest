@@ -31,6 +31,7 @@ export const resetAISession = (session: AISession, key: string, signal: AbortSig
 export const getAISession = (id: string, signal: AbortSignal) => api<AISession>(`/ai-search/sessions/${encodeURIComponent(id)}`, { signal, cache: 'no-store' })
 export const getAIResult = (ref: string, signal: AbortSignal) => api<AICommittedIntent>(`/ai-search/results/${encodeURIComponent(ref)}`, { signal, cache: 'no-store' })
 export const getAIQuota = (signal: AbortSignal) => api<{ remaining: number }>('/ai-search/quota', { signal, cache: 'no-store' })
+export const getAIOperation = (key: string, signal: AbortSignal) => api<AIExecution['operation'] & { idempotency_key: string }>(`/ai-search/operations/${encodeURIComponent(key)}`, { signal, cache: 'no-store' })
 export const sendAIMessage = (message: AIMessage, signal: AbortSignal) => api<AIExecution>('/ai-search/query', {
   method: 'POST', headers, body: JSON.stringify({ ...message, search: { limit: 6 } }), signal, cache: 'no-store',
 })
