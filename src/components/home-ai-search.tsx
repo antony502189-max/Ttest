@@ -62,7 +62,7 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
 
   useEffect(() => {
     const saved = readAIContinuation(identity)
-    if (!saved) { lock.current = false; setRestoring(false); return }
+    if (!saved) { operationLocator.current = null; lock.current = false; setRestoring(false); return }
     const controller = new AbortController()
     syncFlight.current?.abort()
     setRestoring(true)

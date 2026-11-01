@@ -1028,3 +1028,36 @@ for (const invalid of ['expired', 'future', 'foreign-identity', 'extra-payload']
     expect(reads).toBe(0)
   })
 }
+
+test('review expired recovery locator cannot bind a newly entered operation to its old key', async ({ page }) => {
+  await setup(page)
+  const messages: Record<string, unknown>[] = []
+  await page.route('**/api/v1/ai-search/sessions', route => route.fulfill({ json: snapshot(0) }))
+  await page.route('**/api/v1/ai-search/query', route => { messages.push(route.request().postDataJSON()); return route.abort('failed') })
+  await page.route('**/api/v1/ai-search/operations/*', route => route.fulfill({ status: 404, json: { detail: 'OPERATION_NOT_FOUND' } }))
+  await page.goto('/#/')
+  await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
+  await page.locator('#ai-rental-mode').selectOption('none')
+  await page.locator('#ai-search-text').fill(requestText)
+  await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Comprobar el mismo intento' })).toBeEnabled()
+  await page.reload()
+  await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
+  await expect(page.getByRole('button', { name: 'Reintentar sincronización' })).toBeEnabled()
+  await page.evaluate(() => {
+    const key = '112233:ai-continuation:v1:guest'
+    const saved = JSON.parse(sessionStorage.getItem(key)!)
+    saved.operation.createdAt = Date.now() - 86400001
+    sessionStorage.setItem(key, JSON.stringify(saved))
+  })
+  await page.getByRole('button', { name: 'Reintentar sincronización' }).click()
+  await expect(page.locator('#ai-rental-mode')).toBeEnabled()
+  await page.locator('#ai-rental-mode').selectOption('none')
+  await page.locator('#ai-search-text').fill('Otro requisito')
+  await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Comprobar el mismo intento' })).toBeEnabled()
+  const saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem('112233:ai-continuation:v1:guest')!))
+  expect(messages).toHaveLength(2)
+  expect(saved.operation.key).toBe(messages[1].idempotency_key)
+  expect(saved.operation.key).not.toBe(messages[0].idempotency_key)
+})
