@@ -14,6 +14,8 @@ x-backend: &backend
   environment:
     APP_ENV: test
     AI_SYNTHETIC_LAB: ttest-ai-text-lab.synthetic.v1
+    AI_SYNTHETIC_SEARCH_DISABLED: ${LAB_AI_DISABLED:-false}
+    METRICS_ENABLED: "true"
     DATABASE_URL: postgresql+asyncpg://ai_lab:synthetic-local-only@postgres:5432/ai_text_lab
     AI_MAINTENANCE_DATABASE_URL: postgresql+asyncpg://ai_lab:synthetic-local-only@postgres:5432/ai_text_lab
     AI_ERASURE_JOURNAL_PATH: /lab-journal/events.sqlite

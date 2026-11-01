@@ -32,6 +32,8 @@ class ObservedParser:
         fault = await self.redis.getdel(key + ":fault")
         if fault == "delay":
             await asyncio.sleep(3)
+        elif fault == "timeout":
+            await asyncio.sleep(18)
         elif fault == "failure":
             raise ValueError("synthetic parser failure")
         elif fault == "cancel":
@@ -178,9 +180,10 @@ async def command(payload):
                 raise ValueError("invalid version")
             key = f"lab-acceptance:{sid}:{version}"
             if action == "arm":
-                if payload["fault"] not in {"delay", "failure", "cancel"}:
+                if payload["fault"] not in {"delay", "failure", "cancel", "timeout", "commit-ack"}:
                     raise ValueError("unsupported parser fault")
-                await redis.set(key + ":fault", payload["fault"], ex=60)
+                suffix = ":commit-ack" if payload["fault"] == "commit-ack" else ":fault"
+                await redis.set(key + suffix, payload["fault"], ex=60)
                 return {"armed": True}
             if action == "expire":
                 await conn.execute(update(AISearchSession).where(AISearchSession.id == sid)

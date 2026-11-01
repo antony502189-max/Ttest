@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('start', 'seed', 'status', 'stop')][string]$Action = 'status',
+    [ValidateSet('start', 'seed', 'status', 'stop', 'disable-ai', 'enable-ai')][string]$Action = 'status',
     [string]$BackendBase = 'ttest-main-audit-backend:7d4c1255',
     [string]$FrontendBase = 'ttest-main-audit-frontend:7d4c1255'
 )
@@ -67,7 +67,8 @@ if ($Action -eq 'start') {
     finally { Pop-Location }
     @{ source = $sha; parser = 'synthetic-exact-phrases-v1'; mockApi = $false } | ConvertTo-Json |
         Set-Content -Encoding utf8 -LiteralPath (Join-Path $snapshot 'output/lab-dist/build-info.json')
-    @{ source = $sha; snapshot = $snapshot; backendBase = $BackendBase; frontendBase = $FrontendBase } |
+    $disabled = (Test-Path -LiteralPath $stateFile) -and (Get-Content -Raw -LiteralPath $stateFile | ConvertFrom-Json).aiDisabled
+    @{ source = $sha; snapshot = $snapshot; backendBase = $BackendBase; frontendBase = $FrontendBase; aiDisabled = [bool]$disabled } |
         ConvertTo-Json | Set-Content -Encoding utf8 -LiteralPath $stateFile
 }
 if (-not (Test-Path -LiteralPath $stateFile)) { throw 'No lab source record; run start first.' }
@@ -75,8 +76,19 @@ $state = Get-Content -Raw -LiteralPath $stateFile | ConvertFrom-Json
 $env:LAB_SOURCE_SHA = $state.source
 $env:LAB_BACKEND_BASE = $state.backendBase
 $env:LAB_FRONTEND_BASE = $state.frontendBase
+$env:LAB_AI_DISABLED = if ($state.aiDisabled) { 'true' } else { 'false' }
 $compose = @('compose', '--project-name', 'ttest-ai-text-lab', '-f', (Join-Path $state.snapshot 'deploy/ai-text-lab/compose.yml'))
 switch ($Action) {
+    { $_ -in 'disable-ai', 'enable-ai' } {
+        $disabled = $Action -eq 'disable-ai'
+        $state | Add-Member -NotePropertyName aiDisabled -NotePropertyValue $disabled -Force
+        $state | ConvertTo-Json | Set-Content -Encoding utf8 -LiteralPath $stateFile
+        $env:LAB_AI_DISABLED = if ($disabled) { 'true' } else { 'false' }
+        Invoke-Checked docker ($compose + @('up', '-d', '--no-deps', '--wait', '--wait-timeout', '60', 'backend'))
+        # nginx resolves its upstream at startup; refresh it after replacement.
+        Invoke-Checked docker ($compose + @('restart', 'frontend'))
+        Write-Output "Synthetic lab AI disabled: $disabled"
+    }
     'start' {
         Invoke-Checked docker ($compose + @('build'))
         # Stable labels: Compose must never recreate persistent synthetic data

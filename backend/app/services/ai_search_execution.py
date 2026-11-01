@@ -23,6 +23,7 @@ from ..schemas.ai_search_quota import FailureCode, OperationState, QuotaOperatio
 from ..schemas.listings import ListingCardSearchRequest
 from .ai_deepseek_intent import ProviderFailure
 from .ai_http_policy import HTTP_DEADLINE
+from .ai_observability import EXECUTION_SECONDS, OPERATIONS, PARSER_SECONDS, observe_result
 from .ai_search_attempts import AIAttemptRejected
 
 
@@ -96,8 +97,22 @@ class TextSearchExecution:
         http_deadline = HTTP_DEADLINE.get()
         if http_deadline is not None:
             deadline = min(deadline, http_deadline)
-        async with asyncio.timeout_at(deadline):
-            return await self._execute(subject, operation, text, payload, deadline)
+        with EXECUTION_SECONDS.time():
+            try:
+                async with asyncio.timeout_at(deadline):
+                    result = await self._execute(subject, operation, text, payload, deadline)
+                observe_result(result)
+                return result
+            except asyncio.CancelledError:
+                OPERATIONS.labels("uncertain", "no", "cancelled").inc()
+                raise
+            except TimeoutError:
+                OPERATIONS.labels("uncertain", "no", "timeout").inc()
+                raise
+            except Exception:
+                # A lost commit ACK is uncertain, never a claimed failed debit.
+                OPERATIONS.labels("uncertain", "no", "unavailable").inc()
+                raise
 
     async def _execute(self, subject: QuotaSubject, operation: QuotaOperation, text: str,
                        payload: ListingCardSearchRequest, deadline: float) -> SearchExecution:
@@ -150,7 +165,8 @@ class TextSearchExecution:
                 raise SessionError("SESSION_VERSION_CONFLICT")
             await self.attempts.check(subject)
             phase = FailureCode.LLM_FAILURE
-            patch = await self.parser.parse(text, current)
+            with PARSER_SECONDS.time():
+                patch = await self.parser.parse(text, current)
             if isinstance(patch, IntentClarification):
                 # Terminal zero-debit receipt. No candidate query, intent CAS
                 # or partial update; same-key retries derive the same question.

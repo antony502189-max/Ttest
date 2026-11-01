@@ -123,6 +123,16 @@ def create_app():
 
     from lab.acceptance import ObservedParser
     parser_redis = from_url(REDIS, decode_responses=True)
+    original_finalize = sessions.finalize_patch
+
+    async def finalize_with_ack_fault(subject, operation, *args, **kwargs):
+        result = await original_finalize(subject, operation, *args, **kwargs)
+        key = f"lab-acceptance:{operation.session_id}:{operation.expected_session_version}:commit-ack"
+        if await parser_redis.getdel(key):
+            raise ConnectionError("synthetic lost commit acknowledgement")
+        return result
+
+    sessions.finalize_patch = finalize_with_ack_fault
     execution = TextSearchExecution(sessions, ObservedParser(SyntheticParser(), parser_redis),
                                    OperatingAttemptGate(limiter), cards)
     active = AISearchRuntime(sessions, cards, execution,
@@ -144,11 +154,13 @@ def create_app():
         await bind_journal(SessionLocal, journal, initialize=True)
         await replay_erasure(SessionLocal, journal)
         async with original_lifespan(application):
-            application.state.ai_search_runtime = active
+            if os.environ.get("AI_SYNTHETIC_SEARCH_DISABLED", "false") == "false":
+                application.state.ai_search_runtime = active
             try:
                 yield
             finally:
-                del application.state.ai_search_runtime
+                if hasattr(application.state, "ai_search_runtime"):
+                    del application.state.ai_search_runtime
                 await limiter.close()
                 await parser_redis.aclose()
 
