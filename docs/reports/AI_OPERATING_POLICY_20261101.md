@@ -56,7 +56,35 @@
 удаление независимых AI snapshots при admin erase; ожидаемый migration head.
 Browser-моки не считаются end-to-end проверкой реального backend.
 Пропущенные DB/browser cases требуют отдельного browser dist/config; это не
-доказательство их прохождения. Проверка Compose запуска отмечается отдельно ниже.
+доказательство их прохождения.
+
+## Запущенный результат
+
+Runtime source **f92829570a95d7c0b693caae39686e4828e95355**: immutable git archive,
+пересобранные frontend/backend images, `https://localhost:9443`. PostGIS, Redis,
+backend, frontend и maintenance запущены; migration head 0079, binding journal
+создан и проверен при старте. Повтор запуска сохраняет БД и независимый журнал.
+
+Проверено на настоящем HTTPS UI/API, без браузерных API mocks:
+
+- Сначала сохранённые source checks от 31 октября оказались старше 24 ч:
+  `SOURCE_COVERAGE_UNAVAILABLE`, без списания. Пересборка proof это не скрыла.
+- Добавлена отдельная `lab.recheck_synthetic`: сверяет точные UUID, identity,
+  URL, raw/normalized payload с конечным committed fixture generator. Только
+  совпавшая тестовая запись обновляет successful check; реального crawl нет.
+  На старте подтверждены 13 fixtures, а намеренно изменённая stale fixture
+  осталась со старой датой. Подготовка proof остаётся отдельным шагом.
+- HTTPS guest create/query с rental_mode long: 4 cards, remaining 2/3.
+  Повтор точного ключа вернул исходный receipt без второго списания.
+- Настоящий Chromium открыл UI, выбрал отсутствие ограничения режима и отправил
+  «все варианты»: 11 подтверждённых вариантов, remaining 2/3. Скриншот локально
+  `output/point6-real-browser.png`; raw text в browser storage не сохранялся.
+- Maintenance сам удалил 234 просроченных result intents и неактуальный AI subtree;
+  следующий проход показал нулевой backlog. В логах только агрегатные счётчики.
+
+Эти smoke checks не заменяют полный release/performance drill. Runtime использует
+конечный synthetic parser; real-user LLM не подключён. Последующий evidence-only
+commit не меняет запущенный код.
 
 ## Что осталось до публичного продукта
 
