@@ -20,6 +20,8 @@ def require_lab():
                 "EXTERNAL_IMPORT_ENABLED": "false", "EXTERNAL_REMOVAL_CHECK_ENABLED": "false"}
     if any(os.environ.get(key) != value for key, value in expected.items()):
         raise RuntimeError("use only the dedicated ai-text-lab launcher/configuration")
+    if os.environ.get("AI_LAB_PARSER", "finite") not in {"finite", "decision-transport-fixture"}:
+        raise RuntimeError("unknown lab parser; live provider activation forbidden")
     for name in ("STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "SMTP_HOST", "SENTRY_DSN",
                  "GOOGLE_CLIENT_ID", "WEB_PUSH_PRIVATE_KEY", "OPENAI_API_KEY", "DEEPSEEK_API_KEY",
                  "AI_INTENT_EVAL_DEEPSEEK_KEY"):
@@ -133,7 +135,12 @@ def create_app():
         return result
 
     sessions.finalize_patch = finalize_with_ack_fault
-    execution = TextSearchExecution(sessions, ObservedParser(SyntheticParser(), parser_redis),
+    if os.environ.get("AI_LAB_PARSER", "finite") == "decision-transport-fixture":
+        from lab.decision_parser import LocalDecisionParser
+        parser = LocalDecisionParser(parser_redis)
+    else:
+        parser = ObservedParser(SyntheticParser(), parser_redis)
+    execution = TextSearchExecution(sessions, parser,
                                    OperatingAttemptGate(limiter), cards)
     active = AISearchRuntime(sessions, cards, execution,
         GuestTokens(key=b"synthetic-lab-guest-independent-key-v1", policy=GuestPolicy(ttl_seconds=604800)),

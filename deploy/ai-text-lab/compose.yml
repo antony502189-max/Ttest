@@ -13,6 +13,7 @@ x-backend: &backend
   networks: [lab]
   environment:
     APP_ENV: test
+    AI_LAB_PARSER: ${LAB_PARSER:-finite}
     AI_SYNTHETIC_LAB: ttest-ai-text-lab.synthetic.v1
     AI_SYNTHETIC_SEARCH_DISABLED: ${LAB_AI_DISABLED:-false}
     METRICS_ENABLED: "true"

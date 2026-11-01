@@ -1,5 +1,6 @@
 param(
     [ValidateSet('start', 'seed', 'status', 'stop', 'disable-ai', 'enable-ai')][string]$Action = 'status',
+    [ValidateSet('finite', 'decision-transport-fixture')][string]$Parser = 'finite',
     [string]$BackendBase = 'ttest-main-audit-backend:7d4c1255',
     [string]$FrontendBase = 'ttest-main-audit-frontend:7d4c1255'
 )
@@ -52,6 +53,7 @@ if ($Action -eq 'start') {
     if (-not (Test-Path (Join-Path $snapshot 'node_modules'))) {
         New-Item -ItemType Junction -Path (Join-Path $snapshot 'node_modules') -Target (Join-Path $root 'node_modules') | Out-Null
     }
+    $env:VITE_AI_CLOSED_LAB = $Parser
     $env:VITE_API_BASE_URL = '/api/v1'
     $env:VITE_ENABLE_MOCK_MODE = '0'
     $env:VITE_BASE_PATH = '/'
@@ -65,14 +67,15 @@ if ($Action -eq 'start') {
         Invoke-Checked node @('node_modules/vite/bin/vite.js', 'build', '--mode', 'ai-synthetic-lab', '--outDir', 'output/lab-dist')
     }
     finally { Pop-Location }
-    @{ source = $sha; parser = 'synthetic-exact-phrases-v1'; mockApi = $false } | ConvertTo-Json |
+    @{ source = $sha; parser = $Parser; mockApi = $false } | ConvertTo-Json |
         Set-Content -Encoding utf8 -LiteralPath (Join-Path $snapshot 'output/lab-dist/build-info.json')
     $disabled = (Test-Path -LiteralPath $stateFile) -and (Get-Content -Raw -LiteralPath $stateFile | ConvertFrom-Json).aiDisabled
-    @{ source = $sha; snapshot = $snapshot; backendBase = $BackendBase; frontendBase = $FrontendBase; aiDisabled = [bool]$disabled } |
+    @{ source = $sha; snapshot = $snapshot; parser = $Parser; backendBase = $BackendBase; frontendBase = $FrontendBase; aiDisabled = [bool]$disabled } |
         ConvertTo-Json | Set-Content -Encoding utf8 -LiteralPath $stateFile
 }
 if (-not (Test-Path -LiteralPath $stateFile)) { throw 'No lab source record; run start first.' }
 $state = Get-Content -Raw -LiteralPath $stateFile | ConvertFrom-Json
+$env:LAB_PARSER = if ($state.parser) { $state.parser } else { 'finite' }
 $env:LAB_SOURCE_SHA = $state.source
 $env:LAB_BACKEND_BASE = $state.backendBase
 $env:LAB_FRONTEND_BASE = $state.frontendBase
