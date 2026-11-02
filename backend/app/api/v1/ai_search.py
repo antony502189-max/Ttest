@@ -23,6 +23,7 @@ from ...schemas.listings import ListingCardSearchRequest, ListingMapRequest
 from ...services.ai_card_cursors import InvalidAICursor
 from ...services.ai_guest_tokens import GuestTokens, InvalidGuestToken
 from ...services.ai_http_policy import HTTP_DEADLINE, AIHTTPPolicy
+from ...services.ai_operating_limits import AI_IP_KEY
 from ...services.ai_search_attempts import AIAttemptRejected
 from ...services.ai_search_execution import TextSearchExecution
 from ...services.moderation import enforce_full_access
@@ -95,11 +96,13 @@ class PrivateAIRoute(APIRoute):
                             raise HTTPException(503, "AI_SEARCH_DISABLED")
                         deadline = asyncio.get_running_loop().time() + configured.policy.request_seconds
                         deadline_token = HTTP_DEADLINE.set(deadline)
+                        ip_token = AI_IP_KEY.set(None)
                         try:
                             async with asyncio.timeout_at(deadline):
                                 result = await bounded_handler(request, handler, deadline)
                         finally:
                             HTTP_DEADLINE.reset(deadline_token)
+                            AI_IP_KEY.reset(ip_token)
                     result.headers["Cache-Control"] = "no-store"
                     return result
                 except RequestValidationError:
@@ -111,6 +114,16 @@ class PrivateAIRoute(APIRoute):
                     # Commit acknowledgement may be lost. Do not release or
                     # infer again here; retry the exact operation to read PG.
                     return JSONResponse({"detail": "AI_REQUEST_TIMEOUT_RETRY_SAME_OPERATION"}, 504,
+                                        headers={"Cache-Control": "no-store"})
+                except asyncio.CancelledError:
+                    # A dependency can raise CancelledError without cancelling
+                    # the HTTP task. Keep that private failure inside this route
+                    # rather than triggering middleware's generic 500/traceback.
+                    # Genuine task cancellation (disconnect/shutdown) propagates.
+                    task = asyncio.current_task()
+                    if task is not None and task.cancelling():
+                        raise
+                    return JSONResponse({"detail": "AI_SERVICE_UNAVAILABLE"}, 503,
                                         headers={"Cache-Control": "no-store"})
                 except HTTPException as error:
                     error.headers = {**(error.headers or {}), "Cache-Control": "no-store"}
@@ -129,8 +142,8 @@ class PrivateAIRoute(APIRoute):
                     return JSONResponse({"detail": code}, 429 if code == "SESSION_LIMIT" else 404 if code in {"SESSION_NOT_FOUND", "RESULT_NOT_FOUND"} else 409,
                                         headers={"Cache-Control": "no-store", **({"Retry-After": str(error.retry_after)} if error.retry_after else {})})
                 except QuotaError as error:
-                    code = error.code if error.code in {"QUOTA_EXHAUSTED", "IDEMPOTENCY_CONFLICT", "CLAIM_REJECTED", "STALE_WORKER"} else "AI_OPERATION_UNAVAILABLE"
-                    return JSONResponse({"detail": code}, 429 if code == "QUOTA_EXHAUSTED" else 409,
+                    code = error.code if error.code in {"QUOTA_EXHAUSTED", "IDEMPOTENCY_CONFLICT", "CLAIM_REJECTED", "STALE_WORKER", "OPERATION_NOT_FOUND"} else "AI_OPERATION_UNAVAILABLE"
+                    return JSONResponse({"detail": code}, 429 if code == "QUOTA_EXHAUSTED" else 404 if code == "OPERATION_NOT_FOUND" else 409,
                                         headers={"Cache-Control": "no-store", **({"Retry-After": str(error.retry_after)} if error.retry_after > 0 else {})})
                 except AIAttemptRejected as error:
                     limited = error.code == "ATTEMPT_LIMIT"
@@ -172,6 +185,7 @@ class AICardView(APIBody):
 
 
 class MessageBody(APIBody):
+    clarification_key: UUID | None = None
     idempotency_key: UUID
     session_id: UUID
     expected_version: Annotated[int, Field(strict=True, ge=0, le=2_147_483_647)]
@@ -209,6 +223,7 @@ async def runtime(request: Request) -> AISearchRuntime:
     ):
         raise HTTPException(403, "AI_ORIGIN_OR_CSRF_REJECTED")
     address = value.policy.address(request)
+    AI_IP_KEY.set(value.guests.ip_key(address, purpose="ai-private-ip"))
     await value.http_gate.check(value.guests.ip_key(address, purpose="ai-http"))
     request.state.validated_ai_runtime = value
     return value
@@ -223,7 +238,9 @@ async def subject(request: Request, response: Response, active: AISearchRuntime 
                 # An invalid/blocked bearer never falls back to guest identity.
                 raise HTTPException(401, "Authentication required")
             await enforce_full_access(user, connection)
-            return QuotaSubject(kind="auth", id=user.id)
+            owner = QuotaSubject(kind="auth", id=user.id)
+            await active.http_gate.check(active.guests.ip_key(f"{owner.kind}:{owner.id}", purpose="ai-read-subject"))
+            return owner
     # Strict guest cookies are supported only behind a same-origin UI/API
     # reverse proxy. Cross-origin bearer clients retain explicit CORS support.
     origin = request.headers.get("origin")
@@ -233,7 +250,9 @@ async def subject(request: Request, response: Response, active: AISearchRuntime 
         raise HTTPException(403, "AI_GUEST_SAME_ORIGIN_REQUIRED")
     token = request.cookies.get(COOKIE)
     if token is not None:
-        return active.guests.read(token)
+        owner = active.guests.read(token)
+        await active.http_gate.check(active.guests.ip_key(f"{owner.kind}:{owner.id}", purpose="ai-read-subject"))
+        return owner
     if request.method != "POST" or request.url.path not in {"/api/v1/ai-search/sessions", "/api/v1/ai-search/identity"}:
         raise HTTPException(401, "AI_GUEST_IDENTITY_REQUIRED")
     # Keyed creates require an already acknowledged browser identity. If its
@@ -293,11 +312,18 @@ async def page(session_id: UUID, payload: PageBody, active: AISearchRuntime = De
     return jsonable_encoder(await active.cards.search_owned(owner, session_id, payload.expected_version, payload.search.to_request()))
 
 
+@router.post("/sessions/{session_id}/close")
+async def close_session(session_id: UUID, payload: VersionBody, active: AISearchRuntime = Depends(runtime),
+                        owner: QuotaSubject = Depends(subject)):
+    await active.sessions.close(owner, session_id, payload.expected_version)
+    return {"closed": True}
+
+
 @router.post("/query")
 async def message(payload: MessageBody, active: AISearchRuntime = Depends(runtime), owner: QuotaSubject = Depends(subject)):
     operation = QuotaOperation(idempotency_key=payload.idempotency_key, channel="text",
         payload_sha256=hashlib.sha256(payload.text.encode()).hexdigest(), session_id=payload.session_id,
-        expected_session_version=payload.expected_version)
+        expected_session_version=payload.expected_version, clarification_key=payload.clarification_key)
     return jsonable_encoder(await active.execution.execute(owner, operation, payload.text, payload.search.to_request()))
 
 
@@ -340,6 +366,14 @@ class ResultMapBody(APIBody):
 @router.get("/quota")
 async def quota(active: AISearchRuntime = Depends(runtime), owner: QuotaSubject = Depends(subject)):
     return await active.sessions.ledger.daily_status(owner)
+
+
+@router.get("/operations/{key}")
+async def operation_status(key: UUID, active: AISearchRuntime = Depends(runtime), owner: QuotaSubject = Depends(subject)):
+    state = await active.sessions.ledger.operation_status(owner, key)
+    # No text, fingerprint, session criteria, worker fence or lease authority.
+    return jsonable_encoder({"idempotency_key": state.idempotency_key, "status": state.status,
+        "failure_code": state.failure_code, "receipt": state.receipt, "remaining": state.remaining})
 
 
 @router.get("/results/{result_ref}")

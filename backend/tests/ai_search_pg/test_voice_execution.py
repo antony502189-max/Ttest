@@ -62,6 +62,24 @@ async def execute(service, subject, snapshot, key, payload=None, **changes):
     return await service.execute(**{**args, **changes})
 
 
+async def provider_started(provider, task):
+    # A worker can reach its deadline before the provider. Waiting only for
+    # started would then strand the test forever and hide the original error.
+    waiter = asyncio.create_task(provider.started.wait())
+    try:
+        done, _ = await asyncio.wait({waiter, task}, timeout=3, return_when=asyncio.FIRST_COMPLETED)
+        if task in done:
+            await task
+        assert waiter in done and provider.started.is_set(), "worker ended or timed out before provider barrier"
+    except BaseException:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        raise
+    finally:
+        waiter.cancel()
+        await asyncio.gather(waiter, return_exceptions=True)
+
+
 @pytest.mark.parametrize("total", [0, 3])
 async def test_success_replay_one_ledger_row_debit_and_both_providers_once(store, pg, total):
     subject, snapshot, asr, parser, gate, query, service = await configured(store)
@@ -109,7 +127,7 @@ async def test_running_duplicate_and_conflicting_bytes_media_version_channel(sto
     asr.finish = asyncio.Event()
     key = uuid4()
     task = asyncio.create_task(execute(service, subject, snapshot, key))
-    await asr.started.wait()
+    await provider_started(asr, task)
     duplicate = await execute(service, subject, snapshot, key)
     assert duplicate.operation.status == "running" and asr.calls == 1 and parser.calls == 0
     for change in ({"audio": b"different"}, {"media_type": "audio/webm"}, {"version": 1}, {"session_id": uuid4()}):
@@ -152,7 +170,7 @@ async def test_cancel_releases_and_sync_late_provider_result_is_rejected(store, 
     target, method = (asr, "transcribe") if phase == "asr" else (parser, "parse")
     target.finish = asyncio.Event()
     task = asyncio.create_task(execute(service, subject, snapshot, uuid4()))
-    await target.started.wait()
+    await provider_started(target, task)
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
@@ -241,7 +259,7 @@ async def test_lease_expiry_fences_late_worker_and_recovery_releases(store, pg):
     query.finish = asyncio.Event()
     key = uuid4()
     task = asyncio.create_task(execute(service, subject, snapshot, key))
-    await query.started.wait()
+    await provider_started(query, task)
     async with pg[1].begin() as conn:
         await conn.execute(update(AISearchRequest).where(AISearchRequest.idempotency_key == key).values(
             lease_until=text("clock_timestamp() - interval '31 seconds'"),
@@ -324,7 +342,7 @@ async def test_exhausted_http_deadline_defers_cancellation_cleanup_to_fenced_rec
     token = HTTP_DEADLINE.set(asyncio.get_running_loop().time() + 0.2)
     try:
         task = asyncio.create_task(execute(service, subject, snapshot, key))
-        await asr.started.wait()
+        await provider_started(asr, task)
         with pytest.raises(TimeoutError):
             await task
     finally:
@@ -350,7 +368,7 @@ async def test_contended_cleanup_is_bounded_and_fenced_recovery_replays(store, p
     token = HTTP_DEADLINE.set(asyncio.get_running_loop().time() + 0.3) if phase == "http" else None
     try:
         task = asyncio.create_task(execute(service, subject, snapshot, key))
-        await target.started.wait()
+        await provider_started(target, task)
         async with pg[1].begin() as blocker:
             await blocker.execute(select(AIUsageDay).where(AIUsageDay.subject_id == subject.id).with_for_update())
             if phase in {"cancel", "http"}:

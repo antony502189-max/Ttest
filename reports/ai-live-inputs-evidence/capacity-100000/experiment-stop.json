@@ -1,0 +1,9 @@
+{
+  "experiment_id": "3056bd59405546c984354b07f2382a1f",
+  "code_revision": "ea333e156d74bc441f66d27a9314fdaad59bc5d5",
+  "stopped_utc": "2026-10-31T20:35:25.1233060Z",
+  "completed_scales": [
+    100000
+  ],
+  "reason": "100k SLO FAIL: 1161 errors/3600 attempts, 0/18 scenarios pass. Larger scales deferred until another measured optimization; all limits unchanged."
+}

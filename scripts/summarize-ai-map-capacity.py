@@ -304,12 +304,24 @@ def baseline_attestation(root, size, records, experiment, run_id):
         statements = record.get("statements",[])
         queries = [row for row in statements if row.get("category") == "map-query"]
         controls = [row for row in statements if row.get("category") == "transaction-control"]
-        expected_queries = 2 if zoom is not None and zoom >= 13 and count is not None and count > 300 else 1
+        configs = [row for row in statements if row.get("category") == "query-config"]
+        contract = record.get("query_contract")
+        single_pass = contract == "single-pass-jit.v1"
+        if contract not in (None, "single-pass-jit.v1"):
+            baseline_ok = False
+        expected_queries = 1 if single_pass else (2 if zoom is not None and zoom >= 13 and count is not None and count > 300 else 1)
+        if single_pass:
+            if (record.get("query_settings") != {"jit":"off"} or len(configs) != 1 or
+                    configs[0].get("ordinal") != 1 or configs[0].get("sql", "") != "SET LOCAL jit = off" or
+                    configs[0].get("sql_sha256") != hashlib.sha256(b"SET LOCAL jit = off").hexdigest()):
+                baseline_ok = False
+        elif configs:
+            baseline_ok = False
         if (record.get("capture_count") != len(statements) or record.get("query_count") != len(queries) or
                 [row.get("ordinal") for row in statements] != list(range(len(statements))) or
                 len(controls) != 1 or controls[0].get("ordinal") != 0 or
                 controls[0].get("sql","").strip().upper() != "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY" or
-                len(controls)+len(queries) != len(statements) or not 1 <= len(queries) <= expected_queries or
+                len(controls)+len(configs)+len(queries) != len(statements) or not 1 <= len(queries) <= expected_queries or
                 (record.get("first_touch",{}).get("ok") is True and len(queries) != expected_queries)):
             baseline_ok = False
         if record.get("plan_count") != len(queries):
@@ -324,6 +336,8 @@ def baseline_attestation(root, size, records, experiment, run_id):
                 continue
             try:
                 content = json.loads(path.read_text(encoding="utf-8"))
+                if single_pass and content.get("query_settings") != {"jit":"off"}:
+                    plans_ok = False
                 sql_hash = hashlib.sha256(row["sql"].encode()).hexdigest()
                 if (not valid_plan(content) or not provenance_valid(root,[content],experiment,"measure") or
                         content.get("run_id") != run_id or content.get("sql_sha256") != sql_hash or row.get("sql_sha256") != sql_hash or
@@ -611,10 +625,10 @@ def main():
             pool_label=f"{max(pools):.2f}" if pools else "нет данных"
             lines.append(f"| {scale['dataset']['listings']:,} | {concurrency} | {sum(c['failures'] for c in cases)} / {sum(c['samples'] for c in cases)} | {min(p95):.2f}–{max(p95):.2f} | {min(p99):.2f}–{max(p99):.2f} | {pool_label} |")
     lines += ["", "`pool_ms` включает получение соединения и round trip SET TRANSACTION; это не чистый таймер очереди. `query_ms` включает repository SQL/DTO и завершение ошибочной транзакции; серверное время отдельно видно только в фактическом EXPLAIN.", "", "## Узкие места и рекомендации", "",
-        "1. **Выбор authority-источников масштабировался с общим каталогом.** " + control_description + " После остановки нагрузки выбор ID текущих и ранее известных источников исправлен на индексируемый UNION с сохранением remap/delete fail-closed семантики. Сначала он использовался только для подготовки fixture; теперь внесён в приложение. Совместимость v2 digest и число посещённых источников проверяются отдельно небольшими регрессиями. Скорость под нагрузкой после изменения не измерялась.", "",
-        "2. **Повторная дорогая проверка.** На zoom ≥13 при более чем 300 совпадениях сначала выполняется probe на 301 строку, затем агрегат. В отдельных планах сам signature также вычисляется повторно при join. После изменения доступа к источникам проверить число фактических выполнений и возможность однократного вычисления на уже ограниченных кандидатах. Не переносить проверки после LIMIT/агрегации: это нарушит корректность и приватность.", "",
+        "1. **Исторический scan authority-источников.** " + control_description + " Исходный OR заменён индексируемым UNION текущих и ранее известных ID с сохранением remap/delete fail-closed семантики. Наличие исправления в конкретном измерении устанавливается по source SHA, hashes и сохранённому SQL, а не по дате отчёта. Этот отчёт оценивает только аттестованную ревизию; его результат нельзя переносить на последующие изменения SQL. Совместимость v2 digest и число посещённых источников проверяются отдельными регрессиями.", "",
+        "2. **Контракт числа запросов.** Исторический путь на zoom ≥13 при более чем 300 совпадениях выполнял probe и отдельный агрегат; отдельные старые планы также повторяли signature при join. Контракт single-pass-jit.v1 требует один map SQL с материализованным проверенным множеством и отдельный SET LOCAL jit=off. Фактический контракт конкретного измерения устанавливается по trace/планам и source SHA. Проверки нельзя переносить после count/LIMIT/агрегации.", "",
         "3. **Очередь тяжёлых запросов.** Лимит пула 30 не ограничивает число ожидающих клиентских операций. Нужен отдельный измеренный admission/concurrency budget для карты, своевременная отмена старого viewport и ограниченная очередь. Простое увеличение пула создаст больше конкурентной работы с тем же дорогим SQL. Быстрые отказы не должны считаться выполнением SLO успешного поиска.", "",
-        "4. **Повторные измерения — только после отдельного согласования с владельцем.** Широкие viewport всё равно пересчитывают proof для каждого кандидата. Если бюджет остаётся недостижим, рассмотреть атомарно инвалидируемые версии/проекции и агрегаты на пути записи; обязательны все изменения источников, canonical/room data, фактов, batch и remap/delete. Замена текущих проверок на TTL или доверие старому proof без такого контракта небезопасна.", "",
+        "4. **Следующий этап оптимизации.** Широкие viewport пересчитывают proof для каждого кандидата. Если бюджет остаётся недостижим, рассмотреть атомарно инвалидируемые версии/проекции и агрегаты на пути записи; обязательны все изменения источников, canonical/room data, фактов, batch и remap/delete. Версия подготовленного proof-множества для cursor context сама по себе не заменяет live guards. Замена текущих проверок на TTL или доверие старому proof без полного контракта небезопасна. Нагрузочные прогоны ограничены явно согласованными владельцем ресурсами и изоляцией.", "",
         "5. **Отдельный эффект подготовки:** per-row триггер версии каталога сериализует массовые вставки через одну строку. Для синтетического наполнения он временно отключался и восстанавливался в finally с продвижением версии. Измеритель отказывается работать с отключённым триггером. Это не изменение production и не измерение реального импортера.", "",
         "## Отмена запросов", "", "| Каталог | Отменено операций | Освобождение, мс | Активных SQL после отмены | Пул работает |", "|---:|---:|---:|---:|:---:|"]
     for scale in result["scales"]:

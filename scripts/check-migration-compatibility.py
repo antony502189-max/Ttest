@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
 MIGRATIONS = Path("backend/alembic/versions")
 BASELINE_FILE = Path("backend/alembic/rollback-compatibility-baseline.json")
 RELEASED_FILE = Path("backend/alembic/released-migration-blobs.json")
@@ -255,6 +254,15 @@ def inspect_future_migration(migration: Migration, new_tables: set[str] | None =
                     violations.append(f"{migration.path}:{node.lineno}: SQL is not statically inspectable")
                     continue
                 for pattern, description in PROHIBITED_SQL:
+                    # Adding an AFTER TRUNCATE observer does not truncate data.
+                    # Match a single complete additive DDL statement; embedded
+                    # DML or a second statement must still be rejected.
+                    if description == "TRUNCATE" and re.fullmatch(
+                        r"\s*CREATE\s+TRIGGER\s+[a-zA-Z_][a-zA-Z0-9_]*\s+AFTER\s+TRUNCATE\s+ON\s+"
+                        r"[a-zA-Z_][a-zA-Z0-9_]*\s+FOR\s+EACH\s+STATEMENT\s+EXECUTE\s+FUNCTION\s+"
+                        r"[a-zA-Z_][a-zA-Z0-9_]*\s*\(\s*\)\s*;?\s*", sql, re.IGNORECASE,
+                    ):
+                        continue
                     if pattern.search(sql):
                         violations.append(f"{migration.path}:{node.lineno}: {description} is forbidden in upgrade()")
     return violations

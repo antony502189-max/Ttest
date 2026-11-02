@@ -1,0 +1,19 @@
+{
+  "runtime_source": "b77423bc8b52eece184f7430d5894be61528e2e3",
+  "mode": "decision-transport-fixture",
+  "origin": "https://localhost:9443",
+  "runtime_inputs": {
+    "backend": "3862a5081e828d5a5a033b3607ad8d970f488258",
+    "src": "cbb8d9acd07772ef34aea6eb2d571b41a575f973",
+    "deploy/ai-text-lab": "31063f98f2574b82800d7dc213d4b04883dc98c8",
+    "scripts/ai-text-lab.ps1": "34d2785d79e6b12966bbc714be02948c008990ac"
+  },
+  "driver_sha256": "b3ec0b39de672ba998b6ac8c13bc08e09d21fce3ca54847cd08d254f9bb00571",
+  "model_boundary": "httpx.MockTransport completion fixtures",
+  "api_mocks": false,
+  "external_provider_calls": 0,
+  "backend_network": "ttest-ai-text-lab-network",
+  "network_internal": true,
+  "provider_credentials_mounted": false,
+  "eval_journal_mounted": false
+}

@@ -1,0 +1,36 @@
+{
+  "source_sha": "53cf3171e0f8e7ae5be6bbdbe77c34f240dca856",
+  "collected_utc": "2026-10-31T11:49:58.5191269Z",
+  "purpose": "ai-fact-population-v1",
+  "containers": [
+    {
+      "name": "ttest-ai-fact-population-pg",
+      "id": "6b14e98c8aa028052e6ea2165a5c979d5f343aaea8c6c2f05007331ce628736c",
+      "image": "sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5",
+      "purpose": "ai-fact-population-v1",
+      "network_mode": "ttest-ai-fact-population-network",
+      "published_ports": {},
+      "nano_cpus": 2000000000,
+      "memory": 2147483648,
+      "tmpfs": {
+        "/var/lib/postgresql/data": "rw,size=1073741824"
+      }
+    },
+    {
+      "name": "ttest-ai-fact-population-runner",
+      "id": "5565fe24f9a1e6b18bb2bb4e3c9f374f4715ee27ce6644153d339a0e982d7b58",
+      "image": "sha256:1ff5de84b825934599a53fd69add14bb6784d6399a1464e4a38255b2d234a902",
+      "purpose": "ai-fact-population-v1",
+      "network_mode": "container:6b14e98c8aa028052e6ea2165a5c979d5f343aaea8c6c2f05007331ce628736c",
+      "published_ports": {},
+      "nano_cpus": 2000000000,
+      "memory": 2147483648,
+      "tmpfs": null
+    }
+  ],
+  "network": true,
+  "route": [
+    "Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT                                                       ",
+    "eth0\t00001DAC\t00000000\t0001\t0\t0\t0\t0000FFFF\t0\t0\t0                                                                               "
+  ]
+}

@@ -383,6 +383,12 @@ async def soft_delete_user(
     from .commercial_advertisements import lock_advertising_capacity
     from .payment_review import review_paid_top
     await lock_advertising_capacity(session)
+    from .search_state import lock_saved_searches
+    await lock_saved_searches(user_id, session)
+    from ..repositories.ai_subject_state import erase_account as erase_ai_account
+    from ..repositories.ai_subject_state import lock_subject as lock_ai_subject
+    from ..schemas.ai_search_quota import QuotaSubject
+    await lock_ai_subject(session, QuotaSubject(kind="auth", id=user_id))
     target = await session.scalar(
         select(User)
         .where(User.id == user_id)
@@ -400,6 +406,7 @@ async def soft_delete_user(
     clean_reason = _clean_reason(reason)
     now = datetime.now(UTC)
     target.deleted_at = now
+    await erase_ai_account(session, target.id)
     await review_paid_top(session, owner_id=target.id, reason="Owner removed by moderation; reconcile paid TOP.")
     sessions = (
         await session.scalars(

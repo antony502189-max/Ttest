@@ -1,6 +1,8 @@
 name: AI Search combined facts quota sessions
 
 on:
+  push:
+    branches: [main]
   pull_request:
     paths: ['backend/**', '.github/workflows/ai-search-facts.yml']
   workflow_dispatch:
@@ -59,6 +61,11 @@ jobs:
       - name: Backend unit regressions
         working-directory: backend
         run: pytest -q -m 'not integration' --junitxml=../output/ai-facts-unit.xml
+      - name: Explicit synthetic lab composition guards (no runtime activation)
+        working-directory: backend
+        run: |
+          ruff check lab
+          python -m unittest lab.test_ai_text -v
       - name: Complete historical migration chain
         working-directory: backend
         run: |

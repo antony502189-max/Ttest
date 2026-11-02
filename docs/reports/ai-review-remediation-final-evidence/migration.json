@@ -1,0 +1,37 @@
+{
+  "source": "fcdf037943bba117baf8bba46db87e6b7974727b",
+  "database": "ai_quota_test_migration_6db6effea812",
+  "synthetic_listings": 250,
+  "cases": [
+    {
+      "name": "0077 contended writer causes bounded abort and complete DDL rollback",
+      "passed": true,
+      "wall_seconds": 3.633
+    },
+    {
+      "name": "0077 succeeds on populated real schema after writer release",
+      "passed": true,
+      "wall_seconds": 3.88
+    },
+    {
+      "name": "historical 0077 binary prepares four genuine fact/proof fixtures",
+      "passed": true
+    },
+    {
+      "name": "0078 locks cache writer, invalidates four old fast-path bindings, then releases writes",
+      "passed": true,
+      "wall_seconds": 0.531
+    },
+    {
+      "name": "current binary reprepare restores four current proofs and three real SQL cards on 0079",
+      "passed": true
+    },
+    {
+      "name": "historical binary reads the same three cards on expand-only 0079, no downgrade",
+      "passed": true
+    }
+  ],
+  "production_sized": false,
+  "old_binary_source": "b65c70af75be9bef204c032e1db4f10111acf5b8",
+  "status": "PASS"
+}

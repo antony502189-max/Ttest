@@ -1,0 +1,11 @@
+{
+  "source_sha": "24cf7d09aff5b6c4ee66d23d4d649c81c3f5d517",
+  "dependency_image_id": "sha256:1ff5de84b825934599a53fd69add14bb6784d6399a1464e4a38255b2d234a902",
+  "backend_files_verified_against_git_blobs": 465,
+  "python_files_verified": 430,
+  "backend_hashes": "backend-sha256.json",
+  "source_archive_sha256": "2006226e12d7681d35122ea52f3c39292b8c8a12a22f6008ec44a6a7c793ade3",
+  "archive_command": "git -c core.autocrlf=false archive --format=tar HEAD",
+  "unit_entrypoint": "pytest console; app-only import boundary, no lab package on sys.path",
+  "check_runner": "offline-checks.py"
+}

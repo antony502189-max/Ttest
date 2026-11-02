@@ -22,7 +22,7 @@ from geoalchemy2.functions import (
     ST_MakePoint,
     ST_SetSRID,
 )
-from sqlalchemy import Float, Select, and_, case, cast, false, func, or_, select, update
+from sqlalchemy import Float, Select, and_, case, cast, false, func, literal, or_, select, union_all, update
 from sqlalchemy.dialects.postgresql import aggregate_order_by, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -746,13 +746,7 @@ async def _search_filtered_map(
     latitude = ST_Y(cast(Listing.location, Geometry("POINT", srid=4326)))
     max_markers = 300
     if payload.zoom >= 13:
-        columns = [Listing.id, latitude, longitude, primary_price_expression(), active_promotion_expression(), Listing.is_external, Listing.primary_source_url]
-        rows = (await session.execute(filtered.with_only_columns(*columns).order_by(Listing.id).limit(max_markers + 1))).all()
-        if len(rows) <= max_markers:
-            return ListingMapResponse(items=[ListingMarker(
-                id=str(row[0]), latitude=row[1], longitude=row[2], price=row[3],
-                promoted=row[4], isExternal=row[5], sourceUrl=row[6],
-            ) for row in rows if row[1] is not None and row[2] is not None])
+        return await _single_pass_map(session, payload, filtered, latitude, longitude, max_markers)
     lon_cell = (payload.east - payload.west) / 20
     lat_cell = (payload.north - payload.south) / 20
     base = filtered.with_only_columns(
@@ -782,6 +776,40 @@ async def _search_filtered_map(
         count=row[4],
         promoted=bool(row[5]),
     ) for row in rows])
+
+
+async def _single_pass_map(session, payload, filtered, latitude, longitude, max_markers):
+    # All eligibility/currentness checks run once, before the count and either
+    # rendering branch. MATERIALIZED prevents the two consumers from repeating
+    # proof verification. No probe followed by a second verification scan.
+    eligible = filtered.with_only_columns(
+        Listing.id.label("id"), latitude.label("lat"), longitude.label("lon"),
+        primary_price_expression().label("price"), active_promotion_expression().label("promoted"),
+        Listing.is_external.label("external"), Listing.primary_source_url.label("url"),
+    ).order_by(None).cte("map_eligible").prefix_with("MATERIALIZED")
+    count = select(func.count()).select_from(eligible).scalar_subquery()
+    valid = and_(eligible.c.lat.is_not(None), eligible.c.lon.is_not(None))
+    markers = select(
+        eligible.c.id, eligible.c.lat, eligible.c.lon, eligible.c.price,
+        eligible.c.promoted, eligible.c.external, eligible.c.url,
+        literal(None).cast(Float).label("x"), literal(None).cast(Float).label("y"),
+        literal(None).cast(Float).label("count"),
+    ).where(count <= max_markers, valid)
+    x = func.least(19, func.greatest(0, func.floor((eligible.c.lon - payload.west) / ((payload.east - payload.west) / 20))))
+    y = func.least(19, func.greatest(0, func.floor((eligible.c.lat - payload.south) / ((payload.north - payload.south) / 20))))
+    clusters = select(
+        literal(None).cast(Listing.id.type), func.avg(eligible.c.lat), func.avg(eligible.c.lon),
+        literal(None).cast(Listing.monthly_price.type), func.bool_or(eligible.c.promoted),
+        literal(None).cast(Listing.is_external.type), literal(None).cast(Listing.primary_source_url.type),
+        x, y, func.count().cast(Float),
+    ).where(count > max_markers, valid).group_by(x, y)
+    rows = (await session.execute(union_all(markers, clusters).order_by("id"))).all()
+    return ListingMapResponse(items=[
+        ListingMarker(id=str(row[0]), latitude=row[1], longitude=row[2], price=row[3],
+                      promoted=row[4], isExternal=row[5], sourceUrl=row[6]) if row[0] is not None else
+        ClusterMarker(id=f"{int(row[7])}:{int(row[8])}", latitude=float(row[1]), longitude=float(row[2]),
+                      count=int(row[9]), promoted=bool(row[4])) for row in rows
+    ])
 
 
 async def register_view(listing: Listing, viewer_key: str, session: AsyncSession) -> bool:

@@ -1,0 +1,7 @@
+**
+!deploy/
+!deploy/ai-text-lab/
+!deploy/ai-text-lab/nginx.conf
+!output/
+!output/lab-dist/
+!output/lab-dist/**

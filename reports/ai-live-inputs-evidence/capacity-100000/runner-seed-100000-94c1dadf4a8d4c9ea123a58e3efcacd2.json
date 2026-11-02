@@ -1,0 +1,61 @@
+{
+  "python": "3.13.14",
+  "platform": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+  "sql_timeout_ms": 5000,
+  "pool": 30,
+  "mode": "closed-loop repository map path; excludes HTTP/session",
+  "source": "/code",
+  "synthetic_only": true,
+  "code_revision": "ea333e156d74bc441f66d27a9314fdaad59bc5d5",
+  "dependency_image_id": "sha256:1ff5de84b825934599a53fd69add14bb6784d6399a1464e4a38255b2d234a902",
+  "phase": "seed",
+  "total": 100000,
+  "source_provenance": {
+    "mode": "git-archive",
+    "checkout_clean": true,
+    "archive_sha256": "3ee96d4952623d3d1278a1a60d30ef4251466374c809afb8a24d7e5b358ca1a0"
+  },
+  "dependencies": {
+    "SQLAlchemy": "2.0.51",
+    "asyncpg": "0.31.0",
+    "pydantic": "2.13.4",
+    "geoalchemy2": "0.20.0",
+    "psycopg": "3.3.4"
+  },
+  "source_hashes": {
+    "/code/scripts/benchmark-ai-map.py": "ce9ec7b4438fbbd85e391a4e5dfac6a4626ca0b1f143ca5dbf247e48e0ad142d",
+    "/code/backend/app/repositories/ai_verified_cards.py": "d2699932f5e60a7b77070043d1b4935ebab51a926f301156eaaf79957be89227",
+    "/code/backend/app/repositories/ai_query_proofs.py": "d0e612c3ab508cbd274d0174ee44a5e9bb69004f675d87b761e6dc74852d8561",
+    "/code/backend/app/repositories/ai_query_settings.py": "01065cd5f63203fab98dd7f79e38ae473b37effba69021b0eefe6442d13dd7ae",
+    "/code/backend/alembic/versions/0075_ai_proof_population.py": "ada5604a9c08ef9303aa8539b461f2610edad2e13a667b9664374b95dd4db67f",
+    "/code/backend/alembic/versions/0076_ai_fact_population.py": "cc42afe8960a979a7d583d2e6621460d27fe9727c3a81fd60b15d6fb73a871c5",
+    "/code/backend/alembic/versions/0077_ai_live_inputs.py": "79de8b7b40d96ce978a5f3726e0b67224e6ebcff53e92f28557c6631f37f3763",
+    "/code/backend/app/models/ai_query_proof.py": "7804543583908ce08fe767d36038fa05dbca22b0f21a257d51a06cb85529b413",
+    "/code/backend/alembic/versions/0078_ai_live_validity.py": "3637c89533c2273bb04ea6bb570ddba21eba5ba0402b0e97413bd95a97ee4309",
+    "/code/backend/app/repositories/ai_hard_matching.py": "fab1f112fc85d81d0bbbf2e4ad6e1cd04f8a6889639cf9292e3f1b53a6972c76",
+    "/code/backend/app/repositories/ai_fact_population.py": "bcea7a27378f5ba34819736c643b4513797ad8bbdb0e1e34abbb4a84c0c0432c",
+    "/code/backend/app/repositories/listings.py": "276a7afa01cf65b495b2bcfc554d58a3e9f4e6a0f75f4c2e9088c64759e78a2f"
+  },
+  "started_at": "2026-10-31T20:06:59.854497+00:00",
+  "sources": 2,
+  "status": "complete",
+  "clock": {
+    "contract": "utc-anchored-monotonic.v1",
+    "anchor_utc": "2026-10-31T20:06:59.739263+00:00",
+    "wall_started_at": "2026-10-31T20:06:59.854560+00:00"
+  },
+  "ended_at": "2026-10-31T20:25:05.897445+00:00",
+  "provenance": {
+    "experiment_id": "3056bd59405546c984354b07f2382a1f",
+    "code_revision": "ea333e156d74bc441f66d27a9314fdaad59bc5d5",
+    "runner_image_id": "sha256:1ff5de84b825934599a53fd69add14bb6784d6399a1464e4a38255b2d234a902",
+    "archive_sha256": "3ee96d4952623d3d1278a1a60d30ef4251466374c809afb8a24d7e5b358ca1a0",
+    "db_container_id": "0bae1792d5a963880bb8f37d310e7310f658b6b6ed4bf6d81f3b3fe2708c98ca",
+    "db_image_id": "sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5",
+    "sources": 2,
+    "observations": 20,
+    "seed_id": "3056bd59405546c984354b07f2382a1f",
+    "protocol_version": "r01-capacity.v2"
+  },
+  "run_id": "94c1dadf4a8d4c9ea123a58e3efcacd2"
+}

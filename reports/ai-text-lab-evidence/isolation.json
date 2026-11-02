@@ -1,0 +1,99 @@
+{
+  "source": "3693f897e79cbe2e426b8ea3e5c04b4310acdc0b",
+  "checks": [
+    "isolated resources; only frontend loopback TLS published; backend has no default route",
+    "shared Redis gate + dedicated database marker: PASS",
+    "real Redis outage: AI HTTP gate fails closed with 503, no-store",
+    "real Redis recovery restores AI; no business debit"
+  ],
+  "resources": [
+    {
+      "name": "ttest-ai-text-lab-postgres",
+      "imageId": "sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5",
+      "image": "mirror.gcr.io/postgis/postgis:16-3.4",
+      "networks": [
+        "ttest-ai-text-lab-network"
+      ],
+      "ports": {
+        "5432/tcp": null
+      },
+      "mounts": [
+        {
+          "type": "bind",
+          "destination": "/docker-entrypoint-initdb.d/01-lab.sql"
+        },
+        {
+          "type": "volume",
+          "name": "ttest-ai-text-lab-pg-v2",
+          "destination": "/var/lib/postgresql/data"
+        }
+      ]
+    },
+    {
+      "name": "ttest-ai-text-lab-redis",
+      "imageId": "sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499",
+      "image": "mirror.gcr.io/library/redis:7.4-alpine",
+      "networks": [
+        "ttest-ai-text-lab-network"
+      ],
+      "ports": {
+        "6379/tcp": null
+      },
+      "mounts": [
+        {
+          "type": "volume",
+          "name": "ttest-ai-text-lab-redis-v1",
+          "destination": "/data"
+        }
+      ]
+    },
+    {
+      "name": "ttest-ai-text-lab-backend",
+      "imageId": "sha256:7890ad9baac29d8966f2628bd20d1262980cbd8bdc48d057a7c0e2ee5714755f",
+      "image": "ttest-ai-text-lab-backend:3693f897e79cbe2e426b8ea3e5c04b4310acdc0b",
+      "networks": [
+        "ttest-ai-text-lab-network"
+      ],
+      "ports": {
+        "8000/tcp": null
+      },
+      "mounts": [
+        {
+          "type": "volume",
+          "name": "ttest-ai-text-lab-tls-v1",
+          "destination": "/lab-tls"
+        },
+        {
+          "type": "volume",
+          "name": "ttest-ai-text-lab-media-v1",
+          "destination": "/app/var/lab-media"
+        }
+      ]
+    },
+    {
+      "name": "ttest-ai-text-lab-frontend",
+      "imageId": "sha256:cbe1fb5476120061f637621836002af450eee2f3ba0a4d9526538360ade2976c",
+      "image": "ttest-ai-text-lab-frontend:3693f897e79cbe2e426b8ea3e5c04b4310acdc0b",
+      "networks": [
+        "ttest-ai-text-lab-loopback",
+        "ttest-ai-text-lab-network"
+      ],
+      "ports": {
+        "8443/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "9443"
+          }
+        ]
+      },
+      "mounts": [
+        {
+          "type": "volume",
+          "name": "ttest-ai-text-lab-tls-v1",
+          "destination": "/lab-tls"
+        }
+      ]
+    }
+  ],
+  "status": "PASS"
+}

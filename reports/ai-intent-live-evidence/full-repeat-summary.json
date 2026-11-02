@@ -1,0 +1,23 @@
+{
+  "schema": "ai-intent-live-full-repeat.v1",
+  "source_sha": "3b476ce2ca556849e09a8332f55470d1cbb22b84",
+  "status": "FULL_CORPUS_PASS",
+  "passed": 24,
+  "evaluated": 24,
+  "corpus_sha256": "7b722ab6caa0bf3377a0ace8fcddecf6daa7f7cb9bcebec515ab0cac9997d288",
+  "budget": {
+    "attempts": 51,
+    "reserved_micro_usd": 564060,
+    "observed_usage_attempts": 51,
+    "prompt_tokens": 184094,
+    "completion_tokens": 1134,
+    "observed_peak_micro_usd": 56589
+  },
+  "max_attempts": 56,
+  "max_reserved_micro_usd": 750000,
+  "remaining_attempts": 5,
+  "journal_reset": false,
+  "ui_http_acceptance": "NOT_TESTED",
+  "voice": false,
+  "production_activation": false
+}

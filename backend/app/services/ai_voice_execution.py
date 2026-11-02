@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 from pydantic import Field, model_validator
 
 from ..repositories.ai_search_sessions import SearchSessions, SessionError, intent_hash
+from ..schemas.ai_clarification import IntentClarification
 from ..schemas.ai_listing_facts import digest
 from ..schemas.ai_search_intent import IntentPatch, apply_patch
 from ..schemas.ai_search_quota import FailureCode, QuotaOperation, QuotaSubject, ResultReceipt, StrictContract
@@ -121,6 +122,8 @@ class VoiceSearchExecution:
                     raise ValueError("VOICE_TRANSCRIPT_INVALID")
                 phase = FailureCode.LLM_FAILURE
                 patch = await _bounded(lambda: self.parser.parse(transcript, current), self.policy.intent_budget_seconds)
+                if isinstance(patch, IntentClarification):
+                    return SearchExecution(await self.ledger.release(subject, operation, state.fence, patch.failure_code))
                 patch = IntentPatch.model_validate_json(patch.model_dump_json(exclude_none=True))
                 candidate = apply_patch(current, patch)
                 self.sessions.vocabulary.validate(candidate.criteria)

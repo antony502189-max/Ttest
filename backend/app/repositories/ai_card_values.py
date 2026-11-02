@@ -6,11 +6,19 @@ conversion. Missing price is not a verified budget match.
 """
 from decimal import Decimal
 
-from sqlalchemy import and_, func, or_, true
+from sqlalchemy import and_, func, or_, select, true
 from sqlalchemy.sql.elements import ColumnElement
 
-from ..models import Listing
+from ..models import Listing, User
 from ..schemas.ai_search_intent import SearchIntent
+
+
+def source_owner_eligible():
+    # Minimal offline fixture anchors may have no owner. Real listings have a
+    # non-null FK and still pass the existing stricter public visible_query.
+    owner = select(1).where(User.id == Listing.owner_user_id, User.deleted_at.is_(None),
+        User.blocked.is_(False)).correlate_except(User).exists()
+    return or_(Listing.owner_user_id.is_(None), owner)
 
 
 def current_card_values_predicate(intent: SearchIntent, *, columns=None):

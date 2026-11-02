@@ -1,0 +1,26 @@
+{
+  "source": "ed1f9f96360e2ead47c8a8b6b2c186f4319f7bd3",
+  "rollbackSource": "f92829570a95d7c0b693caae39686e4828e95355",
+  "cases": [
+    {
+      "name": "previous binary against current 0079: ordinary search and exact AI receipt replay",
+      "switchSeconds": 6,
+      "passed": true
+    },
+    {
+      "name": "forward binary restored: receipt and quota preserved",
+      "passed": true
+    },
+    {
+      "name": "AI kill switch: disabled capability + 503 while ordinary SQL search stays available",
+      "switchSeconds": 9,
+      "passed": true
+    },
+    {
+      "name": "AI re-enabled: same receipt, quota, database and independent journal volumes",
+      "passed": true
+    }
+  ],
+  "providerCalls": 0,
+  "status": "PASS"
+}

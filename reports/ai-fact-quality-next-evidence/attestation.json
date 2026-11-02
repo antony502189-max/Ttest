@@ -1,0 +1,10 @@
+{
+  "source": "55bafffd557df9e6d745552f863154267885dd0a",
+  "backend_files_matched": 470,
+  "python_files_matched": 435,
+  "all_git_blobs_match": true,
+  "archive_sha256": "5179609476d91d84b1322717e7416d2d49a2a39329b703fee2b7219a82a1c82f",
+  "tools_image": "sha256:1ff5de84b825934599a53fd69add14bb6784d6399a1464e4a38255b2d234a902",
+  "real_records": 0,
+  "external_provider_calls": 0
+}

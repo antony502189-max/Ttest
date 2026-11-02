@@ -1,0 +1,70 @@
+{
+  "source": "331bbcc74be1eb6c19ef95b8b6c7804cedd73078",
+  "mode": "decision-transport-fixture",
+  "origin": "https://localhost:9443",
+  "apiMocks": false,
+  "providerCalls": 0,
+  "cases": [
+    {
+      "name": "actual mobile exclusive map/list toggle",
+      "passed": true
+    },
+    {
+      "name": "real mobile UI -> decision adapter -> typed intent -> owned PG cards/map: hard criteria and guest quota3",
+      "passed": true
+    },
+    {
+      "name": "guest reload recovery and raw text absent from browser durable storage",
+      "passed": true
+    },
+    {
+      "name": "INTENT_CLARIFICATION_REQUIRED: actual UI fixed message, unchanged version, free terminal receipt, retry without model IO",
+      "passed": true
+    },
+    {
+      "name": "INTENT_NO_CHANGE: actual UI fixed message, unchanged version, free terminal receipt, retry without model IO",
+      "passed": true
+    },
+    {
+      "name": "INTENT_UNSUPPORTED: actual UI fixed message, unchanged version, free terminal receipt, retry without model IO",
+      "passed": true
+    },
+    {
+      "name": "model transport failure: bounded HTTP lifecycle, exact retry, one model attempt and expected debit",
+      "passed": true
+    },
+    {
+      "name": "model transport cancel: bounded HTTP lifecycle, exact retry, one model attempt and expected debit",
+      "passed": true
+    },
+    {
+      "name": "model transport timeout: bounded HTTP lifecycle, exact retry, one model attempt and expected debit",
+      "passed": true
+    },
+    {
+      "name": "model transport commit-ack: bounded HTTP lifecycle, exact retry, one model attempt and expected debit",
+      "passed": true
+    },
+    {
+      "name": "ownership and stale version rejected before inference",
+      "passed": true
+    },
+    {
+      "name": "real commit -> lost ACK -> hard reload -> owned operation receipt/cards: one inference and debit, no stored raw text",
+      "passed": true
+    },
+    {
+      "name": "browser cancel waiting during model transport: uncertain state and exact one-inference recovery",
+      "passed": true
+    },
+    {
+      "name": "real committed receipt survives lost metadata response: read-only retry, one inference/debit",
+      "passed": true
+    },
+    {
+      "name": "actual metrics exclude raw text, session IDs and tokens",
+      "passed": true
+    }
+  ],
+  "status": "PASS"
+}

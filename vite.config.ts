@@ -53,6 +53,7 @@ function isolateMockDataFromProduction(mockMode: boolean): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
+  const syntheticLab = mode === 'ai-synthetic-lab'
   const mockMode = loadEnv(mode, process.cwd(), 'VITE_').VITE_ENABLE_MOCK_MODE === '1'
   const mockProviderModule = mockMode
     ? './src/contexts/mock-app-provider.tsx'
@@ -60,7 +61,12 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: process.env.VITE_BASE_PATH || '/',
-    plugins: [isolateMockDataFromProduction(mockMode), react(), tailwindcss()],
+    plugins: [isolateMockDataFromProduction(mockMode), react(), tailwindcss(), ...(syntheticLab ? [{
+      name: 'synthetic-lab-notice',
+      transformIndexHtml: (html: string) => html.replace(/<body[^>]*>/, '$&<aside style="padding:12px;background:#fff3cd;color:#332600;text-align:center" data-i18n-exempt>Закрытый synthetic стенд · Тестовый parser, не LLM. Фразы: «все варианты», «с маленькой собакой», «до 600 евро в месяц», «до 400 евро в месяц», «без ограничения бюджета», «желательно с балконом», «обязательно с балконом». Карта локальная, без провайдера.</aside>'),
+      transform: (code: string, id: string) => /\/src\/(pages\/HomePage|data\/listings)\.tsx?$/.test(id.replaceAll('\\', '/'))
+        ? code.replace(/https:\/\/images\.unsplash\.com\/[^'"\s]+/g, '/lab-placeholder.svg') : null,
+    }] : [])],
     // Audit artifacts contain HTML fixtures and copied applications. Only the
     // application entry point belongs in dependency discovery.
     optimizeDeps: { entries: ['index.html'] },
@@ -71,6 +77,7 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: {
+        ...(syntheticLab ? { '@/components/ai-result-map': path.resolve(import.meta.dirname, './src/lab/ai-synthetic-map.tsx') } : {}),
         'shadcn/tailwind.css': path.resolve(import.meta.dirname, './src/styles/shadcn-tailwind.css'),
         '@/components/marketplace': path.resolve(import.meta.dirname, './src/components/marketplace-localized.tsx'),
         '@/contexts/mock-app-provider': path.resolve(import.meta.dirname, mockProviderModule),

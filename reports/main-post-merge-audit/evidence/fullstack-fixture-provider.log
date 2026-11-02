@@ -1,0 +1,36 @@
+
+Running 30 tests using 1 worker
+
+  ✓   1 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:139:1 › frontend renders a listing created through the real FastAPI backend (3.5s)
+  ✓   2 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:152:1 › customer-priority fields persist through FastAPI, search uses them, and private location stays owner-only (570ms)
+  ✓   3 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:211:1 › unrestricted search does not send a strict tenant requirement to the API (4.2s)
+  ✓   4 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:223:1 › unrestricted tourism search omits default price and room-size bounds from the real API request (4.2s)
+  ✓   5 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:254:1 › browser search stays bounded instead of hydrating the full catalog (2.8s)
+  -   6 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:283:1 › mobile results progressively append bounded cursor pages until every result is visible
+  -   7 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:327:1 › mobile infinite-scroll state survives opening a later card and going Back
+  ✓   8 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:408:1 › anonymous auth and publication routes render without a route error (2.2s)
+  -   9 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:424:1 › legacy bedroom-count URL parameter is removed from customer search
+  ✓  10 [desktop-chromium] › tests/full-stack/backend-integration.spec.ts:436:1 › an open catalog refreshes after its version changes on focus (4.3s)
+  ✓  11 [desktop-chromium] › tests/full-stack/commercial-advertising.spec.ts:4:1 › real API persists advertiser upload, checkout and pending review (7.4s)
+  ✓  12 [desktop-chromium] › tests/full-stack/filter-layer-parity.spec.ts:147:1 › FILTER-LAYER desktop URL state serializes every active customer server-backed filter into the FastAPI request (7.8s)
+  ✓  13 [desktop-chromium] › tests/full-stack/filter-layer-parity.spec.ts:214:1 › FILTER-LAYER FastAPI + PostgreSQL predicates include matches and reject non-matches for every server filter (6.1s)
+  -  14 [desktop-chromium] › tests/full-stack/listing-gallery-regression.spec.ts:106:1 › production mobile cards and detail keep photo carousel for long and holiday rentals
+  -  15 [desktop-chromium] › tests/full-stack/listing-gallery-regression.spec.ts:146:1 › production mobile holiday card recovers its full internal gallery when bounded card payload is truncated
+  ✓  16 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:139:1 › frontend renders a listing created through the real FastAPI backend (2.9s)
+  ✓  17 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:152:1 › customer-priority fields persist through FastAPI, search uses them, and private location stays owner-only (589ms)
+  ✓  18 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:211:1 › unrestricted search does not send a strict tenant requirement to the API (2.5s)
+  -  19 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:223:1 › unrestricted tourism search omits default price and room-size bounds from the real API request
+  ✓  20 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:254:1 › browser search stays bounded instead of hydrating the full catalog (2.9s)
+  ✓  21 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:283:1 › mobile results progressively append bounded cursor pages until every result is visible (4.7s)
+  ✓  22 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:327:1 › mobile infinite-scroll state survives opening a later card and going Back (6.7s)
+  ✓  23 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:408:1 › anonymous auth and publication routes render without a route error (2.8s)
+  ✓  24 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:424:1 › legacy bedroom-count URL parameter is removed from customer search (3.2s)
+  ✓  25 [mobile-chromium] › tests/full-stack/backend-integration.spec.ts:436:1 › an open catalog refreshes after its version changes on focus (3.7s)
+  ✓  26 [mobile-chromium] › tests/full-stack/commercial-advertising.spec.ts:4:1 › real API persists advertiser upload, checkout and pending review (10.2s)
+  -  27 [mobile-chromium] › tests/full-stack/filter-layer-parity.spec.ts:147:1 › FILTER-LAYER desktop URL state serializes every active customer server-backed filter into the FastAPI request
+  ✓  28 [mobile-chromium] › tests/full-stack/filter-layer-parity.spec.ts:214:1 › FILTER-LAYER FastAPI + PostgreSQL predicates include matches and reject non-matches for every server filter (8.6s)
+  ✓  29 [mobile-chromium] › tests/full-stack/listing-gallery-regression.spec.ts:106:1 › production mobile cards and detail keep photo carousel for long and holiday rentals (6.5s)
+  ✓  30 [mobile-chromium] › tests/full-stack/listing-gallery-regression.spec.ts:146:1 › production mobile holiday card recovers its full internal gallery when bounded card payload is truncated (3.4s)
+
+  7 skipped
+  23 passed (1.8m)

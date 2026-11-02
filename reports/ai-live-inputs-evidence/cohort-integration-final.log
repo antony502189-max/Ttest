@@ -1,0 +1,12 @@
+.....................................................s...............    [100%]
+=============================== warnings summary ===============================
+tests/integration/test_ai_verified_cards.py::test_dense_ai_map_thresholds_edges_and_live_proof_changes
+  tests/integration/test_ai_verified_cards.py:422: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    async def test_dense_ai_map_thresholds_edges_and_live_proof_changes(record_property):
+
+tests/integration/test_ai_saved_review.py::test_expand_only_downgrade_fails_without_stamp_or_snapshot_change
+  /usr/local/lib/python3.13/site-packages/alembic/config.py:612: DeprecationWarning: No path_separator found in configuration; falling back to legacy splitting on spaces, commas, and colons for prepend_sys_path.  Consider adding path_separator=os to Alembic config.
+    util.warn_deprecated(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+68 passed, 1 skipped, 2 warnings in 103.92s (0:01:43)

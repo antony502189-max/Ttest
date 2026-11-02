@@ -1,0 +1,31 @@
+{
+  "completed_case_executions_excluding_skips": 5910,
+  "XML_runs": [
+    "backend-unit-bootstrap.xml",
+    "backend-unit.xml",
+    "windows-toolchain.xml",
+    "backend-integration-removal-disabled.xml",
+    "backend-integration.xml",
+    "backend-s3.xml",
+    "ai-real-browser-recovery.xml",
+    "browser-linux-default.xml",
+    "browser-linux-retry.xml",
+    "browser-polygon-repeat.xml"
+  ],
+  "other_runs": {
+    "AI_browser": 50,
+    "province": 32,
+    "lifecycle": 62,
+    "preview_route": 1,
+    "publication": 17,
+    "google_auth": 2,
+    "fullstack_empty": 23,
+    "fullstack_fixture": 23,
+    "map_instrumented_control": 1,
+    "map_forced": 2,
+    "capacity_safeguards": 18,
+    "admin_contracts": 8
+  },
+  "unique_tests_not_claimed": true,
+  "interrupted_host_runs_and_CI_not_counted": true
+}

@@ -1,0 +1,32 @@
+{
+  "algorithm": "SHA256 of UTF-8 text normalized to LF",
+  "files": {
+    "additional-static-results.json": "a470b70bde746dab901fddeb97ec17b47c2dafa1b96ed4b2c83498295dc053b0",
+    "ai-real-browser-recovery.log": "dfe1551652990d882df410448a63faf86d0895b67b50428cf33b18cf45a17e46",
+    "backend-image-smoke.log": "fb3283675b9fd145316d01001bdf5ec8e861139d5eec2da7fdff8450a350654e",
+    "backend-integration.log": "46be8ba8ac078855be5744344dde2392c9189038561a80281a220868b8247577",
+    "backend-security-results.json": "2706efc5d44ad3cbd6974cafb68fd2951376a89101d7dcb16412457ce6a647a4",
+    "backend-unit.log": "d87d5b747478d2b307cfd0eb5593184d9bd3ba35a98ac1e9342034cfbd47ea7b",
+    "bandit.log": "5cc86261059e8f391ca19d05025a02d17f94e2bbdd152090b3cf3d6f2618f276",
+    "browser-linux-retry.log": "6220c8f5ed292bbf44f92b477b65ce565ee0dbef666c82ccb1a8134f06c14700",
+    "build-image-identities.txt": "cf14e4f7d5bc29c355c00f725f18ac14efb13788d59beceaabc95fe365cd4abf",
+    "completed-executions.json": "fdd86940646913464ec6a9a7fcc45b15227c48c10201f89c4d5abb06cb0738b7",
+    "container-identities.txt": "04433a01f79d059cba48be829614609934383bfd34049519562de69f6e84fc6a",
+    "frontend-static-results.json": "d2efb5979a2946a550bd6d7d88c87ea759eded21df85b91ede80c568b49ee847",
+    "fullstack-empty-provider.log": "8f731cfe2e930a02c36f22cd6f1c15d2ce436b9a7cb006adad100507b92ef3aa",
+    "fullstack-fixture-provider.log": "1061bdab17e21ea92d883abf4d15d972d314aca554eedcc4b0c57f624a64f134",
+    "fullstack-results.json": "1cd972998f42d50aef7adf3d488b0871ae47be5788b852587df71315b9dab015",
+    "historical-migrations-results.json": "aca3b5a6e17588d5c34645a6b444c799e5597a46ebf34e91123dd4bd55903fac",
+    "main-workflow-runs.json": "aaa87ad6d6925902921941a5dec24173571e8bf4bf056ea9c320ea46f28b0c0a",
+    "map-transition-forced.log": "bb36939cec8a1c2cff9bfae87ccf9051ee69a89051e8fec3f0b0af054790f774",
+    "nginx-runtime-smoke.log": "f978422683fefafe922a78a37a09d1b816b6600910542efee83639985d1a5f1b",
+    "pr-402-metadata.json": "cbb78f43d27cc009fbe38fdcc68903e1fba91b1bd94cbca53e7766bfc04d8c5a",
+    "pr-metadata.json": "5ed8dd6c6d252a986eccbf99227d0359c0096d26f9495a631f8f9157c0104a82",
+    "python-dependency-audit.log": "e82148c0c30269ca5a2c35420ece6af011a4faf5a375325d750e243ffdb10625",
+    "schema-inventory.json": "4da7f7c7baa14c9fd2c50ee34b5036e69406de21a6d722082d8307a6c553377d",
+    "strict-schema-canary.log": "e76befdc6b8d6c0ce710a8f8b09782213a6ae4092db06391f5359a46dac234f6",
+    "test-counts.json": "71a673686c1a7adfae9c3f4d7c2434ffc8fc177e459627d71f31f22a3ae857cc",
+    "verified-map-plan-evidence.json": "a383a4bc5ba26b189751426f8952c3e84faa8466534af12debb25132e053cda6",
+    "windows-toolchain.log": "29703d5ed66d599de261cc5701e75930cfa84fa82481535bcd2e17c2dd76cb64"
+  }
+}

@@ -28,7 +28,9 @@ from ..schemas.ai_fact_pipeline import (
     StaleFactWorker,
 )
 from ..schemas.ai_listing_facts import FactBatch, FactVocabulary, SearchProjection, Version, digest
+from ..services.ai_fact_quality import FactQualityPolicy
 from ..services.ai_fact_resolver import MAX_SOURCE_OBSERVATIONS, resolve_sources
+from .ai_card_values import source_owner_eligible
 from .ai_fact_snapshots import source_snapshot_hash
 
 
@@ -42,10 +44,11 @@ def _status(value: str) -> str:
 
 class FactPipeline:
     def __init__(self, sessions: async_sessionmaker[AsyncSession], policy: FactQueuePolicy,
-                 vocabulary: FactVocabulary, *, resolver_version: Version):
+                 vocabulary: FactVocabulary, *, resolver_version: Version, operating_policy: FactQualityPolicy | None = None):
         # Validate configuration without selecting silent production defaults.
         self.sessions = sessions
         self.policy = FactQueuePolicy.model_validate(policy)
+        self.operating_policy = FactQualityPolicy.model_validate(operating_policy) if operating_policy is not None else None
         self.vocabulary = FactVocabulary.model_validate(vocabulary)
         self.resolver_version = TypeAdapter(Version).validate_python(resolver_version, strict=True)
         self.vocabulary_hash = digest({k: sorted(v) for k, v in self.vocabulary.model_dump().items()})
@@ -57,7 +60,8 @@ class FactPipeline:
             AiFactCatalog.canonical_listing_id == listing_id).with_for_update())).scalar_one()
 
     async def _authority(self, session: AsyncSession, listing_id: UUID, *, lock: bool = True):
-        listing_query = select(Listing.id, Listing.status, Listing.deleted_at).where(Listing.id == listing_id)
+        listing_query = select(Listing.id, Listing.status, Listing.deleted_at,
+            source_owner_eligible().label("owner_eligible")).where(Listing.id == listing_id)
         listing = (await session.execute(listing_query.with_for_update() if lock else listing_query)).first()
         known = select(AiFactSource.source_record_id).where(AiFactSource.canonical_listing_id == listing_id)
         # Coarse CAS token only. PostgreSQL returns the digest, not payload/URL/
@@ -72,7 +76,8 @@ class FactPipeline:
         rows = (await session.execute(source_query.with_for_update() if lock else source_query)).all()
         if len(rows) > 128:
             raise ValueError("canonical source bound exceeded")
-        visible = listing is not None and listing.status == "published" and listing.deleted_at is None
+        visible = (listing is not None and listing.status == "published" and listing.deleted_at is None
+                   and listing.owner_eligible)
         return visible, {row.id: row for row in rows}
 
     @staticmethod
@@ -438,3 +443,40 @@ class FactPipeline:
         for listing_id in ids:
             await self.reconcile_listing(listing_id)
         return list(ids)
+
+    async def purge_expired_evidence(self, listing_id: UUID, *, retention_seconds: int) -> int:
+        """Explicit bounded cleanup under normal writer locks; no legacy/raw deletion.
+
+        Deletes AI batches/evidence, clears current pointers, fences jobs and
+        republishes the pending barrier in the same transaction. No scheduler.
+        """
+        from sqlalchemy import delete
+
+        if type(retention_seconds) is not int or not 1 <= retention_seconds <= 31_536_000:
+            raise ValueError("explicit bounded evidence retention required")
+        async with self.sessions() as session, session.begin():
+            anchor = await self._anchor(session, listing_id)
+            visible, authority = await self._authority(session, listing_id)
+            cutoff = await _now(session) - timedelta(seconds=retention_seconds)
+            expired = (await session.scalars(select(AiListingFactBatch.id).where(
+                AiListingFactBatch.canonical_listing_id == listing_id,
+                AiListingFactBatch.observed_at < cutoff).order_by(AiListingFactBatch.id).limit(1025))).all()
+            if len(expired) > 1024:
+                raise ValueError("cleanup batch bound exceeded")
+            if not expired:
+                return 0
+            sources = (await session.scalars(select(AiFactSource).where(
+                AiFactSource.canonical_listing_id == listing_id).order_by(AiFactSource.source_record_id)
+                .with_for_update())).all()
+            for source in sources:
+                if source.batch_id in expired:
+                    source.batch_id = None
+                    source.generation += 1
+                    await session.execute(update(AiFactJob).where(
+                        AiFactJob.source_record_id == source.source_record_id,
+                        AiFactJob.status.in_(["pending", "running"])
+                    ).values(status="superseded", lease_until=None))
+            await session.flush()
+            await session.execute(delete(AiListingFactBatch).where(AiListingFactBatch.id.in_(expired)))
+            await self._publish(session, anchor, visible, authority)
+            return len(expired)

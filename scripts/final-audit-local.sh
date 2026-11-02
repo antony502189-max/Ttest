@@ -94,10 +94,7 @@ export S3_SECRET_KEY='ttest-minio-secret'
 popd >/dev/null
 
 echo '[6/9] Starting migrated development backend and mail worker'
-docker compose up -d migrate backend mail-worker
-docker compose --profile tools run --rm seed
-until curl --fail --silent http://127.0.0.1:8000/health/ready >/dev/null; do sleep 2; done
-curl --fail --silent http://127.0.0.1:8000/metrics >/dev/null
+bash scripts/start-fullstack-audit.sh
 
 echo '[7/9] Frontend static checks and production build'
 npm ci

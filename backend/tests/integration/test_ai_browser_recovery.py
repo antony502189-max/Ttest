@@ -66,7 +66,8 @@ async def test_real_http_browser_recovers_without_stranded_session(active, monke
             await asyncio.sleep(.02)
         assert server.started
         async with async_playwright() as pw:
-            browser = await pw.chromium.launch()
+            browser = await pw.chromium.launch(**({"executable_path": os.environ["PLAYWRIGHT_EXECUTABLE_PATH"]}
+                if os.getenv("PLAYWRIGHT_EXECUTABLE_PATH") else {}))
             try:
                 context = await browser.new_context()
                 page = await context.new_page()

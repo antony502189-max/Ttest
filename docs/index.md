@@ -32,7 +32,7 @@
 | Map visit-history zones | `src/lib/map-visit-history.ts`, `src/components/map/results-map.tsx`, `src/components/mobile-map-listings-layer.tsx` |
 | Listing publication & media | `src/pages/ListingCreatePage.tsx`, `backend/app/api/v1/{listings,uploads}.py` |
 | External imports | `backend/app/workers/external_listings.py`, `backend/app/external_sources.py`, `docs/external-spain-parser-operations.md` |
-| DB migration head | `backend/alembic/versions/0056_external_scope_checkpoint.py` |
+| DB migration head | `backend/alembic/versions/0075_ai_proof_population.py` |
 | Production release | `.github/workflows/manual-production-deploy.yml`, `deploy/manual-production-runner.sh`, `deploy/deploy-release.sh`, `deploy/smoke-production.sh`, `deploy/rollback-release.sh` |
 
 ## Historical / superseded references

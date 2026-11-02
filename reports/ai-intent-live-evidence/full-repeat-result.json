@@ -1,0 +1,333 @@
+{
+  "evaluated": 24,
+  "passed": 24,
+  "total": 24,
+  "all_passed": true,
+  "typed_patch_count": 14,
+  "by_category": {
+    "requirement": {
+      "passed": 1,
+      "evaluated": 1
+    },
+    "preference": {
+      "passed": 1,
+      "evaluated": 1
+    },
+    "negation": {
+      "passed": 2,
+      "evaluated": 2
+    },
+    "price_period": {
+      "passed": 3,
+      "evaluated": 3
+    },
+    "ambiguity": {
+      "passed": 2,
+      "evaluated": 2
+    },
+    "unsupported": {
+      "passed": 2,
+      "evaluated": 2
+    },
+    "pets": {
+      "passed": 3,
+      "evaluated": 3
+    },
+    "party": {
+      "passed": 2,
+      "evaluated": 2
+    },
+    "conflict": {
+      "passed": 3,
+      "evaluated": 3
+    },
+    "no_op": {
+      "passed": 2,
+      "evaluated": 2
+    },
+    "injection": {
+      "passed": 1,
+      "evaluated": 1
+    },
+    "follow_up": {
+      "passed": 1,
+      "evaluated": 1
+    },
+    "mixed_language": {
+      "passed": 1,
+      "evaluated": 1
+    }
+  },
+  "results": [
+    {
+      "id": "ru-balcony",
+      "language": "ru",
+      "category": "requirement",
+      "outcome": "patch",
+      "typed_patch": true,
+      "passed": true,
+      "different_criteria": [],
+      "latency_ms": 2750.73
+    },
+    {
+      "id": "es-preference",
+      "language": "es",
+      "category": "preference",
+      "outcome": "patch",
+      "typed_patch": true,
+      "passed": true,
+      "different_criteria": [],
+      "latency_ms": 1641.78
+    },
+    {
+      "id": "en-negation",
+      "language": "en",
+      "category": "negation",
+      "outcome": "patch",
+      "typed_patch": true,
+      "passed": true,
+      "different_criteria": [],
+      "latency_ms": 2363.42
+    },
+    {
+      "id": "ru-remove",
+      "language": "ru",
+      "category": "negation",
+      "outcome": "patch",
+      "typed_patch": true,
+      "passed": true,
+      "different_criteria": [],
+      "latency_ms": 1756.03
+    },
+    {
+      "id": "es-monthly",
+      "language": "es",
+      "category": "price_period",
+      "outcome": "patch",
+      "typed_patch": true,
+      "passed": true,
+      "different_criteria": [],
+      "latency_ms": 1974.14
+    },
+    {
+      "id": "en-nightly",
+      "language": "en",
+      "category": "price_period",
+      "outcome": "patch",
+      "typed_patch": true,
+      "passed": true,
+      "different_criteria": [],
+      "latency_ms": 2175.97
+    },
+    {
+      "id": "ru-weekly",
+      "language": "ru",
+      "category": "price_period",
+      "outcome": "patch",
+      "typed_patch": true,
+      "passed": true,
+      "different_criteria": [],
+      "latency_ms": 1990.28
+    },
+    {
+      "id": "es-ambiguous-price",
+      "language": "es",
+      "category": "ambiguity",
+      "outcome": "INTENT_CLARIFICATION_REQUIRED",
+      "typed_patch": false,
+      "passed": true,
+      "latency_ms": 5931.54
+    },
+    {
+      "id": "en-currency",
+      "language": "en",
+      "category": "unsupported",
+      "outcome": "INTENT_UNSUPPORTED",
+      "typed_patch": false,
+      "passed": true,
+      "latency_ms": 1667.74
+    },
+    {
+      "id": "ru-dog",
+      "language": "ru",
+      "category": "pets",
+      "outcome": "patch",
+      "typed_patch": true,
+      "passed": true,
+      "different_criteria": [],
+      "latency_ms": 1472.1
+    },
+    {
+      "id": "es-cat",
+      "language": "es",
+      "category": "pets",
+      "outcome": "patch",
+      "typed_patch": true,
+      "passed": true,
+      "different_criteria": [],
+      "latency_ms": 1600.84
+    },
+    {
+      "id": "en-no-pets",
+      "language": "en",
+      "category": "pets",
+      "outcome": "patch",
+      "typed_patch": true,
+      "passed": true,
+      "different_criteria": [],
+      "latency_ms": 2453.02
+    },
+    {
+      "id": "ru-family",
+      "language": "ru",
+      "category": "party",
+      "outcome": "patch",
+      "typed_patch": true,
+      "passed": true,
+      "different_criteria": [],
+      "latency_ms": 1778.27
+    },
+    {
+      "id": "en-couple",
+      "language": "en",
+      "category": "party",
+      "outcome": "patch",
+      "typed_patch": true,
+      "passed": true,
+      "different_criteria": [],
+      "latency_ms": 1610.46
+    },
+    {
+      "id": "es-party-unknown",
+      "language": "es",
+      "category": "ambiguity",
+      "outcome": "INTENT_CLARIFICATION_REQUIRED",
+      "typed_patch": false,
+      "passed": true,
+      "latency_ms": 1971.84
+    },
+    {
+      "id": "ru-conflict",
+      "language": "ru",
+      "category": "conflict",
+      "outcome": "INTENT_CLARIFICATION_REQUIRED",
+      "typed_patch": false,
+      "passed": true,
+      "latency_ms": 2227.51
+    },
+    {
+      "id": "es-conflict-price",
+      "language": "es",
+      "category": "conflict",
+      "outcome": "INTENT_CLARIFICATION_REQUIRED",
+      "typed_patch": false,
+      "passed": true,
+      "latency_ms": 2386.71
+    },
+    {
+      "id": "en-conflict-dates",
+      "language": "en",
+      "category": "conflict",
+      "outcome": "INTENT_CLARIFICATION_REQUIRED",
+      "typed_patch": false,
+      "passed": true,
+      "latency_ms": 3747.36
+    },
+    {
+      "id": "ru-noop",
+      "language": "ru",
+      "category": "no_op",
+      "outcome": "INTENT_NO_CHANGE",
+      "typed_patch": false,
+      "passed": true,
+      "latency_ms": 3327.42
+    },
+    {
+      "id": "en-noop-remove",
+      "language": "en",
+      "category": "no_op",
+      "outcome": "INTENT_NO_CHANGE",
+      "typed_patch": false,
+      "passed": true,
+      "latency_ms": 1716.6
+    },
+    {
+      "id": "es-greeting",
+      "language": "es",
+      "category": "unsupported",
+      "outcome": "INTENT_UNSUPPORTED",
+      "typed_patch": false,
+      "passed": true,
+      "latency_ms": 2388.03
+    },
+    {
+      "id": "en-injection",
+      "language": "en",
+      "category": "injection",
+      "outcome": "INTENT_UNSUPPORTED",
+      "typed_patch": false,
+      "passed": true,
+      "latency_ms": 1794.15
+    },
+    {
+      "id": "ru-followup",
+      "language": "ru",
+      "category": "follow_up",
+      "outcome": "patch",
+      "typed_patch": true,
+      "passed": true,
+      "different_criteria": [],
+      "latency_ms": 1795.62
+    },
+    {
+      "id": "mixed-two-criteria",
+      "language": "es/en",
+      "category": "mixed_language",
+      "outcome": "patch",
+      "typed_patch": true,
+      "passed": true,
+      "different_criteria": [],
+      "latency_ms": 4072.3
+    }
+  ],
+  "schema": "ai-intent-evaluation-result.v1",
+  "mode": "LIVE",
+  "corpus_sha256": "7b722ab6caa0bf3377a0ace8fcddecf6daa7f7cb9bcebec515ab0cac9997d288",
+  "provider": "deepseek",
+  "model": "deepseek-flash",
+  "budget": {
+    "attempts": 51,
+    "reserved_micro_usd": 564060,
+    "observed_usage_attempts": 51,
+    "prompt_tokens": 184094,
+    "completion_tokens": 1134,
+    "observed_peak_micro_usd": 56589
+  },
+  "full_corpus_size": 24,
+  "selected_case_ids": [
+    "ru-balcony",
+    "es-preference",
+    "en-negation",
+    "ru-remove",
+    "es-monthly",
+    "en-nightly",
+    "ru-weekly",
+    "es-ambiguous-price",
+    "en-currency",
+    "ru-dog",
+    "es-cat",
+    "en-no-pets",
+    "ru-family",
+    "en-couple",
+    "es-party-unknown",
+    "ru-conflict",
+    "es-conflict-price",
+    "en-conflict-dates",
+    "ru-noop",
+    "en-noop-remove",
+    "es-greeting",
+    "en-injection",
+    "ru-followup",
+    "mixed-two-criteria"
+  ]
+}

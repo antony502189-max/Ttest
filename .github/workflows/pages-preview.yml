@@ -48,13 +48,19 @@ jobs:
           npm run build
           cp dist/index.html dist/404.html
       - name: Configure Pages
+        if: vars.PAGES_PREVIEW_ENABLED == 'true'
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - name: Upload Pages artifact
+        if: vars.PAGES_PREVIEW_ENABLED == 'true'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: dist
+      - name: Record disabled optional preview
+        if: vars.PAGES_PREVIEW_ENABLED != 'true'
+        run: echo 'Pages preview is disabled. The preview build passed; no site was configured or deployed. An owner can configure Pages and set PAGES_PREVIEW_ENABLED=true to opt in.' >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
+    if: vars.PAGES_PREVIEW_ENABLED == 'true'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

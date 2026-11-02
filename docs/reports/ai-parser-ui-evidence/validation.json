@@ -1,0 +1,26 @@
+{
+  "runtime_source": "b77423bc8b52eece184f7430d5894be61528e2e3",
+  "unit": {
+    "passed": 1675,
+    "skipped": 16,
+    "deselected": 1041
+  },
+  "isolated_pg_execution_deepseek_redis": {
+    "passed": 90
+  },
+  "lab_assembly": {
+    "passed": 6
+  },
+  "targeted_http_privacy": {
+    "passed": 35,
+    "overlaps_unit": true
+  },
+  "mypy_files": 171,
+  "ruff": "PASS",
+  "typescript_vite_build": "PASS",
+  "browser_http_cases": 13,
+  "external_provider_calls": 0,
+  "capacity": "NOT_RUN",
+  "live_ui_smoke": "NOT_AUTHORIZED",
+  "real_user_outbound": "BLOCKED"
+}

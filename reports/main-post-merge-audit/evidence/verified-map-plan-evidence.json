@@ -1,0 +1,270 @@
+[
+  {
+    "test": "tests.integration.test_ai_verified_cards.test_dense_ai_map_thresholds_edges_and_live_proof_changes",
+    "property": "synthetic_map_timings",
+    "value": [
+      {
+        "valid": 302,
+        "zoom": 8,
+        "seconds": 0.720656
+      },
+      {
+        "valid": 302,
+        "zoom": 12,
+        "seconds": 0.763524
+      },
+      {
+        "valid": 302,
+        "zoom": 13,
+        "seconds": 1.455302
+      },
+      {
+        "valid": 302,
+        "zoom": 21,
+        "seconds": 1.4178
+      },
+      {
+        "valid": 301,
+        "zoom": 8,
+        "seconds": 1.443458
+      },
+      {
+        "valid": 301,
+        "zoom": 12,
+        "seconds": 1.423652
+      },
+      {
+        "valid": 301,
+        "zoom": 13,
+        "seconds": 2.001341
+      },
+      {
+        "valid": 301,
+        "zoom": 21,
+        "seconds": 2.771482
+      },
+      {
+        "valid": 300,
+        "zoom": 8,
+        "seconds": 1.454135
+      },
+      {
+        "valid": 300,
+        "zoom": 12,
+        "seconds": 1.397901
+      },
+      {
+        "valid": 300,
+        "zoom": 13,
+        "seconds": 1.384715
+      },
+      {
+        "valid": 300,
+        "zoom": 21,
+        "seconds": 1.334586
+      },
+      {
+        "valid": 128,
+        "zoom": 8,
+        "seconds": 0.675256
+      },
+      {
+        "valid": 128,
+        "zoom": 12,
+        "seconds": 0.654411
+      },
+      {
+        "valid": 128,
+        "zoom": 13,
+        "seconds": 0.751627
+      },
+      {
+        "valid": 128,
+        "zoom": 21,
+        "seconds": 0.630254
+      },
+      {
+        "valid": 32,
+        "zoom": 8,
+        "seconds": 0.218551
+      },
+      {
+        "valid": 32,
+        "zoom": 12,
+        "seconds": 0.234648
+      },
+      {
+        "valid": 32,
+        "zoom": 13,
+        "seconds": 0.223766
+      },
+      {
+        "valid": 32,
+        "zoom": 21,
+        "seconds": 0.207851
+      },
+      {
+        "valid": 299,
+        "zoom": 8,
+        "seconds": 1.478688
+      },
+      {
+        "valid": 299,
+        "zoom": 12,
+        "seconds": 1.476723
+      },
+      {
+        "valid": 299,
+        "zoom": 13,
+        "seconds": 1.452621
+      },
+      {
+        "valid": 299,
+        "zoom": 21,
+        "seconds": 1.369848
+      },
+      {
+        "valid": 0,
+        "zoom": 8,
+        "seconds": 0.061525
+      },
+      {
+        "valid": 0,
+        "zoom": 12,
+        "seconds": 0.061009
+      },
+      {
+        "valid": 0,
+        "zoom": 13,
+        "seconds": 0.129594
+      },
+      {
+        "valid": 0,
+        "zoom": 21,
+        "seconds": 0.069043
+      },
+      {
+        "valid": 51,
+        "zoom": 21,
+        "seconds": 0.5079
+      },
+      {
+        "valid": 51,
+        "zoom": 13,
+        "seconds": 0.630918
+      },
+      {
+        "valid": 51,
+        "zoom": 12,
+        "seconds": 0.647374
+      },
+      {
+        "valid": 51,
+        "zoom": 8,
+        "seconds": 0.732097
+      }
+    ]
+  },
+  {
+    "test": "tests.integration.test_ai_verified_cards.test_dense_ai_map_thresholds_edges_and_live_proof_changes",
+    "property": "synthetic_map_plans",
+    "value": [
+      {
+        "valid": 301,
+        "zoom": 8,
+        "authority_plans": 1,
+        "loops": 1208,
+        "visited_rows": 1208,
+        "buffer_touches": 3624,
+        "execution_ms": 640.991,
+        "node_types": [
+          "Index Scan"
+        ]
+      },
+      {
+        "valid": 301,
+        "zoom": 13,
+        "authority_plans": 2,
+        "loops": 2416,
+        "visited_rows": 2416,
+        "buffer_touches": 7248,
+        "execution_ms": 1333.912,
+        "node_types": [
+          "Index Scan"
+        ]
+      },
+      {
+        "valid": 300,
+        "zoom": 8,
+        "authority_plans": 1,
+        "loops": 1204,
+        "visited_rows": 1204,
+        "buffer_touches": 3612,
+        "execution_ms": 674.435,
+        "node_types": [
+          "Index Scan"
+        ]
+      },
+      {
+        "valid": 300,
+        "zoom": 13,
+        "authority_plans": 1,
+        "loops": 1204,
+        "visited_rows": 1204,
+        "buffer_touches": 3612,
+        "execution_ms": 669.4,
+        "node_types": [
+          "Index Scan"
+        ]
+      },
+      {
+        "valid": 128,
+        "zoom": 8,
+        "authority_plans": 1,
+        "loops": 512,
+        "visited_rows": 512,
+        "buffer_touches": 1536,
+        "execution_ms": 346.562,
+        "node_types": [
+          "Index Scan"
+        ]
+      },
+      {
+        "valid": 128,
+        "zoom": 13,
+        "authority_plans": 1,
+        "loops": 512,
+        "visited_rows": 512,
+        "buffer_touches": 1536,
+        "execution_ms": 308.234,
+        "node_types": [
+          "Index Scan"
+        ]
+      },
+      {
+        "valid": 32,
+        "zoom": 8,
+        "authority_plans": 1,
+        "loops": 128,
+        "visited_rows": 128,
+        "buffer_touches": 384,
+        "execution_ms": 82.208,
+        "node_types": [
+          "Index Scan"
+        ]
+      },
+      {
+        "valid": 32,
+        "zoom": 13,
+        "authority_plans": 1,
+        "loops": 128,
+        "visited_rows": 128,
+        "buffer_touches": 384,
+        "execution_ms": 86.942,
+        "node_types": [
+          "Index Scan"
+        ]
+      }
+    ]
+  }
+]

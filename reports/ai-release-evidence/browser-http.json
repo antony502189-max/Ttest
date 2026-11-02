@@ -1,0 +1,94 @@
+{
+  "source": "ed1f9f96360e2ead47c8a8b6b2c186f4319f7bd3",
+  "origin": "https://localhost:9443",
+  "apiMocks": false,
+  "providerCalls": 0,
+  "cases": [
+    {
+      "name": "guest actual query + exact receipt replay: one parser call and debit",
+      "passed": true
+    },
+    {
+      "name": "actual mobile guest UI reload: owned continuation and cards, no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "guest three successful operations; fourth rejected without debit",
+      "passed": true
+    },
+    {
+      "name": "actual browser login: auth quota 200, guest state not transferred",
+      "passed": true
+    },
+    {
+      "name": "synthetic model failure: actual HTTP lifecycle, durable retry and quota checked",
+      "passed": true
+    },
+    {
+      "name": "synthetic model cancel: actual HTTP lifecycle, durable retry and quota checked",
+      "passed": true
+    },
+    {
+      "name": "synthetic model commit-ack: actual HTTP lifecycle, durable retry and quota checked",
+      "passed": true
+    },
+    {
+      "name": "synthetic model timeout: actual HTTP lifecycle, durable retry and quota checked",
+      "passed": true
+    },
+    {
+      "name": "real mobile browser disconnect after commit: exact retry restores receipt, no second inference or debit",
+      "passed": true
+    },
+    {
+      "name": "real mobile browser cancel waiting: uncertain state, exact retry, one parser call",
+      "passed": true
+    },
+    {
+      "name": "authenticated browser refresh restores owned results",
+      "passed": true
+    },
+    {
+      "name": "real redis outage: bounded 503, no-store and fail closed",
+      "passed": true
+    },
+    {
+      "name": "redis restart: real quota restored unchanged",
+      "passed": true
+    },
+    {
+      "name": "real postgres outage: bounded 503, no-store and fail closed",
+      "passed": true
+    },
+    {
+      "name": "postgres restart: real quota restored unchanged",
+      "passed": true
+    },
+    {
+      "name": "actual execution/parser metrics and aggregate queue/coverage/freshness snapshot; private canaries absent",
+      "passed": true
+    }
+  ],
+  "snapshot": {
+    "at": "2026-11-01T18:22:03.775521+00:00",
+    "profile": "synthetic-only",
+    "sources_total": 14,
+    "sources_fresh_24h": 13,
+    "proofs_prepared_24h": 11,
+    "public_listings": 13,
+    "verified_listings": 11,
+    "fact_jobs": {
+      "succeeded": 13
+    },
+    "pending_oldest_seconds": 0,
+    "operations": {
+      "succeeded": 262,
+      "failed": 28
+    },
+    "recovery_overdue": 0,
+    "provider_calls": 0,
+    "provider_cost_usd": 0,
+    "real_provider_cost": "unverified"
+  },
+  "status": "PASS"
+}

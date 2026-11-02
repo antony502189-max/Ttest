@@ -1,0 +1,24 @@
+{
+  "unit": {
+    "passed": 1683,
+    "skipped": 16,
+    "deselected": 1041
+  },
+  "home_browser_contracts": 55,
+  "targeted_recovery_privacy": {
+    "passed": 12,
+    "overlaps_home_browser": true
+  },
+  "real_https_pg_redis": 15,
+  "migration_rehearsal": 6,
+  "migration_governance_limits": {
+    "passed": 11,
+    "overlaps_unit": true
+  },
+  "mypy_files": 172,
+  "ruff": "PASS",
+  "typescript_vite": "PASS",
+  "external_provider_calls": 0,
+  "capacity": "NOT_RUN",
+  "production_snapshot_rehearsal": "NOT_AUTHORIZED"
+}

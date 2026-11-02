@@ -1,0 +1,74 @@
+{
+  "listings": 1000,
+  "counts_including_template": {
+    "listings": 1001,
+    "listing_room_details": 1001,
+    "external_listing_sources": 2002,
+    "ai_fact_catalogs": 1001,
+    "ai_listing_fact_batches": 2002,
+    "ai_fact_sources": 2002,
+    "ai_listing_facts": 20020,
+    "ai_listing_search_features": 1001,
+    "ai_query_proofs": 1001
+  },
+  "seed_generation": 1,
+  "live_inputs_contract": "live-inputs.v1",
+  "validity_contract": "live-validity.fk.v1",
+  "fast_proof_count": 1001,
+  "distinct_providers": 10,
+  "observations_per_listing": 20,
+  "source_records_per_listing": 2,
+  "size_bytes": 57782755,
+  "version": "PostgreSQL 16.4 (Debian 16.4-1.pgdg110+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 10.2.1-6) 10.2.1 20210110, 64-bit",
+  "postgis": "POSTGIS=\"3.4.3 e365945\" [EXTENSION] PGSQL=\"160\" GEOS=\"3.9.0-CAPI-1.16.2\" PROJ=\"7.2.1 NETWORK_ENABLED=OFF URL_ENDPOINT=https://cdn.proj.org USER_WRITABLE_DIRECTORY=/var/lib/postgresql/.local/share/proj DATABASE_PATH=/usr/share/proj/proj.db\" LIBXML=\"2.9.10\" LIBJSON=\"0.15\" LIBPROTOBUF=\"1.3.3\" WAGYU=\"0.5.0 (Internal)\" TOPOLOGY",
+  "settings": [
+    {
+      "name": "effective_cache_size",
+      "setting": "524288",
+      "unit": "8kB"
+    },
+    {
+      "name": "jit",
+      "setting": "on",
+      "unit": null
+    },
+    {
+      "name": "max_connections",
+      "setting": "260",
+      "unit": null
+    },
+    {
+      "name": "max_parallel_workers_per_gather",
+      "setting": "2",
+      "unit": null
+    },
+    {
+      "name": "shared_buffers",
+      "setting": "131072",
+      "unit": "8kB"
+    },
+    {
+      "name": "track_io_timing",
+      "setting": "on",
+      "unit": null
+    },
+    {
+      "name": "work_mem",
+      "setting": "4096",
+      "unit": "kB"
+    }
+  ],
+  "provenance": {
+    "experiment_id": "e4c85f5fcb82458595f425d74f368cb1",
+    "code_revision": "a38a4f3d9078f285e1403e022c150ca602cad090",
+    "runner_image_id": "sha256:1ff5de84b825934599a53fd69add14bb6784d6399a1464e4a38255b2d234a902",
+    "archive_sha256": "8fc62aefd06c17ee1d8065361993a463480113794091e5e9b1da3d4084e6919d",
+    "db_container_id": "7b7315226aa9964fc2839c4242095ade5aaad9712ee230c4e9ef48822677a46c",
+    "db_image_id": "sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5",
+    "sources": 2,
+    "observations": 20,
+    "seed_id": "e4c85f5fcb82458595f425d74f368cb1",
+    "protocol_version": "r01-capacity.v2"
+  },
+  "run_id": "b9e5fa04875f49f2a790a0bb3e1b4ec8"
+}

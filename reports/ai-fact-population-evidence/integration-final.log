@@ -1,0 +1,25 @@
+Timeout (0:00:30)!
+Thread 0x00007a5399350380 (most recent call first):
+  File "/usr/local/lib/python3.13/site-packages/sqlalchemy/sql/compiler.py", line 1805 in <genexpr>
+  File "/usr/local/lib/python3.13/site-packages/sqlalchemy/sql/compiler.py", line 1804 in _bind_processors
+  File "/usr/local/lib/python3.13/site-packages/sqlalchemy/util/langhelpers.py", line 1122 in __get__
+  File "/usr/local/lib/python3.13/site-packages/sqlalchemy/engine/default.py", line 1443 in _init_compiled
+  File "/usr/local/lib/python3.13/site-packages/sqlalchemy/engine/base.py", line 1817 in _execute_context
+  File "/usr/local/lib/python3.13/site-packages/sqlalchemy/engine/base.py", line 1643 in _execute_clauseelement
+  File "/usr/local/lib/python3.13/site-packages/sqlalchemy/sql/elements.py", line 526 in _execute_on_connection
+  File "/usr/local/lib/python3.13/site-packages/sqlalchemy/engine/base.py", line 1421 in execute
+  File "/usr/local/lib/python3.13/site-packages/sqlalchemy/orm/bulk_persistence.py", line 1306 in orm_execute_statement
+  File "/usr/local/lib/python3.13/site-packages/sqlalchemy/orm/session.py", line 2271 in _execute_internal
+  File "/usr/local/lib/python3.13/site-packages/sqlalchemy/orm/session.py", line 2421 in scalar
+.....................................................s...............    [100%]
+=============================== warnings summary ===============================
+tests/integration/test_ai_verified_cards.py::test_dense_ai_map_thresholds_edges_and_live_proof_changes
+  tests/integration/test_ai_verified_cards.py:422: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    async def test_dense_ai_map_thresholds_edges_and_live_proof_changes(record_property):
+
+tests/integration/test_ai_saved_review.py::test_expand_only_downgrade_fails_without_stamp_or_snapshot_change
+  /usr/local/lib/python3.13/site-packages/alembic/config.py:612: DeprecationWarning: No path_separator found in configuration; falling back to legacy splitting on spaces, commas, and colons for prepend_sys_path.  Consider adding path_separator=os to Alembic config.
+    util.warn_deprecated(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+68 passed, 1 skipped, 2 warnings in 82.77s (0:01:22)

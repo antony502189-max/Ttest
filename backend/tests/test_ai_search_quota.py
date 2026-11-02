@@ -40,7 +40,7 @@ def test_fingerprint_binds_body_channel_session_and_version_but_not_retry_key():
 
 def test_unbound_quota_operation_retains_legacy_v1_fingerprint():
     op = operation()
-    legacy = op.model_dump(mode="json", exclude={"idempotency_key", "filters_sha256"})
+    legacy = op.model_dump(mode="json", exclude={"idempotency_key", "filters_sha256", "clarification_key"})
     expected = hashlib.sha256(json.dumps(legacy, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     assert op.fingerprint() == expected
 

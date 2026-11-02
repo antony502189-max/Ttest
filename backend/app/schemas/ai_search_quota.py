@@ -26,6 +26,7 @@ class QuotaOperation(StrictContract):
     # Computed by orchestration from the complete validated card request.
     # None remains available for quota-only and future voice callers.
     filters_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    clarification_key: UUID | None = None
     session_id: UUID
     expected_session_version: int = Field(ge=0, le=2_147_483_647)
     contract: Literal["ai-search.operation.v1"] = "ai-search.operation.v1"
@@ -63,6 +64,16 @@ class FailureCode(StrEnum):
     SESSION_NOT_FOUND = "SESSION_NOT_FOUND"
     SESSION_STATE_INVALID = "SESSION_STATE_INVALID"
     LEASE_EXPIRED = "LEASE_EXPIRED"
+    CLARIFY_BUDGET_PERIOD = "CLARIFY_BUDGET_PERIOD"
+    CLARIFY_RENTAL_MODE = "CLARIFY_RENTAL_MODE"
+    CLARIFY_BALCONY_REQUIREMENT = "CLARIFY_BALCONY_REQUIREMENT"
+    CLARIFY_LOCATION = "CLARIFY_LOCATION"
+    CLARIFY_DATES = "CLARIFY_DATES"
+    CLARIFY_UNSUPPORTED = "CLARIFY_UNSUPPORTED"
+    SOURCE_COVERAGE_UNAVAILABLE = "SOURCE_COVERAGE_UNAVAILABLE"
+    INTENT_CLARIFICATION_REQUIRED = "INTENT_CLARIFICATION_REQUIRED"
+    INTENT_NO_CHANGE = "INTENT_NO_CHANGE"
+    INTENT_UNSUPPORTED = "INTENT_UNSUPPORTED"
 
 
 class OperationState(StrictContract):

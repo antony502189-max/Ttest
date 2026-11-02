@@ -1,0 +1,58 @@
+OFFLINE, no DB, profiled CPU only 8 mean_ms 40.989844119994814 compilations 2
+         3944979 function calls (3711679 primitive calls) in 4.005 seconds
+
+   Ordered by: cumulative time
+   List reduced from 532 to 20 due to restriction <20>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+      100    0.013    0.000    4.098    0.041 ai_verified_cards.py:174(_map_intent)
+      100    0.001    0.000    2.599    0.026 ai_verified_cards.py:189(verified_intent_predicate)
+      100    0.001    0.000    2.580    0.026 ai_verified_cards.py:201(_verified_intent_predicate)
+      100    0.008    0.000    2.575    0.026 ai_query_proofs.py:158(current_projection_predicate)
+      100    0.010    0.000    1.585    0.016 ai_query_proofs.py:65(projection_signature)
+136600/136200    0.317    0.000    1.124    0.000 coercions.py:314(expect)
+      100    0.007    0.000    1.105    0.011 listings.py:741(_search_filtered_map)
+28805/28005    0.023    0.000    0.951    0.000 langhelpers.py:1119(__get__)
+      200    0.052    0.000    0.907    0.005 profile-query-build.py:16(execute)
+      202    0.001    0.000    0.843    0.004 langhelpers.py:1246(oneshot)
+      200    0.005    0.000    0.842    0.004 cache_key.py:411(_generate_cache_key)
+      200    0.002    0.000    0.837    0.004 cache_key.py:347(_generate_cache_key)
+120500/200    0.405    0.000    0.835    0.004 cache_key.py:221(_gen_cache_key)
+      200    0.004    0.000    0.813    0.004 ai_hard_matching.py:20(hard_match_predicate)
+    20600    0.021    0.000    0.798    0.000 elements.py:1528(operate)
+      200    0.017    0.000    0.715    0.004 ai_hard_matching.py:28(one)
+2400/2200    0.004    0.000    0.710    0.000 selectable.py:902(c)
+2400/2200    0.014    0.000    0.700    0.000 selectable.py:914(_setup_collections)
+2300/2100    0.005    0.000    0.659    0.000 selectable.py:1744(_populate_column_collection)
+    20600    0.040    0.000    0.631    0.000 type_api.py:202(operate)
+
+
+OFFLINE, no DB, profiled CPU only 13 mean_ms 42.78072411998437 compilations 2
+         4050006 function calls (3810706 primitive calls) in 4.179 seconds
+
+   Ordered by: cumulative time
+   List reduced from 530 to 20 due to restriction <20>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+      100    0.003    0.000    4.277    0.043 ai_verified_cards.py:174(_map_intent)
+      100    0.001    0.000    2.607    0.026 ai_verified_cards.py:189(verified_intent_predicate)
+      100    0.001    0.000    2.587    0.026 ai_verified_cards.py:201(_verified_intent_predicate)
+      100    0.008    0.000    2.582    0.026 ai_query_proofs.py:158(current_projection_predicate)
+      100    0.010    0.000    1.580    0.016 ai_query_proofs.py:65(projection_signature)
+      100    0.004    0.000    1.291    0.013 listings.py:741(_search_filtered_map)
+      100    0.020    0.000    1.278    0.013 listings.py:781(_single_pass_map)
+142200/141800    0.364    0.000    1.192    0.000 coercions.py:314(expect)
+29600/28800    0.024    0.000    0.968    0.000 langhelpers.py:1119(__get__)
+      200    0.067    0.000    0.961    0.005 profile-query-build.py:16(execute)
+      200    0.001    0.000    0.885    0.004 langhelpers.py:1246(oneshot)
+      200    0.006    0.000    0.883    0.004 cache_key.py:411(_generate_cache_key)
+      200    0.001    0.000    0.878    0.004 cache_key.py:347(_generate_cache_key)
+125400/200    0.425    0.000    0.876    0.004 cache_key.py:221(_gen_cache_key)
+    20900    0.021    0.000    0.838    0.000 elements.py:1528(operate)
+      200    0.004    0.000    0.827    0.004 ai_hard_matching.py:20(hard_match_predicate)
+2400/2200    0.004    0.000    0.729    0.000 selectable.py:902(c)
+      200    0.019    0.000    0.728    0.004 ai_hard_matching.py:28(one)
+2400/2200    0.050    0.000    0.719    0.000 selectable.py:914(_setup_collections)
+    20900    0.040    0.000    0.672    0.000 type_api.py:202(operate)
+
+

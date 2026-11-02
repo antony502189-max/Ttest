@@ -1,0 +1,18 @@
+{
+  "schema_version": "deepseek-outbound-review.v1",
+  "provider": "deepseek",
+  "endpoint": "https://api.deepseek.com/chat/completions",
+  "purpose": "rental_search_intent_only",
+  "status": "blocked",
+  "real_user_outbound": false,
+  "account_reference": "closed-intent-eval-account-unverified",
+  "accountable_owner": "unassigned",
+  "account_training_exclusion": "unverified",
+  "account_retention_days": null,
+  "account_deletion_sla_days": null,
+  "account_processing_region": "unverified",
+  "account_contract_reference": null,
+  "minimization": "deny_all_real_user_text",
+  "allowed_future_fields": ["text", "criteria"],
+  "reviewed_on": "2026-11-01"
+}

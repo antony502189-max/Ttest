@@ -3,7 +3,7 @@
 from decimal import Decimal
 
 from sqlalchemy import Numeric, and_, case, cast, func, literal, or_, select
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TEXT
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, JSONPATH, TEXT
 from sqlalchemy.sql.elements import ColumnElement
 
 from ..services.ai_hard_matching import FeatureRule, HardMatchPlan
@@ -17,7 +17,7 @@ _VALUE_FIELDS = {
 }
 
 
-def hard_match_predicate(features: ColumnElement, plan: HardMatchPlan) -> ColumnElement[bool]:
+def hard_match_predicate(features: ColumnElement, plan: HardMatchPlan, *, key_prefilter=True) -> ColumnElement[bool]:
     """Apply to current validated projections BEFORE count/order/seek/limit.
 
     Explicit bindings only; neither model text nor client SQL enters this tree.
@@ -25,22 +25,29 @@ def hard_match_predicate(features: ColumnElement, plan: HardMatchPlan) -> Column
     guards. This compiler does not establish provenance or a public query path.
     """
     array = case((func.jsonb_typeof(features) == "array", features), else_=literal([], type_=JSONB))
-    element = func.jsonb_array_elements(array).table_valued("value", joins_implicitly=True).alias()
-    item = cast(element.c.value, JSONB)
-    qualifiers = cast(func.jsonb_strip_nulls(case((func.jsonb_typeof(item["qualifiers"]) == "object",
-                                                item["qualifiers"]), else_=literal({}, type_=JSONB))), JSONB)
-    value = cast(func.jsonb_strip_nulls(case((func.jsonb_typeof(item["typed_value"]) == "object",
-                                           item["typed_value"]), else_=literal({}, type_=JSONB))), JSONB)
-
-    def number(field, *, money=False):
-        raw = value[field]
-        pattern = r"^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$" if money else r"^(0|[1-9][0-9]{0,9})$"
-        safe = and_(func.jsonb_typeof(raw) == ("string" if money else "number"),
-                    func.length(raw.astext) <= (16 if money else 10), raw.astext.op("~")(pattern))
-        parsed = case((safe, cast(raw.astext, Numeric)), else_=None)
-        return parsed if money else case((parsed <= 2_147_483_647, parsed), else_=None)
-
     def one(rule: FeatureRule):
+        # Native key selection keeps every relevant row, including malformed
+        # duplicates. Scope/uniqueness/type/economic checks below are unchanged;
+        # they no longer iterate all unrelated feature families in SQL SRFs.
+        candidates = func.jsonb_path_query_array(array,
+            literal('strict $[*] ? (@.type() == "object" && exists(@.key) && @.key == $key)', type_=JSONPATH),
+            literal({"key": rule.key}, type_=JSONB), True
+        ) if key_prefilter else array
+        element = func.jsonb_array_elements(candidates).table_valued("value", joins_implicitly=True).alias()
+        item = cast(element.c.value, JSONB)
+        qualifiers = cast(func.jsonb_strip_nulls(case((func.jsonb_typeof(item["qualifiers"]) == "object",
+                                                    item["qualifiers"]), else_=literal({}, type_=JSONB))), JSONB)
+        value = cast(func.jsonb_strip_nulls(case((func.jsonb_typeof(item["typed_value"]) == "object",
+                                               item["typed_value"]), else_=literal({}, type_=JSONB))), JSONB)
+
+        def number(field, *, money=False):
+            raw = value[field]
+            pattern = r"^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$" if money else r"^(0|[1-9][0-9]{0,9})$"
+            safe = and_(func.jsonb_typeof(raw) == ("string" if money else "number"),
+                        func.length(raw.astext) <= (16 if money else 10), raw.astext.op("~")(pattern))
+            parsed = case((safe, cast(raw.astext, Numeric)), else_=None)
+            return parsed if money else case((parsed <= 2_147_483_647, parsed), else_=None)
+
         scope_conditions = []
         for key, choices in rule.scopes:
             scope_conditions.append(or_(*(

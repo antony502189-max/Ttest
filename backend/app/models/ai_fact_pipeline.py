@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, text
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,6 +13,14 @@ class AiFactCatalog(Base):
     __table_args__ = (CheckConstraint("revision >= 0", name="ck_ai_catalog_revision"),)
     canonical_listing_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
     revision: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class AiFactPopulation(Base):
+    __tablename__ = "ai_fact_population"
+    __table_args__ = (CheckConstraint("id = 1 AND revision > 0", name="ck_ai_fact_population_singleton"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    epoch: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), server_default=text("gen_random_uuid()"))
+    revision: Mapped[int] = mapped_column(BigInteger)
 
 
 class AiFactSource(Base):

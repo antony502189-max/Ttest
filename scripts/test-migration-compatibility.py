@@ -16,6 +16,14 @@ def migration(revision, parent, operations):
 
 
 class RollbackProtectionTests(unittest.TestCase):
+    def test_additive_truncate_observer_is_distinct_from_truncating_rows(self):
+        ddl = "CREATE TRIGGER observe AFTER TRUNCATE ON proofs FOR EACH STATEMENT EXECUTE FUNCTION changed()"
+        self.assertEqual(inspect(migration('next', 'old', f"op.execute({ddl!r})")), [])
+        for sql in ("TRUNCATE proofs", ddl + "; TRUNCATE proofs", ddl + " TRUNCATE proofs",
+                    "CREATE TRIGGER observe AFTER INSERT ON proofs EXECUTE FUNCTION changed('TRUNCATE proofs')"):
+            with self.subTest(sql=sql):
+                self.assertTrue(inspect(migration('next', 'old', f"op.execute({sql!r})")))
+
     def test_frozen_history_is_not_reinterpreted_as_future_ddl(self):
         migrations = {
             'old': migration('old', None, "op.create_table('payment_orders')"),

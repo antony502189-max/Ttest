@@ -25,6 +25,11 @@ authority IDs with the same indexed UNION used by the fixture optimization;
 the historical timings describe the earlier OR expression. Validate correctness
 with small regressions and agree a lighter workload separately.
 
+On 2026-10-30 the owner explicitly authorized a new isolated baseline run at
+100k/500k/1m with the resources below. This later approval is recorded in
+[post-merge remediation](../post-merge-remediation.md). It permits fresh synthetic
+labs; it does not permit reuse of the historical DB or public AI activation.
+
 ## Architectural meaning
 
 A fact is one row of `ai_listing_facts`: a typed observation, scope, status,
@@ -69,6 +74,15 @@ constraints, application indexes and the trigger remain present. No trigger is
 changed in application code or in any application database. Fixture creation
 throughput is not a measurement of real importer throughput.
 
+From source `ea333e15` the new live-proof/population fixture uses one writer
+for both input and proof setup. Eight writers contended on transactional
+population counters before any 100k measurement. Only setup was serialized;
+the measured 50/100/200 concurrency, pool 30, deadlines and SLO are unchanged.
+The failed setup remains historical; fresh experiment
+`3056bd59405546c984354b07f2382a1f` completed 100k with SLO FAIL. Its larger
+scales are deferred until the next optimization, not silently counted as done.
+[Result and evidence](../../reports/AI_LIVE_INPUTS_20261031.md).
+
 ## Isolation and resources
 
 Use a fresh PostGIS 16/3.4 container pinned to the same digest as integration CI,
@@ -83,8 +97,11 @@ The runner uses the inspected network ID and pins r01-db in /etc/hosts to that
 container's inspected IP, so another container's DNS alias cannot redirect DDL.
 An OS file lock records the owner run/PID and excludes concurrent phases writing
 the same experiment directory; it is released automatically on process exit.
-A database-wide transaction advisory lock excludes initialize/seed/measure even
-across different output directories. During measure a dedicated transaction
+A database-wide advisory lock excludes initialize/seed/measure even across
+different output directories. Initialize uses an AUTOCOMMIT session lock so
+concurrent-index migrations do not wait for its own old transaction snapshot;
+seed and measure use transaction locks in the same lock namespace.
+During measure a dedicated transaction
 holds SHARE locks on every lab-schema table before preflight until all queries
 and pool cleanup finish. SELECT remains allowed; ordinary DML, TRUNCATE and DDL
 are blocked, including writers that ignore the advisory lock. A concurrent
@@ -122,9 +139,17 @@ zoom 8/12/13/21 with 0/299/300/301/302, 10,000 and whole-catalog candidates.
 This deduplicated baseline matrix is mandatory for protocol completion. Every
 record retains first-touch timing/outcome, capture_count/query_count/plan_count
 and the ordered explicit SQL dispatch trace, including transaction control.
-Only our explicitly marked SET is control; CTEs, comments and other query text
-are never filtered. The current map executes one SQL query, or two for high zoom
-above 300 candidates; successful baseline traces must match that contract.
+Only our explicitly marked SET TRANSACTION is transaction control; CTEs,
+comments and other query text are never filtered. The historical map executed
+one SQL query, or two for high zoom above 300 candidates. The new
+`single-pass-jit.v1` trace requires exactly SET TRANSACTION, one explicitly
+marked `SET LOCAL jit = off` configuration dispatch, and one map SQL query at
+every zoom/count. Configuration time stays inside measured query/total time.
+The single materialized eligible set feeds either markers or aggregation;
+all proof/currentness/eligibility guards remain before count and rendering.
+EXPLAIN uses the identical transaction-local JIT setting and records it in its
+artifact. Missing/changed/extra configuration or map SQL rejects attestation.
+Historical evidence remains checked against its original two-query contract.
 Each query references a unique plan artifact with matching SQL SHA-256, binds,
 scenario and run identity. Actual and explicitly estimated-only plans are valid
 evidence; missing, malformed or failed plans prevent protocol completion.
@@ -277,3 +302,18 @@ Small toolchain regressions use fake Docker and temporary Git repositories,
 including real PowerShell execution when pwsh/PowerShell is installed. They do
 not start the synthetic lab. Run `python -m pytest -q
 backend/tests/test_ai_map_toolchain.py backend/tests/test_ai_map_benchmark_safety.py`.
+
+## Instrumentation corrections (2026-10-30)
+
+Seed ANALYZE/VACUUM waits up to60s for maintenance locks and restores the1s query
+lock timeout even on failure. The untimed repeatable-read/read-only dataset
+preflight uses SET LOCAL statement_timeout60s: counting20m fixture facts must
+not inherit the timed-query deadline5s. Closing that transaction restores the
+engine setting; timed map queries and SLO thresholds are unchanged.
+
+Attempt/phase timestamps and resource events use a UTC anchor captured at process
+start plus monotonic elapsed time, so a wall-clock correction cannot invert or
+shorten a measured interval. Raw wall-clock fields are retained separately.
+The orchestrator brackets the final manifest timestamp with resource samples.
+Raw consistency checks remain strict; older evidence with inconsistent clocks
+is rejected and preserved. Any source change requires a fresh experiment/DB.

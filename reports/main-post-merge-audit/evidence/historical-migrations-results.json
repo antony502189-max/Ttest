@@ -1,0 +1,92 @@
+{
+  "stages": [
+    {
+      "name": "history-0066",
+      "command": [
+        "alembic",
+        "upgrade",
+        "0066_complimentary_ads"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "history-0071",
+      "command": [
+        "alembic",
+        "upgrade",
+        "0071_ai_query_proofs"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "history-0072",
+      "command": [
+        "alembic",
+        "upgrade",
+        "0072_ai_session_commands"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "history-0073",
+      "command": [
+        "alembic",
+        "upgrade",
+        "0073_ai_command_seed"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "history-0074",
+      "command": [
+        "alembic",
+        "upgrade",
+        "head"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "history-repeat-head",
+      "command": [
+        "alembic",
+        "upgrade",
+        "head"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "history-alembic-check",
+      "command": [
+        "alembic",
+        "check"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "history-downgrade-refused",
+      "command": [
+        "alembic",
+        "downgrade",
+        "0073_ai_command_seed"
+      ],
+      "exit_code": 1
+    },
+    {
+      "name": "history-drift-canary",
+      "command": [
+        "alembic",
+        "check"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "legacy_data_preserved": true,
+  "downgrade_preserves_stamp": true,
+  "application_tables_compared": 54,
+  "column_drift": [],
+  "drift_canary_alembic_exit": 0,
+  "strict_schema_contract_canary": [
+    "add_column: ai_session_commands.seed_mode",
+    "remove_column: ai_session_commands.audit_drift_seed_mode"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "measured_source_sha": "06af013856798f4eb93572433b522796edc69fdc",
+  "followup_changes": "reports/evidence and summarizer prose only; application unchanged",
+  "junit": {
+    "file": "performance-report-contracts.xml",
+    "sha256": "0c4cd9e7ea3ba42b2b76ebeacf9c6004fec453afcf2bb5bd0ae1e4c9ecf9f78a",
+    "tests": 165,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 28
+  },
+  "offline_replay": "performance-capacity-replay.json",
+  "acceptance": "BLOCKED; protocol COMPLETE / SLO FAIL"
+}

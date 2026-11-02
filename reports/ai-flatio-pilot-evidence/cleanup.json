@@ -1,0 +1,9 @@
+{
+  "private_records_file_exists": false,
+  "private_directory_exists": false,
+  "leftover_test_schemas": 0,
+  "own_containers_and_anonymous_db_volume_removed": true,
+  "raw_html_written_to_disk": false,
+  "retained_real_evidence_records": 0,
+  "retained_aggregates_only": true
+}

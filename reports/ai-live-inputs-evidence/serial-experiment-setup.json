@@ -1,0 +1,11 @@
+{
+  "lab_id": "serial-20261031-97e49b0b",
+  "experiment_id": "3056bd59405546c984354b07f2382a1f",
+  "network": "codex-r01-serial-20261031-97e49b0b",
+  "database_container": "codex-r01-db-serial-20261031-97e49b0b",
+  "volume": "codex-r01-pg-serial-20261031-97e49b0b",
+  "dependency_image": "ttest-ai-fact-population-tools:20261031",
+  "source": "ea333e156d74bc441f66d27a9314fdaad59bc5d5",
+  "purpose": "r01-synthetic",
+  "created_utc": "2026-10-31T20:06:09.0476917Z"
+}

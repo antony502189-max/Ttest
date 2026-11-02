@@ -1,0 +1,67 @@
+{
+  "evaluated": 3,
+  "passed": 3,
+  "total": 3,
+  "all_passed": true,
+  "typed_patch_count": 2,
+  "by_category": {
+    "pets": {
+      "passed": 2,
+      "evaluated": 2
+    },
+    "conflict": {
+      "passed": 1,
+      "evaluated": 1
+    }
+  },
+  "results": [
+    {
+      "id": "ru-dog",
+      "language": "ru",
+      "category": "pets",
+      "outcome": "patch",
+      "typed_patch": true,
+      "passed": true,
+      "different_criteria": [],
+      "latency_ms": 1992.69
+    },
+    {
+      "id": "es-cat",
+      "language": "es",
+      "category": "pets",
+      "outcome": "patch",
+      "typed_patch": true,
+      "passed": true,
+      "different_criteria": [],
+      "latency_ms": 1676.39
+    },
+    {
+      "id": "ru-conflict",
+      "language": "ru",
+      "category": "conflict",
+      "outcome": "INTENT_CLARIFICATION_REQUIRED",
+      "typed_patch": false,
+      "passed": true,
+      "latency_ms": 1648.36
+    }
+  ],
+  "schema": "ai-intent-evaluation-result.v1",
+  "mode": "LIVE",
+  "corpus_sha256": "7b722ab6caa0bf3377a0ace8fcddecf6daa7f7cb9bcebec515ab0cac9997d288",
+  "provider": "deepseek",
+  "model": "deepseek-flash",
+  "budget": {
+    "attempts": 27,
+    "reserved_micro_usd": 298620,
+    "observed_usage_attempts": 27,
+    "prompt_tokens": 96307,
+    "completion_tokens": 588,
+    "observed_peak_micro_usd": 29598
+  },
+  "full_corpus_size": 24,
+  "selected_case_ids": [
+    "ru-dog",
+    "es-cat",
+    "ru-conflict"
+  ]
+}
