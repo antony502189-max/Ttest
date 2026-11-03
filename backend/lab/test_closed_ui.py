@@ -4,7 +4,7 @@ import json
 import os
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
@@ -19,6 +19,7 @@ from lab.closed_ui import (
     CORPUS_SHA256,
     ClosedUIParser,
     ExistingSmokeBudget,
+    _UIBudgetTransport,
     plan,
     smoke_cases,
 )
@@ -199,3 +200,29 @@ def test_readable_but_unwritable_existing_journal_fails_before_provider_setup(tm
           patch("httpx.AsyncHTTPTransport", side_effect=AssertionError("transport must remain uncreated")),
           pytest.raises(ProviderFailure, match="UI_SMOKE_JOURNAL_NOT_WRITABLE")):
         parser_at(path)
+
+
+async def test_closed_diagnostics_capture_fixed_status_and_code_without_private_values(tmp_path, caplog):
+    parser = parser_at(journal(tmp_path))
+    private = "NEVER_LOG_PRIVATE_PROVIDER_BODY_OR_TOKEN"
+    parser.transport = _UIBudgetTransport(httpx.MockTransport(lambda request: httpx.Response(
+        401, text=private, headers={"X-Private": private})), parser.budget)
+    case = smoke_cases()[0][0]
+    with pytest.raises(ProviderFailure, match="PROVIDER_REQUEST_REJECTED"):
+        await parser.parse(case["text"], state(case))
+    assert "closed_ui_provider_http_status:401" in caplog.text
+    assert "closed_ui_provider_failure:PROVIDER_REQUEST_REJECTED" in caplog.text
+    assert private not in caplog.text and case["text"] not in caplog.text
+    assert "synthetic-test-only" not in caplog.text
+
+
+async def test_unknown_dependency_failure_details_do_not_enter_diagnostics(tmp_path, caplog):
+    parser = parser_at(journal(tmp_path))
+    private = "PRIVATE_UNKNOWN_FAILURE_DETAILS"
+    parser.gate.prepare = patch_prepare = AsyncMock(side_effect=ProviderFailure(private))
+    case = smoke_cases()[0][0]
+    with pytest.raises(ProviderFailure):
+        await parser.parse(case["text"], state(case))
+    patch_prepare.assert_awaited_once()
+    assert "closed_ui_provider_failure:PROVIDER_FAILURE" in caplog.text
+    assert private not in caplog.text and parser.budget.summary()["attempts"] == 51

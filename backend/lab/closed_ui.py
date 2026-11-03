@@ -5,6 +5,7 @@ explicit factory requires a newly authorized synthetic smoke and reviewed egress
 """
 import argparse
 import json
+import logging
 import os
 import sqlite3
 from contextlib import closing, contextmanager
@@ -30,6 +31,25 @@ BASELINE_ATTEMPTS = 51
 SMOKE_ATTEMPTS = 3
 POLICY = DeepSeekPolicy(model="deepseek-flash", timeout_seconds=8, total_budget_seconds=10,
                         max_tokens=1024, max_attempts=1, retry_delay_seconds=0, max_response_bytes=65536)
+_logger = logging.getLogger(__name__)
+_SAFE_FAILURES = frozenset({
+    "PROVIDER_REQUEST_REJECTED", "PROVIDER_RETRIES_EXHAUSTED", "PROVIDER_USAGE_INVALID",
+    "PROVIDER_TRANSPORT_FAILED", "PROVIDER_DEADLINE_EXCEEDED", "PROVIDER_RESULT_INVALID",
+    "PROVIDER_RESPONSE_ENCODING_UNSUPPORTED", "PROVIDER_RESPONSE_TOO_LARGE",
+    "PROVIDER_INPUT_ALLOWANCE_EXCEEDED", "PROVIDER_POLICY_MISMATCH",
+    "PROVIDER_COST_BUDGET_EXHAUSTED", "PROVIDER_USAGE_ALLOWANCE_EXCEEDED",
+    "SYNTHETIC_OUTBOUND_CASE_NOT_APPROVED", "INTENT_CLARIFICATION_REQUIRED",
+    "INTENT_NO_CHANGE", "INTENT_UNSUPPORTED",
+})
+
+
+class _UIBudgetTransport(_BudgetTransport):
+    async def handle_async_request(self, request):
+        response = await super().handle_async_request(request)
+        # Fixed metadata only. Never read/log an error body, headers, URL,
+        # request, credential, text or operation identity for diagnostics.
+        _logger.warning("closed_ui_provider_http_status:%d", response.status_code)
+        return response
 
 
 def smoke_cases():
@@ -94,8 +114,19 @@ class ClosedUIParser(DecisionDeepSeekIntent):
             raise ProviderFailure("DEDICATED_TEST_KEY_REQUIRED")
         self.budget = ExistingSmokeBudget(journal, corpus_sha256=digest)
         self.key, self.gate, self.policy = key, SyntheticCorpusGate(cases), POLICY
-        self.transport = _BudgetTransport(httpx.AsyncHTTPTransport(retries=0, trust_env=False,
+        self.transport = _UIBudgetTransport(httpx.AsyncHTTPTransport(retries=0, trust_env=False,
             limits=httpx.Limits(max_connections=1, max_keepalive_connections=0)), self.budget)
+
+    async def parse(self, text, current):
+        try:
+            return await super().parse(text, current)
+        except ProviderFailure as error:
+            code = str(error) if str(error) in _SAFE_FAILURES else "PROVIDER_FAILURE"
+            _logger.warning("closed_ui_provider_failure:%s", code)
+            raise
+        except Exception:
+            _logger.warning("closed_ui_provider_failure:UI_PROVIDER_DEPENDENCY_FAILED")
+            raise
 
 
 def create_app(*, key: SecretStr, journal: Path, approval: str, approved_corpus_sha256: str):

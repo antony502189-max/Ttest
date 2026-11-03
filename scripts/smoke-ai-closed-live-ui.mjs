@@ -1,6 +1,6 @@
 // Explicitly authorized three-case LIVE synthetic smoke. No provider API mocks.
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -19,6 +19,7 @@ assert.equal(createHash('sha256').update(corpusBytes).digest('hex'),
 const corpus = JSON.parse(corpusBytes)
 const cases = ['ru-balcony', 'es-monthly', 'en-negation'].map(id => corpus.find(c => c.id === id))
 const dir = path.dirname(manifestPath)
+const startedAt = new Date().toISOString()
 function budget() {
   const code = `import sqlite3,json,sys,pathlib
 p=pathlib.Path(sys.argv[1]).resolve(strict=True)
@@ -116,6 +117,19 @@ try {
   report.failure = { name: error.name, message: error.message.slice(0, 200) }
   throw error
 } finally {
+  // Capture only our fixed-code diagnostics BEFORE the launcher replaces the
+  // LIVE container. Raw dependency logs never enter the evidence/report.
+  const logs = spawnSync('docker', ['logs', '--since', startedAt, 'ttest-ai-text-lab-backend'],
+    { encoding: 'utf8', timeout: 10000, maxBuffer: 1048576 })
+  report.providerDiagnostics = []
+  for (const line of ((logs.stdout || '') + '\n' + (logs.stderr || '')).split('\n')) {
+    try {
+      const { message } = JSON.parse(line)
+      if (typeof message === 'string' && /^closed_ui_provider_(failure:[A-Z_]+|http_status:[1-5][0-9]{2})$/.test(message)) {
+        report.providerDiagnostics.push(message)
+      }
+    } catch { /* Non-JSON and arbitrary dependency messages are discarded. */ }
+  }
   await browser.close()
   report.after = budget()
   report.newAttempts = report.after.attempts - before.attempts
