@@ -73,3 +73,8 @@ network, LIVE mounts/egress отсутствуют. Реальный journal о�
 исправляют задним числом. Настоящий external cap, независимый custodian trust pin,
 signed admission и network-level egress review всё ещё нужны до нового paid run.
 Real-user outbound/privacy и остальные pilot gates остаются BLOCKED/OPEN.
+
+CI note: первый финальный frontend job прошёл63 основных browser contracts,
+7 pairing/recovery и build matrix, но provenance не нашёл ancestor source из-за
+shallow checkout. Frontend job теперь получает fetch-depth0; проверка исходного
+runtime сохранена, не заменена слабой проверкой только текущего HEAD.
