@@ -16,6 +16,7 @@ from app.services.ai_closed_deepseek import EvaluationBudget
 from lab.ai_text import require_lab
 from lab.closed_ui import APPROVAL, CORPUS_SHA256, smoke_cases
 from lab.closed_ui import create_app as compose
+from lab.closed_ui_spec import SPEC
 from lab.closed_ui_test_support import admission_fixture
 
 _directory = None
@@ -27,7 +28,7 @@ def create_app():
     _directory = TemporaryDirectory(prefix="closed-ui-fake-matrix-")
     journal = Path(_directory.name) / "DISPOSABLE-matrix.sqlite3"
     budget = EvaluationBudget(journal, corpus_sha256=CORPUS_SHA256)
-    for _ in range(51):
+    for _ in range(SPEC.baseline_attempts):
         budget.reserve()
     def completion(request):
         data = json.loads(json.loads(request.content)["messages"][1]["content"])

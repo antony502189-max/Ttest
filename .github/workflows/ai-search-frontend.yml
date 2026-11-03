@@ -4,7 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
-    paths: ['src/**', 'vite.config.ts', 'backend/lab/**', 'deploy/ai-text-lab/**', 'scripts/ai-lab-runtime.mjs', 'scripts/check-ai-lab-*.mjs', 'scripts/verify-ai-lab-provenance.mjs', 'tests/ai-home-search.spec.ts', 'tests/ai-lab-runtime.spec.ts', 'tests/ai-saved-searches.spec.ts', 'tests/google-maps-final-acceptance.spec.ts', 'playwright.ai-lab.config.ts', 'playwright.ai-search.config.ts', 'package*.json', '.github/workflows/ai-search-frontend.yml']
+    # Manifest classifies every source tree. Run on every PR so a newly added
+    # unclassified dependency cannot evade validation through path filters.
   workflow_dispatch:
 
 permissions:
@@ -40,7 +41,9 @@ jobs:
       - name: Lab build-mode matrix (no provider)
         run: node scripts/check-ai-lab-builds.mjs output/ai-lab-build-matrix
       - name: Exact runtime code and evidence provenance
-        run: node scripts/verify-ai-lab-provenance.mjs output/ai-lab-ci-provenance.json
+        run: |
+          node scripts/test-ai-lab-input-policy.mjs
+          node scripts/verify-ai-lab-provenance.mjs output/ai-lab-ci-provenance.json
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

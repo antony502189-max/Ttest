@@ -91,11 +91,19 @@ export async function api<T>(path: string, init: ApiRequestInit = {}, retried = 
     if (path.startsWith('/ai-search/') && import.meta.env.VITE_AI_CLOSED_LAB) {
       // Re-attest before every AI request. A backend restart or mixed frontend
       // fails before identity/session creation or inference; no static JSON trust.
-      const attestation = await fetch(`${API_BASE_URL}/ai-search/lab-runtime`, {
-        credentials: 'include', cache: 'no-store', signal: controller.signal,
-      })
-      const value = attestation.ok ? await attestation.json() : null
-      if (value?.schema !== 'ai-lab-runtime.v1' || value.parser !== import.meta.env.VITE_AI_CLOSED_LAB
+      let value: { schema?: string; parser?: string; source?: string; instance?: string } | null
+      try {
+        const attestation = await fetch(`${API_BASE_URL}/ai-search/lab-runtime`, {
+          credentials: 'include', cache: 'no-store', signal: controller.signal,
+        })
+        value = attestation.ok ? await attestation.json() : null
+      } catch {
+        // A failed/malformed/aborted attestation cannot establish whether an
+        // earlier operation committed. Always preserve recovery as unavailable.
+        throw new ApiError(503, 'No se pudo verificar la búsqueda. Inténtalo de nuevo.', {}, 'LAB_RUNTIME_UNAVAILABLE')
+      }
+      if (value?.schema !== 'ai-lab-runtime.v1' || typeof value.parser !== 'string' || typeof value.source !== 'string'
+        || value.parser !== import.meta.env.VITE_AI_CLOSED_LAB
         || value.source !== import.meta.env.VITE_AI_LAB_SOURCE_SHA || typeof value.instance !== 'string') {
         // A release mismatch says nothing about an earlier operation's commit.
         // Treat it as temporary unavailability so recovery retains its locator.

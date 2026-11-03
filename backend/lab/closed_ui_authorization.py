@@ -8,7 +8,9 @@ an authorization as a consequence of an environment approval string.
 import base64
 import hashlib
 import json
+import os
 import re
+import stat
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -17,9 +19,25 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from app.services.ai_deepseek_intent import ProviderFailure, _strict_json
+from lab.closed_ui_spec import CASE_IDS, CORPUS_SHA256, SPEC
 
-CASE_IDS = ("ru-balcony", "es-monthly", "en-negation")
-CORPUS_SHA256 = "7b722ab6caa0bf3377a0ace8fcddecf6daa7f7cb9bcebec515ab0cac9997d288"
+
+def require_private_journal(path):
+    """Exclude untrusted local writers; stat checks are NOT an atomic SQLite VFS.
+
+    Real LIVE runs on POSIX, non-root, in an exclusively mounted private dir.
+    Windows disposable tests do not certify POSIX ownership/permissions.
+    The trusted process/host administrator remains outside the adversary model.
+    """
+    path = Path(path)
+    if path.is_symlink() or not stat.S_ISREG(path.lstat().st_mode):
+        raise ProviderFailure("UI_JOURNAL_UNSAFE_PERMISSIONS")
+    if os.name == "posix":
+        owner = os.geteuid()
+        for item in (path, path.parent):
+            info = item.stat()
+            if info.st_uid != owner or info.st_mode & 0o022:
+                raise ProviderFailure("UI_JOURNAL_UNSAFE_PERMISSIONS")
 
 
 def canonical(data):
@@ -27,6 +45,7 @@ def canonical(data):
 
 
 def identity(path):
+    require_private_journal(path)
     path = Path(path).resolve(strict=True)
     stat = path.stat()
     return {"path": str(path), "device": stat.st_dev, "inode": stat.st_ino}
@@ -85,7 +104,7 @@ def verify(document: bytes, public_key: bytes, *, trusted_key_sha256: str, sourc
                 raise ValueError
         if not re.fullmatch(r"[0-9a-f]{64}", data["external_cap_evidence_sha256"]):
             raise ValueError
-        if type(data["external_cap_micro_usd"]) is not int or not 0 < data["external_cap_micro_usd"] <= 750000:
+        if type(data["external_cap_micro_usd"]) is not int or not 0 < data["external_cap_micro_usd"] <= SPEC.max_micro_usd:
             raise ValueError
         for key in ("host_journal", "runtime_journal"):
             item = data[key]
@@ -94,11 +113,13 @@ def verify(document: bytes, public_key: bytes, *, trusted_key_sha256: str, sourc
             if any(type(item[x]) is not int or item[x] < 0 for x in ("device", "inode")) or not item["inode"]:
                 raise ValueError
         baseline, count = data["baseline_attempts"], data["max_new_attempts"]
-        if type(baseline) is not int or type(count) is not int or not 51 <= baseline < baseline + count <= 54:
+        if type(baseline) is not int or type(count) is not int or not SPEC.baseline_attempts <= baseline < baseline + count <= SPEC.attempt_fence:
             raise ValueError
-        if type(data["baseline_reserved_micro_usd"]) is not int or data["baseline_reserved_micro_usd"] != baseline * 11060:
+        if type(data["baseline_reserved_micro_usd"]) is not int or data["baseline_reserved_micro_usd"] != baseline * SPEC.reserve_micro_usd:
             raise ValueError
-        if data["max_new_reserved_micro_usd"] != count * 11060 or type(data["max_new_reserved_micro_usd"]) is not int:
+        if data["max_new_reserved_micro_usd"] != count * SPEC.reserve_micro_usd or type(data["max_new_reserved_micro_usd"]) is not int:
+            raise ValueError
+        if data["baseline_reserved_micro_usd"] + data["max_new_reserved_micro_usd"] > data["external_cap_micro_usd"]:
             raise ValueError
         if not isinstance(data["case_ids"], list) or len(data["case_ids"]) != count or len(set(data["case_ids"])) != count:
             raise ValueError
@@ -107,10 +128,10 @@ def verify(document: bytes, public_key: bytes, *, trusted_key_sha256: str, sourc
         prior = data["prior_case_attempts"]
         if not isinstance(prior, dict) or not set(prior) <= set(CASE_IDS) or set(prior) & set(data["case_ids"]):
             raise ValueError
-        if any(type(n) is not int or not 51 < n <= baseline for n in prior.values()) or len(set(prior.values())) != len(prior):
+        if any(type(n) is not int or not SPEC.baseline_attempts < n <= baseline for n in prior.values()) or len(set(prior.values())) != len(prior):
             raise ValueError
         # Reconcile every post-eval historical attempt; no resetting an ambiguous case.
-        if set(prior.values()) != set(range(52, baseline + 1)):
+        if set(prior.values()) != set(range(SPEC.baseline_attempts + 1, baseline + 1)):
             raise ValueError
         start, end = (datetime.fromisoformat(data[k]) for k in ("issued_at", "expires_at"))
         if start.utcoffset() is None or end.utcoffset() is None or not 0 < (end - start).total_seconds() <= 3600:
@@ -124,23 +145,60 @@ def verify(document: bytes, public_key: bytes, *, trusted_key_sha256: str, sourc
         raise ProviderFailure("UI_SIGNED_AUTHORIZATION_REQUIRED") from None
 
 
-def host_preflight(admission, journal, backend_image, frontend_image):
+def verify_operational_review(admission, document):
+    """Authenticate the custodian's checked evidence, NOT provider billing itself.
+
+    No API request to billing/credentials is made. The independent operator must
+    verify actual controls, archive receipts privately and sign their hash.
+    """
+    admission.check_time()
+    try:
+        if len(document) > 16384 or hashlib.sha256(document).hexdigest() != admission.data["external_cap_evidence_sha256"]:
+            raise ValueError
+        data = _strict_json(document)
+        if set(data) != {"schema", "source", "account_reference", "billing_scope", "reviewer",
+                         "verified_at", "expires_at", "external_cap_micro_usd", "provider_limit_verified",
+                         "credentials_scope_verified", "egress_reviewed", "client_access_reviewed", "journal_permissions_reviewed"}:
+            raise ValueError
+        if data["schema"] != "ai-closed-ui-operational-review.v1" or data["source"] != admission.data["source"]:
+            raise ValueError
+        for key in ("account_reference", "billing_scope", "reviewer"):
+            if not isinstance(data[key], str) or not 1 <= len(data[key].strip()) <= 200:
+                raise ValueError
+        for key in ("provider_limit_verified", "credentials_scope_verified", "egress_reviewed",
+                    "client_access_reviewed", "journal_permissions_reviewed"):
+            if data[key] is not True:
+                raise ValueError
+        if type(data["external_cap_micro_usd"]) is not int or data["external_cap_micro_usd"] != admission.data["external_cap_micro_usd"]:
+            raise ValueError
+        start, end = (datetime.fromisoformat(data[k]) for k in ("verified_at", "expires_at"))
+        if (start.utcoffset() is None or end.utcoffset() is None or
+                not start <= datetime.now(UTC) < end or not 0 < (end - start).total_seconds() <= 3600 or
+                end < datetime.fromisoformat(admission.data["expires_at"])):
+            raise ValueError
+    except (ValueError, TypeError, KeyError, OverflowError):
+        raise ProviderFailure("UI_OPERATIONAL_REVIEW_REQUIRED") from None
+
+
+def host_preflight(admission, journal, backend_image, frontend_image, *, operational_review):
     """Read-only host check, using actual docker inspect image IDs, not labels."""
     admission.check_journal(journal, host=True)
     if (backend_image, frontend_image) != (admission.data["backend_image"], admission.data["frontend_image"]):
         raise ProviderFailure("UI_IMAGE_IDENTITY_MISMATCH")
+    verify_operational_review(admission, operational_review)
 
 
 if __name__ == "__main__":
     import argparse
 
     cli = argparse.ArgumentParser(description="Read-only verification; never signs or mutates a journal")
-    for argument in ("admission", "authority", "trusted-key-sha256", "source", "journal", "backend-image", "frontend-image"):
+    for argument in ("admission", "authority", "trusted-key-sha256", "source", "journal", "backend-image", "frontend-image", "operational-review"):
         cli.add_argument("--" + argument, required=True)
     args = cli.parse_args()
     verified = verify(Path(args.admission).read_bytes(), Path(args.authority).read_bytes(),
                       trusted_key_sha256=args.trusted_key_sha256, source=args.source)
-    host_preflight(verified, args.journal, args.backend_image, args.frontend_image)
+    host_preflight(verified, args.journal, args.backend_image, args.frontend_image,
+                   operational_review=Path(args.operational_review).read_bytes())
     print(json.dumps({key: verified.data[key] for key in (
         "source", "case_ids", "baseline_attempts", "baseline_reserved_micro_usd",
         "max_new_attempts", "max_new_reserved_micro_usd")}))

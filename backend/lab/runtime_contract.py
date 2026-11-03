@@ -9,9 +9,14 @@ from uuid import uuid4
 
 from starlette.responses import JSONResponse
 
-PREFIX = "/api/v1/ai-search/"
+ROOT = "/api/v1/ai-search"
+PREFIX = ROOT + "/"
 ATTESTATION = PREFIX + "lab-runtime"
 MODES = frozenset({"finite", "decision-transport-fixture", "closed-live-synthetic"})
+
+
+def ai_path(path):
+    return path == ROOT or path.startswith(PREFIX)
 
 
 @dataclass(frozen=True)
@@ -42,8 +47,12 @@ class RuntimePairing:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or not scope["path"].startswith(PREFIX):
+        if scope["type"] not in {"http", "websocket"} or not ai_path(scope.get("path", "")):
             return await self.app(scope, receive, send)
+        # There are no websocket inference routes. Reject the entire namespace
+        # rather than silently bypassing the HTTP-only pairing contract.
+        if scope["type"] == "websocket":
+            return await send({"type": "websocket.close", "code": 1008})
         runtime = getattr(scope["app"].state, "ai_lab_runtime", None)
         if runtime is None:
             return await JSONResponse({"detail": "LAB_RUNTIME_UNAVAILABLE"}, 503,

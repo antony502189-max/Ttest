@@ -1,5 +1,7 @@
 # Ограниченный synthetic LIVE UI smoke: подготовка
 
+Дополнение по ревью F1–F8 от03.11: [обязательные mTLS/proxy access, operational-review и private journal gates](PR404_CLOSED_LIVE_ADMISSION_RU.md). Старые run manifests без этих данных не допускают запуск; прежние результаты остаются историческими.
+
 **После review PR404-01–09:** старый публичный approval token и исторические
 run manifests больше не допускают LIVE. Требуется внешнее Ed25519-разрешение
 независимого владельца с pinned public-key fingerprint вне репозитория, exact

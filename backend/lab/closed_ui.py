@@ -24,13 +24,12 @@ from app.services.ai_closed_deepseek import (
 from app.services.ai_decision_intent import DecisionDeepSeekIntent
 from app.services.ai_deepseek_intent import DeepSeekPolicy, ProviderFailure
 from lab.closed_ui_authorization import Admission
+from lab.closed_ui_spec import CASE_IDS, CORPUS_SHA256, SPEC
 from lab.intent_eval import SyntheticCorpusGate, load_corpus
 
 APPROVAL = "deepseek-synthetic-ui-smoke-v1"
-CASE_IDS = ("ru-balcony", "es-monthly", "en-negation")
-CORPUS_SHA256 = "7b722ab6caa0bf3377a0ace8fcddecf6daa7f7cb9bcebec515ab0cac9997d288"
-BASELINE_ATTEMPTS = 51
-SMOKE_ATTEMPTS = 3
+BASELINE_ATTEMPTS = SPEC.baseline_attempts
+SMOKE_ATTEMPTS = len(SPEC.case_ids)
 POLICY = DeepSeekPolicy(model="deepseek-flash", timeout_seconds=8, total_budget_seconds=10,
                         max_tokens=1024, max_attempts=1, retry_delay_seconds=0, max_response_bytes=65536)
 _logger = logging.getLogger(__name__)
@@ -61,7 +60,8 @@ class _UIBudgetTransport(_BudgetTransport):
         response = await super().handle_async_request(request)
         # Fixed metadata only. Never read/log an error body, headers, URL,
         # request, credential, text or operation identity for diagnostics.
-        _logger.warning("closed_ui_provider_http_status:%d", response.status_code)
+        log = _logger.info if 200 <= response.status_code < 300 else _logger.warning
+        log("closed_ui_provider_http_status:%d", response.status_code)
         return response
 
 
@@ -85,7 +85,8 @@ class ExistingSmokeBudget(EvaluationBudget):
     """
     def __init__(self, path: Path, *, corpus_sha256: str, admission: Admission):
         self.admission = admission
-        self.path = Path(path).resolve(strict=True)
+        admission.check_journal(path)
+        self.path = Path(path).absolute()
         admission.check_journal(self.path)
         # A root-created eval journal may be readable by the non-root UI user
         # but reject the first INSERT. Fail startup before reading credentials.
@@ -153,7 +154,7 @@ class ExistingSmokeBudget(EvaluationBudget):
             if db.execute("SELECT 1 FROM closed_ui_cases WHERE journal_id=? AND case_id=?",
                           (data["journal_id"], case_id)).fetchone():
                 raise ProviderFailure("UI_SMOKE_CASE_ALREADY_ATTEMPTED")
-            if (calls >= data["baseline_attempts"] + data["max_new_attempts"] or calls >= 54
+            if (calls >= data["baseline_attempts"] + data["max_new_attempts"] or calls >= SPEC.attempt_fence
                     or spent + RESERVE_MICRO_USD > min(MAX_MICRO_USD,
                         data["baseline_reserved_micro_usd"] + data["max_new_reserved_micro_usd"])):
                 raise ProviderFailure("PROVIDER_COST_BUDGET_EXHAUSTED")
@@ -209,7 +210,7 @@ def create_app(*, key: SecretStr, journal: Path, approval: str, approved_corpus_
 
 def plan():
     cases, digest = smoke_cases()
-    return {"schema": "ai-closed-ui-smoke-plan.v1", "status": "PREPARED_NOT_AUTHORIZED",
+    return {"schema": "ai-closed-ui-smoke-plan.v1", "experiment": SPEC.version, "status": "PREPARED_NOT_AUTHORIZED",
             "origin": "https://localhost:9443", "corpus_sha256": digest,
             "case_ids": list(CASE_IDS), "policy": POLICY.model_dump(),
             "sessions": "three fresh owned sessions, rental_mode unset; no arbitrary text",

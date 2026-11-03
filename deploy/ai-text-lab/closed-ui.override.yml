@@ -12,6 +12,11 @@ services:
       AI_CLOSED_UI_AUTHORITY_SHA256: ${CLOSED_UI_AUTHORITY_SHA256:?independent release-custodian trust fingerprint required}
     volumes:
       - type: bind
+        source: ${CLOSED_UI_ACCESS_DIRECTORY:?private proxy include and reviewed client CA required}
+        target: /closed-ui-access
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
         source: ${CLOSED_UI_SIGNED_ADMISSION_DIRECTORY:?external owner-signed exact release authorization required}
         target: /closed-ui-admission
         read_only: true
@@ -26,6 +31,18 @@ services:
       - type: bind
         source: ${CLOSED_UI_EXISTING_BUDGET_DIRECTORY:?SAME output/ai-intent-provider-v1 directory required}
         target: /closed-ui-budget
+        bind: {create_host_path: false}
+  frontend:
+    volumes:
+      - type: bind
+        source: ${CLOSED_UI_ACCESS_DIRECTORY:?private proxy include and reviewed client CA required}
+        target: /closed-ui-access
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ./closed-ui.nginx.conf
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true
         bind: {create_host_path: false}
 networks:
   closed_ui_egress:

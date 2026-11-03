@@ -27,7 +27,8 @@ const inspect = name => JSON.parse(execFileSync('docker', ['inspect', name], { e
 const backend = inspect('ttest-ai-text-lab-backend'), frontend = inspect('ttest-ai-text-lab-frontend')
 const admission = JSON.parse(execFileSync(run.python, ['-m', 'lab.closed_ui_authorization',
   '--admission', run.admission, '--authority', run.authority, '--trusted-key-sha256', run.authoritySha256,
-  '--source', run.source, '--journal', run.journal, '--backend-image', backend.Image, '--frontend-image', frontend.Image],
+  '--source', run.source, '--journal', run.journal, '--backend-image', backend.Image, '--frontend-image', frontend.Image,
+  '--operational-review', run.operationalReview],
 { cwd: fileURLToPath(new URL('../backend', import.meta.url)), encoding: 'utf8', timeout: 10000 }))
 assert.equal(backend.Config.Labels['org.opencontainers.image.revision'], run.source)
 assert.equal(frontend.Config.Labels['org.opencontainers.image.revision'], run.source)
@@ -66,7 +67,9 @@ try {
   for (const [index, testCase] of cases.filter(c => admission.case_ids.includes(c.id)).entries()) {
     if (index > 0) await new Promise(resolve => setTimeout(resolve, 35000))
     assert.equal(budget().attempts, before.attempts + index, 'Unexpected attempts: STOP, never compensate with new calls')
-    const ctx = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 950 } })
+    assert.ok(run.clientCertificate && run.clientKey, 'Reviewed operator mTLS certificate/key paths required')
+    const ctx = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 950 },
+      clientCertificates: [{ origin, certPath: run.clientCertificate, keyPath: run.clientKey }] })
     let operationKey
     try {
       const attested = await json(await ctx.request.get(origin + '/api/v1/ai-search/lab-runtime'))

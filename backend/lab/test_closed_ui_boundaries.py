@@ -35,7 +35,7 @@ def test_copied_or_replaced_journal_cannot_reuse_original_signed_admission(tmp_p
         with pytest.raises(ProviderFailure, match="JOURNAL_IDENTITY_MISMATCH"):
             ExistingSmokeBudget(path, corpus_sha256=proof.data["corpus_sha256"], admission=proof)
         with pytest.raises(ProviderFailure, match="JOURNAL_IDENTITY_MISMATCH"):
-            host_preflight(proof, path, proof.data["backend_image"], proof.data["frontend_image"])
+            host_preflight(proof, path, proof.data["backend_image"], proof.data["frontend_image"], operational_review=b"")
     original.unlink()
     shutil.copyfile(copy, original)
     # Filesystem may recycle inode after unlink; hold the old original via rename
@@ -83,7 +83,7 @@ def test_host_rejects_wrong_images_and_journal_origin_even_with_valid_signature(
     path = journal(tmp_path)
     proof = admission_fixture(path)
     with pytest.raises(ProviderFailure, match="IMAGE_IDENTITY_MISMATCH"):
-        host_preflight(proof, path, "sha256:" + "e" * 64, proof.data["frontend_image"])
+        host_preflight(proof, path, "sha256:" + "e" * 64, proof.data["frontend_image"], operational_review=b"")
 
 
 @pytest.mark.parametrize("backend_mode", ["decision-transport-fixture", "closed-live-synthetic"])
@@ -162,7 +162,7 @@ def test_fixture_vocabulary_does_not_read_live_corpus_or_depend_on_its_hash():
 def test_compose_override_requires_external_admission_and_keeps_it_backend_only():
     root = Path(__file__).resolve().parents[2]
     override = yaml.safe_load((root / "deploy/ai-text-lab/closed-ui.override.yml").read_text(encoding="utf-8"))
-    assert set(override["services"]) == {"backend"}
+    assert set(override["services"]) == {"backend", "frontend"}
     backend = override["services"]["backend"]
     assert "AI_CLOSED_UI_AUTHORITY_SHA256" in backend["environment"]
     mounts = {v["target"]: v for v in backend["volumes"]}

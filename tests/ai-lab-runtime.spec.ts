@@ -66,17 +66,24 @@ test('backend changes after dialog opens: re-attest before identity and session 
   expect(writes).toEqual([])
 })
 
-for (const fault of ['attestation', 'request-race']) {
+for (const fault of ['attestation', 'request-race', 'disconnect', 'invalid-json', 'http-500', 'aborted', 'timeout', 'restart']) {
   test(`release mismatch must preserve uncertain operation locator: ${fault}`, async ({ page }) => {
     const writes: string[] = []
-    await page.route('**/*', route => {
+    await page.route('**/*', async route => {
       const request = route.request(), url = new URL(request.url())
       if (url.hostname !== '127.0.0.1') return route.abort()
-      if (url.pathname.endsWith('/ai-search/lab-runtime')) return route.fulfill({ json: {
+      if (url.pathname.endsWith('/ai-search/lab-runtime')) {
+        if (fault === 'disconnect') return route.abort('connectionrefused')
+        if (fault === 'aborted') return route.abort('aborted')
+        if (fault === 'invalid-json') return route.fulfill({ status: 200, contentType: 'application/json', body: '{invalid' })
+        if (fault === 'http-500') return route.fulfill({ status: 500, json: { detail: 'unavailable' } })
+        if (fault === 'timeout') { await new Promise(resolve => setTimeout(resolve, 16000)); return route.abort() }
+        return route.fulfill({ json: {
         schema: 'ai-lab-runtime.v1', parser: 'decision-transport-fixture',
         source: (fault === 'attestation' ? 'b' : 'a').repeat(40),
-        instance: '00000000-0000-4000-8000-000000000001', provider_transport: 'mock',
+        instance: fault === 'restart' ? '00000000-0000-4000-8000-000000000099' : '00000000-0000-4000-8000-000000000001', provider_transport: 'mock',
       } })
+      }
       if (url.pathname.includes('/ai-search/operations/')) return route.fulfill({
         status: 409, json: { detail: 'LAB_RUNTIME_MISMATCH' },
       })

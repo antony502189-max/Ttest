@@ -13,6 +13,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from lab.closed_ui_authorization import CASE_IDS, CORPUS_SHA256, canonical, identity, verify
+from lab.closed_ui_spec import SPEC
 
 SOURCE = "a" * 40
 
@@ -27,11 +28,12 @@ def signed_fixture(path, *, source=SOURCE, **changes):
             "source": source, "frontend_source": source, "corpus_sha256": CORPUS_SHA256,
             "issued_at": (now - timedelta(seconds=1)).isoformat(),
             "expires_at": (now + timedelta(minutes=30)).isoformat(),
-            "host_journal": journal, "runtime_journal": journal, "baseline_attempts": 51,
-            "baseline_reserved_micro_usd": 564060, "case_ids": list(CASE_IDS), "prior_case_attempts": {},
-            "max_new_attempts": 3, "max_new_reserved_micro_usd": 33180,
+            "host_journal": journal, "runtime_journal": journal, "baseline_attempts": SPEC.baseline_attempts,
+            "baseline_reserved_micro_usd": SPEC.baseline_attempts * SPEC.reserve_micro_usd,
+            "case_ids": list(CASE_IDS), "prior_case_attempts": {},
+            "max_new_attempts": len(CASE_IDS), "max_new_reserved_micro_usd": len(CASE_IDS) * SPEC.reserve_micro_usd,
             "backend_image": "sha256:" + "b" * 64, "frontend_image": "sha256:" + "c" * 64,
-            "external_cap_micro_usd": 750000, "external_cap_evidence_sha256": "d" * 64}
+            "external_cap_micro_usd": SPEC.max_micro_usd, "external_cap_evidence_sha256": "d" * 64}
     data.update(changes)
     signer = Ed25519PrivateKey.generate()
     public = signer.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
