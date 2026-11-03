@@ -39,6 +39,8 @@ Runbook: [закрытый допуск и ограничения доказат
 
 В [evidence summary](pr404-review-fixes/validation.json) записаны результаты и hashes сохранённых проверок; [runtime inputs](pr404-review-fixes/runtime-inputs.json) связывают код в содержащем этот отчёт commit с проверенной рабочей копией. Новые CI должны пройти на точном опубликованном head; CI предыдущего7f8bbabc не переносится на эти изменения. Старый Docker runtime72468b2e остаётся только историческим evidence.
 
+Проверка опубликованных Git objects после первого коммита нашла CRLF→LF нормализацию трёх новых raw artifacts. Для новой evidence directory добавлено `-text` в .gitattributes; исходные bytes и SHA256 сохранены, не пересчитаны под изменённый лог. Runtime manifest обновлён с учётом самого .gitattributes. Прежние исторические evidence не менялись.
+
 ## Предел готовности
 
 Для слияния исправлен preparatory scope F1–F8; перед merge нужны новое exact-head CI и итоговый просмотр diff. Это не разрешение real LIVE: independent custody/account cap/egress, точный signed release, реальные user-data/privacy/catalog/migration/capacity gates сохраняются. Полный AI Search остаётся в [едином плане](../ai-search-completion-plan.md), текущий шаг S1.0.

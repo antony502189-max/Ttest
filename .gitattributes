@@ -9,5 +9,7 @@ docs/reports/ai-closed-live-ui-20261103-evidence/** -text whitespace=cr-at-eol
 docs/reports/ai-closed-live-ui-20261103-evidence/authorized-execution.ps1.txt whitespace=-blank-at-eof,cr-at-eol
 docs/reports/pr404-remediation-20261103-evidence/** -text whitespace=cr-at-eol
 docs/reports/pr404-recovery-final-20261103-evidence/** -text whitespace=cr-at-eol
+docs/reports/pr404-review-fixes/** -text whitespace=cr-at-eol
+docs/reports/pr404-review-fixes/main-browser.txt whitespace=-blank-at-eol,cr-at-eol
 docs/reports/pr404-recovery-final-20261103-evidence/matrix-auth-driver.mjs.txt whitespace=-blank-at-eof,cr-at-eol
 docs/reports/pr404-recovery-final-20261103-evidence/locator-repro-before-fix.txt whitespace=-blank-at-eol,cr-at-eol
