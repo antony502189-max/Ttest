@@ -1,0 +1,5 @@
+       version_num        
+--------------------------
+ 0079_ai_operating_policy
+(1 row)
+

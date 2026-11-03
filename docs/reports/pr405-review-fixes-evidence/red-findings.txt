@@ -1,0 +1,241 @@
+FFF.F.FFFFFFF..                                                          [100%]
+================================== FAILURES ===================================
+_____ test_invalid_source_prefix_is_rejected_during_construction[foo.bar] _____
+
+harness = <lab.ai_fact_supervisor.SyntheticFactSupervisor object at 0x0000018C7990BB30>
+name = 'foo.bar'
+
+    @pytest.mark.parametrize("name", ["foo.bar", "foo:bar", "foo bar", "a" * 65, "1synthetic", "", "\nfoo"])
+    def test_invalid_source_prefix_is_rejected_during_construction(harness, name):
+        source = replace(next(iter(harness.coordinator.sources.values())), source_name=name)
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+lab\test_synthetic_fact_supervisor.py:296: Failed
+_____ test_invalid_source_prefix_is_rejected_during_construction[foo:bar] _____
+
+harness = <lab.ai_fact_supervisor.SyntheticFactSupervisor object at 0x0000018C79A6A720>
+name = 'foo:bar'
+
+    @pytest.mark.parametrize("name", ["foo.bar", "foo:bar", "foo bar", "a" * 65, "1synthetic", "", "\nfoo"])
+    def test_invalid_source_prefix_is_rejected_during_construction(harness, name):
+        source = replace(next(iter(harness.coordinator.sources.values())), source_name=name)
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+lab\test_synthetic_fact_supervisor.py:296: Failed
+_____ test_invalid_source_prefix_is_rejected_during_construction[foo bar] _____
+
+harness = <lab.ai_fact_supervisor.SyntheticFactSupervisor object at 0x0000018C79B28590>
+name = 'foo bar'
+
+    @pytest.mark.parametrize("name", ["foo.bar", "foo:bar", "foo bar", "a" * 65, "1synthetic", "", "\nfoo"])
+    def test_invalid_source_prefix_is_rejected_during_construction(harness, name):
+        source = replace(next(iter(harness.coordinator.sources.values())), source_name=name)
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+lab\test_synthetic_fact_supervisor.py:296: Failed
+___ test_invalid_source_prefix_is_rejected_during_construction[1synthetic] ____
+
+harness = <lab.ai_fact_supervisor.SyntheticFactSupervisor object at 0x0000018C79B2B830>
+name = '1synthetic'
+
+    @pytest.mark.parametrize("name", ["foo.bar", "foo:bar", "foo bar", "a" * 65, "1synthetic", "", "\nfoo"])
+    def test_invalid_source_prefix_is_rejected_during_construction(harness, name):
+        source = replace(next(iter(harness.coordinator.sources.values())), source_name=name)
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+lab\test_synthetic_fact_supervisor.py:296: Failed
+______ test_invalid_source_prefix_is_rejected_during_construction[\nfoo] ______
+
+harness = <lab.ai_fact_supervisor.SyntheticFactSupervisor object at 0x0000018C79BC1940>
+name = '\nfoo'
+
+    @pytest.mark.parametrize("name", ["foo.bar", "foo:bar", "foo bar", "a" * 65, "1synthetic", "", "\nfoo"])
+    def test_invalid_source_prefix_is_rejected_during_construction(harness, name):
+        source = replace(next(iter(harness.coordinator.sources.values())), source_name=name)
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+lab\test_synthetic_fact_supervisor.py:296: Failed
+___ test_failed_source_probe_stays_attention_after_successful_tick[blocked] ___
+
+pipeline = (<app.repositories.ai_fact_pipeline.FactPipeline object at 0x0000018C7B116780>, async_sessionmaker(class_='AsyncSessio...bind=<sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x0000018C79B6B890>, autoflush=True, expire_on_commit=False))
+coordinator = <app.services.ai_fact_coordinator.OfflineFactCoordinator object at 0x0000018C7B163CE0>
+tmp_path = WindowsPath('C:/Users/HONOR/AppData/Local/Temp/pytest-of-HONOR/pytest-187/test_failed_source_probe_stays0')
+result = 'blocked'
+
+    @pytest.mark.parametrize("result", ["blocked", "temporary_error", "unknown"])
+    async def test_failed_source_probe_stays_attention_after_successful_tick(pipeline, coordinator, tmp_path, result):
+        await queue(pipeline)
+        async with pipeline[1]() as session, session.begin():
+            await session.execute(text("UPDATE external_listing_sources SET last_success_at=clock_timestamp()"))
+        runner = await supervisor(tmp_path, coordinator)
+        assert await runner.run_once() == "committed"
+        assert not (await runner.health()).attention
+        async with pipeline[1]() as session, session.begin():
+            await session.execute(text("UPDATE external_listing_sources SET last_checked_at=clock_timestamp(), "
+                "last_state_check_at=clock_timestamp(),last_state_check_result=:result"), {"result": result})
+        # A successful parse/proof tick must not erase the newer failed probe.
+        runner.clock = lambda: time.time() + 11
+        assert await runner.run_once() == "committed"
+>       assert (await runner.health()).attention
+E       assert False
+E        +  where False = SupervisorHealth(revision=2, stale=False, consecutive_failures=0, terminal_jobs=0, expired_leases=0, retry_jobs=0, pen...d=False, rejected_sources=0, deferred_proofs=0, content_refresh_due=0, receipt_capacity_reached=False, attention=False).attention
+
+tests\ai_facts_pg\test_fact_supervision.py:189: AssertionError
+_ test_failed_source_probe_stays_attention_after_successful_tick[temporary_error] _
+
+pipeline = (<app.repositories.ai_fact_pipeline.FactPipeline object at 0x0000018C7ADA3E00>, async_sessionmaker(class_='AsyncSessio...bind=<sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x0000018C7B539410>, autoflush=True, expire_on_commit=False))
+coordinator = <app.services.ai_fact_coordinator.OfflineFactCoordinator object at 0x0000018C798DF560>
+tmp_path = WindowsPath('C:/Users/HONOR/AppData/Local/Temp/pytest-of-HONOR/pytest-187/test_failed_source_probe_stays1')
+result = 'temporary_error'
+
+    @pytest.mark.parametrize("result", ["blocked", "temporary_error", "unknown"])
+    async def test_failed_source_probe_stays_attention_after_successful_tick(pipeline, coordinator, tmp_path, result):
+        await queue(pipeline)
+        async with pipeline[1]() as session, session.begin():
+            await session.execute(text("UPDATE external_listing_sources SET last_success_at=clock_timestamp()"))
+        runner = await supervisor(tmp_path, coordinator)
+        assert await runner.run_once() == "committed"
+        assert not (await runner.health()).attention
+        async with pipeline[1]() as session, session.begin():
+            await session.execute(text("UPDATE external_listing_sources SET last_checked_at=clock_timestamp(), "
+                "last_state_check_at=clock_timestamp(),last_state_check_result=:result"), {"result": result})
+        # A successful parse/proof tick must not erase the newer failed probe.
+        runner.clock = lambda: time.time() + 11
+        assert await runner.run_once() == "committed"
+>       assert (await runner.health()).attention
+E       assert False
+E        +  where False = SupervisorHealth(revision=2, stale=False, consecutive_failures=0, terminal_jobs=0, expired_leases=0, retry_jobs=0, pen...d=False, rejected_sources=0, deferred_proofs=0, content_refresh_due=0, receipt_capacity_reached=False, attention=False).attention
+
+tests\ai_facts_pg\test_fact_supervision.py:189: AssertionError
+___ test_failed_source_probe_stays_attention_after_successful_tick[unknown] ___
+
+pipeline = (<app.repositories.ai_fact_pipeline.FactPipeline object at 0x0000018C7B6030B0>, async_sessionmaker(class_='AsyncSessio...bind=<sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x0000018C798D6850>, autoflush=True, expire_on_commit=False))
+coordinator = <app.services.ai_fact_coordinator.OfflineFactCoordinator object at 0x0000018C7B488FB0>
+tmp_path = WindowsPath('C:/Users/HONOR/AppData/Local/Temp/pytest-of-HONOR/pytest-187/test_failed_source_probe_stays2')
+result = 'unknown'
+
+    @pytest.mark.parametrize("result", ["blocked", "temporary_error", "unknown"])
+    async def test_failed_source_probe_stays_attention_after_successful_tick(pipeline, coordinator, tmp_path, result):
+        await queue(pipeline)
+        async with pipeline[1]() as session, session.begin():
+            await session.execute(text("UPDATE external_listing_sources SET last_success_at=clock_timestamp()"))
+        runner = await supervisor(tmp_path, coordinator)
+        assert await runner.run_once() == "committed"
+        assert not (await runner.health()).attention
+        async with pipeline[1]() as session, session.begin():
+            await session.execute(text("UPDATE external_listing_sources SET last_checked_at=clock_timestamp(), "
+                "last_state_check_at=clock_timestamp(),last_state_check_result=:result"), {"result": result})
+        # A successful parse/proof tick must not erase the newer failed probe.
+        runner.clock = lambda: time.time() + 11
+        assert await runner.run_once() == "committed"
+>       assert (await runner.health()).attention
+E       assert False
+E        +  where False = SupervisorHealth(revision=2, stale=False, consecutive_failures=0, terminal_jobs=0, expired_leases=0, retry_jobs=0, pen...d=False, rejected_sources=0, deferred_proofs=0, content_refresh_due=0, receipt_capacity_reached=False, attention=False).attention
+
+tests\ai_facts_pg\test_fact_supervision.py:189: AssertionError
+_________ test_old_refresh_receipt_survives_new_clean_page_and_reopen _________
+
+pipeline = (<app.repositories.ai_fact_pipeline.FactPipeline object at 0x0000018C7B845C40>, async_sessionmaker(class_='AsyncSessio...bind=<sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x0000018C7B894F50>, autoflush=True, expire_on_commit=False))
+coordinator = <app.services.ai_fact_coordinator.OfflineFactCoordinator object at 0x0000018C7B831A60>
+tmp_path = WindowsPath('C:/Users/HONOR/AppData/Local/Temp/pytest-of-HONOR/pytest-187/test_old_refresh_receipt_survi0')
+
+    async def test_old_refresh_receipt_survives_new_clean_page_and_reopen(pipeline, coordinator, tmp_path):
+        from app.services.ai_fact_coordinator import OfflineFactCoordinator
+        await queue(pipeline)
+        await queue(pipeline)
+        async with pipeline[1]() as session, session.begin():
+            await session.execute(text("UPDATE external_listing_sources SET last_success_at=clock_timestamp()"))
+            await session.execute(text("UPDATE external_listing_sources SET last_success_at=clock_timestamp()-interval '121 seconds' "
+                "WHERE id=(SELECT min(id::text)::uuid FROM external_listing_sources)"))
+        paged = OfflineFactCoordinator(pipeline[0], sources=tuple(coordinator.sources.values()),
+                                      max_sources=1, max_reconcile=2, max_payload_bytes=131_072)
+        runner = await supervisor(tmp_path, paged)
+        assert await runner.run_once() == "committed"
+        assert len(runner.journal.receipt(1)["content_refresh_due"]) == 1
+        reopened = await supervisor(tmp_path, paged, clock=lambda: time.time() + 11)
+        assert await reopened.run_once() == "committed"
+        assert not reopened.journal.receipt(2)["content_refresh_due"]
+>       assert (await reopened.health()).content_refresh_due == 1
+E       assert 0 == 1
+E        +  where 0 = SupervisorHealth(revision=2, stale=False, consecutive_failures=0, terminal_jobs=0, expired_leases=0, retry_jobs=0, pen...d=False, rejected_sources=0, deferred_proofs=0, content_refresh_due=0, receipt_capacity_reached=False, attention=False).content_refresh_due
+
+tests\ai_facts_pg\test_fact_supervision.py:213: AssertionError
+_______ test_queue_cleanup_does_not_end_source_budget[False-exhausted] ________
+
+pipeline = (<app.repositories.ai_fact_pipeline.FactPipeline object at 0x0000018C7B832900>, async_sessionmaker(class_='AsyncSessio...bind=<sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x0000018C7B8B2E50>, autoflush=True, expire_on_commit=False))
+coordinator = <app.services.ai_fact_coordinator.OfflineFactCoordinator object at 0x0000018C7BB22240>
+head = 'exhausted', concurrent = False
+
+    @pytest.mark.parametrize("head", ["exhausted", "superseded"])
+    @pytest.mark.parametrize("concurrent", [False, True])
+    async def test_queue_cleanup_does_not_end_source_budget(pipeline, coordinator, head, concurrent):
+        first = await queue(pipeline)
+        second = await queue(pipeline)
+        async with pipeline[1]() as session, session.begin():
+            if head == "exhausted":
+                await session.execute(text("UPDATE ai_fact_jobs SET attempts=2 WHERE id=:id"), {"id": first})
+            else:
+                await session.execute(text("UPDATE ai_fact_sources SET generation=generation+1 "
+                    "WHERE source_record_id=(SELECT source_record_id FROM ai_fact_jobs WHERE id=:id)"), {"id": first})
+        if concurrent:
+            await asyncio.gather(*(coordinator.run_once(FactCoordinatorCursor()) for _ in range(2)))
+        else:
+            await coordinator.run_once(FactCoordinatorCursor())
+>       assert (await job_state(pipeline, second))[:2] == ("succeeded", 1)
+E       AssertionError: assert ('pending', 0) == ('succeeded', 1)
+E         
+E         At index 0 diff: 'pending' != 'succeeded'
+E         Use -v to get more diff
+
+tests\ai_facts_pg\test_fact_coordinator.py:220: AssertionError
+_______ test_queue_cleanup_does_not_end_source_budget[False-superseded] _______
+
+pipeline = (<app.repositories.ai_fact_pipeline.FactPipeline object at 0x0000018C7B831730>, async_sessionmaker(class_='AsyncSessio...bind=<sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x0000018C7B58EC50>, autoflush=True, expire_on_commit=False))
+coordinator = <app.services.ai_fact_coordinator.OfflineFactCoordinator object at 0x0000018C7B5194F0>
+head = 'superseded', concurrent = False
+
+    @pytest.mark.parametrize("head", ["exhausted", "superseded"])
+    @pytest.mark.parametrize("concurrent", [False, True])
+    async def test_queue_cleanup_does_not_end_source_budget(pipeline, coordinator, head, concurrent):
+        first = await queue(pipeline)
+        second = await queue(pipeline)
+        async with pipeline[1]() as session, session.begin():
+            if head == "exhausted":
+                await session.execute(text("UPDATE ai_fact_jobs SET attempts=2 WHERE id=:id"), {"id": first})
+            else:
+                await session.execute(text("UPDATE ai_fact_sources SET generation=generation+1 "
+                    "WHERE source_record_id=(SELECT source_record_id FROM ai_fact_jobs WHERE id=:id)"), {"id": first})
+        if concurrent:
+            await asyncio.gather(*(coordinator.run_once(FactCoordinatorCursor()) for _ in range(2)))
+        else:
+            await coordinator.run_once(FactCoordinatorCursor())
+>       assert (await job_state(pipeline, second))[:2] == ("succeeded", 1)
+E       AssertionError: assert ('pending', 0) == ('succeeded', 1)
+E         
+E         At index 0 diff: 'pending' != 'succeeded'
+E         Use -v to get more diff
+
+tests\ai_facts_pg\test_fact_coordinator.py:220: AssertionError
+=========================== short test summary info ===========================
+FAILED lab/test_synthetic_fact_supervisor.py::test_invalid_source_prefix_is_rejected_during_construction[foo.bar]
+FAILED lab/test_synthetic_fact_supervisor.py::test_invalid_source_prefix_is_rejected_during_construction[foo:bar]
+FAILED lab/test_synthetic_fact_supervisor.py::test_invalid_source_prefix_is_rejected_during_construction[foo bar]
+FAILED lab/test_synthetic_fact_supervisor.py::test_invalid_source_prefix_is_rejected_during_construction[1synthetic]
+FAILED lab/test_synthetic_fact_supervisor.py::test_invalid_source_prefix_is_rejected_during_construction[\nfoo]
+FAILED tests/ai_facts_pg/test_fact_supervision.py::test_failed_source_probe_stays_attention_after_successful_tick[blocked]
+FAILED tests/ai_facts_pg/test_fact_supervision.py::test_failed_source_probe_stays_attention_after_successful_tick[temporary_error]
+FAILED tests/ai_facts_pg/test_fact_supervision.py::test_failed_source_probe_stays_attention_after_successful_tick[unknown]
+FAILED tests/ai_facts_pg/test_fact_supervision.py::test_old_refresh_receipt_survives_new_clean_page_and_reopen
+FAILED tests/ai_facts_pg/test_fact_coordinator.py::test_queue_cleanup_does_not_end_source_budget[False-exhausted]
+FAILED tests/ai_facts_pg/test_fact_coordinator.py::test_queue_cleanup_does_not_end_source_budget[False-superseded]
+11 failed, 4 passed, 54 deselected in 11.99s

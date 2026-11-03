@@ -1,0 +1,38 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_______ test_disposable_ci_catalog_uses_the_same_policy_as_pg_fixtures ________
+
+harness = <lab.ai_fact_supervisor.SyntheticFactSupervisor object at 0x00000161C8356AE0>
+
+    def test_disposable_ci_catalog_uses_the_same_policy_as_pg_fixtures(harness):
+        harness.coordinator.pipeline.sessions.kw["bind"].url = make_url("postgresql+asyncpg://127.0.0.1/ttest_test")
+>       digest = configuration_digest(harness.coordinator, builder_bundle_sha256=BUNDLE, catalog_identity_sha256="c" * 64)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+lab\test_synthetic_fact_supervisor.py:272: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+coordinator = <app.services.ai_fact_coordinator.OfflineFactCoordinator object at 0x00000161C8355880>
+builder_bundle_sha256 = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+catalog_identity_sha256 = 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+
+    def configuration_digest(coordinator: OfflineFactCoordinator, *, builder_bundle_sha256: str,
+                             catalog_identity_sha256: str) -> str:
+        if any(not re.fullmatch(r"[0-9a-f]{64}", value) for value in (builder_bundle_sha256, catalog_identity_sha256)):
+            raise ValueError("reviewed synthetic builder and catalog digests required")
+        pipeline = coordinator.pipeline
+        for policy, worker in zip(coordinator.sources.values(), coordinator.workers, strict=True):
+            if (worker.pipeline is not pipeline or worker.reader is not coordinator.reader
+                    or worker.source_name != policy.source_name or worker.extractor_version != policy.extractor_version
+                    or worker.mapping != policy.mapping or worker.builder is not policy.builder
+                    or worker.retry_builder_failures != policy.retry_builder_failures):
+                raise ValueError("synthetic worker configuration differs from declared source policy")
+        target = make_url(pipeline.sessions.kw["bind"].url)
+        if target.host not in {"localhost", "127.0.0.1", "::1"} or not (target.database or "").startswith("ai_facts_test_"):
+>           raise ValueError("synthetic supervisor requires disposable loopback ai_facts_test_* catalog")
+E           ValueError: synthetic supervisor requires disposable loopback ai_facts_test_* catalog
+
+lab\ai_fact_supervisor.py:59: ValueError
+=========================== short test summary info ===========================
+FAILED lab/test_synthetic_fact_supervisor.py::test_disposable_ci_catalog_uses_the_same_policy_as_pg_fixtures
+1 failed, 38 deselected in 1.98s

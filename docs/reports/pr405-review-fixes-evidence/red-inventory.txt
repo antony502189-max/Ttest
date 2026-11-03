@@ -1,0 +1,308 @@
+.F.F.F.F.FF.FF                                                           [100%]
+================================== FAILURES ===================================
+_ test_bad_inventory_is_rejected_in_normal_and_optimized_python[schema-True] __
+
+catalog = (WindowsPath('C:/Users/HONOR/AppData/Local/Temp/pytest-of-HONOR/pytest-188/test_bad_inventory_is_rejected1/repo'), {'s...lan': 'plan.md', 'suites': [{'id': 'fixture', 'kind': 'unit', 'paths': ['suite.py'], 'limit': 'synthetic only'}], ...})
+optimized = True, fault = 'schema'
+
+    @pytest.mark.parametrize("optimized", [False, True])
+    @pytest.mark.parametrize("fault", ["schema", "criterion", "duplicate_suite", "outside_path", "kind"])
+    def test_bad_inventory_is_rejected_in_normal_and_optimized_python(catalog, optimized, fault):
+        root, data = catalog
+        if fault == "schema":
+            data["schema"] = "typo"
+        elif fault == "criterion":
+            data["criteria"].pop()
+        elif fault == "duplicate_suite":
+            data["suites"].append(dict(data["suites"][0]))
+        elif fault == "outside_path":
+            (root.parent / "outside.py").write_text("# outside\n", encoding="utf-8")
+            data["suites"][0]["paths"] = ["../outside.py"]
+        else:
+            data["suites"][0]["kind"] = "anything"
+        write(catalog)
+        code = """
+    import importlib.util, sys
+    from pathlib import Path
+    spec=importlib.util.spec_from_file_location('inventory',sys.argv[1])
+    module=importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    try:
+        module.inventory(Path(sys.argv[2]))
+    except (ValueError, AssertionError):
+        sys.exit(0)
+    sys.exit(1)
+    """
+        result = subprocess.run([sys.executable, *(["-O"] if optimized else []), "-c", code, str(SCRIPT), str(root)],
+                                capture_output=True, check=False, timeout=10)
+>       assert result.returncode == 0, result.stderr.decode()
+E       AssertionError: 
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\Users\\HONOR\\Documents\\Codex\\Ttest\\output\\release-venv\\Scripts\\python.exe', '-O', '...ocal\\Temp\\pytest-of-HONOR\\pytest-188\\test_bad_inventory_is_rejected1\\repo'], returncode=1, stdout=b'', stderr=b'').returncode
+
+tests\test_ai_acceptance_inventory.py:67: AssertionError
+_ test_bad_inventory_is_rejected_in_normal_and_optimized_python[criterion-True] _
+
+catalog = (WindowsPath('C:/Users/HONOR/AppData/Local/Temp/pytest-of-HONOR/pytest-188/test_bad_inventory_is_rejected3/repo'), {'s...lan': 'plan.md', 'suites': [{'id': 'fixture', 'kind': 'unit', 'paths': ['suite.py'], 'limit': 'synthetic only'}], ...})
+optimized = True, fault = 'criterion'
+
+    @pytest.mark.parametrize("optimized", [False, True])
+    @pytest.mark.parametrize("fault", ["schema", "criterion", "duplicate_suite", "outside_path", "kind"])
+    def test_bad_inventory_is_rejected_in_normal_and_optimized_python(catalog, optimized, fault):
+        root, data = catalog
+        if fault == "schema":
+            data["schema"] = "typo"
+        elif fault == "criterion":
+            data["criteria"].pop()
+        elif fault == "duplicate_suite":
+            data["suites"].append(dict(data["suites"][0]))
+        elif fault == "outside_path":
+            (root.parent / "outside.py").write_text("# outside\n", encoding="utf-8")
+            data["suites"][0]["paths"] = ["../outside.py"]
+        else:
+            data["suites"][0]["kind"] = "anything"
+        write(catalog)
+        code = """
+    import importlib.util, sys
+    from pathlib import Path
+    spec=importlib.util.spec_from_file_location('inventory',sys.argv[1])
+    module=importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    try:
+        module.inventory(Path(sys.argv[2]))
+    except (ValueError, AssertionError):
+        sys.exit(0)
+    sys.exit(1)
+    """
+        result = subprocess.run([sys.executable, *(["-O"] if optimized else []), "-c", code, str(SCRIPT), str(root)],
+                                capture_output=True, check=False, timeout=10)
+>       assert result.returncode == 0, result.stderr.decode()
+E       AssertionError: 
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\Users\\HONOR\\Documents\\Codex\\Ttest\\output\\release-venv\\Scripts\\python.exe', '-O', '...ocal\\Temp\\pytest-of-HONOR\\pytest-188\\test_bad_inventory_is_rejected3\\repo'], returncode=1, stdout=b'', stderr=b'').returncode
+
+tests\test_ai_acceptance_inventory.py:67: AssertionError
+_ test_bad_inventory_is_rejected_in_normal_and_optimized_python[duplicate_suite-True] _
+
+catalog = (WindowsPath('C:/Users/HONOR/AppData/Local/Temp/pytest-of-HONOR/pytest-188/test_bad_inventory_is_rejected5/repo'), {'s...'limit': 'synthetic only'}, {'id': 'fixture', 'kind': 'unit', 'paths': ['suite.py'], 'limit': 'synthetic only'}], ...})
+optimized = True, fault = 'duplicate_suite'
+
+    @pytest.mark.parametrize("optimized", [False, True])
+    @pytest.mark.parametrize("fault", ["schema", "criterion", "duplicate_suite", "outside_path", "kind"])
+    def test_bad_inventory_is_rejected_in_normal_and_optimized_python(catalog, optimized, fault):
+        root, data = catalog
+        if fault == "schema":
+            data["schema"] = "typo"
+        elif fault == "criterion":
+            data["criteria"].pop()
+        elif fault == "duplicate_suite":
+            data["suites"].append(dict(data["suites"][0]))
+        elif fault == "outside_path":
+            (root.parent / "outside.py").write_text("# outside\n", encoding="utf-8")
+            data["suites"][0]["paths"] = ["../outside.py"]
+        else:
+            data["suites"][0]["kind"] = "anything"
+        write(catalog)
+        code = """
+    import importlib.util, sys
+    from pathlib import Path
+    spec=importlib.util.spec_from_file_location('inventory',sys.argv[1])
+    module=importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    try:
+        module.inventory(Path(sys.argv[2]))
+    except (ValueError, AssertionError):
+        sys.exit(0)
+    sys.exit(1)
+    """
+        result = subprocess.run([sys.executable, *(["-O"] if optimized else []), "-c", code, str(SCRIPT), str(root)],
+                                capture_output=True, check=False, timeout=10)
+>       assert result.returncode == 0, result.stderr.decode()
+E       AssertionError: 
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\Users\\HONOR\\Documents\\Codex\\Ttest\\output\\release-venv\\Scripts\\python.exe', '-O', '...ocal\\Temp\\pytest-of-HONOR\\pytest-188\\test_bad_inventory_is_rejected5\\repo'], returncode=1, stdout=b'', stderr=b'').returncode
+
+tests\test_ai_acceptance_inventory.py:67: AssertionError
+_ test_bad_inventory_is_rejected_in_normal_and_optimized_python[outside_path-True] _
+
+catalog = (WindowsPath('C:/Users/HONOR/AppData/Local/Temp/pytest-of-HONOR/pytest-188/test_bad_inventory_is_rejected7/repo'), {'s... 'plan.md', 'suites': [{'id': 'fixture', 'kind': 'unit', 'paths': ['../outside.py'], 'limit': 'synthetic only'}], ...})
+optimized = True, fault = 'outside_path'
+
+    @pytest.mark.parametrize("optimized", [False, True])
+    @pytest.mark.parametrize("fault", ["schema", "criterion", "duplicate_suite", "outside_path", "kind"])
+    def test_bad_inventory_is_rejected_in_normal_and_optimized_python(catalog, optimized, fault):
+        root, data = catalog
+        if fault == "schema":
+            data["schema"] = "typo"
+        elif fault == "criterion":
+            data["criteria"].pop()
+        elif fault == "duplicate_suite":
+            data["suites"].append(dict(data["suites"][0]))
+        elif fault == "outside_path":
+            (root.parent / "outside.py").write_text("# outside\n", encoding="utf-8")
+            data["suites"][0]["paths"] = ["../outside.py"]
+        else:
+            data["suites"][0]["kind"] = "anything"
+        write(catalog)
+        code = """
+    import importlib.util, sys
+    from pathlib import Path
+    spec=importlib.util.spec_from_file_location('inventory',sys.argv[1])
+    module=importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    try:
+        module.inventory(Path(sys.argv[2]))
+    except (ValueError, AssertionError):
+        sys.exit(0)
+    sys.exit(1)
+    """
+        result = subprocess.run([sys.executable, *(["-O"] if optimized else []), "-c", code, str(SCRIPT), str(root)],
+                                capture_output=True, check=False, timeout=10)
+>       assert result.returncode == 0, result.stderr.decode()
+E       AssertionError: 
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\Users\\HONOR\\Documents\\Codex\\Ttest\\output\\release-venv\\Scripts\\python.exe', '-O', '...ocal\\Temp\\pytest-of-HONOR\\pytest-188\\test_bad_inventory_is_rejected7\\repo'], returncode=1, stdout=b'', stderr=b'').returncode
+
+tests\test_ai_acceptance_inventory.py:67: AssertionError
+__ test_bad_inventory_is_rejected_in_normal_and_optimized_python[kind-True] ___
+
+catalog = (WindowsPath('C:/Users/HONOR/AppData/Local/Temp/pytest-of-HONOR/pytest-188/test_bad_inventory_is_rejected9/repo'), {'s...: 'plan.md', 'suites': [{'id': 'fixture', 'kind': 'anything', 'paths': ['suite.py'], 'limit': 'synthetic only'}], ...})
+optimized = True, fault = 'kind'
+
+    @pytest.mark.parametrize("optimized", [False, True])
+    @pytest.mark.parametrize("fault", ["schema", "criterion", "duplicate_suite", "outside_path", "kind"])
+    def test_bad_inventory_is_rejected_in_normal_and_optimized_python(catalog, optimized, fault):
+        root, data = catalog
+        if fault == "schema":
+            data["schema"] = "typo"
+        elif fault == "criterion":
+            data["criteria"].pop()
+        elif fault == "duplicate_suite":
+            data["suites"].append(dict(data["suites"][0]))
+        elif fault == "outside_path":
+            (root.parent / "outside.py").write_text("# outside\n", encoding="utf-8")
+            data["suites"][0]["paths"] = ["../outside.py"]
+        else:
+            data["suites"][0]["kind"] = "anything"
+        write(catalog)
+        code = """
+    import importlib.util, sys
+    from pathlib import Path
+    spec=importlib.util.spec_from_file_location('inventory',sys.argv[1])
+    module=importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    try:
+        module.inventory(Path(sys.argv[2]))
+    except (ValueError, AssertionError):
+        sys.exit(0)
+    sys.exit(1)
+    """
+        result = subprocess.run([sys.executable, *(["-O"] if optimized else []), "-c", code, str(SCRIPT), str(root)],
+                                capture_output=True, check=False, timeout=10)
+>       assert result.returncode == 0, result.stderr.decode()
+E       AssertionError: 
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\Users\\HONOR\\Documents\\Codex\\Ttest\\output\\release-venv\\Scripts\\python.exe', '-O', '...ocal\\Temp\\pytest-of-HONOR\\pytest-188\\test_bad_inventory_is_rejected9\\repo'], returncode=1, stdout=b'', stderr=b'').returncode
+
+tests\test_ai_acceptance_inventory.py:67: AssertionError
+_____________ test_non_release_statuses_can_progress[not_started] _____________
+
+catalog = (WindowsPath('C:/Users/HONOR/AppData/Local/Temp/pytest-of-HONOR/pytest-188/test_non_release_statuses_can_0/repo'), {'s...lan': 'plan.md', 'suites': [{'id': 'fixture', 'kind': 'unit', 'paths': ['suite.py'], 'limit': 'synthetic only'}], ...})
+status = 'not_started'
+
+    @pytest.mark.parametrize("status", ["not_started", "partial", "blocked"])
+    def test_non_release_statuses_can_progress(catalog, status):
+        _, data = catalog
+        data["criteria"][0]["status"] = status
+        data["criteria"][0]["blocker"] = "fixture blocker"
+>       parsed, _ = MODULE.inventory(write(catalog))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_ai_acceptance_inventory.py:75: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+root = WindowsPath('C:/Users/HONOR/AppData/Local/Temp/pytest-of-HONOR/pytest-188/test_non_release_statuses_can_0/repo')
+
+    def inventory(root):
+        manifest = root / "docs/ai-search-developer/acceptance-matrix.v1.json"
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        assert data["schema"] == "ai-search-acceptance.v1"
+        assert [row["id"] for row in data["criteria"]] == [f"A{i}" for i in range(1, 13)]
+        suites = {suite["id"]: suite for suite in data["suites"]}
+        assert len(suites) == len(data["suites"])
+        for row in data["criteria"]:
+            assert row["stage"] and row["gaps"] and row["suites"]
+>           assert row["status"] == "partial"
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError
+
+..\scripts\ai-search-acceptance.py:22: AssertionError
+_______________ test_non_release_statuses_can_progress[blocked] _______________
+
+catalog = (WindowsPath('C:/Users/HONOR/AppData/Local/Temp/pytest-of-HONOR/pytest-188/test_non_release_statuses_can_2/repo'), {'s...lan': 'plan.md', 'suites': [{'id': 'fixture', 'kind': 'unit', 'paths': ['suite.py'], 'limit': 'synthetic only'}], ...})
+status = 'blocked'
+
+    @pytest.mark.parametrize("status", ["not_started", "partial", "blocked"])
+    def test_non_release_statuses_can_progress(catalog, status):
+        _, data = catalog
+        data["criteria"][0]["status"] = status
+        data["criteria"][0]["blocker"] = "fixture blocker"
+>       parsed, _ = MODULE.inventory(write(catalog))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_ai_acceptance_inventory.py:75: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+root = WindowsPath('C:/Users/HONOR/AppData/Local/Temp/pytest-of-HONOR/pytest-188/test_non_release_statuses_can_2/repo')
+
+    def inventory(root):
+        manifest = root / "docs/ai-search-developer/acceptance-matrix.v1.json"
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        assert data["schema"] == "ai-search-acceptance.v1"
+        assert [row["id"] for row in data["criteria"]] == [f"A{i}" for i in range(1, 13)]
+        suites = {suite["id"]: suite for suite in data["suites"]}
+        assert len(suites) == len(data["suites"])
+        for row in data["criteria"]:
+            assert row["stage"] and row["gaps"] and row["suites"]
+>           assert row["status"] == "partial"
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError
+
+..\scripts\ai-search-acceptance.py:22: AssertionError
+______ test_verified_label_without_evidence_and_gate_review_is_rejected _______
+
+catalog = (WindowsPath('C:/Users/HONOR/AppData/Local/Temp/pytest-of-HONOR/pytest-188/test_verified_label_without_ev0/repo'), {'s...lan': 'plan.md', 'suites': [{'id': 'fixture', 'kind': 'unit', 'paths': ['suite.py'], 'limit': 'synthetic only'}], ...})
+
+    def test_verified_label_without_evidence_and_gate_review_is_rejected(catalog):
+        catalog[1]["criteria"][0].update(status="verified", gaps=[])
+        with pytest.raises(ValueError):
+>           MODULE.inventory(write(catalog))
+
+tests\test_ai_acceptance_inventory.py:82: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+root = WindowsPath('C:/Users/HONOR/AppData/Local/Temp/pytest-of-HONOR/pytest-188/test_verified_label_without_ev0/repo')
+
+    def inventory(root):
+        manifest = root / "docs/ai-search-developer/acceptance-matrix.v1.json"
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        assert data["schema"] == "ai-search-acceptance.v1"
+        assert [row["id"] for row in data["criteria"]] == [f"A{i}" for i in range(1, 13)]
+        suites = {suite["id"]: suite for suite in data["suites"]}
+        assert len(suites) == len(data["suites"])
+        for row in data["criteria"]:
+>           assert row["stage"] and row["gaps"] and row["suites"]
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError
+
+..\scripts\ai-search-acceptance.py:21: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_ai_acceptance_inventory.py::test_bad_inventory_is_rejected_in_normal_and_optimized_python[schema-True]
+FAILED tests/test_ai_acceptance_inventory.py::test_bad_inventory_is_rejected_in_normal_and_optimized_python[criterion-True]
+FAILED tests/test_ai_acceptance_inventory.py::test_bad_inventory_is_rejected_in_normal_and_optimized_python[duplicate_suite-True]
+FAILED tests/test_ai_acceptance_inventory.py::test_bad_inventory_is_rejected_in_normal_and_optimized_python[outside_path-True]
+FAILED tests/test_ai_acceptance_inventory.py::test_bad_inventory_is_rejected_in_normal_and_optimized_python[kind-True]
+FAILED tests/test_ai_acceptance_inventory.py::test_non_release_statuses_can_progress[not_started]
+FAILED tests/test_ai_acceptance_inventory.py::test_non_release_statuses_can_progress[blocked]
+FAILED tests/test_ai_acceptance_inventory.py::test_verified_label_without_evidence_and_gate_review_is_rejected
+8 failed, 6 passed in 2.43s
