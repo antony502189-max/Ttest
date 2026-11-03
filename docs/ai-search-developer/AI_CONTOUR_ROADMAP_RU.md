@@ -1,5 +1,12 @@
 # План сборки и запуска AI-контура
 
+Обновление 3 ноября: PR #403 слит в main `4a60e163`; все6 push workflows
+успешны, post-merge UI acceptance15/15 PASS. Подготовлены отдельная ограниченная
+synthetic LIVE UI composition, reopen-only SAME journal budget (до3 новых
+attempts) и offline rehearsal. Настоящий LIVE UI smoke пока НЕ запускался и
+требует нового разрешения. [Точный план и5 оставшихся gates](AI_CLOSED_UI_SMOKE_RU.md).
+Ниже старые ветки/SHA и запрет merge403 описывают исторические этапы.
+
 Обновление UI composition 1 ноября: реализован отдельный закрытый режим
 `decision-transport-fixture`: настоящий UI/HTTP/PG/Redis и общий strict adapter
 закрытого HTTPS eval; synthetic подмена только model transport. Это не LIVE

@@ -49,6 +49,8 @@ async def rehearse():
         rows = []
         async with app.router.lifespan_context(app), httpx.AsyncClient(
                 transport=httpx.ASGITransport(app), base_url=ORIGIN, headers=headers) as client:
+            identity = await client.post("/api/v1/ai-search/identity")
+            assert identity.status_code == 200
             for case in cases:
                 session = await client.post("/api/v1/ai-search/sessions", json={"idempotency_key": str(uuid4())})
                 assert session.status_code == 200
