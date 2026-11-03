@@ -1,0 +1,50 @@
+{
+  "runtimeGuardSha256": "19505273f62c52b9501b2e72af3291a91b5dd0a4d5fc191a8ae8738bd110b13c",
+  "matrixDriverSha256": "a7defa0d2457a73a133cd7e0d8d65f7d88ed946189b262917b7b43c546bc6fcf",
+  "recoveryDriverSha256": "ce3d49ff2b195bf90cee4ada6d504b381d63ca0db06933414807411daaebbc71",
+  "backend": {
+    "networks": "ttest-ai-text-lab-network",
+    "source": "2f442dc75188b3d7f7362aea087fd5ab7d7fdaf3",
+    "image": "sha256:d93e417c817a0d52271e634d29b13cc6daa50cdd455a52cf45386398def7dd01"
+  },
+  "fakeLiveFrontendImage": "sha256:83f97350c900bc66b2b6b639cea3e7dcdbf52d52150456efbe4a623db8490693",
+  "realProviderCalls": 0,
+  "credentialsOrRealBudgetMounted": false,
+  "frontend": {
+    "buildInfo": {
+      "parser": "decision-transport-fixture",
+      "source": "2f442dc75188b3d7f7362aea087fd5ab7d7fdaf3",
+      "mockApi": false
+    },
+    "source": "2f442dc75188b3d7f7362aea087fd5ab7d7fdaf3",
+    "image": "sha256:538546471855f3e8f818a82dca4151ba3776365721e06c54d50e038172cfed05"
+  },
+  "runtimeSource": "2f442dc75188b3d7f7362aea087fd5ab7d7fdaf3",
+  "runtimeProjection": {
+    "package-lock.json": "27f90b535519a0610aa604cdb01cb95131181c08",
+    "index.html": "9afbc2b159bbac68c7b97b704884d44e2e0beafa",
+    "backend": "4829a7952052460c6371d01a414e58c9266cf0fa",
+    "deploy/ai-text-lab": "25adcf0a536792fdfd7fa86ee0e29773e7f0c056",
+    "package.json": "1dcdf02c1f4085b6ddc5b84118d556fde2007d44",
+    "tests/ai-home-search.spec.ts": "c0bc1c191d6a0d8a2486550b7d5669e805d3a7f3",
+    "src": "5c086b0e07d9d4d4b0a525058e48ba82b97bf767",
+    "scripts": "7dc27fd1c78c10153fcba12239f414c20c70c099",
+    "tests/ai-lab-runtime.spec.ts": "9ead5502429834c14fffd14ed903f8f424ca2a5f",
+    "tsconfig.json": "db121895897abc5537477129efd4afb0a7617f8d",
+    "playwright.ai-search.config.ts": "2a68300e3678d024e1dd28972f79e5fa83328367",
+    "vite.config.ts": "5d350ddb7642a3ce3c8b6ee830a8bcd8715422ee",
+    "playwright.ai-lab.config.ts": "e9250b74a9e7a2e9cb9181b9917ae89bc6230987",
+    "public": "0b8890f4f8170909644368e4aeb793b0673d9c90",
+    "tsconfig.app.json": "3ef751125740ada457f444f98280143da8f9a3f4",
+    "tsconfig.node.json": "8455dcbc2c947322adef8783a42741878edaea9c"
+  },
+  "ciReexecutesLocalDockerStack": false,
+  "runtimeAttestation": {
+    "schema": "ai-lab-runtime.v1",
+    "parser": "decision-transport-fixture",
+    "source": "2f442dc75188b3d7f7362aea087fd5ab7d7fdaf3",
+    "instance": "3937db9c-e2b3-4a9c-b4d2-31553eefc8ee",
+    "provider_transport": "mock"
+  },
+  "sourceTarSha256": "fd3e1cc4af545153d77fe7796c0d29a5596b5e013162d5b5b29e92476db66219"
+}

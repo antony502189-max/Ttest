@@ -1,0 +1,37 @@
+{
+  "source": "2f442dc75188b3d7f7362aea087fd5ab7d7fdaf3",
+  "expectedBackend": "closed-live-synthetic",
+  "expectedFrontend": "closed-live-synthetic",
+  "realProviderCalls": 0,
+  "cases": [
+    {
+      "id": "ru-balcony",
+      "passed": true,
+      "fakeProviderAttempts": 1,
+      "replayReloadNoNewAttempt": true
+    },
+    {
+      "id": "en-negation",
+      "passed": true,
+      "fakeProviderAttempts": 1,
+      "replayReloadNoNewAttempt": true
+    },
+    {
+      "id": "es-monthly",
+      "passed": true,
+      "fakeProviderAttempts": 1,
+      "replayReloadNoNewAttempt": true
+    }
+  ],
+  "status": "PASS",
+  "runtime": {
+    "schema": "ai-lab-runtime.v1",
+    "parser": "closed-live-synthetic",
+    "source": "2f442dc75188b3d7f7362aea087fd5ab7d7fdaf3",
+    "instance": "aeeca5a6-6ed3-4662-8bb1-200016432ac9",
+    "provider_transport": "mock",
+    "backendImage": "sha256:d93e417c817a0d52271e634d29b13cc6daa50cdd455a52cf45386398def7dd01",
+    "internalNetwork": true,
+    "verifiedProviderCalls": 0
+  }
+}

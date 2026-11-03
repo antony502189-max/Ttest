@@ -1,5 +1,12 @@
 # План сборки и запуска AI-контура
 
+Review PR404-01–09 исправлено 3 ноября: backend runtime pairing,
+подписанный внешний admission и physical journal identity, UNIQUE per-case
+reservation, развязанный offline vocabulary и строгий Vite mode. Новая
+Docker/HTTPS/PG/Redis matrix без paid calls и exact provenance:
+[отчёт](../reports/PR404_REVIEW_REMEDIATION_20261103.md).
+Настоящий LIVE остаётся FAIL/BLOCKED, external cap/authorization не выдумывались.
+
 Обновление LIVE 3 ноября: после отдельного разрешения выполнена1 новая provider
 attempt, outcome `LLM_FAILURE`, без successful result/usage; cumulative52,
 резерв $0.575120. Остановлено по протоколу, оставшиеся2 попытки не использованы.
