@@ -30,13 +30,14 @@ class OfflineFactStorageError(RuntimeError):
 class OfflineFactJobRunner:
     def __init__(self, pipeline: FactPipeline, reader: FactSnapshotReader, *,
                  builder: Callable[[CapturedParserSnapshot], ParserEvidencePacket], mapping: BridgeMapping,
-                 extractor_version: Version, retry_builder_failures: bool):
+                 extractor_version: Version, retry_builder_failures: bool, source_name: str | None = None):
         if type(retry_builder_failures) is not bool or not callable(builder):
             raise ValueError("explicit offline builder/retry policy required")
         self.pipeline, self.reader, self.builder = pipeline, reader, builder
         self.mapping = BridgeMapping.model_validate(mapping)
         self.extractor_version = TypeAdapter(Version).validate_python(extractor_version, strict=True)
         self.retry_builder_failures = retry_builder_failures
+        self.source_name = source_name
 
     @staticmethod
     def _stale(claim: FactJobClaim, receipt: FactJobReceipt | None = None) -> OfflineFactRun:
@@ -57,13 +58,14 @@ class OfflineFactJobRunner:
     async def run_once(self) -> OfflineFactRun:
         """Caller explicitly invokes one bounded attempt. no_claim is not global queue exhaustion."""
         try:
-            claim = await self.pipeline.claim(extractor_version=self.extractor_version)
+            claim = await self.pipeline.claim(extractor_version=self.extractor_version, source_name=self.source_name)
             if claim is None:
                 return OfflineFactRun(outcome="no_claim", job_id=None, receipt=None, failure_code=None)
             try:
                 ready = await prepare_captured_source(
                     self.reader, claim.source_record_id, builder=self.builder, mapping=self.mapping,
                     vocabulary=self.pipeline.vocabulary, extractor_version=self.extractor_version,
+                    source_name=self.source_name,
                 )
                 batch = ready.to_batch(claim, observed_at=datetime.now(UTC))
             except BridgeRejected as error:

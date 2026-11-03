@@ -105,6 +105,7 @@
         "backend/tests/ai_facts_pg/test_query_proofs.py",
         "backend/tests/ai_facts_pg/test_live_inputs.py",
         "backend/tests/ai_facts_pg/test_offline_fact_worker.py",
+        "backend/tests/ai_facts_pg/test_fact_coordinator.py",
         "backend/tests/ai_facts_pg/test_fact_retention.py"
       ],
       "limit": "Actual SQL/constraints against disposable PostGIS; synthetic facts do not prove source coverage.",

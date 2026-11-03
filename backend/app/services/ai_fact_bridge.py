@@ -255,10 +255,12 @@ def bridge_packet(packet: ParserEvidencePacket, reference: BridgeReference, mapp
 async def prepare_captured_source(reader: FactSnapshotReader, source_record_id: UUID, *,
                                   builder: Callable[[CapturedParserSnapshot], ParserEvidencePacket],
                                   mapping: BridgeMapping, vocabulary: FactVocabulary,
-                                  extractor_version: Version) -> PreparedFactInput:
+                                  extractor_version: Version, source_name: str | None = None) -> PreparedFactInput:
     # No default builder. The reviewed future minimizer runs after capture has
     # released its DB connection; old snapshot tokens fail AI-04 observe CAS.
     captured = await reader.capture(source_record_id)
+    if source_name is not None and captured.reference.source_identifier.split(":", 1)[0] != source_name:
+        raise BridgeRejected("SOURCE_MAPPING_MISMATCH")
     try:
         packet = builder(captured)
     except Exception:  # noqa: BLE001 -- Redact payloads in untrusted builder exception messages.
