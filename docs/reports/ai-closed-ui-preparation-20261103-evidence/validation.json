@@ -1,0 +1,14 @@
+{
+  "backend_identical_to_runtime": true,
+  "provider_calls": 0,
+  "live_override_started": false,
+  "browser_driver_sha256": "9bf57a955cad9f4edc3e5a9e3a0688a55220c038af84e8d87bc6769844cdc2e6",
+  "runtime_source": "fb1877d3fc2aac7c7776bdb384b43d90c4022bf8",
+  "driver_syntax": "PASS",
+  "reviewed_code_source": "6935e27c2713a42d70c97c6707be234433822b60",
+  "live_build_index_sha256": "dc79800bebf467a8d24ce4a74fb5cefe32c79516a82500766fa7c89b7c4be210",
+  "i18n_source_guard": "PASS",
+  "tsc": "PASS",
+  "vite_live_label_build": "PASS",
+  "vite_production": "PASS"
+}

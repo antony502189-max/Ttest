@@ -1,0 +1,80 @@
+{
+  "schema": "ai-closed-ui-smoke-plan.v1",
+  "status": "PREPARED_NOT_AUTHORIZED",
+  "origin": "https://localhost:9443",
+  "corpus_sha256": "7b722ab6caa0bf3377a0ace8fcddecf6daa7f7cb9bcebec515ab0cac9997d288",
+  "case_ids": [
+    "ru-balcony",
+    "es-monthly",
+    "en-negation"
+  ],
+  "policy": {
+    "model": "deepseek-flash",
+    "timeout_seconds": 8.0,
+    "total_budget_seconds": 10.0,
+    "max_tokens": 1024,
+    "max_attempts": 1,
+    "retry_delay_seconds": 0.0,
+    "max_response_bytes": 65536
+  },
+  "sessions": "three fresh owned sessions, rental_mode unset; no arbitrary text",
+  "outbound": "fixed instructions/schema + exact synthetic text/current criteria only",
+  "journal": "SAME output/ai-intent-provider-v1/budget.sqlite3; existing binding required",
+  "baseline_attempts": 51,
+  "max_new_http_attempts": 3,
+  "max_new_reserved_micro_usd": 33180,
+  "absolute_attempt_fence": 54,
+  "cumulative_max_micro_usd": 750000,
+  "checks": [
+    "UI -> shared strict adapter -> verified SQL cards/map",
+    "exact retry returns same receipt without new attempt",
+    "reload returns owned result without new attempt",
+    "unapproved text/state rejected before provider IO"
+  ],
+  "gates": [
+    "explicit NEW spend/outbound approval",
+    "review isolated network/egress and key mount",
+    "verify current provider rates before authorization"
+  ],
+  "provider_calls_made": 0,
+  "real_user_outbound": "BLOCKED",
+  "cases": [
+    {
+      "id": "ru-balcony",
+      "text": "Обязательно с балконом.",
+      "current": {},
+      "expected": {
+        "balcony": {
+          "strength": "hard",
+          "value": true
+        }
+      }
+    },
+    {
+      "id": "es-monthly",
+      "text": "Como máximo 600 euros al mes.",
+      "current": {},
+      "expected": {
+        "budget": {
+          "strength": "hard",
+          "value": {
+            "amount": "600",
+            "currency": "EUR",
+            "period": "monthly"
+          }
+        }
+      }
+    },
+    {
+      "id": "en-negation",
+      "text": "The apartment must be unfurnished.",
+      "current": {},
+      "expected": {
+        "furnished": {
+          "strength": "hard",
+          "value": false
+        }
+      }
+    }
+  ]
+}

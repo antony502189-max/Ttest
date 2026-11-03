@@ -1,0 +1,72 @@
+[
+  {
+    "sha256": "a86995fd2d9666123a2f8cf02b59b2ad7920c023fe8d1ec42dc6ef37eb0325b6",
+    "file": "backend-composition-rehearsal.json",
+    "bytes": 476
+  },
+  {
+    "sha256": "a0b9d3fb842335c470156b7f95bddc56c59656282b49243fa2b423e784a3fba2",
+    "file": "backend-unit.txt",
+    "bytes": 3188
+  },
+  {
+    "sha256": "8c4b65272b19997cf075f17d6b0c9a53f6ebdd30147d9295a4762bf147916ef2",
+    "file": "browser-rehearsal.json",
+    "bytes": 1089
+  },
+  {
+    "sha256": "f13a63da5d2e47a2967650668b81f64fcb7eabdcd70c36d6f57ff2c17dc4211d",
+    "file": "compose-validation.json",
+    "bytes": 235
+  },
+  {
+    "sha256": "1f503d25403f0e99cbedd4785f8fdf2444e823c17191e16b3ef6b031ba02f42a",
+    "file": "en-negation.png",
+    "bytes": 122716
+  },
+  {
+    "sha256": "f6eabee2b9cc4cd6617f1d410ebcb5af19ebed1d49f2f50f3bfccc5fd1edc746",
+    "file": "live-frontend-build.txt",
+    "bytes": 15686
+  },
+  {
+    "sha256": "9a53c2969de65a08c2eb7c24502c0d7148006004044bca3c9b7d2891bc2ac744",
+    "file": "live-smoke-plan.json",
+    "bytes": 2301
+  },
+  {
+    "sha256": "4f8381cefbc91439dbcab4b825db8ebaf63cc904fbf0806a1c45fac2a04cb46b",
+    "file": "main-browser-acceptance.json",
+    "bytes": 2351
+  },
+  {
+    "sha256": "2ba9d20d83a62ce8fed324f4ac6dfe7de24c4d9a183ade28d565584e66062ec4",
+    "file": "main-ci.json",
+    "bytes": 2287
+  },
+  {
+    "sha256": "43a4307840566660ba8e3aa637db506e536d2c0c0e4fe3c400d9fa0254bfa3fd",
+    "file": "main-default-disabled.json",
+    "bytes": 273
+  },
+  {
+    "sha256": "741eefd8bfda6ea55ee74ce30f0437b0bf613bb8a09a81a5712769e9fd47f853",
+    "file": "mypy.txt",
+    "bytes": 213
+  },
+  {
+    "sha256": "c989244e3f9420e8fe982fd97636a13b23dac246bd21003e9eb7949906b44e10",
+    "file": "provider-unit.txt",
+    "bytes": 112
+  },
+  {
+    "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+    "file": "ruff.txt",
+    "bytes": 20
+  },
+  {
+    "sha256": "9d3e7b109d162ceff488a52c18f09e40d6d65a1efa722ae084ce9bb2b5506f4e",
+    "file": "validation.json",
+    "bytes": 579
+  }
+]

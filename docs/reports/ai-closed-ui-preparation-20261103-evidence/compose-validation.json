@@ -1,0 +1,11 @@
+{
+  "live_override_started": false,
+  "compose_validation": "PASS",
+  "maintenance_parser": "finite",
+  "real_journal_opened": false,
+  "backend_networks": [
+    "closed_ui_egress",
+    "lab"
+  ],
+  "real_key_read": false
+}

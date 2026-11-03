@@ -1,0 +1,69 @@
+{
+  "merge": "4a60e1632d3b234f4b5321d224b3abfd041769a3",
+  "checked_date_moscow": "2026-11-03",
+  "runs": [
+    {
+      "id": 41453224683,
+      "name": "External source contract audit",
+      "event": "schedule",
+      "head_sha": "4a60e1632d3b234f4b5321d224b3abfd041769a3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/antony502189-max/Ttest/actions/runs/41453224683"
+    },
+    {
+      "id": 41422754038,
+      "name": "AI Search private frontend",
+      "event": "push",
+      "head_sha": "4a60e1632d3b234f4b5321d224b3abfd041769a3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/antony502189-max/Ttest/actions/runs/41422754038"
+    },
+    {
+      "id": 41422753956,
+      "name": "AI Search combined facts quota sessions",
+      "event": "push",
+      "head_sha": "4a60e1632d3b234f4b5321d224b3abfd041769a3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/antony502189-max/Ttest/actions/runs/41422753956"
+    },
+    {
+      "id": 41422753884,
+      "name": "Full audit",
+      "event": "push",
+      "head_sha": "4a60e1632d3b234f4b5321d224b3abfd041769a3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/antony502189-max/Ttest/actions/runs/41422753884"
+    },
+    {
+      "id": 41422754005,
+      "name": "Security dependency and static audit",
+      "event": "push",
+      "head_sha": "4a60e1632d3b234f4b5321d224b3abfd041769a3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/antony502189-max/Ttest/actions/runs/41422754005"
+    },
+    {
+      "id": 41422754055,
+      "name": "Capacity smoke safeguards",
+      "event": "push",
+      "head_sha": "4a60e1632d3b234f4b5321d224b3abfd041769a3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/antony502189-max/Ttest/actions/runs/41422754055"
+    },
+    {
+      "id": 41422754010,
+      "name": "GitHub Pages UI preview",
+      "event": "push",
+      "head_sha": "4a60e1632d3b234f4b5321d224b3abfd041769a3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/antony502189-max/Ttest/actions/runs/41422754010"
+    }
+  ]
+}

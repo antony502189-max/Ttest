@@ -1,0 +1,119 @@
+vite v8.3.5 building client environment for ai-synthetic-lab...
+transforming...
+✓ 2170 modules transformed.
+rendering chunks...
+computing gzip size...
+output/closed-ui-package-20261103/live-frontend-build/index.html                                                  1.95 kB │ gzip:   0.90 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/geist-cyrillic-ext-wght-normal-DjL33-gN.woff2        7.42 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/geist-vietnamese-wght-normal-6IgcOCM7.woff2          8.00 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/geist-cyrillic-wght-normal-BEAKL7Jp.woff2           15.08 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/geist-latin-ext-wght-normal-DC-KSUi6.woff2          16.51 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/geist-latin-wght-normal-BgDaEnEv.woff2              29.40 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/mobile-hero-Ca3OVflG.jpg                           112.14 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/tenerife-zone-hierarchy-D06AzFrk.geojson         1,700.48 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/tenerife-municipalities-7ZGTbrAN.geojson         5,787.52 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/saved-ai-searches-BZHtvl9t.css                       0.76 kB │ gzip:   0.39 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/list-map-switcher-CNUF_ej3.css                       1.15 kB │ gzip:   0.41 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/ProfilePage-B32vxzVf.css                             1.17 kB │ gzip:   0.48 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/map-view-C-qPHZg9.css                                1.86 kB │ gzip:   0.64 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/map-icons-naX5mGiz.css                               1.99 kB │ gzip:   0.54 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/FavoritesPage-BMTIB7-J.css                           2.37 kB │ gzip:   0.84 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/mobile-publication-gate-CR1G9scA.css                 2.52 kB │ gzip:   1.00 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/use-homepage-hero-listing-DPu7crkF.css               2.89 kB │ gzip:   1.02 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/auth-account-EKDRy5_t.css                            3.20 kB │ gzip:   1.03 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/commercial-advertisement-pages-CIDbTA91.css          3.52 kB │ gzip:   1.15 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/ListingPage-BC-ytldZ.css                             4.24 kB │ gzip:   1.16 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/publish-route-enhancers-Cfx_ZcLl.css                 4.69 kB │ gzip:   1.31 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/forms-BB9t3VQV.css                                   4.99 kB │ gzip:   1.42 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/AccountPages-BzqxhK2r.css                            5.31 kB │ gzip:   1.52 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/listing-edit-long-form-CM95qdUM.css                  6.87 kB │ gzip:   1.79 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/HomePage-ES6Rp28x.css                                8.79 kB │ gzip:   2.29 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/commercial-advertisement-placement-BOmGjtVj.css     11.78 kB │ gzip:   2.73 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/map-FeX0JxGT.css                                    28.73 kB │ gzip:   5.68 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/index-CPTw9S9n.css                                 394.62 kB │ gzip:  68.17 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/chevron-right-CZ7NOFqg.js                            0.13 kB │ gzip:   0.14 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/x-DPaRE1OR.js                                        0.15 kB │ gzip:   0.15 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/clock-3-yUDDEaiw.js                                  0.16 kB │ gzip:   0.16 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/rotate-ccw-BOcUQ0Ka.js                               0.20 kB │ gzip:   0.18 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/log-out-I3fKCc_h.js                                  0.23 kB │ gzip:   0.18 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/message-circle-CdZEP0YU.js                           0.24 kB │ gzip:   0.21 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/circle-question-mark-B_LetMYG.js                     0.24 kB │ gzip:   0.20 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/shield-D4SIaW14.js                                   0.27 kB │ gzip:   0.22 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/bell-Bk_mLcnw.js                                     0.29 kB │ gzip:   0.23 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/users-bIBeP00P.js                                    0.30 kB │ gzip:   0.22 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/shield-check-rHccIg4m.js                             0.32 kB │ gzip:   0.24 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/save-C4EfCmVv.js                                     0.32 kB │ gzip:   0.22 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/trash-2-CgcMpJIh.js                                  0.32 kB │ gzip:   0.21 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/mobile-search-Cd1hbYRq.js                            0.33 kB │ gzip:   0.26 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/megaphone-B1k-7mva.js                                0.34 kB │ gzip:   0.24 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/file-text-DLiAu_B2.js                                0.38 kB │ gzip:   0.24 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/layers-0JaQs4ID.js                                   0.42 kB │ gzip:   0.24 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/geojson-DDvxOuR4.js                                  0.49 kB │ gzip:   0.27 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/use-favorite-listings-bcpiuUII.js                    0.65 kB │ gzip:   0.40 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/ellipsis-B3bz3iMY.js                                 0.66 kB │ gzip:   0.32 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/use-admin-access-DVJZFDlz.js                         0.67 kB │ gzip:   0.44 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/textarea-D68P02Im.js                                 0.75 kB │ gzip:   0.41 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/separator-D-awa5lr.js                                0.78 kB │ gzip:   0.44 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/address-D0BZqXBx.js                                  0.85 kB │ gzip:   0.47 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/list-map-switcher-BPy5bNXM.js                        1.05 kB │ gzip:   0.55 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/loader-DCpMHm9N.js                                   1.07 kB │ gzip:   0.63 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/commercial-advertisement-pages-1E0J2gIH.js           1.12 kB │ gzip:   0.68 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/alert-BkJCp5CJ.js                                    1.32 kB │ gzip:   0.60 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/createLucideIcon-C2MHhu5n.js                         1.38 kB │ gzip:   0.77 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/bed-type-label-ByD3U0Ur.js                           1.47 kB │ gzip:   0.78 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/commercial-advertisements-B5udITHI.js                1.64 kB │ gzip:   0.61 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/media-image-DfvDG_qh.js                              2.06 kB │ gzip:   1.17 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/map-visit-history-CiukThQh.js                        2.42 kB │ gzip:   1.15 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/dialog-sW8BihkN.js                                   2.50 kB │ gzip:   0.95 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/saved-ai-searches-BlSol_HJ.js                        2.76 kB │ gzip:   1.36 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/avatar-C7mrQFyQ.js                                   2.87 kB │ gzip:   1.30 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/dist-DhWePLNg.js                                     2.97 kB │ gzip:   1.44 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/advertising-vacancy-66WN2Fru.js                      3.05 kB │ gzip:   1.35 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/MobilePages-CuhPabzy.js                              3.11 kB │ gzip:   1.23 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/listing-edit-long-form-BTFMfNMT.js                   3.30 kB │ gzip:   1.78 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/use-recently-viewed-listings-piuzFAUu.js             3.35 kB │ gzip:   1.56 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/client-B1yXSdCC.js                                   3.82 kB │ gzip:   1.59 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/mobile-publication-gate-DqPIKvx6.js                  3.96 kB │ gzip:   1.70 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/checkbox-D9AEAwUG.js                                 4.55 kB │ gzip:   1.92 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/admin-commercial-advertisements-B3UeTfYl.js          5.29 kB │ gzip:   1.80 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/button-guHSClWM.js                                   5.61 kB │ gzip:   2.19 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/UnifiedAuthPage-DdTMX6js.js                          5.66 kB │ gzip:   2.38 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/toggle-group-B3ON9GbR.js                             6.23 kB │ gzip:   2.27 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/FavoritesPage-DVuGyYgY.js                            6.68 kB │ gzip:   2.47 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/ProfilePage-mGEiFgmO.js                              8.14 kB │ gzip:   3.09 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/jsx-runtime-MZURdZre.js                              8.56 kB │ gzip:   3.26 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/AuthPages-Bx8feEl8.js                                9.40 kB │ gzip:   3.10 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/field-A0H3o_hj.js                                    9.49 kB │ gzip:   3.20 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/commercial-advertisement-placement-Cr-p9J-u.js       9.93 kB │ gzip:   3.42 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/HomePage-nMOYPeeD.js                                10.62 kB │ gzip:   3.67 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/media-wOjhd2Zo.js                                   11.17 kB │ gzip:   4.28 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/InfoPages-BltFG944.js                               11.27 kB │ gzip:   4.30 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/zone-selection-map-Dttaon9z.js                      12.65 kB │ gzip:   4.67 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/NotificationsPage-BmrCiIFl.js                       13.82 kB │ gzip:   4.71 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/CommercialAdvertisementPages-Cx_VKqTv.js            14.68 kB │ gzip:   4.41 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/mobile-map-listings-layer-i0ugohvi.js               19.25 kB │ gzip:   5.54 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/hooks-DXwYXhN3.js                                   20.17 kB │ gzip:   7.80 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/forms-DmX6Fh9o.js                                   24.45 kB │ gzip:   8.46 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/map-icons-BeWLQekA.js                               24.49 kB │ gzip:   8.75 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/use-homepage-hero-listing-CPkI5Akb.js               26.49 kB │ gzip:   9.41 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/ListingPage-yVH171gN.js                             26.99 kB │ gzip:   8.55 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/utils-FREdMtAG.js                                   27.19 kB │ gzip:   8.68 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/ListingEditPage-B7FfDGLh.js                         32.61 kB │ gzip:   8.89 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/map-view-PeqkCxfS.js                                33.46 kB │ gzip:  11.34 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/mobile-search-results-v2-4R73QiLj.js                34.81 kB │ gzip:  11.08 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/ListingCreatePage-zR4GU6Ls.js                       35.98 kB │ gzip:   9.96 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/publish-route-enhancers-DyA7Nw8V.js                 37.52 kB │ gzip:  11.73 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/AccountPages-CdDUKduo.js                            43.46 kB │ gzip:  13.56 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/AdminPage-DF-g4E-v.js                               47.91 kB │ gzip:  12.62 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/SearchPage-Ba65mI74.js                              55.62 kB │ gzip:  17.29 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/mobile-app-v2-DVg0RKAp.js                           60.11 kB │ gzip:  19.18 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/marketplace-localized-gyl_nrWh.js                   79.69 kB │ gzip:  23.88 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/geolocation-BNE4qJW3.js                            212.92 kB │ gzip:  77.01 kB
+output/closed-ui-package-20261103/live-frontend-build/assets/index-B6slHPTM.js                                  968.48 kB │ gzip: 323.83 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 988ms
