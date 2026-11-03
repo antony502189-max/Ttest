@@ -1,5 +1,9 @@
 # План сборки и запуска AI-контура
 
+Финальная приёмка review: source72468b2, сохранение uncertain locator при
+runtime mismatch,7 pairing/recovery и56 HomeAI checks,15 full-stack recovery,
+оба mixed modes blocked и fake-LIVE3/3. [Финальный отчёт](../reports/PR404_FINAL_RECOVERY_ACCEPTANCE_20261103.md).
+
 Review PR404-01–09 исправлено 3 ноября: backend runtime pairing,
 подписанный внешний admission и physical journal identity, UNIQUE per-case
 reservation, развязанный offline vocabulary и строгий Vite mode. Новая

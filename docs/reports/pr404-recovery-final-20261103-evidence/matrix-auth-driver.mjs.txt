@@ -1,0 +1,98 @@
+// Real local UI/PG/Redis packaging matrix with fake provider only. No credentials.
+import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { chromium, expect, request } from '@playwright/test'
+import { attestOfflineBackend } from 'file:///C:/Users/HONOR/.codex/worktrees/main-integration-audit/Ttest/scripts/ai-lab-runtime.mjs'
+
+const [expectedBackend, expectedFrontend] = process.argv.slice(2)
+const origin = 'https://localhost:9443'
+const source = JSON.parse(await readFile(new URL('../output/ai-text-lab/source.json', 'file:///C:/Users/HONOR/.codex/worktrees/main-integration-audit/Ttest/scripts/check-ai-lab-stack-matrix.mjs'), 'utf8')).source
+const out = new URL('../output/ai-pr404-stack-matrix/' + crypto.randomUUID() + '/', 'file:///C:/Users/HONOR/.codex/worktrees/main-integration-audit/Ttest/scripts/check-ai-lab-stack-matrix.mjs')
+await mkdir(out, { recursive: true })
+const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH })
+const report = { source, expectedBackend, expectedFrontend, realProviderCalls: null, cases: [], status: 'RUNNING' }
+function count() {
+  const code = "import glob,sqlite3; p=glob.glob('/tmp/closed-ui-fake-matrix-*/DISPOSABLE-matrix.sqlite3'); assert len(p)==1; c=sqlite3.connect('file:'+p[0]+'?mode=ro',uri=True); print(c.execute('SELECT count(*) FROM attempts').fetchone()[0])"
+  return Number(execFileSync('docker', ['exec', 'ttest-ai-text-lab-backend', 'python', '-c', code], { encoding: 'utf8' }).trim())
+}
+async function openAI(page) {
+  for (let i = 0; i < 6; i++) {
+    const entry = page.locator('.home-ai-search__action:visible, .m2-onboarding .m2-primary:visible, .m2-auth-skip:visible').first()
+    await entry.waitFor()
+    if (await page.locator('.home-ai-search__action:visible').count()) { await entry.click(); return }
+    await entry.click()
+  }
+  throw Error('onboarding failed')
+}
+try {
+  const cases = JSON.parse(await readFile(new URL('../backend/lab/intent_cases.v1.json', 'file:///C:/Users/HONOR/.codex/worktrees/main-integration-audit/Ttest/scripts/check-ai-lab-stack-matrix.mjs'), 'utf8'))
+    .filter(c => ['ru-balcony', 'es-monthly', 'en-negation'].includes(c.id))
+  const matched = expectedBackend === expectedFrontend
+  for (const [index, testCase] of (matched ? cases : [cases[0]]).entries()) {
+    if (index) await new Promise(resolve => setTimeout(resolve, 35000))
+    const ctx = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 950 } })
+    let userApi = null
+    try {
+      const runtime = await attestOfflineBackend(ctx, source, expectedBackend)
+      report.runtime = runtime; report.realProviderCalls = runtime.verifiedProviderCalls
+      const build = await (await (userApi || ctx.request).get(origin + '/build-info.json')).json()
+      assert.equal(build.parser, expectedFrontend); assert.equal(build.source, source)
+      const page = await ctx.newPage(), writes = []
+      page.on('request', r => { if (r.method() === 'POST' && r.url().includes('/ai-search/')) writes.push(r.url()) })
+      await page.addInitScript(() => {
+        localStorage.setItem('112233:language:v1', 'es')
+        localStorage.setItem('112233:mobile-onboarding:v1', 'done:refreshable')
+      })
+      await page.goto(origin + '/#/acceso', { waitUntil: 'domcontentloaded' })
+      await page.getByRole('button', { name: 'Iniciar sesión con email', exact: true }).click()
+      await page.getByLabel('Email', { exact: true }).fill('acceptance-user@synthetic.example')
+      await page.getByLabel('Contraseña', { exact: true }).fill('Synthetic-Lab-Only-2026!')
+      const waitingLogin = page.waitForResponse(r => r.url().endsWith('/api/v1/auth/login'))
+      await page.locator('form button[type=submit]').click()
+      const loginResponse = await waitingLogin
+      assert.equal(loginResponse.status(), 200)
+      const session = await loginResponse.json()
+      userApi = await request.newContext({ ignoreHTTPSErrors: true, extraHTTPHeaders: {
+        Authorization: 'Bearer ' + session.accessToken,
+        'X-AI-Lab-Mode': runtime.parser, 'X-AI-Lab-Source': runtime.source, 'X-AI-Lab-Instance': runtime.instance,
+      } })
+      report.actor = 'existing-synthetic-auth-account-via-real-ui-login'
+      await page.waitForURL(origin + '/#/')
+      if (!matched) {
+        // No UI entry and no identity/session/query POST before failing closed.
+        assert.equal(await page.locator('.home-ai-search__action:visible').count(), 0)
+        assert.equal(writes.length, 0)
+        const response = await (userApi || ctx.request).post(origin + '/api/v1/ai-search/query', {
+          headers: { Origin: origin, 'X-AI-Request': '1', 'X-AI-Lab-Mode': expectedFrontend }, data: {} })
+        assert.equal(response.status(), 409)
+        if (expectedBackend === 'closed-live-synthetic') assert.equal(count(), 51)
+        report.cases.push({ passed: true, mismatchedRequestStatus: 409, uiWrites: 0, fakeProviderAttempts: 0 })
+        break
+      }
+      await openAI(page)
+      await page.locator('#ai-rental-mode').selectOption('none')
+      await page.locator('#ai-search-text').fill(testCase.text)
+      const waiting = page.waitForResponse(r => r.url().endsWith('/ai-search/query'))
+      await page.locator('.ai-search-dialog > .home-ai-search__action').click()
+      const response = await waiting, answer = await response.json(), body = response.request().postDataJSON()
+      assert.equal(answer.operation.status, 'succeeded')
+      assert.equal(count(), 52 + index)
+      const state = await (await (userApi || ctx.request).get(origin + '/api/v1/ai-search/sessions/' + body.session_id)).json()
+      assert.deepEqual(state.intent.criteria, testCase.expected)
+      const retry = await (await (userApi || ctx.request).post(origin + '/api/v1/ai-search/query', {
+        headers: { Origin: origin, 'X-AI-Request': '1' }, data: body })).json()
+      assert.deepEqual(retry.operation.receipt, answer.operation.receipt)
+      await page.reload({ waitUntil: 'networkidle' }); await openAI(page)
+      await expect(page.getByRole('region', { name: 'Resultados confirmados' })).toBeVisible()
+      assert.equal(count(), 52 + index)
+      report.cases.push({ id: testCase.id, passed: true, fakeProviderAttempts: 1, replayReloadNoNewAttempt: true })
+    } finally { if (userApi) await userApi.dispose(); await ctx.close() }
+  }
+  report.status = 'PASS'
+} finally {
+  await browser.close()
+  await writeFile(new URL('result.json', out), JSON.stringify(report, null, 2) + '\n', { flag: 'wx' })
+  console.log(JSON.stringify({ status: report.status, cases: report.cases.length, evidence: out.pathname }))
+}
+

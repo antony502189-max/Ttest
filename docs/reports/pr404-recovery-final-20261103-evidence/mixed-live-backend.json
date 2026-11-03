@@ -1,0 +1,25 @@
+{
+  "source": "72468b2e72bef1deeae7bfb18dee22de4e3c7baf",
+  "expectedBackend": "closed-live-synthetic",
+  "expectedFrontend": "decision-transport-fixture",
+  "realProviderCalls": 0,
+  "cases": [
+    {
+      "passed": true,
+      "mismatchedRequestStatus": 409,
+      "uiWrites": 0,
+      "fakeProviderAttempts": 0
+    }
+  ],
+  "status": "PASS",
+  "runtime": {
+    "schema": "ai-lab-runtime.v1",
+    "parser": "closed-live-synthetic",
+    "source": "72468b2e72bef1deeae7bfb18dee22de4e3c7baf",
+    "instance": "774e821f-a15d-4776-a87f-1017aa69a009",
+    "provider_transport": "mock",
+    "backendImage": "sha256:2fac74fd45d0ba401439220c7b804ac151ec3d11297209fef130b1607cbcf3ac",
+    "internalNetwork": true,
+    "verifiedProviderCalls": 0
+  }
+}

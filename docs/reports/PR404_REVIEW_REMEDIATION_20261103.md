@@ -1,5 +1,10 @@
 # Исправления полного review PR #404
 
+Финальное дополнение: устранена и воспроизведённо проверена потеря operation
+locator при lab release mismatch. Последняя приёмка source72468b2:
+[7 pairing/recovery +56 HomeAI +15 full-stack и финальная матрица](PR404_FINAL_RECOVERY_ACCEPTANCE_20261103.md).
+Пакет ниже сохраняет предыдущий source2f442dc как историю, не final-HEAD claim.
+
 3 ноября 2026, Europe/Moscow. Review пользователя
 `Ttest_PR404_full_review_2026-11-03.md` относится к HEAD `7ef3d34`; проверен
 по текущей ветке с последующими LIVE-failure исправлениями, не принят как
