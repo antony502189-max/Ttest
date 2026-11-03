@@ -1,0 +1,21 @@
+[WebServer] (node:13040) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 12 tests using 1 worker
+
+(node:24948) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback es 320px (2.4s)
+  ok  2 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback es 390px (1.5s)
+  ok  3 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback es 768px (1.7s)
+  ok  4 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback es 1440px (1.8s)
+  ok  5 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback ru 320px (1.5s)
+  ok  6 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback ru 390px (1.6s)
+  ok  7 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback ru 768px (1.7s)
+  ok  8 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback ru 1440px (1.7s)
+  ok  9 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback en 320px (1.6s)
+  ok 10 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback en 390px (1.6s)
+  ok 11 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback en 768px (1.6s)
+  ok 12 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback en 1440px (1.7s)
+
+  12 passed (22.9s)

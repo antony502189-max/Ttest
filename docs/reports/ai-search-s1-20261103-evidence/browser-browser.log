@@ -1,0 +1,560 @@
+[WebServer] (node:28696) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 75 tests using 1 worker
+
+(node:37116) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 [chromium] › tests\ai-home-search.spec.ts:24:1 › all normalized criteria preserve false, units, identity and strength; unsupported contracts fail closed (15ms)
+  ok  2 [chromium] › tests\ai-home-search.spec.ts:61:1 › disabled runtime hides AI entry and preserves manual filters (4.2s)
+  ok  3 [chromium] › tests\ai-home-search.spec.ts:68:1 › mobile reference panel, private text, zero confirmed results and followup version (2.0s)
+  ok  4 [chromium] › tests\ai-home-search.spec.ts:107:1 › lost response and running attempt reuse exact key/text even with zero remaining (1.5s)
+  ok  5 [chromium] › tests\ai-home-search.spec.ts:136:1 › terminal conflict resyncs session and requires deliberate resubmission (1.4s)
+  ok  6 [chromium] › tests\ai-home-search.spec.ts:158:1 › pages use original result reference and never submit another message (1.5s)
+  ok  7 [chromium] › tests\ai-home-search.spec.ts:192:1 › confirmed cards preserve server TOP order, native gallery recovery and external destination (1.7s)
+  ok  8 [chromium] › tests\ai-home-search.spec.ts:233:1 › body rejection allows editing without replaying an unreserved operation (1.4s)
+  ok  9 [chromium] › tests\ai-home-search.spec.ts:246:1 › reopening reads current quota without creating a session or charging another message (1.7s)
+  ok 10 [chromium] › tests\ai-home-search.spec.ts:274:1 › verified map uses original result and viewport only, preserving promotions without another debit (2.0s)
+  ok 11 [chromium] › tests\ai-home-search.spec.ts:317:1 › map rejects a different intent hash and never falls back to manual catalog (2.3s)
+  ok 12 [chromium] › tests\ai-home-search.spec.ts:340:1 › late map response from an earlier result cannot replace a followup map (3.9s)
+  ok 13 [chromium] › tests\ai-home-search.spec.ts:381:1 › explicit home mode seeds a typed create, followup conflict keeps original result conditions (1.9s)
+  ok 14 [chromium] › tests\ai-home-search.spec.ts:422:1 › lost seeded reset acknowledgement preserves mode and command key until deliberate continuation (1.8s)
+  ok 15 [chromium] › tests\ai-home-search.spec.ts:462:4 › normalized conditions in ru fit mobile and show both strengths (1.3s)
+  ok 16 [chromium] › tests\ai-home-search.spec.ts:462:4 › normalized conditions in en fit mobile and show both strengths (1.3s)
+  ok 17 [chromium] › tests\ai-home-search.spec.ts:482:1 › result metadata hash mismatch never labels or replaces previous cards (1.4s)
+  ok 18 [chromium] › tests\ai-home-search.spec.ts:498:3 › terminal expired settles before expired session refresh and permits explicit new identity (1.6s)
+  ok 19 [chromium] › tests\ai-home-search.spec.ts:498:3 › terminal not-found settles before expired session refresh and permits explicit new identity (1.6s)
+  ok 20 [chromium] › tests\ai-home-search.spec.ts:498:3 › terminal guest-expired settles before expired session refresh and permits explicit new identity (1.7s)
+  ok 21 [chromium] › tests\ai-home-search.spec.ts:498:3 › terminal replayed-success settles before expired session refresh and permits explicit new identity (1.7s)
+  ok 22 [chromium] › tests\ai-home-search.spec.ts:498:3 › terminal result-expired settles before expired session refresh and permits explicit new identity (1.6s)
+  ok 23 [chromium] › tests\ai-home-search.spec.ts:555:3 › transient refresh 503 retains draft, identity and resynchronizes version (1.6s)
+  ok 24 [chromium] › tests\ai-home-search.spec.ts:555:3 › transient refresh 429 retains draft, identity and resynchronizes version (1.6s)
+  ok 25 [chromium] › tests\ai-home-search.spec.ts:555:3 › transient refresh network retains draft, identity and resynchronizes version (1.7s)
+  ok 26 [chromium] › tests\ai-home-search.spec.ts:555:3 › transient refresh timeout retains draft, identity and resynchronizes version (16.8s)
+  ok 27 [chromium] › tests\ai-home-search.spec.ts:591:1 › slow refresh frees draft and card navigation while guarding version-sensitive actions (1.5s)
+  ok 28 [chromium] › tests\ai-home-search.spec.ts:615:3 › expiry on refresh disables paging or settles receipt without cards (1.4s)
+  ok 29 [chromium] › tests\ai-home-search.spec.ts:615:3 › expiry on page disables paging or settles receipt without cards (1.6s)
+  ok 30 [chromium] › tests\ai-home-search.spec.ts:615:3 › expiry on receipt disables paging or settles receipt without cards (1.4s)
+  ok 31 [chromium] › tests\ai-home-search.spec.ts:642:1 › explicit live resets use current version, preserve draft and cards, and survive server failure (1.8s)
+  ok 32 [chromium] › tests\ai-home-search.spec.ts:678:1 › expired create failure keeps draft and zero quota refreshes on reopen without an owned session (1.8s)
+  ok 33 [chromium] › tests\ai-home-search.spec.ts:707:1 › quota refresh works before a session exists after the day changes (1.6s)
+  ok 34 [chromium] › tests\ai-home-search.spec.ts:728:1 › an ambiguous HTTP 409 preserves the exact pending operation (1.4s)
+  ok 35 [chromium] › tests\ai-home-search.spec.ts:750:3 › query 401 AI_GUEST_IDENTITY_INVALID_OR_EXPIRED releases old-owner pending and keeps editable draft (1.6s)
+  ok 36 [chromium] › tests\ai-home-search.spec.ts:750:3 › query 401 AI_GUEST_IDENTITY_REQUIRED releases old-owner pending and keeps editable draft (1.5s)
+  ok 37 [chromium] › tests\ai-home-search.spec.ts:780:1 › hard quota rejection releases unreserved pending and recovers on authoritative rollover (1.7s)
+  ok 38 [chromium] › tests\ai-home-search.spec.ts:807:3 › paging AI_REQUERY_REQUIRED invalidates only results and preserves live conversation (1.5s)
+  ok 39 [chromium] › tests\ai-home-search.spec.ts:807:3 › paging RESULT_NOT_FOUND invalidates only results and preserves live conversation (1.6s)
+  ok 40 [chromium] › tests\ai-home-search.spec.ts:807:3 › paging hash-mismatch invalidates only results and preserves live conversation (1.5s)
+  ok 41 [chromium] › tests\ai-home-search.spec.ts:831:1 › missing cards on terminal receipt resyncs a live session instead of discarding it (1.7s)
+  ok 42 [chromium] › tests\ai-home-search.spec.ts:849:1 › lost reset acknowledgement blocks old paging and preserves the lifecycle key (2.3s)
+  ok 43 [chromium] › tests\ai-home-search.spec.ts:881:1 › unsettled query blocks stale paging but its exact replay remains available (1.9s)
+  ok 44 [chromium] › tests\ai-home-search.spec.ts:908:3 › review recovery after hard reload: succeeded, no raw payload or second inference (2.2s)
+  ok 45 [chromium] › tests\ai-home-search.spec.ts:908:3 › review recovery after hard reload: running, no raw payload or second inference (2.4s)
+  ok 46 [chromium] › tests\ai-home-search.spec.ts:908:3 › review recovery after hard reload: failed, no raw payload or second inference (2.3s)
+  ok 47 [chromium] › tests\ai-home-search.spec.ts:908:3 › review recovery after hard reload: expired-owner, no raw payload or second inference (2.3s)
+  ok 48 [chromium] › tests\ai-home-search.spec.ts:908:3 › review recovery after hard reload: not-yet-admitted, no raw payload or second inference (2.3s)
+  ok 49 [chromium] › tests\ai-home-search.spec.ts:960:1 › review metadata transient failure retains receipt and retries only read-only status/metadata (1.5s)
+  ok 50 [chromium] › tests\ai-home-search.spec.ts:985:34 › review both rental modes and exclusive map/list at 390px (1.5s)
+  ok 51 [chromium] › tests\ai-home-search.spec.ts:985:34 › review both rental modes and exclusive map/list at 1440px (1.7s)
+  ok 52 [chromium] › tests\ai-home-search.spec.ts:1014:3 › review operation locator rejects expired without status access (1.1s)
+  ok 53 [chromium] › tests\ai-home-search.spec.ts:1014:3 › review operation locator rejects future without status access (1.2s)
+  ok 54 [chromium] › tests\ai-home-search.spec.ts:1014:3 › review operation locator rejects foreign-identity without status access (1.1s)
+  ok 55 [chromium] › tests\ai-home-search.spec.ts:1014:3 › review operation locator rejects extra-payload without status access (1.1s)
+  ok 56 [chromium] › tests\ai-home-search.spec.ts:1032:1 › review expired recovery locator cannot bind a newly entered operation to its old key (2.6s)
+  x  57 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback es 320px (1.4s)
+(node:25748) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  58 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback es 390px (1.5s)
+(node:8060) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  59 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback es 768px (2.0s)
+(node:10564) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  60 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback es 1440px (1.6s)
+(node:24892) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  61 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback ru 320px (1.5s)
+(node:10688) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  62 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback ru 390px (1.6s)
+(node:36696) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  63 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback ru 768px (1.5s)
+(node:21216) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  64 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback ru 1440px (1.6s)
+(node:35872) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  65 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback en 320px (1.5s)
+(node:23268) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  66 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback en 390px (1.4s)
+(node:11140) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  67 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback en 768px (1.5s)
+(node:6604) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  68 [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback en 1440px (1.6s)
+(node:17144) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 69 [chromium] › tests\ai-saved-searches.spec.ts:4:3 › owned AI collection restores names, paginates and deletes after reload at 320px (2.0s)
+  ok 70 [chromium] › tests\ai-saved-searches.spec.ts:4:3 › owned AI collection restores names, paginates and deletes after reload at 1280px (1.9s)
+  ok 71 [chromium] › tests\google-maps-final-acceptance.spec.ts:25:1 › selected Advanced Marker has priority, opens the sheet, and programmatic selection stays clean (1.9s)
+  ok 72 [chromium] › tests\google-maps-final-acceptance.spec.ts:39:1 › manual pan exposes Search this area while a result refit does not (1.9s)
+  ok 73 [chromium] › tests\google-maps-final-acceptance.spec.ts:52:1 › map/list, multiple canonical zones, and polygon restore from URL and reload (5.4s)
+  ok 74 [chromium] › tests\google-maps-final-acceptance.spec.ts:70:1 › official district hierarchy selects a stable ID and restores it from URL (4.0s)
+  ok 75 [chromium] › tests\google-maps-final-acceptance.spec.ts:87:1 › map auth errors keep a usable fallback (1.7s)
+
+
+  1) [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback es 320px 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('dialog').locator('h3')
+    Expected substring: "0"
+    Error: strict mode violation: getByRole('dialog').locator('h3') resolved to 3 elements:
+        1) <h3>Condiciones para el próximo mensaje</h3> aka getByRole('heading', { name: 'Condiciones para el próximo' })
+        2) <h3>Condiciones de estos resultados</h3> aka getByRole('heading', { name: 'Condiciones de estos' })
+        3) <h3>0 opciones con condiciones confirmadas</h3> aka getByRole('heading', { name: '0 opciones con condiciones' })
+
+    Call log:
+      - Expect "toContainText" with timeout 7000ms
+      - waiting for getByRole('dialog').locator('h3')
+        - locator resolved to <h3>Condiciones para el próximo mensaje</h3>
+        - unexpected value "Condiciones para el próximo mensaje"
+
+
+      1093 |       await page.getByLabel(copy.label, { exact: true }).fill(copy.text)
+      1094 |       await page.getByRole('button', { name: copy.submit, exact: true }).click()
+    > 1095 |       await expect(dialog.locator('h3')).toContainText('0')
+           |                                          ^
+      1096 |       await expect(dialog.locator('textarea')).toHaveValue('')
+      1097 |       expect(queries).toBe(1)
+      1098 |       expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+        at C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest\tests\ai-home-search.spec.ts:1095:42
+
+    Error Context: test-results\ai-home-search-A9-text-emp-1727c-nd-manual-fallback-es-320px-chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ai-home-search-A9-text-emp-1727c-nd-manual-fallback-es-320px-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ai-home-search-A9-text-emp-1727c-nd-manual-fallback-es-320px-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback es 390px 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('dialog').locator('h3')
+    Expected substring: "0"
+    Error: strict mode violation: getByRole('dialog').locator('h3') resolved to 3 elements:
+        1) <h3>Condiciones para el próximo mensaje</h3> aka getByRole('heading', { name: 'Condiciones para el próximo' })
+        2) <h3>Condiciones de estos resultados</h3> aka getByRole('heading', { name: 'Condiciones de estos' })
+        3) <h3>0 opciones con condiciones confirmadas</h3> aka getByRole('heading', { name: '0 opciones con condiciones' })
+
+    Call log:
+      - Expect "toContainText" with timeout 7000ms
+      - waiting for getByRole('dialog').locator('h3')
+        - locator resolved to <h3>Condiciones para el próximo mensaje</h3>
+        - unexpected value "Condiciones para el próximo mensaje"
+
+
+      1093 |       await page.getByLabel(copy.label, { exact: true }).fill(copy.text)
+      1094 |       await page.getByRole('button', { name: copy.submit, exact: true }).click()
+    > 1095 |       await expect(dialog.locator('h3')).toContainText('0')
+           |                                          ^
+      1096 |       await expect(dialog.locator('textarea')).toHaveValue('')
+      1097 |       expect(queries).toBe(1)
+      1098 |       expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+        at C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest\tests\ai-home-search.spec.ts:1095:42
+
+    Error Context: test-results\ai-home-search-A9-text-emp-6021d-nd-manual-fallback-es-390px-chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ai-home-search-A9-text-emp-6021d-nd-manual-fallback-es-390px-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ai-home-search-A9-text-emp-6021d-nd-manual-fallback-es-390px-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback es 768px 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('dialog').locator('h3')
+    Expected substring: "0"
+    Error: strict mode violation: getByRole('dialog').locator('h3') resolved to 3 elements:
+        1) <h3>Condiciones para el próximo mensaje</h3> aka getByRole('heading', { name: 'Condiciones para el próximo' })
+        2) <h3>Condiciones de estos resultados</h3> aka getByRole('heading', { name: 'Condiciones de estos' })
+        3) <h3>0 opciones con condiciones confirmadas</h3> aka getByRole('heading', { name: '0 opciones con condiciones' })
+
+    Call log:
+      - Expect "toContainText" with timeout 7000ms
+      - waiting for getByRole('dialog').locator('h3')
+        - locator resolved to <h3>Condiciones para el próximo mensaje</h3>
+        - unexpected value "Condiciones para el próximo mensaje"
+
+
+      1093 |       await page.getByLabel(copy.label, { exact: true }).fill(copy.text)
+      1094 |       await page.getByRole('button', { name: copy.submit, exact: true }).click()
+    > 1095 |       await expect(dialog.locator('h3')).toContainText('0')
+           |                                          ^
+      1096 |       await expect(dialog.locator('textarea')).toHaveValue('')
+      1097 |       expect(queries).toBe(1)
+      1098 |       expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+        at C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest\tests\ai-home-search.spec.ts:1095:42
+
+    Error Context: test-results\ai-home-search-A9-text-emp-fdce2-nd-manual-fallback-es-768px-chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ai-home-search-A9-text-emp-fdce2-nd-manual-fallback-es-768px-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ai-home-search-A9-text-emp-fdce2-nd-manual-fallback-es-768px-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback es 1440px 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('dialog').locator('h3')
+    Expected substring: "0"
+    Error: strict mode violation: getByRole('dialog').locator('h3') resolved to 3 elements:
+        1) <h3>Condiciones para el próximo mensaje</h3> aka getByRole('heading', { name: 'Condiciones para el próximo' })
+        2) <h3>Condiciones de estos resultados</h3> aka getByRole('heading', { name: 'Condiciones de estos' })
+        3) <h3>0 opciones con condiciones confirmadas</h3> aka getByRole('heading', { name: '0 opciones con condiciones' })
+
+    Call log:
+      - Expect "toContainText" with timeout 7000ms
+      - waiting for getByRole('dialog').locator('h3')
+        - locator resolved to <h3>Condiciones para el próximo mensaje</h3>
+        - unexpected value "Condiciones para el próximo mensaje"
+
+
+      1093 |       await page.getByLabel(copy.label, { exact: true }).fill(copy.text)
+      1094 |       await page.getByRole('button', { name: copy.submit, exact: true }).click()
+    > 1095 |       await expect(dialog.locator('h3')).toContainText('0')
+           |                                          ^
+      1096 |       await expect(dialog.locator('textarea')).toHaveValue('')
+      1097 |       expect(queries).toBe(1)
+      1098 |       expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+        at C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest\tests\ai-home-search.spec.ts:1095:42
+
+    Error Context: test-results\ai-home-search-A9-text-emp-6dcdc-d-manual-fallback-es-1440px-chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ai-home-search-A9-text-emp-6dcdc-d-manual-fallback-es-1440px-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ai-home-search-A9-text-emp-6dcdc-d-manual-fallback-es-1440px-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback ru 320px 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('dialog').locator('h3')
+    Expected substring: "0"
+    Error: strict mode violation: getByRole('dialog').locator('h3') resolved to 3 elements:
+        1) <h3>Условия для следующего сообщения</h3> aka getByRole('heading', { name: 'Условия для следующего сообщения' })
+        2) <h3>Условия этих результатов</h3> aka getByRole('heading', { name: 'Условия этих результатов' })
+        3) <h3>0 вариантов с подтверждёнными условиями</h3> aka getByRole('heading', { name: '0' })
+
+    Call log:
+      - Expect "toContainText" with timeout 7000ms
+      - waiting for getByRole('dialog').locator('h3')
+        - locator resolved to <h3>Условия для следующего сообщения</h3>
+        - unexpected value "Условия для следующего сообщения"
+
+
+      1093 |       await page.getByLabel(copy.label, { exact: true }).fill(copy.text)
+      1094 |       await page.getByRole('button', { name: copy.submit, exact: true }).click()
+    > 1095 |       await expect(dialog.locator('h3')).toContainText('0')
+           |                                          ^
+      1096 |       await expect(dialog.locator('textarea')).toHaveValue('')
+      1097 |       expect(queries).toBe(1)
+      1098 |       expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+        at C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest\tests\ai-home-search.spec.ts:1095:42
+
+    Error Context: test-results\ai-home-search-A9-text-emp-42fea-nd-manual-fallback-ru-320px-chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ai-home-search-A9-text-emp-42fea-nd-manual-fallback-ru-320px-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ai-home-search-A9-text-emp-42fea-nd-manual-fallback-ru-320px-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback ru 390px 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('dialog').locator('h3')
+    Expected substring: "0"
+    Error: strict mode violation: getByRole('dialog').locator('h3') resolved to 3 elements:
+        1) <h3>Условия для следующего сообщения</h3> aka getByRole('heading', { name: 'Условия для следующего сообщения' })
+        2) <h3>Условия этих результатов</h3> aka getByRole('heading', { name: 'Условия этих результатов' })
+        3) <h3>0 вариантов с подтверждёнными условиями</h3> aka getByRole('heading', { name: '0' })
+
+    Call log:
+      - Expect "toContainText" with timeout 7000ms
+      - waiting for getByRole('dialog').locator('h3')
+        - locator resolved to <h3>Условия для следующего сообщения</h3>
+        - unexpected value "Условия для следующего сообщения"
+
+
+      1093 |       await page.getByLabel(copy.label, { exact: true }).fill(copy.text)
+      1094 |       await page.getByRole('button', { name: copy.submit, exact: true }).click()
+    > 1095 |       await expect(dialog.locator('h3')).toContainText('0')
+           |                                          ^
+      1096 |       await expect(dialog.locator('textarea')).toHaveValue('')
+      1097 |       expect(queries).toBe(1)
+      1098 |       expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+        at C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest\tests\ai-home-search.spec.ts:1095:42
+
+    Error Context: test-results\ai-home-search-A9-text-emp-72aff-nd-manual-fallback-ru-390px-chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ai-home-search-A9-text-emp-72aff-nd-manual-fallback-ru-390px-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ai-home-search-A9-text-emp-72aff-nd-manual-fallback-ru-390px-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  7) [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback ru 768px 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('dialog').locator('h3')
+    Expected substring: "0"
+    Error: strict mode violation: getByRole('dialog').locator('h3') resolved to 3 elements:
+        1) <h3>Условия для следующего сообщения</h3> aka getByRole('heading', { name: 'Условия для следующего сообщения' })
+        2) <h3>Условия этих результатов</h3> aka getByRole('heading', { name: 'Условия этих результатов' })
+        3) <h3>0 вариантов с подтверждёнными условиями</h3> aka getByRole('heading', { name: '0' })
+
+    Call log:
+      - Expect "toContainText" with timeout 7000ms
+      - waiting for getByRole('dialog').locator('h3')
+
+
+      1093 |       await page.getByLabel(copy.label, { exact: true }).fill(copy.text)
+      1094 |       await page.getByRole('button', { name: copy.submit, exact: true }).click()
+    > 1095 |       await expect(dialog.locator('h3')).toContainText('0')
+           |                                          ^
+      1096 |       await expect(dialog.locator('textarea')).toHaveValue('')
+      1097 |       expect(queries).toBe(1)
+      1098 |       expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+        at C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest\tests\ai-home-search.spec.ts:1095:42
+
+    Error Context: test-results\ai-home-search-A9-text-emp-ee93d-nd-manual-fallback-ru-768px-chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ai-home-search-A9-text-emp-ee93d-nd-manual-fallback-ru-768px-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ai-home-search-A9-text-emp-ee93d-nd-manual-fallback-ru-768px-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  8) [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback ru 1440px 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('dialog').locator('h3')
+    Expected substring: "0"
+    Error: strict mode violation: getByRole('dialog').locator('h3') resolved to 3 elements:
+        1) <h3>Условия для следующего сообщения</h3> aka getByRole('heading', { name: 'Условия для следующего сообщения' })
+        2) <h3>Условия этих результатов</h3> aka getByRole('heading', { name: 'Условия этих результатов' })
+        3) <h3>0 вариантов с подтверждёнными условиями</h3> aka getByRole('heading', { name: '0' })
+
+    Call log:
+      - Expect "toContainText" with timeout 7000ms
+      - waiting for getByRole('dialog').locator('h3')
+        - locator resolved to <h3>Условия для следующего сообщения</h3>
+        - unexpected value "Условия для следующего сообщения"
+
+
+      1093 |       await page.getByLabel(copy.label, { exact: true }).fill(copy.text)
+      1094 |       await page.getByRole('button', { name: copy.submit, exact: true }).click()
+    > 1095 |       await expect(dialog.locator('h3')).toContainText('0')
+           |                                          ^
+      1096 |       await expect(dialog.locator('textarea')).toHaveValue('')
+      1097 |       expect(queries).toBe(1)
+      1098 |       expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+        at C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest\tests\ai-home-search.spec.ts:1095:42
+
+    Error Context: test-results\ai-home-search-A9-text-emp-f4ade-d-manual-fallback-ru-1440px-chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ai-home-search-A9-text-emp-f4ade-d-manual-fallback-ru-1440px-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ai-home-search-A9-text-emp-f4ade-d-manual-fallback-ru-1440px-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  9) [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback en 320px 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('dialog').locator('h3')
+    Expected substring: "0"
+    Error: strict mode violation: getByRole('dialog').locator('h3') resolved to 3 elements:
+        1) <h3>Conditions for the next message</h3> aka getByRole('heading', { name: 'Conditions for the next' })
+        2) <h3>Conditions for these results</h3> aka getByRole('heading', { name: 'Conditions for these results' })
+        3) <h3>0 options with confirmed conditions</h3> aka getByRole('heading', { name: '0 options with confirmed' })
+
+    Call log:
+      - Expect "toContainText" with timeout 7000ms
+      - waiting for getByRole('dialog').locator('h3')
+
+
+      1093 |       await page.getByLabel(copy.label, { exact: true }).fill(copy.text)
+      1094 |       await page.getByRole('button', { name: copy.submit, exact: true }).click()
+    > 1095 |       await expect(dialog.locator('h3')).toContainText('0')
+           |                                          ^
+      1096 |       await expect(dialog.locator('textarea')).toHaveValue('')
+      1097 |       expect(queries).toBe(1)
+      1098 |       expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+        at C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest\tests\ai-home-search.spec.ts:1095:42
+
+    Error Context: test-results\ai-home-search-A9-text-emp-a692f-nd-manual-fallback-en-320px-chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ai-home-search-A9-text-emp-a692f-nd-manual-fallback-en-320px-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ai-home-search-A9-text-emp-a692f-nd-manual-fallback-en-320px-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  10) [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback en 390px 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('dialog').locator('h3')
+    Expected substring: "0"
+    Error: strict mode violation: getByRole('dialog').locator('h3') resolved to 3 elements:
+        1) <h3>Conditions for the next message</h3> aka getByRole('heading', { name: 'Conditions for the next' })
+        2) <h3>Conditions for these results</h3> aka getByRole('heading', { name: 'Conditions for these results' })
+        3) <h3>0 options with confirmed conditions</h3> aka getByRole('heading', { name: '0 options with confirmed' })
+
+    Call log:
+      - Expect "toContainText" with timeout 7000ms
+      - waiting for getByRole('dialog').locator('h3')
+
+
+      1093 |       await page.getByLabel(copy.label, { exact: true }).fill(copy.text)
+      1094 |       await page.getByRole('button', { name: copy.submit, exact: true }).click()
+    > 1095 |       await expect(dialog.locator('h3')).toContainText('0')
+           |                                          ^
+      1096 |       await expect(dialog.locator('textarea')).toHaveValue('')
+      1097 |       expect(queries).toBe(1)
+      1098 |       expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+        at C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest\tests\ai-home-search.spec.ts:1095:42
+
+    Error Context: test-results\ai-home-search-A9-text-emp-b6574-nd-manual-fallback-en-390px-chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ai-home-search-A9-text-emp-b6574-nd-manual-fallback-en-390px-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ai-home-search-A9-text-emp-b6574-nd-manual-fallback-en-390px-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  11) [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback en 768px 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('dialog').locator('h3')
+    Expected substring: "0"
+    Error: strict mode violation: getByRole('dialog').locator('h3') resolved to 3 elements:
+        1) <h3>Conditions for the next message</h3> aka getByRole('heading', { name: 'Conditions for the next' })
+        2) <h3>Conditions for these results</h3> aka getByRole('heading', { name: 'Conditions for these results' })
+        3) <h3>0 options with confirmed conditions</h3> aka getByRole('heading', { name: '0 options with confirmed' })
+
+    Call log:
+      - Expect "toContainText" with timeout 7000ms
+      - waiting for getByRole('dialog').locator('h3')
+        - locator resolved to <h3>Conditions for the next message</h3>
+        - unexpected value "Conditions for the next message"
+
+
+      1093 |       await page.getByLabel(copy.label, { exact: true }).fill(copy.text)
+      1094 |       await page.getByRole('button', { name: copy.submit, exact: true }).click()
+    > 1095 |       await expect(dialog.locator('h3')).toContainText('0')
+           |                                          ^
+      1096 |       await expect(dialog.locator('textarea')).toHaveValue('')
+      1097 |       expect(queries).toBe(1)
+      1098 |       expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+        at C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest\tests\ai-home-search.spec.ts:1095:42
+
+    Error Context: test-results\ai-home-search-A9-text-emp-3780b-nd-manual-fallback-en-768px-chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ai-home-search-A9-text-emp-3780b-nd-manual-fallback-en-768px-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ai-home-search-A9-text-emp-3780b-nd-manual-fallback-en-768px-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  12) [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback en 1440px 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('dialog').locator('h3')
+    Expected substring: "0"
+    Error: strict mode violation: getByRole('dialog').locator('h3') resolved to 3 elements:
+        1) <h3>Conditions for the next message</h3> aka getByRole('heading', { name: 'Conditions for the next' })
+        2) <h3>Conditions for these results</h3> aka getByRole('heading', { name: 'Conditions for these results' })
+        3) <h3>0 options with confirmed conditions</h3> aka getByRole('heading', { name: '0 options with confirmed' })
+
+    Call log:
+      - Expect "toContainText" with timeout 7000ms
+      - waiting for getByRole('dialog').locator('h3')
+        - locator resolved to <h3>Conditions for the next message</h3>
+        - unexpected value "Conditions for the next message"
+
+
+      1093 |       await page.getByLabel(copy.label, { exact: true }).fill(copy.text)
+      1094 |       await page.getByRole('button', { name: copy.submit, exact: true }).click()
+    > 1095 |       await expect(dialog.locator('h3')).toContainText('0')
+           |                                          ^
+      1096 |       await expect(dialog.locator('textarea')).toHaveValue('')
+      1097 |       expect(queries).toBe(1)
+      1098 |       expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+        at C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest\tests\ai-home-search.spec.ts:1095:42
+
+    Error Context: test-results\ai-home-search-A9-text-emp-73e9a-d-manual-fallback-en-1440px-chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ai-home-search-A9-text-emp-73e9a-d-manual-fallback-en-1440px-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ai-home-search-A9-text-emp-73e9a-d-manual-fallback-en-1440px-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  12 failed
+    [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback es 320px 
+    [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback es 390px 
+    [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback es 768px 
+    [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback es 1440px 
+    [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback ru 320px 
+    [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback ru 390px 
+    [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback ru 768px 
+    [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback ru 1440px 
+    [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback en 320px 
+    [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback en 390px 
+    [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback en 768px 
+    [chromium] › tests\ai-home-search.spec.ts:1074:5 › A9 text empty result and manual fallback en 1440px 
+  63 passed (2.7m)
