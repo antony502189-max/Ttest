@@ -11,7 +11,7 @@ import pytest
 from pydantic import SecretStr
 
 from app.schemas.ai_search_intent import Criteria, apply_patch
-from app.services.ai_closed_deepseek import RESERVE_MICRO_USD, EvaluationBudget, _BudgetTransport
+from app.services.ai_closed_deepseek import RESERVE_MICRO_USD, EvaluationBudget
 from app.services.ai_deepseek_intent import ProviderFailure
 from lab.closed_ui import (
     APPROVAL,
@@ -23,6 +23,7 @@ from lab.closed_ui import (
     plan,
     smoke_cases,
 )
+from lab.closed_ui_test_support import admission_fixture
 from lab.intent_eval import state
 
 
@@ -35,7 +36,7 @@ def journal(tmp_path, count=BASELINE_ATTEMPTS):
 
 def parser_at(path):
     return ClosedUIParser(key=SecretStr("synthetic-test-only"), journal=path, approval=APPROVAL,
-                          approved_corpus_sha256=CORPUS_SHA256)
+                          approved_corpus_sha256=CORPUS_SHA256, admission=admission_fixture(path))
 
 
 def test_prepare_is_offline_and_describes_unapproved_bounded_smoke():
@@ -48,7 +49,7 @@ def test_prepare_is_offline_and_describes_unapproved_bounded_smoke():
 
 
 def test_no_new_or_reset_journal_or_old_approval(tmp_path):
-    missing = tmp_path / "missing.sqlite3"
+    missing = tmp_path / "DISPOSABLE-missing.sqlite3"
     with pytest.raises(FileNotFoundError):
         parser_at(missing)
     assert not missing.exists()
@@ -62,19 +63,23 @@ def test_no_new_or_reset_journal_or_old_approval(tmp_path):
 
 def test_same_journal_atomic_fence_across_restarts_and_competing_workers(tmp_path):
     path = journal(tmp_path)
+    admission = admission_fixture(path)
     def reserve(_):
         try:
-            return ExistingSmokeBudget(path, corpus_sha256=CORPUS_SHA256).reserve()
+            return ExistingSmokeBudget(path, corpus_sha256=CORPUS_SHA256, admission=admission).reserve("ru-balcony")
         except ProviderFailure as error:
-            assert str(error) == "PROVIDER_COST_BUDGET_EXHAUSTED"
+            assert str(error) == "UI_SMOKE_CASE_ALREADY_ATTEMPTED"
             return None
     with ThreadPoolExecutor(max_workers=6) as pool:
         tickets = list(pool.map(reserve, range(12)))
-    assert len(set(tickets) - {None}) == 3
-    summary = ExistingSmokeBudget(path, corpus_sha256=CORPUS_SHA256).summary()
+    assert len(set(tickets) - {None}) == 1
+    budget = ExistingSmokeBudget(path, corpus_sha256=CORPUS_SHA256, admission=admission)
+    budget.reserve("es-monthly")
+    budget.reserve("en-negation")
+    summary = budget.summary()
     assert summary["attempts"] == 54 and summary["reserved_micro_usd"] == 54 * RESERVE_MICRO_USD
     with pytest.raises(ProviderFailure, match="JOURNAL_MISMATCH"):
-        ExistingSmokeBudget(path, corpus_sha256="changed")
+        ExistingSmokeBudget(path, corpus_sha256="changed", admission=admission)
 
 
 async def test_three_exact_ui_cases_use_shared_decode_minimal_payload_and_budget_before_io(tmp_path):
@@ -92,14 +97,14 @@ async def test_three_exact_ui_cases_use_shared_decode_minimal_payload_and_budget
             "role": "assistant", "content": json.dumps({"status": "patch", "patch": {
                 "set": case["expected"], "remove": []}})}}],
             "usage": {"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120}})
-    parser.transport = _BudgetTransport(httpx.MockTransport(handle), parser.budget)
+    parser.transport = _UIBudgetTransport(httpx.MockTransport(handle), parser.budget)
     for case in cases:
         current = state(case)
         result = await parser.parse(case["text"], current)
         assert result.session_id == current.session_id and result.expected_version == 0
         assert apply_patch(current, result).criteria == Criteria.model_validate_json(json.dumps(case["expected"]))
     assert seen == [52, 53, 54]
-    with pytest.raises(ProviderFailure, match="PROVIDER_COST_BUDGET_EXHAUSTED"):
+    with pytest.raises(ProviderFailure, match="UI_SMOKE_CASE_ALREADY_ATTEMPTED"):
         await parser.parse(cases[0]["text"], state(cases[0]))
     assert len(seen) == 3
 
@@ -107,7 +112,7 @@ async def test_three_exact_ui_cases_use_shared_decode_minimal_payload_and_budget
 async def test_unapproved_text_state_and_changed_corpus_never_reach_io(tmp_path):
     parser = parser_at(journal(tmp_path))
     cases, digest = smoke_cases()
-    parser.transport = _BudgetTransport(httpx.MockTransport(lambda r: pytest.fail("unexpected IO")), parser.budget)
+    parser.transport = _UIBudgetTransport(httpx.MockTransport(lambda r: pytest.fail("unexpected IO")), parser.budget)
     with pytest.raises(ProviderFailure, match="SYNTHETIC_OUTBOUND_CASE_NOT_APPROVED"):
         await parser.parse("private text or biography", state(cases[0]))
     changed = state(cases[0]).model_copy(update={"criteria": Criteria.model_validate_json(
@@ -132,7 +137,7 @@ async def test_ambiguous_or_failed_io_never_refunds_or_automatically_retries(tmp
         if fault == "cancel":
             raise asyncio.CancelledError
         return httpx.Response(503) if fault == "503" else httpx.Response(200, json={"invalid": True})
-    parser.transport = _BudgetTransport(httpx.MockTransport(handle), parser.budget)
+    parser.transport = _UIBudgetTransport(httpx.MockTransport(handle), parser.budget)
     case = smoke_cases()[0][0]
     with pytest.raises(asyncio.CancelledError if fault == "cancel" else ProviderFailure):
         await parser.parse(case["text"], state(case))
@@ -142,9 +147,10 @@ async def test_ambiguous_or_failed_io_never_refunds_or_automatically_retries(tmp
 
 def test_explicit_ui_factory_uses_shared_assembly_after_lab_guard(tmp_path):
     from lab.closed_ui import create_app
+    path = journal(tmp_path)
     with patch("lab.ai_text.require_lab") as guard, patch("lab.ai_text._assemble_app") as assemble:
-        create_app(key=SecretStr("synthetic-test-only"), journal=journal(tmp_path), approval=APPROVAL,
-                   approved_corpus_sha256=CORPUS_SHA256)
+        create_app(key=SecretStr("synthetic-test-only"), journal=path, approval=APPROVAL,
+                   approved_corpus_sha256=CORPUS_SHA256, admission=admission_fixture(path))
         guard.assert_called_once_with(closed_ui=True)
         parser = assemble.call_args.args[0]()
         assert isinstance(parser, ClosedUIParser)
@@ -186,7 +192,8 @@ def test_entry_requires_new_approval_before_key_or_journal_access():
 
 def test_entry_validates_existing_journal_before_key_access():
     from lab.closed_ui_entry import create_app
-    with (patch("lab.closed_ui_entry.require_lab"), patch.dict(os.environ, {
+    with (patch("lab.closed_ui_entry.require_lab"), patch("lab.closed_ui_entry.verify"),
+          patch("pathlib.Path.read_bytes", return_value=b"test"), patch.dict(os.environ, {
             "AI_CLOSED_UI_APPROVAL": APPROVAL, "AI_CLOSED_UI_CORPUS_SHA256": CORPUS_SHA256}, clear=True),
           patch("lab.closed_ui_entry.ExistingSmokeBudget", side_effect=ProviderFailure("MISSING_HISTORY")),
           patch("pathlib.Path.read_text", side_effect=AssertionError("key must remain unopened")),

@@ -54,8 +54,13 @@ function isolateMockDataFromProduction(mockMode: boolean): Plugin {
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const syntheticLab = mode === 'ai-synthetic-lab'
-  const closedLiveSynthetic = (process.env.VITE_AI_CLOSED_LAB
-    || loadEnv(mode, process.cwd(), 'VITE_').VITE_AI_CLOSED_LAB) === 'closed-live-synthetic'
+  const labMode = syntheticLab ? (process.env.VITE_AI_CLOSED_LAB
+    || loadEnv(mode, process.cwd(), 'VITE_').VITE_AI_CLOSED_LAB || 'finite') : ''
+  const labSource = syntheticLab ? (process.env.VITE_AI_LAB_SOURCE_SHA
+    || loadEnv(mode, process.cwd(), 'VITE_').VITE_AI_LAB_SOURCE_SHA || '') : ''
+  if (syntheticLab && (!['finite', 'decision-transport-fixture', 'closed-live-synthetic'].includes(labMode)
+    || !/^[0-9a-f]{40}$/.test(labSource))) throw new Error('Explicit valid lab mode and source SHA required')
+  const closedLiveSynthetic = syntheticLab && labMode === 'closed-live-synthetic'
   const labNotice = closedLiveSynthetic
     ? 'Закрытый LIVE synthetic smoke · Настоящая модель, синтетический каталог. Только три согласованные фразы corpus; личные данные запрещены. Карта локальная, без провайдера карт.'
     : 'Закрытый synthetic стенд · Тестовый parser, не LLM. Фразы: «все варианты», «с маленькой собакой», «до 600 евро в месяц», «до 400 евро в месяц», «без ограничения бюджета», «желательно с балконом», «обязательно с балконом». Карта локальная, без провайдера.'
@@ -65,6 +70,10 @@ export default defineConfig(({ mode }) => {
     : './src/contexts/mock-app-provider.production.tsx'
 
   return {
+    define: {
+      'import.meta.env.VITE_AI_CLOSED_LAB': JSON.stringify(labMode),
+      'import.meta.env.VITE_AI_LAB_SOURCE_SHA': JSON.stringify(labSource),
+    },
     base: process.env.VITE_BASE_PATH || '/',
     plugins: [isolateMockDataFromProduction(mockMode), react(), tailwindcss(), ...(syntheticLab ? [{
       name: 'synthetic-lab-notice',

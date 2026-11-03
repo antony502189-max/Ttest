@@ -18,6 +18,7 @@ from pydantic import SecretStr
 from app.services.ai_closed_deepseek import EvaluationBudget
 from lab.ai_text import ORIGIN, require_lab
 from lab.closed_ui import APPROVAL, BASELINE_ATTEMPTS, CORPUS_SHA256, create_app, smoke_cases
+from lab.closed_ui_test_support import admission_fixture
 
 
 async def rehearse():
@@ -44,11 +45,15 @@ async def rehearse():
         with (patch.dict(os.environ, {"AI_LAB_PARSER": "closed-live-synthetic"}),
               patch("httpx.AsyncHTTPTransport", side_effect=lambda **kw: httpx.MockTransport(handle))):
             app = create_app(key=SecretStr("synthetic-test-only"), journal=journal, approval=APPROVAL,
-                             approved_corpus_sha256=CORPUS_SHA256)
+                             approved_corpus_sha256=CORPUS_SHA256,
+                             admission=admission_fixture(journal, source=os.environ["AI_LAB_SOURCE_SHA"]))
         headers = {"Origin": ORIGIN, "X-AI-Request": "1"}
         rows = []
         async with app.router.lifespan_context(app), httpx.AsyncClient(
                 transport=httpx.ASGITransport(app), base_url=ORIGIN, headers=headers) as client:
+            contract = (await client.get("/api/v1/ai-search/lab-runtime")).json()
+            client.headers.update({"X-AI-Lab-Mode": contract["parser"], "X-AI-Lab-Source": contract["source"],
+                                   "X-AI-Lab-Instance": contract["instance"]})
             identity = await client.post("/api/v1/ai-search/identity")
             assert identity.status_code == 200
             for case in cases:

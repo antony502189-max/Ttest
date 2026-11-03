@@ -159,6 +159,16 @@ def _assemble_app(parser_factory=None):
         GuestTokens(key=b"synthetic-lab-guest-independent-key-v1", policy=GuestPolicy(ttl_seconds=604800)),
         OperatingHTTPGate(limiter), frozenset({ORIGIN}), 32768,
         AIHTTPPolicy(20, 3, (), ORIGIN))
+    import httpx
+
+    from lab.runtime_contract import LabRuntime, RuntimePairing
+    transport = getattr(parser, "transport", None)
+    kind = "mock" if isinstance(transport, httpx.MockTransport) else "none" if transport is None else (
+        "mock" if isinstance(getattr(transport, "inner", None), httpx.MockTransport) else "https")
+    contract = LabRuntime.create(os.environ.get("AI_LAB_PARSER", "finite"),
+                                 os.environ.get("AI_LAB_SOURCE_SHA"), kind)
+    if not any(item.cls is RuntimePairing for item in app.user_middleware):
+        app.add_middleware(RuntimePairing)
     original_lifespan = app.router.lifespan_context
 
     @asynccontextmanager
@@ -174,11 +184,13 @@ def _assemble_app(parser_factory=None):
         await bind_journal(SessionLocal, journal, initialize=True)
         await replay_erasure(SessionLocal, journal)
         async with original_lifespan(application):
+            application.state.ai_lab_runtime = contract
             if os.environ.get("AI_SYNTHETIC_SEARCH_DISABLED", "false") == "false":
                 application.state.ai_search_runtime = active
             try:
                 yield
             finally:
+                del application.state.ai_lab_runtime
                 if hasattr(application.state, "ai_search_runtime"):
                     del application.state.ai_search_runtime
                 await limiter.close()

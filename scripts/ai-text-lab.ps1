@@ -58,6 +58,7 @@ if ($Action -eq 'start') {
         New-Item -ItemType Junction -Path (Join-Path $snapshot 'node_modules') -Target (Join-Path $root 'node_modules') | Out-Null
     }
     $env:VITE_AI_CLOSED_LAB = $Parser
+    $env:VITE_AI_LAB_SOURCE_SHA = $sha
     $env:VITE_API_BASE_URL = '/api/v1'
     $env:VITE_ENABLE_MOCK_MODE = '0'
     $env:VITE_BASE_PATH = '/'

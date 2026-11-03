@@ -6,6 +6,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { chromium, expect } from '@playwright/test'
 import { labControl } from './ai-text-lab-control.mjs'
+import { attestOfflineBackend } from './ai-lab-runtime.mjs'
 
 assert.equal(process.argv.length, 2, 'This driver has no live/approval/key option. Offline rehearsal only.')
 const origin = 'https://localhost:9443'
@@ -15,7 +16,7 @@ const source = JSON.parse(await readFile(new URL('../output/ai-text-lab/source.j
 const dir = new URL('../output/ai-closed-ui-rehearsal/' + crypto.randomUUID() + '/', import.meta.url)
 await mkdir(dir, { recursive: true })
 const report = { source, origin, mode: 'decision-transport-fixture', apiMocks: false,
-  providerCalls: 0, liveSmoke: 'NOT_RUN', status: 'RUNNING',
+  providerCalls: null, liveSmoke: 'NOT_RUN', status: 'RUNNING', runtimeAttestations: [],
   driverSha256: createHash('sha256').update(await readFile(fileURLToPath(import.meta.url))).digest('hex'), cases: [] }
 const browser = await chromium.launch({ ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH
   ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {}) })
@@ -39,6 +40,9 @@ try {
     if (index > 0) await new Promise(resolve => setTimeout(resolve, 35000))
     const ctx = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 950 } })
     try {
+      const attestation = await attestOfflineBackend(ctx, source)
+      report.runtimeAttestations.push(attestation)
+      report.providerCalls = attestation.verifiedProviderCalls
       const build = await json(await ctx.request.get(origin + '/build-info.json'))
       assert.equal(build.source, source); assert.equal(build.parser, 'decision-transport-fixture')
       const page = await ctx.newPage()

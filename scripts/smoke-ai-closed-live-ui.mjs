@@ -20,6 +20,17 @@ const corpus = JSON.parse(corpusBytes)
 const cases = ['ru-balcony', 'es-monthly', 'en-negation'].map(id => corpus.find(c => c.id === id))
 const dir = path.dirname(manifestPath)
 const startedAt = new Date().toISOString()
+// A public token/date is not admission. The release custodian must supply an
+// external signature, independently pinned key and the original physical file.
+assert.equal(path.resolve(run.journal), fileURLToPath(new URL('../output/ai-intent-provider-v1/budget.sqlite3', import.meta.url)))
+const inspect = name => JSON.parse(execFileSync('docker', ['inspect', name], { encoding: 'utf8' }))[0]
+const backend = inspect('ttest-ai-text-lab-backend'), frontend = inspect('ttest-ai-text-lab-frontend')
+const admission = JSON.parse(execFileSync(run.python, ['-m', 'lab.closed_ui_authorization',
+  '--admission', run.admission, '--authority', run.authority, '--trusted-key-sha256', run.authoritySha256,
+  '--source', run.source, '--journal', run.journal, '--backend-image', backend.Image, '--frontend-image', frontend.Image],
+{ cwd: fileURLToPath(new URL('../backend', import.meta.url)), encoding: 'utf8', timeout: 10000 }))
+assert.equal(backend.Config.Labels['org.opencontainers.image.revision'], run.source)
+assert.equal(frontend.Config.Labels['org.opencontainers.image.revision'], run.source)
 function budget() {
   const code = `import sqlite3,json,sys,pathlib
 p=pathlib.Path(sys.argv[1]).resolve(strict=True)
@@ -30,8 +41,8 @@ with sqlite3.connect(p.as_uri()+'?mode=ro',uri=True) as db:
   return JSON.parse(execFileSync(run.python, ['-c', code, run.journal], { encoding: 'utf8', timeout: 10000 }))
 }
 const before = budget()
-assert.equal(before.attempts, 51)
-assert.equal(before.reserved_micro_usd, 564060)
+assert.equal(before.attempts, admission.baseline_attempts)
+assert.equal(before.reserved_micro_usd, admission.baseline_reserved_micro_usd)
 assert.equal(before.corpus_sha256, createHash('sha256').update(corpusBytes).digest('hex'))
 await writeFile(path.join(dir, 'smoke-started.json'), JSON.stringify({ source: run.source, before }) + '\n', { flag: 'wx' })
 const report = { source: run.source, origin, mode: 'LIVE_SYNTHETIC', apiMocks: false,
@@ -52,12 +63,17 @@ async function openAI(page) {
   throw Error('onboarding incomplete')
 }
 try {
-  for (const [index, testCase] of cases.entries()) {
+  for (const [index, testCase] of cases.filter(c => admission.case_ids.includes(c.id)).entries()) {
     if (index > 0) await new Promise(resolve => setTimeout(resolve, 35000))
-    assert.equal(budget().attempts, 51 + index, 'Unexpected attempts: STOP, never compensate with new calls')
+    assert.equal(budget().attempts, before.attempts + index, 'Unexpected attempts: STOP, never compensate with new calls')
     const ctx = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 950 } })
     let operationKey
     try {
+      const attested = await json(await ctx.request.get(origin + '/api/v1/ai-search/lab-runtime'))
+      assert.equal(attested.parser, 'closed-live-synthetic'); assert.equal(attested.source, run.source)
+      assert.equal(attested.provider_transport, 'https')
+      await ctx.setExtraHTTPHeaders({ 'X-AI-Lab-Mode': attested.parser, 'X-AI-Lab-Source': attested.source,
+        'X-AI-Lab-Instance': attested.instance })
       const build = await json(await ctx.request.get(origin + '/build-info.json'))
       assert.equal(build.source, run.source); assert.equal(build.parser, 'closed-live-synthetic')
       const page = await ctx.newPage()
@@ -78,7 +94,7 @@ try {
       const answer = await json(response)
       if (answer.operation.status !== 'succeeded') report.terminalFailureCode = answer.operation.failure_code
       assert.equal(answer.operation.status, 'succeeded', 'STOP on failed/uncertain outcome; no new model call')
-      assert.equal(budget().attempts, 52 + index)
+      assert.equal(budget().attempts, before.attempts + index + 1)
       const payload = response.request().postDataJSON()
       const intent = (await json(await ctx.request.get(origin + '/api/v1/ai-search/sessions/' + payload.session_id))).intent
       assert.deepEqual(intent.criteria, testCase.expected); assert.equal(intent.version, 1)
@@ -86,13 +102,13 @@ try {
       assert.equal(status.status, 'succeeded')
       const replay = await json(await ctx.request.post(origin + '/api/v1/ai-search/query', { headers, data: payload }))
       assert.deepEqual(replay.operation.receipt, answer.operation.receipt)
-      assert.equal(budget().attempts, 52 + index)
+      assert.equal(budget().attempts, before.attempts + index + 1)
       const map = await json(await ctx.request.post(origin + '/api/v1/ai-search/results/' + status.receipt.result_ref + '/map', {
         headers, data: { search: { west: -17, east: -16, south: 27, north: 29, zoom: 10 } } }))
       assert.equal(map.intent_hash, answer.cards.intent_hash)
       await page.reload({ waitUntil: 'networkidle' }); await openAI(page)
       await expect(page.getByRole('region', { name: 'Resultados confirmados' })).toBeVisible()
-      assert.equal(budget().attempts, 52 + index)
+      assert.equal(budget().attempts, before.attempts + index + 1)
       const quota = await json(await ctx.request.get(origin + '/api/v1/ai-search/quota'))
       assert.equal(quota.used, 1)
       const stored = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } }))
@@ -133,7 +149,8 @@ try {
   await browser.close()
   report.after = budget()
   report.newAttempts = report.after.attempts - before.attempts
-  assert.ok(report.newAttempts <= 3 && report.after.reserved_micro_usd <= 597240)
+  assert.ok(report.newAttempts <= admission.max_new_attempts && report.after.attempts <= 54
+    && report.after.reserved_micro_usd <= before.reserved_micro_usd + admission.max_new_reserved_micro_usd)
   await writeFile(path.join(dir, 'result.json'), JSON.stringify(report, null, 2) + '\n', { flag: 'wx' })
   console.log(JSON.stringify({ status: report.status, cases: report.cases.length, newAttempts: report.newAttempts }))
 }

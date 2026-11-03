@@ -9,7 +9,13 @@ services:
       AI_LAB_PARSER: closed-live-synthetic
       AI_CLOSED_UI_APPROVAL: ${CLOSED_UI_NEW_APPROVAL:?separate NEW synthetic UI authorization required}
       AI_CLOSED_UI_CORPUS_SHA256: ${CLOSED_UI_CORPUS_SHA256:?exact reviewed corpus required}
+      AI_CLOSED_UI_AUTHORITY_SHA256: ${CLOSED_UI_AUTHORITY_SHA256:?independent release-custodian trust fingerprint required}
     volumes:
+      - type: bind
+        source: ${CLOSED_UI_SIGNED_ADMISSION_DIRECTORY:?external owner-signed exact release authorization required}
+        target: /closed-ui-admission
+        read_only: true
+        bind: {create_host_path: false}
       - type: bind
         source: ${CLOSED_UI_DEDICATED_KEY_FILE:?dedicated existing key file required}
         target: /closed-ui-secrets/dedicated-key.env
