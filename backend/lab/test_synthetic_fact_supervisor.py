@@ -267,6 +267,12 @@ def test_harness_rejects_non_disposable_catalog_before_running(harness, url):
         configuration_digest(harness.coordinator, builder_bundle_sha256=BUNDLE, catalog_identity_sha256="c" * 64)
 
 
+def test_disposable_ci_catalog_uses_the_same_policy_as_pg_fixtures(harness):
+    harness.coordinator.pipeline.sessions.kw["bind"].url = make_url("postgresql+asyncpg://127.0.0.1/ttest_test")
+    digest = configuration_digest(harness.coordinator, builder_bundle_sha256=BUNDLE, catalog_identity_sha256="c" * 64)
+    assert digest != harness.journal.configuration_sha256
+
+
 async def test_config_mutation_after_construction_cannot_run_with_old_checkpoint(harness):
     harness.coordinator.max_sources = 2
     with pytest.raises(SupervisorUnavailable):

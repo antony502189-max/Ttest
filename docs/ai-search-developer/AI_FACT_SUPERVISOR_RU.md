@@ -4,7 +4,7 @@
 
 ## Разрешённая среда и конфигурация
 
-Конфигурация требует loopback PostgreSQL URL с БД `ai_facts_test_*`; другие адреса/имена, включая текущую application/lab БД, отвергаются до запуска. SQLite journal должен иметь отдельное имя `DISPOSABLE-fact-supervisor-<name>.sqlite3`. Обычные budget journals, symlink-файл и существующий SQLite с чужими таблицами/application ID не принимаются. Harness не читает и не сбрасывает настоящий provider budget.
+Конфигурация требует loopback PostgreSQL URL с БД `ai_facts_test_*` или точным disposable CI именем `ttest_test`; другие адреса/имена, включая текущую application/lab БД, отвергаются до запуска. SQLite journal должен иметь отдельное имя `DISPOSABLE-fact-supervisor-<name>.sqlite3`. Обычные budget journals, symlink-файл и существующий SQLite с чужими таблицами/application ID не принимаются. Harness не читает и не сбрасывает настоящий provider budget.
 
 `configuration_digest()` связывает source mappings/TTL/job limits/versions/retry policy, vocabulary, resolver, queue/quality policy, payload/page bounds, loopback catalog destination и два обязательных SHA-256: reviewed synthetic builder bundle и уникальная catalog/schema identity. Эти два digest задаёт caller, они не являются самостоятельной аттестацией source privacy или identity БД. Изменение конфигурации требует нового disposable journal, а не сброса старого checkpoint. Worker configuration сверяется с объявленной source policy. Binding проверяется перед каждым poll и health read.
 

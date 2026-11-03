@@ -55,8 +55,10 @@ def configuration_digest(coordinator: OfflineFactCoordinator, *, builder_bundle_
                 or worker.retry_builder_failures != policy.retry_builder_failures):
             raise ValueError("synthetic worker configuration differs from declared source policy")
     target = make_url(pipeline.sessions.kw["bind"].url)
-    if target.host not in {"localhost", "127.0.0.1", "::1"} or not (target.database or "").startswith("ai_facts_test_"):
-        raise ValueError("synthetic supervisor requires disposable loopback ai_facts_test_* catalog")
+    if target.host not in {"localhost", "127.0.0.1", "::1"} or not (
+        (target.database or "").startswith("ai_facts_test_") or target.database == "ttest_test"
+    ):
+        raise ValueError("synthetic supervisor requires disposable loopback ai_facts_test_* or ttest_test catalog")
     body: dict[str, Any] = {"builder_bundle": builder_bundle_sha256, "catalog_identity": catalog_identity_sha256,
         "target": {"host": target.host, "port": target.port, "database": target.database},
         "resolver": pipeline.resolver_version,
