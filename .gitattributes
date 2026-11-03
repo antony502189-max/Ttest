@@ -3,3 +3,5 @@ backend/lab/intent_cases.v1.json text eol=lf
 reports/ai-intent-live-evidence/** -text whitespace=cr-at-eol
 reports/ai-live-inputs-evidence/** -text
 reports/ai-intent-model-evidence/** -text whitespace=cr-at-eol
+# Preserve the captured Vite reporter line verbatim in this published raw log.
+docs/reports/ai-closed-ui-preparation-20261103-evidence/live-frontend-build.txt whitespace=-blank-at-eol
