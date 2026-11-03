@@ -1,0 +1,9 @@
+{
+  "secretAndBudgetMountsAbsent": true,
+  "internalNetwork": true,
+  "offlineRestored": true,
+  "frontendSource": "fb1877d3fc2aac7c7776bdb384b43d90c4022bf8",
+  "backendSource": "fb1877d3fc2aac7c7776bdb384b43d90c4022bf8",
+  "backendNetworks": "ttest-ai-text-lab-network",
+  "liveEgressAbsent": true
+}

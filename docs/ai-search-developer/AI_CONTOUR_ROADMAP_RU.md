@@ -1,5 +1,11 @@
 # План сборки и запуска AI-контура
 
+Обновление LIVE 3 ноября: после отдельного разрешения выполнена1 новая provider
+attempt, outcome `LLM_FAILURE`, без successful result/usage; cumulative52,
+резерв $0.575120. Остановлено по протоколу, оставшиеся2 попытки не использованы.
+Offline/изоляция восстановлены; LIVE gate OPEN/FAIL, real-user outbound BLOCKED.
+[Фактический отчёт и исправления](../reports/AI_CLOSED_LIVE_UI_20261103.md).
+
 Обновление 3 ноября: PR #403 слит в main `4a60e163`; все6 push workflows
 успешны, post-merge UI acceptance15/15 PASS. Подготовлены отдельная ограниченная
 synthetic LIVE UI composition, reopen-only SAME journal budget (до3 новых

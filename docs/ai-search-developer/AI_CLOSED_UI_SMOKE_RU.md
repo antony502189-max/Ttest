@@ -1,6 +1,11 @@
 # Ограниченный synthetic LIVE UI smoke: подготовка
 
-3 ноября 2026, Europe/Moscow. **PREPARED, NOT AUTHORIZED, LIVE NOT RUN.**
+3 ноября 2026, Europe/Moscow. **Пользователь разрешил smoke; LIVE результат FAIL.**
+После исправления readable-but-unwritable journal выполнена1 новая provider
+attempt: cumulative52, резерв575120 microUSD, usage новой попытки неизвестен.
+Остановлено на `LLM_FAILURE`, следующие2 попытки не использованы. Стенд возвращён
+в offline, key/budget mounts и egress удалены. [Фактический отчёт](../reports/AI_CLOSED_LIVE_UI_20261103.md).
+Ниже сохранён исходный план, а не заявление о LIVE PASS или новом разрешении.
 PR #403 уже слит; main `4a60e163` принят отдельно. Обычный `app.main`
 сохраняет AI disabled. Новый код не разрешает real-user outbound.
 
@@ -61,7 +66,8 @@ attempt и debit не должны повториться. При неопред
 - Обычный `ai-text-lab.ps1` остаётся offline, не принимает live mode/ключи.
   Status tooling offline lab нельзя выдавать за статистику LIVE provider.
 
-**Override НЕ запускался.** Перед активацией нужны отдельное новое разрешение
+**Override запускался только для согласованного smoke и затем отключён.** Для нового прогона нужны review и отдельное согласование после failed outcome;
+при первоначальной подготовке требовались отдельное новое разрешение
 владельца на эти3 attempts и outbound, проверка exact source/build,
 backend-only key mount, доступа к SAME journal и изоляции сети. Имена требуемых
 параметров перечислены в override; значений ключа или реального journal в отчёте
@@ -72,7 +78,7 @@ Egress transport допускает только POST HTTPS `api.deepseek.com/ch
 стандартную TLS verification и один connection. Отдельная Docker bridge сама
 по себе не является сетевым allowlist/sandbox: это явно остаётся частью review
 перед запуском, а не доказательством изоляции произвольного доверенного Python.
-Ни сеть, ни key/budget mounts пока не создавались. Нужен immutable frontend
+После smoke LIVE сеть и key/budget mounts удалены. Для запуска нужен immutable frontend
 build с LIVE подписью, отдельная проверка конфигурации и возврат к offline
 configuration после bounded smoke. Production/public activation сюда не входят.
 
@@ -105,8 +111,9 @@ limit2/min; часовые buckets и quotas не сбрасываются. Пр
 
 ## Короткий список до закрытого пилота
 
-1. **LIVE UI synthetic smoke:** код/план подготовлены; отдельное разрешение,
-   финальный egress/build review и настоящий bounded прогон ещё нужны.
+1. **LIVE UI synthetic smoke:** один provider attempt завершился failed,
+   LIVE gate OPEN/FAIL. Нужны review диагностических изменений и отдельное
+   согласование нового bounded прогона без сброса SAME journal52.
 2. **Real-user outbound:** BLOCKED. Нужны account-specific owner/DPA,
    no-training, region/transfers, retention/deletion SLA, основание/уведомление
    и проверяемая минимизация с negative tests. Общая policy их не подтверждает.

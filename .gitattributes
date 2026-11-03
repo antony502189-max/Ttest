@@ -5,3 +5,5 @@ reports/ai-live-inputs-evidence/** -text
 reports/ai-intent-model-evidence/** -text whitespace=cr-at-eol
 # Preserve the captured Vite reporter line verbatim in this published raw log.
 docs/reports/ai-closed-ui-preparation-20261103-evidence/live-frontend-build.txt whitespace=-blank-at-eol
+docs/reports/ai-closed-live-ui-20261103-evidence/** -text whitespace=cr-at-eol
+docs/reports/ai-closed-live-ui-20261103-evidence/authorized-execution.ps1.txt whitespace=-blank-at-eof,cr-at-eol

@@ -1,0 +1,10 @@
+{
+  "peakOutputUsdPerMillion": 1.2,
+  "model": "deepseek-flash",
+  "perAttemptReservedMicroUsd": 11060,
+  "accountBillingVerified": false,
+  "peakInputCacheMissUsdPerMillion": 0.3,
+  "discountsAssumed": false,
+  "checkedDateMoscow": "2026-11-03",
+  "source": "https://api-docs.deepseek.com/quick_start/pricing/"
+}
