@@ -22,6 +22,10 @@ class LocalOnlyGate:
 
 def completion(text, criteria):
     # Exact fixtures deliberately do not pretend to understand arbitrary text.
+    from lab.closed_ui import smoke_cases
+    for case in smoke_cases()[0]:
+        if text == case["text"] and criteria == case["current"]:
+            return {"status": "patch", "patch": {"set": case["expected"], "remove": []}}
     decisions = {"уточнить бюджет": "clarification", "ничего не менять": "no_change",
                  "рядом с хорошими людьми": "unsupported"}
     if text in decisions:

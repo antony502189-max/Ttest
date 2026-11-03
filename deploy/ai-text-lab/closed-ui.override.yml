@@ -1,0 +1,27 @@
+# PREPARED ONLY. Never consumed by ai-text-lab.ps1. A separate NEW owner
+# authorization and reviewed immutable source/build are required before use.
+# Ordinary lab backend stays on its internal-only network.
+services:
+  backend:
+    command: ["uvicorn", "lab.closed_ui_entry:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--no-proxy-headers", "--no-access-log"]
+    networks: [lab, closed_ui_egress]
+    environment:
+      AI_LAB_PARSER: closed-live-synthetic
+      AI_CLOSED_UI_APPROVAL: ${CLOSED_UI_NEW_APPROVAL:?separate NEW synthetic UI authorization required}
+      AI_CLOSED_UI_CORPUS_SHA256: ${CLOSED_UI_CORPUS_SHA256:?exact reviewed corpus required}
+    volumes:
+      - type: bind
+        source: ${CLOSED_UI_DEDICATED_KEY_FILE:?dedicated existing key file required}
+        target: /closed-ui-secrets/dedicated-key.env
+        read_only: true
+        bind: {create_host_path: false}
+      # Mount SAME existing directory, not a copied/new journal or isolated file:
+      # SQLite lock/journal files must be shared with the original evaluator.
+      - type: bind
+        source: ${CLOSED_UI_EXISTING_BUDGET_DIRECTORY:?SAME output/ai-intent-provider-v1 directory required}
+        target: /closed-ui-budget
+        bind: {create_host_path: false}
+networks:
+  closed_ui_egress:
+    name: ttest-ai-closed-ui-egress
+    external: true

@@ -12,7 +12,7 @@ REDIS = "redis://redis:6379/0"
 MARKER = "ttest-ai-text-lab.synthetic.v1"
 
 
-def require_lab():
+def require_lab(*, closed_ui=False):
     # Exact dedicated destinations; no caller-supplied application DB/provider.
     expected = {"APP_ENV": "test", "AI_SYNTHETIC_LAB": MARKER,
                 "DATABASE_URL": DATABASE, "REDIS_URL": REDIS,
@@ -20,7 +20,12 @@ def require_lab():
                 "EXTERNAL_IMPORT_ENABLED": "false", "EXTERNAL_REMOVAL_CHECK_ENABLED": "false"}
     if any(os.environ.get(key) != value for key, value in expected.items()):
         raise RuntimeError("use only the dedicated ai-text-lab launcher/configuration")
-    if os.environ.get("AI_LAB_PARSER", "finite") not in {"finite", "decision-transport-fixture"}:
+    allowed = {"finite", "decision-transport-fixture"}
+    if closed_ui:
+        if os.environ.get("AI_LAB_PARSER") != "closed-live-synthetic":
+            raise RuntimeError("explicit closed LIVE synthetic UI composition required")
+        allowed = {"closed-live-synthetic"}
+    if os.environ.get("AI_LAB_PARSER", "finite") not in allowed:
         raise RuntimeError("unknown lab parser; live provider activation forbidden")
     for name in ("STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "SMTP_HOST", "SENTRY_DSN",
                  "GOOGLE_CLIENT_ID", "WEB_PUSH_PRIVATE_KEY", "OPENAI_API_KEY", "DEEPSEEK_API_KEY",
@@ -101,6 +106,12 @@ class DistributedHTTPGate:
 
 def create_app():
     require_lab()
+    return _assemble_app()
+
+
+def _assemble_app(parser_factory=None):
+    # Shared wiring only. Public composition roots must validate their own
+    # environment before entering here; app.main never calls this function.
     from app.api.v1.ai_search import AISearchRuntime
     from app.db.session import SessionLocal
     from app.main import app
@@ -135,7 +146,9 @@ def create_app():
         return result
 
     sessions.finalize_patch = finalize_with_ack_fault
-    if os.environ.get("AI_LAB_PARSER", "finite") == "decision-transport-fixture":
+    if parser_factory is not None:
+        parser = parser_factory()
+    elif os.environ.get("AI_LAB_PARSER", "finite") == "decision-transport-fixture":
         from lab.decision_parser import LocalDecisionParser
         parser = LocalDecisionParser(parser_redis)
     else:
