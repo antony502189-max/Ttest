@@ -1,0 +1,184 @@
+# AI Search на 112233.es — единый план завершения
+
+Версия **2.2**, 3 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+
+## Цель, текущий этап и следующий шаг
+
+**Конечный результат:** посетитель 112233.es вводит текст или отправляет голос, получает реальные подходящие объявления и уточняет условия; после регистрации сохраняет AI-поиск и получает уведомления о новых совпадениях. Функция работает на сайте с настоящими backend, моделью и обновляемым каталогом. Обработаны ошибки, квоты и восстановление. Текстовый стенд — промежуточный результат, а не завершение всей функции.
+
+**Текущий этап: S1 — закрепить полную приёмочную матрицу на актуальном main.**
+
+**Следующее действие S1.0:** проверить exact-head CI опубликованных исправлений PR #404 и итоговый diff по внешнему ревью F1–F8, затем передать владельцу решение о merge. Исправления и локальные проверки описаны в [отчёте](reports/PR404_REVIEW_FIXES_20261103.md). Пользователь поручил исправить и закоммитить; слияние оставил на следующий шаг. Сам merge сейчас не выполнять. После штатного merge — S1.1–S1.3; не начинать новый общий аудит и не разрабатывать готовые части повторно.
+
+## Установленное исходное состояние
+
+Пользователь подтвердил: AI Search — новая функция сайта 112233.es, репозиторий `antony502189-max/Ttest`.
+
+03.11.2026 через GitHub проверен **main `4a60e1632d3b234f4b5321d224b3abfd041769a3`**, merge PR #403. Сохранённый `origin/main` указывает на тот же SHA. Рабочая папка `C:\Users\HONOR\Documents\Codex\Ttest` находится на старом локальном main `f7845b16f0d31f4d03ded2e2cedebf17bad1a2f4` и содержит чужие незавершённые изменения. Поэтому отсутствие AI в этой папке объяснялось устаревшим checkout. Прежний вывод о неопределённом проекте исправлен.
+
+Код изучен через `git show origin/main:…`, без reset, переключения ветки или изменения существующих worktrees. Production-версия, текущие контейнеры и CI этой сессией не проверялись. Результаты ниже взяты из сохранённых отчётов; это не новые прогоны на merged main.
+
+| Область | Уже реализовано | Осталось |
+| --- | --- | --- |
+| Текстовый UI | `src/components/home-ai-search.tsx`, `ai-conditions.tsx`, `ai-result-map.tsx`, `src/api/ai-search.ts`, `ai-continuation.ts`; восстановление после reload улучшено в #403 | Приёмка произвольных запросов через настоящую разрешённую модель в целевой среде |
+| Backend | `backend/app/api/v1/ai_search.py`: AISearchRuntime; `services/ai_search_execution.py`: TextSearchExecution; sessions, ownership, ledger, exact replay | Обычный app.main регистрирует routes, но не создаёт runtime; нужна рабочая сборка зависимостей |
+| Факты и поиск | FactPipeline, bridge/worker, typed hard matching, query proofs, verified cards/map, current-input/freshness guards | Постоянное обновление, измеренное покрытие рабочего каталога и supervised pipeline |
+| Закрытый стенд | `backend/lab/ai_text.py`, `lab/decision_parser.py`, `deploy/ai-text-lab`, `scripts/ai-text-lab.ps1`; сохранены functional/fault/restore/rollback PASS | Это synthetic lab, не публичный LLM-поиск |
+| Настоящая модель | Закрытый DeepSeek LIVE eval 24/24 на согласованном synthetic corpus; shared DecisionDeepSeekIntent | LIVE UI→provider→SQL→cards/map ещё не принят; decision-transport-fixture подменяет model transport |
+| Provider privacy | `services/ai_provider_privacy.py`: RealUserOutboundDenied отвергает real-user input | Account evidence, разрешённый payload и рабочая minimization/retention policy; ключ сам по себе ничего не включает |
+| Реальные данные | Flatio pilot: 73 записи, 8 eligible, pipeline/proof проверены; данные после проверки удалены | Постоянный ingestion и покрытие рабочего каталога этим не доказаны |
+| Нагрузка | Population/live-inputs оптимизации уже есть; последний описанный 100k прогон: 1161 ошибок/3600 попыток, 0/18 SLO-pass | ISSUE-004 OPEN; 500k/1m не приняты, browser/HTTP SLO не сертифицирован |
+| Голос | `services/ai_voice_execution.py`, `ai_offline_asr.py`: ASR+intent+search в одной durable operation; offline tests | Реальные ASR, microphone UI, HTTP/media validation и browser приёмка; voice=false |
+| Saved/rematch | `repositories/ai_saved_searches.py`, migration0074, snapshot/CAS/idempotency/dry-run; UI читает/удаляет существующие записи | Публичное создание, rematch/delivery worker и уведомления; saved_searches=false |
+| Выпуск | Runbooks, metrics, retention/erasure journal, isolated migration/restore/kill-switch evidence | Production runtime/config, provider/data/performance gates, инфраструктурная проверка, выпуск и наблюдение |
+
+Основания в проверенном main:
+
+- [Ранее согласованный маршрут](https://github.com/antony502189-max/Ttest/blob/4a60e1632d3b234f4b5321d224b3abfd041769a3/docs/ai-search-developer/AI_CONTOUR_ROADMAP_RU.md).
+- [Общая приёмка и открытые gates](https://github.com/antony502189-max/Ttest/blob/4a60e1632d3b234f4b5321d224b3abfd041769a3/docs/reports/AI_RELEASE_ACCEPTANCE_20261101.md).
+- [Parser/UI composition](https://github.com/antony502189-max/Ttest/blob/4a60e1632d3b234f4b5321d224b3abfd041769a3/docs/reports/AI_PARSER_UI_COMPOSITION_20261101.md).
+- [Outbound boundary](https://github.com/antony502189-max/Ttest/blob/4a60e1632d3b234f4b5321d224b3abfd041769a3/docs/ai-search-developer/DEEPSEEK_OUTBOUND_POLICY_RU.md), [operating policy](https://github.com/antony502189-max/Ttest/blob/4a60e1632d3b234f4b5321d224b3abfd041769a3/docs/ai-search-developer/OPERATING_PRODUCT_POLICY.md).
+- [Нагрузка и bottleneck](https://github.com/antony502189-max/Ttest/blob/4a60e1632d3b234f4b5321d224b3abfd041769a3/reports/AI_LIVE_INPUTS_20261031.md), [migration rollout](https://github.com/antony502189-max/Ttest/blob/4a60e1632d3b234f4b5321d224b3abfd041769a3/docs/ai-search-developer/AI_MIGRATION_ROLLOUT_RU.md).
+- [Исходный продуктовый scope](https://github.com/antony502189-max/Ttest/blob/d086fec3f0c4286d66493082982e2ac55a14d174/docs/ai-search-developer/01_PRODUCT_SPEC.md) найден в сохранённой docs-ветке, а не в текущем main. Прямые решения владельца учитываются вместе с более поздней operating policy; конфликты нельзя разрешать молчаливым исключением возможностей.
+
+Старые упоминания «#403 draft, merge запрещён» исторические: PR уже merged. Не нужно снова его сливать; merge не доказывает deploy или разрешение публичного запуска. Старый `08_NEXT_ACTIONS.md` — журнал промежуточных веток, не актуальный порядок оставшейся работы.
+
+**Уточнение PR #404 от 03.11:** пользователь имел в виду следующий PR [#404](https://github.com/antony502189-max/Ttest/pull/404), а не #403. GitHub: open, draft, merged=false, mergeable=true; head `7f8bbabc0a051d46d9911e51907975aeafc7bb00`, base текущий main4a60e163. На точном head11 workflows success,2 conditional skipped; submitted reviews и review threads отсутствуют. Это подготовка закрытого LIVE-контура, runtime pairing/journal admission/recovery; не публичный запуск AI. В этой сессии проверены metadata/CI, независимое code review113 изменённых файлов не выполнено. Перед включением изменений в основную базу нужны финальное ревью и выход из draft; не считать PR уже слитым. Отчёт PR сохраняет предыдущую реальную LIVE-попытку как FAILED, journal52/$0.575120 reserved; прежние51/56 из старого roadmap не использовать как текущий остаток бюджета. Новые вызовы модели и merge не выполнялись.
+
+## Продуктовый контракт и полная приёмка
+
+| ID | Обязательное поведение | Критерий готовности |
+| --- | --- | --- |
+| A1 | Текстовый поиск ES/RU/EN: место, бюджет/период, жильцы/вместимость, тип жилья, животные, курение и поддерживаемые удобства | Настоящая модель даёт ожидаемые typed conditions, SQL — ожидаемые IDs и подтверждённые причины; нет выдуманных объектов/цен/процентов |
+| A2 | Уточнение меняет только названные условия | Follow-up, отрицания, ambiguity, unknown/conflict, no-change и unsupported проверены; hard не ослабляется молча |
+| A3 | Актуальные карточки/карта, пагинация, открытие объявления | Visibility/currentness до count/order/LIMIT, stale/hidden/changed записи исключены. Сохранены существующие TOP/boost, native/external cards, gallery/favorites и long-term cap€1000 |
+| A4 | Guest3/auth200 успешных операций в сутки Europe/Madrid, DST | Ошибки/clarification без debit; meaningful ноль при пригодном покрытии — успех и один debit; отсутствие пригодного покрытия — отдельный исход без debit; follow-up — новая операция |
+| A5 | Retry/reload/timeout/login/logout/потеря ACK | Exact key/payload, durable receipt, ownership и recovery не допускают двойного model call/debit; guest state не переносится в auth молча |
+| A6 | Голос: Send→ASR→intent→SQL→cards без обязательного второго подтверждения | Микрофон/остановка/отмена/ошибки/исправление текста; RU/ES/EN и смешанная речь; ASR+intent=один debit; media containers/codecs/размер/длительность объявлены и проверены |
+| A7 | Сохранение AI-поиска после регистрации | Owned committed snapshot; create/retry/list/disable/delete; гость не сохраняет; ручные saved searches работают |
+| A8 | Уведомления о новых совпадениях | Rematch worker: fencing/retry/idempotency; live eligibility перед delivery; нет дублей/чужих результатов/отправки после disable/delete |
+| A9 | Весь путь доступен из интерфейса | ES/RU/EN, 320/390/768/1440px, loading/empty/error/retry, доступность и восстановление; обычный ручной поиск всегда работает |
+| A10 | Подтверждённая скорость | Browser voice p95≤10s Send→paint реальных карточек при исправных провайдерах/типовой сети. Отдельно SQL/map p95≤500ms, p99≤1000ms, 0 ошибок,100k/500k/1m и concurrency50/100/200; протоколы не подменяют друг друга |
+| A11 | Готовность эксплуатации | Разрешённый provider/account/payload, реальные coverage/freshness, anti-abuse/cost telemetry, retention/erasure, supervised workers, migrations/backup/restore/kill switch |
+| A12 | Реальная доступность на сайте | Подтверждён deployed SHA/capabilities; A1–A11 выполнены в применимых средах; завершены реальный pilot и период наблюдения, нет blocker-дефектов |
+
+**Полное завершение включает A6–A8.** Промежуточный текстовый выпуск возможен, но его нельзя называть готовностью всей функции. Вне scope: вакансии, POI/routes, live transcription/TTS, замена карточек и новые рекламные механики. Месячный жёсткий spending cap ранее не утверждён; anti-abuse и ограниченные бюджеты конкретных тестов сохраняются.
+
+## Порядок оставшихся работ
+
+### S0 — установить исходное состояние
+
+**Готов в части обзора кода и документов.** Проект, main SHA, компоненты, существующие стенды и оставшиеся gates установлены выше. Это не новая runtime-сертификация.
+
+### S1 — закрепить приёмку и рабочую базу
+
+**В работе.**
+
+- [ ] S1.0 Ревью PR #404, исправление обнаруженных блокеров и проверка exact-head CI. После штатного merge сверить новый main и использовать его как базу S1.2; если PR не принят, явно сохранить его статус и не считать изменения доступными в main.
+- [ ] S1.1 Оформить исполнимую матрицу A1–A12; связать existing fixtures/drivers/tests и недостающие сценарии.
+- [ ] S1.2 Подготовить рабочую ветку от проверенного main в допустимом checkout, сохранив чужие изменения; закрепить там этот план и AGENTS. Не делать reset/слепой pull грязной папки.
+- [ ] S1.3 Проверить целевые существующие тесты на merged SHA; зафиксировать расхождения с прежним evidence, точный runtime и конфигурацию.
+
+Выход: одна актуальная рабочая база и воспроизводимый набор приёмки без повторной разработки готовых компонентов.
+
+### S2 — рабочий каталог и обновление фактов
+
+**Частично реализован.**
+
+- [ ] S2.1 Определить первоначальное покрытие из разрешённых источников; измерить public/eligible/verified/unknown по регионам/полям. Не обещать всю Испанию по одному Flatio pilot.
+- [ ] S2.2 Довести постоянную цепочку source check→facts→proof→invalidation/reprepare, очереди и supervision. Пересборка proof не продлевает source freshness.
+- [ ] S2.3 Проверить unavailable/403/429, retirement/remap/delete, противоречия, смену цены/видимости, backlog и корректность выдачи.
+
+Выход: согласованное измеренное покрытие, воспроизводимо свежие данные и работающий процесс их обновления; A3 и data-часть A11.
+
+### S3 — настоящий текстовый AI
+
+**Частично реализован.**
+
+- [ ] S3.1 Подготовить конкретную provider/account/payload конфигурацию; закрыть real-user outbound gate доказательствами. Не обходить RealUserOutboundDenied и не заменять review наличием ключа.
+- [ ] S3.2 Собрать runtime вне test-only lab: secrets на сервере, distributed gates, sessions/quota/execution, maintenance, signing и явное отключение. Не разрешать public AI одной env-переменной без проверенной сборки.
+- [ ] S3.3 Согласовать model timeout с execution15s/HTTP20s; выполнить настоящий закрытый UI→provider→SQL→cards/map pilot по разрешённому corpus/бюджету.
+- [ ] S3.4 Пройти A1–A5/A9 на ES/RU/EN, расширив прежний corpus24; проверить semantic correctness, отказы и стоимость, а не только JSON schema.
+
+Выход: настоящий текстовый end-to-end, а не fixture transport или отдельный model eval.
+
+### S4 — голос, сохранение и уведомления
+
+**Частично реализован. Обязателен для полного завершения.**
+
+- [ ] S4.1 Реальные ASR transport, microphone/UI/HTTP поверх VoiceSearchExecution, media validation и audio privacy; автоматический первый поиск и один debit.
+- [ ] S4.2 Public owned save endpoint/UI поверх RegisteredAISearches. Сохранять committed snapshot, не mutable session; создание, повтор, список, отключение и удаление.
+- [ ] S4.3 Rematch worker и delivery: fencing/retry/idempotency, live recheck перед отправкой, background quota/retention, disable/delete и дедупликация.
+- [ ] S4.4 Пройти A6–A9 и регрессии ручных saved searches/notifications; включать capabilities только после реальной готовности.
+
+Выход: голос и saved/delivery работают через интерфейс и настоящие зависимости.
+
+### S5 — производительность и итоговое качество
+
+**Открыт; capacity ранее отложен владельцем, ISSUE-004 не закрыт.**
+
+- [ ] S5.1 Убрать повторный обход cohort/массовые wide-proof probes; измерить SQL graph/planning. Начать с bounded correctness и EXPLAIN, не повторять большие прогоны без доказанного выигрыша.
+- [ ] S5.2 После выигрыша и требуемого допуска провести свежий exact-SHA capacity protocol с исходными порогами/ресурсами. Не ослаблять proof/freshness/visibility ради скорости.
+- [ ] S5.3 Отдельно измерить browser text/voice end-to-end, стоимость, ошибки и стабильность; пройти A10.
+- [ ] S5.4 Пройти полную A1–A11 матрицу и применимые lint/types/build/backend/PostGIS/Redis/browser/security regressions; закрыть blocker-дефекты.
+
+Выход: подтверждённые SLO и качество. Старые PASS, быстрые ошибки и repository benchmark не заменяют browser certification.
+
+### S6 — выпуск и эксплуатация
+
+**Публичный выпуск не выполнен.**
+
+- [ ] S6.1 Production-like rehearsal миграций0077–0079 и последующих: locks/WAL/disk/write impact, backup и независимый erasure journal/restore barrier.
+- [ ] S6.2 Проверить production provider/data/runtime config, supervisor, alerts и aggregate telemetry без приватного текста.
+- [ ] S6.3 Подготовить конкретный release/rollback/kill-switch пакет, пройти exact-main CI и штатный допуск выпуска.
+- [ ] S6.4 Закрытый реальный pilot в целевой среде, затем управляемая активация с проверкой deployed SHA и сохранением обычного поиска.
+
+Выход: реальная доступность и эксплуатационные доказательства, а не только merged PR.
+
+### S7 — окончательная приёмка
+
+**Не начат.**
+
+- [ ] S7.1 Пройти A1–A12, сохранить report/evidence и краткую пользовательскую инструкцию.
+- [ ] S7.2 Подтвердить стабильность за заранее определённый период и ожидаемую нагрузку.
+- [ ] S7.3 Все обязательные пункты закрыты; оставшиеся улучшения явно необязательны. Только здесь писать «AI Search полностью завершён».
+
+Основной маршрут: **S1→S2→S3→S4→S5→S6→S7**. При внешнем блокере можно готовить независимые локальные задачи следующего этапа, указывая ID; это не закрывает заблокированный этап. Готовые synthetic стенды не строить заново.
+
+## Блокеры и условия снятия
+
+| ID | Состояние | Условие снятия |
+| --- | --- | --- |
+| B0 | СНЯТ: целевой проект найден | Подтверждение пользователя и проверка main03.11 |
+| B1 | Local main устарел, есть чужие изменения | S1.2: безопасная актуальная рабочая база и перенос плана |
+| B2 | Real-user outbound BLOCKED в коде | S3.1: account/data owner, account reference без секретов, проверенные contract/DPA/region/training/retention/deletion/уведомление и minimization. Сначала подготовить reviewable пакет и negative tests, затем запросить только отсутствующие account-сведения |
+| B3 | Capacity ISSUE-004 OPEN; большие прогоны ранее отложены | Сохранить A10 обязательным. Подготовить bounded план S5; перед возобновлением явно отложенных больших benchmarks получить конкретное поручение, если его ещё нет в сессии |
+| B4 | Нет постоянного доказанного рабочего каталога/покрытия | S2: source-specific профиль, coverage/freshness measurements, update/retirement chain и разрешённый объём ingestion |
+| B5 | Voice/saved/delivery не активированы | S4.1–S4.4, реальные providers, background/delivery policies и end-to-end приёмка |
+| B6 | Production среда не сертифицирована | S6: инфраструктурные доказательства, exact SHA/CI, подготовленный release и требуемые полномочия. Merge#403 сам по себе блокер не снимает |
+
+Локальную разрешённую подготовку продолжать без повторных общих вопросов. План сам по себе не разрешает новые платные calls, произвольную передачу пользовательских данных, запрещённые ранее большие benchmarks или production activation. До необходимого решения сделать всю независимую работу и предъявить конкретный проверяемый результат.
+
+## Правила продолжения между сессиями
+
+1. Прочитать этот файл; проверить фактические GitHub main, рабочий SHA и изменения. Смена SHA требует сверки затронутых доказательств, а не нового roadmap.
+2. Продолжать указанное следующее действие. Каждая задача получает Sx.y и A-критерий; новые идеи идут в отложенный список.
+3. После сессии обновить текущую точку, статусы, evidence/точный SHA, блокеры, журнал и одно следующее действие. «Готов» требует критерия выхода, не только сборки.
+4. Не смешивать offline service, fixture, closed LIVE eval, merged code и production. Старые test counts не переносить на новый runtime.
+5. Порядок/критерии менять по прямому указанию пользователя либо доказанной зависимости, с причиной, влиянием и версией. Не исключать voice/saved/delivery и не снижать SLO ради удобного завершения.
+6. Исторические ограничения/approvals проверять по времени и фактам. Не спрашивать повторно уже разрешённое; не сохранять запрет на merge уже merged PR как вечный блокер.
+
+## Журнал
+
+| Дата | Версия/этап | Выполнено и доказательство | Следующий шаг |
+| --- | --- | --- | --- |
+| 2026-11-03 | 1.0/S0 | Создан предварительный план/AGENTS. Осмотрен только старый checkoutf7845b16; AI в нём не найден. Вывод был неполным | Проверить ветки и актуальный репозиторий |
+| 2026-11-03 | 2.0/S0→S1 | Пользователь подтвердил112233.es. Через GitHub подтверждён main4a60e163/merged#403. Изучены актуальный roadmap, policies, release/parser/capacity evidence, UI/runtime/execution/voice/saved и исходный scope. Общий план заменён конкретным остаточным маршрутом; B0 снят. Новые runtime tests, paid calls, crawling и deployment не выполнялись | S1.1: оформить исполнимую полную матрицу на existing fixtures/drivers; затем S1.2–S1.3 |
+| 2026-11-03 | 2.2/S1.0 | Получен пользовательский внешний review PR404 на7f8bbabc. F1–F8 исправлены в изолированной копии ветки: closed access/mTLS, manifest coverage, attestation recovery, namespace/WS, private journal/process fencing, signed operational evidence, единый spec и log severity. Локально1755 backend/73 Linux/13 lab browser/63 main browser PASS; отдельно настоящий nginx mTLS и build matrix. [Отчёт и ограничения](reports/PR404_REVIEW_FIXES_20261103.md). Реальные provider/journal/production не менялись | Exact-head CI и итоговый diff; merge по следующему поручению пользователя |
+
+## Изменения маршрута и отложенное
+
+- **2.1→2.2:** S1.0 продолжен по полученному внешнему ревью. Порядок S2–S7 и A1–A12 не изменены; код, инструкции и единый план переносятся в ветку #404 одним набором. Локальные проверки не заменяют exact-head CI или LIVE admission.
+- **2.0→2.1:** после уточнения пользователя про PR #404 добавлен S1.0 перед выбором рабочей базы. Причина: #404 содержит продолжение того же AI-контура и ещё находится в Draft; его изменения нельзя считать слитыми или начинать разрабатывать повторно. Следующий результат — конкретное ревью/исправления/exact-head проверки. Порядок S2–S7 и критерии A1–A12 сохранены.
+- **1.0→2.0:** исправлена устаревшая исходная точка; учтены реализованные компоненты/исторические проверки. Схема S0–S7 сохранена, задачи конкретизированы. Голос и saved/delivery включены в полное завершение по найденному scope. Прежние SLO и ISSUE-004 сохранены.
+- Необязательные улучшения: пока отсутствуют. Вакансии, POI/routes и TTS вне scope.

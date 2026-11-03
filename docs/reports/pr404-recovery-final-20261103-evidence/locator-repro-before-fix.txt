@@ -1,0 +1,54 @@
+[WebServer] (node:35112) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+(node:33140) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  1 [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: attestation (1.5s)
+(node:37640) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  2 [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: request-race (1.8s)
+
+
+  1) [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: attestation 
+
+    Error: expect(received).toContain(expected) // indexOf
+
+    Matcher error: received value must not be null nor undefined
+
+    Received has value: null
+
+       97 |     await page.goto('/#/', { waitUntil: 'networkidle' })
+       98 |     const saved = await page.evaluate(() => sessionStorage.getItem('112233:ai-continuation:v1:guest'))
+    >  99 |     expect(saved).toContain('00000000-0000-4000-8000-000000000003')
+          |                   ^
+      100 |     expect(writes).toEqual([])
+      101 |   })
+      102 | }
+        at C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest\tests\ai-lab-runtime.spec.ts:99:19
+
+    Error Context: output\ai-lab-contract-test-results\ai-lab-runtime-release-mis-a4cd6-eration-locator-attestation-chromium\error-context.md
+
+  2) [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: request-race 
+
+    Error: expect(received).toContain(expected) // indexOf
+
+    Matcher error: received value must not be null nor undefined
+
+    Received has value: null
+
+       97 |     await page.goto('/#/', { waitUntil: 'networkidle' })
+       98 |     const saved = await page.evaluate(() => sessionStorage.getItem('112233:ai-continuation:v1:guest'))
+    >  99 |     expect(saved).toContain('00000000-0000-4000-8000-000000000003')
+          |                   ^
+      100 |     expect(writes).toEqual([])
+      101 |   })
+      102 | }
+        at C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest\tests\ai-lab-runtime.spec.ts:99:19
+
+    Error Context: output\ai-lab-contract-test-results\ai-lab-runtime-release-mis-39c73-ration-locator-request-race-chromium\error-context.md
+
+  2 failed
+    [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: attestation 
+    [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: request-race 

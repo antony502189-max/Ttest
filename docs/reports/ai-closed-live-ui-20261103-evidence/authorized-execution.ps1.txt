@@ -1,0 +1,101 @@
+$ErrorActionPreference = 'Stop'
+$root='C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest'
+Set-Location -LiteralPath $root
+$env:PATH='C:\Users\HONOR\AppData\Local\Programs\DockerDesktop\resources\bin;'+$env:PATH
+$run=Join-Path $root 'output/ai-closed-live-ui-20261103-owner-approved-v2'
+function Checked([string]$program,[string[]]$arguments) {
+    & $program @arguments
+    if ($LASTEXITCODE -ne 0) { throw "$program failed ($LASTEXITCODE)" }
+}
+$mutex=[System.Threading.Mutex]::new($false,'ttest-ai-text-lab-launcher-v1')
+if (-not $mutex.WaitOne(0)) { throw 'Lab launcher busy' }
+try {
+if (git status --porcelain) { throw 'Clean committed source required' }
+$source=(git rev-parse HEAD).Trim()
+$offline=Get-Content output/ai-text-lab/source.json -Raw -Encoding utf8 | ConvertFrom-Json
+if ($offline.parser -ne 'decision-transport-fixture' -or $offline.aiDisabled) { throw 'Unexpected offline state' }
+foreach ($name in @('backend','frontend','postgres','redis','maintenance')) {
+    $label=docker inspect "ttest-ai-text-lab-$name" --format '{{index .Config.Labels "es.ttest.purpose"}}'
+    if ($LASTEXITCODE -ne 0 -or $label -ne 'ai-text-synthetic-lab-v1') { throw 'Foreign/missing lab container' }
+}
+if ((docker network inspect ttest-ai-text-lab-network --format '{{.Internal}}') -ne 'true') { throw 'Internal network required' }
+$snapshot=Join-Path $run 'source'
+if (Test-Path -LiteralPath $snapshot) { throw 'One-shot source already exists; do not repeat' }
+New-Item -ItemType Directory -Path $snapshot | Out-Null
+Checked git @('archive','--format=tar','-o',(Join-Path $run 'source.tar'),$source)
+Checked tar @('-xf',(Join-Path $run 'source.tar'),'-C',$snapshot)
+New-Item -ItemType Junction -Path (Join-Path $snapshot 'node_modules') -Target (Join-Path $root 'node_modules') | Out-Null
+$env:VITE_AI_CLOSED_LAB='closed-live-synthetic'
+$env:VITE_API_BASE_URL='/api/v1'
+$env:VITE_ENABLE_MOCK_MODE='0'
+$env:VITE_BASE_PATH='/'
+$env:VITE_GOOGLE_MAPS_API_KEY=''
+$env:VITE_GOOGLE_MAPS_MAP_ID=''
+$env:VITE_GOOGLE_MAPS_TEST_SDK='0'
+$env:VITE_GOOGLE_CLIENT_ID=''
+Push-Location -LiteralPath $snapshot
+try {
+    Checked node @('node_modules/typescript/bin/tsc','-b')
+    Checked node @('node_modules/vite/bin/vite.js','build','--mode','ai-synthetic-lab','--outDir','output/lab-dist')
+} finally { Pop-Location }
+@{source=$source;parser='closed-live-synthetic';mockApi=$false} | ConvertTo-Json | Set-Content (Join-Path $snapshot 'output/lab-dist/build-info.json') -Encoding utf8
+$html=Get-Content (Join-Path $snapshot 'output/lab-dist/index.html') -Raw -Encoding utf8
+if (-not $html.Contains('Настоящая модель, синтетический каталог') -or $html.Contains('Тестовый parser, не LLM')) { throw 'Wrong UI notice' }
+$env:LAB_SOURCE_SHA=$source
+$env:LAB_PARSER='finite'
+$env:LAB_BACKEND_BASE=$offline.backendBase
+$env:LAB_FRONTEND_BASE=$offline.frontendBase
+$env:LAB_AI_DISABLED='false'
+$env:CLOSED_UI_NEW_APPROVAL='deepseek-synthetic-ui-smoke-v1'
+$env:CLOSED_UI_CORPUS_SHA256='7b722ab6caa0bf3377a0ace8fcddecf6daa7f7cb9bcebec515ab0cac9997d288'
+$env:CLOSED_UI_DEDICATED_KEY_FILE=(Resolve-Path -LiteralPath '.env.ai-intent-eval.local').Path
+$env:CLOSED_UI_EXISTING_BUDGET_DIRECTORY=(Resolve-Path -LiteralPath 'output/ai-intent-provider-v1').Path
+$base=Join-Path $snapshot 'deploy/ai-text-lab/compose.yml'
+$override=Join-Path $snapshot 'deploy/ai-text-lab/closed-ui.override.yml'
+$compose=@('compose','--project-name','ttest-ai-text-lab','-f',$base,'-f',$override)
+$config=docker @compose config --format json | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'Invalid configuration' }
+if ($config.services.backend.ports -or $config.services.backend.environment.AI_LAB_PARSER -ne 'closed-live-synthetic') { throw 'Invalid backend configuration' }
+foreach ($name in @('frontend','maintenance')) {
+    if ($config.services.$name.volumes.target -contains '/closed-ui-secrets/dedicated-key.env' -or $config.services.$name.volumes.target -contains '/closed-ui-budget') { throw 'Secret/journal leaked' }
+    if ($config.services.$name.networks.PSObject.Properties.Name -contains 'closed_ui_egress') { throw 'Egress leaked' }
+}
+Checked docker ($compose+@('build','backend','frontend'))
+@{source=$source;approval='deepseek-synthetic-ui-smoke-v1';authorizedDateMoscow='2026-11-03';journal=(Join-Path $env:CLOSED_UI_EXISTING_BUDGET_DIRECTORY 'budget.sqlite3');python='C:\Users\HONOR\AppData\Local\Temp\ttest-pr397-400-audit\audit-venv\Scripts\python.exe';chrome='C:\Program Files\Google\Chrome\Application\chrome.exe';sourceTarSha256=(Get-FileHash (Join-Path $run 'source.tar') -Algorithm SHA256).Hash.ToLowerInvariant()} | ConvertTo-Json | Set-Content (Join-Path $run 'manifest.json') -Encoding utf8
+$network='ttest-ai-closed-ui-egress'
+$networkJson=docker network inspect $network 2>$null
+if ($LASTEXITCODE -eq 0) { throw 'Unexpected existing LIVE network; inspect before mutation' }
+Checked docker @('network','create','--label','es.ttest.purpose=ai-closed-ui-smoke-v1',$network)
+try {
+    Checked docker ($compose+@('up','-d','--no-deps','--wait','--wait-timeout','60','backend','frontend'))
+    # nginx resolves the upstream at startup; backend has been replaced.
+    Checked docker ($compose+@('restart','frontend'))
+    $active=docker inspect ttest-ai-text-lab-backend | ConvertFrom-Json
+    if ($active[0].Config.Labels.'org.opencontainers.image.revision' -ne $source) { throw 'Runtime source mismatch' }
+    $networks=$active[0].NetworkSettings.Networks.PSObject.Properties.Name
+    if ($networks.Count -ne 2 -or $networks -notcontains $network -or $networks -notcontains 'ttest-ai-text-lab-network') { throw 'Unexpected backend network' }
+    Checked node @('scripts/smoke-ai-closed-live-ui.mjs',(Join-Path $run 'manifest.json'))
+} finally {
+    # Always replace the LIVE backend and frontend with the previous immutable
+    # offline configuration. No data volume or journal is deleted.
+    $env:LAB_SOURCE_SHA=$offline.source
+    $env:LAB_PARSER=$offline.parser
+    $env:LAB_AI_DISABLED='false'
+    $offlineCompose=@('compose','--project-name','ttest-ai-text-lab','-f',(Join-Path $offline.snapshot 'deploy/ai-text-lab/compose.yml'))
+    Checked docker ($offlineCompose+@('up','-d','--no-deps','--force-recreate','--wait','--wait-timeout','60','backend','frontend'))
+    Checked docker ($offlineCompose+@('restart','frontend'))
+    $restored=docker inspect ttest-ai-text-lab-backend | ConvertFrom-Json
+    if ($restored[0].Config.Cmd -contains 'lab.closed_ui_entry:create_app') { throw 'LIVE backend remains active' }
+    if ($restored[0].Mounts.Destination -contains '/closed-ui-budget' -or $restored[0].Mounts.Destination -contains '/closed-ui-secrets/dedicated-key.env') { throw 'LIVE mounts remain active' }
+    if ($restored[0].NetworkSettings.Networks.PSObject.Properties.Name -contains $network) { throw 'LIVE egress remains active' }
+    $net=docker network inspect $network | ConvertFrom-Json
+    if ($net[0].Labels.'es.ttest.purpose' -ne 'ai-closed-ui-smoke-v1' -or $net[0].Containers.PSObject.Properties.Count -gt 0) { throw 'Network cleanup refused' }
+    Checked docker @('network','rm',$network)
+    @{offlineRestored=$true;offlineSource=$offline.source;liveMountsRemoved=$true;liveEgressRemoved=$true} | ConvertTo-Json | Set-Content (Join-Path $run 'cleanup.json') -Encoding utf8
+}
+} finally {
+    $restoreBudget=(Resolve-Path -LiteralPath 'output/ai-intent-provider-v1').Path
+    & docker run --rm --pull never --network none --user 0 --mount "type=bind,source=$restoreBudget,target=/closed-ui-budget" --entrypoint python ttest-ai-text-lab-backend:5e053697997f0c215ca3353bd1aba631cef88488 -c 'import os,json; p="/closed-ui-budget/budget.sqlite3"; os.chown(p,0,0); print(json.dumps({"journal_original_owner_restored":os.stat(p).st_uid==0}))'
+    $mutex.ReleaseMutex(); $mutex.Dispose()
+}
+

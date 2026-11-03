@@ -88,6 +88,31 @@ export async function api<T>(path: string, init: ApiRequestInit = {}, retried = 
     const requestHadAccessToken = Boolean(accessToken)
     if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
     if (requestInit.body && !headers.has('Content-Type') && !(requestInit.body instanceof FormData)) headers.set('Content-Type', 'application/json')
+    if (path.startsWith('/ai-search/') && import.meta.env.VITE_AI_CLOSED_LAB) {
+      // Re-attest before every AI request. A backend restart or mixed frontend
+      // fails before identity/session creation or inference; no static JSON trust.
+      let value: { schema?: string; parser?: string; source?: string; instance?: string } | null
+      try {
+        const attestation = await fetch(`${API_BASE_URL}/ai-search/lab-runtime`, {
+          credentials: 'include', cache: 'no-store', signal: controller.signal,
+        })
+        value = attestation.ok ? await attestation.json() : null
+      } catch {
+        // A failed/malformed/aborted attestation cannot establish whether an
+        // earlier operation committed. Always preserve recovery as unavailable.
+        throw new ApiError(503, 'No se pudo verificar la búsqueda. Inténtalo de nuevo.', {}, 'LAB_RUNTIME_UNAVAILABLE')
+      }
+      if (value?.schema !== 'ai-lab-runtime.v1' || typeof value.parser !== 'string' || typeof value.source !== 'string'
+        || value.parser !== import.meta.env.VITE_AI_CLOSED_LAB
+        || value.source !== import.meta.env.VITE_AI_LAB_SOURCE_SHA || typeof value.instance !== 'string') {
+        // A release mismatch says nothing about an earlier operation's commit.
+        // Treat it as temporary unavailability so recovery retains its locator.
+        throw new ApiError(503, 'La versión de búsqueda no coincide. Recarga la aplicación.', {}, 'LAB_RUNTIME_MISMATCH')
+      }
+      headers.set('X-AI-Lab-Mode', value.parser)
+      headers.set('X-AI-Lab-Source', value.source)
+      headers.set('X-AI-Lab-Instance', value.instance)
+    }
     const response = await fetch(`${API_BASE_URL}${path}`, { ...requestInit, headers, credentials: 'include', signal: controller.signal })
     // Refresh is recovery for an expired bearer token, not an authentication
     // mechanism for anonymous requests. Session hydration explicitly calls the
@@ -102,6 +127,9 @@ export async function api<T>(path: string, init: ApiRequestInit = {}, retried = 
         fieldErrors?: Record<string, string>
       }
       const detail = body.detail && !Array.isArray(body.detail) && typeof body.detail === 'object' ? body.detail : undefined
+      if (path.startsWith('/ai-search/') && response.status === 409 && body.detail === 'LAB_RUNTIME_MISMATCH') {
+        throw new ApiError(503, 'La versión de búsqueda no coincide. Recarga la aplicación.', {}, 'LAB_RUNTIME_MISMATCH')
+      }
       const validationErrors = validationFieldErrors(Array.isArray(body.detail) ? body.detail : undefined)
       throw new ApiError(
         response.status,

@@ -1,0 +1,77 @@
+[
+  {
+    "sha256": "a86995fd2d9666123a2f8cf02b59b2ad7920c023fe8d1ec42dc6ef37eb0325b6",
+    "file": "backend-composition.json",
+    "bytes": 476
+  },
+  {
+    "sha256": "782db11467ff2d087d0e50797e53fcf9e83d57c28260df6081de506a9ba3767a",
+    "file": "backend-unit.txt",
+    "bytes": 3188
+  },
+  {
+    "sha256": "66704c1b6690b0ccf1f4739bc9668946f34bdb4cbfc706ce67666ef913979264",
+    "file": "fake-live-auth-positive.json",
+    "bytes": 1076
+  },
+  {
+    "sha256": "63a7135509b1f228d19047c62990c41404875379ba65097e3c3ccd6abc099687",
+    "file": "fullstack-15.json",
+    "bytes": 2351
+  },
+  {
+    "sha256": "fa78abb07e7c5ebe6e834f264a6aeaa647fd692da520d406739975ec7f6b0ffb",
+    "file": "guest-rate-limit-partial.json",
+    "bytes": 882
+  },
+  {
+    "sha256": "ef0c639e048d410d16ea92b69db5df061423d0e43f3408857047a613b7195e25",
+    "file": "homeai-56.txt",
+    "bytes": 8779
+  },
+  {
+    "sha256": "685c429094bf327412ef6357c0785423ebc7f7d06b995b921afb4f8f255e063a",
+    "file": "locator-repro-before-fix.txt",
+    "bytes": 2975
+  },
+  {
+    "sha256": "ad2713d921f62c6000c46c0ec66bd3a0f005959a8842d5409c1dfde188a7fc1d",
+    "file": "matrix-auth-driver.mjs.txt",
+    "bytes": 6733
+  },
+  {
+    "sha256": "373f77c38e79bc981173166a541bbc23526c65ad83b52cd1d4b67cd97331552a",
+    "file": "mixed-live-backend.json",
+    "bytes": 743
+  },
+  {
+    "sha256": "847b6af3f1969c79c0784075741097ec853fda7feb205f0f6dc0485cb4ef31cd",
+    "file": "mixed-live-frontend.json",
+    "bytes": 748
+  },
+  {
+    "sha256": "b476669cc55b90f2ce7bd1a69de025733e7e5dc1bd4bb73e0999016d302e4371",
+    "file": "pairing-recovery-7.txt",
+    "bytes": 1419
+  },
+  {
+    "sha256": "81374ea4ec41a408d27ecbca10f481d2ae7832e6386fefb527b3020cc30c7c1a",
+    "file": "provenance.json",
+    "bytes": 2773
+  },
+  {
+    "sha256": "32108eadbf9affdaf132f3f42cf1b6f5856536414b5a70482a8f2a3d08503e46",
+    "file": "README.md",
+    "bytes": 1690
+  },
+  {
+    "sha256": "7a6939e387846122439fdf57227aebe7a94ff3c075b8e112a5c0b841bb1ff7c9",
+    "file": "real-journal-unchanged.json",
+    "bytes": 93
+  },
+  {
+    "sha256": "5a52551563ae1ab2e71ee227c37fabb5eaf39fef417ed05ce392e873ea9dbdde",
+    "file": "targeted-88.txt",
+    "bytes": 194
+  }
+]

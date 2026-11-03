@@ -22,6 +22,11 @@ class LocalOnlyGate:
 
 def completion(text, criteria):
     # Exact fixtures deliberately do not pretend to understand arbitrary text.
+    from copy import deepcopy
+
+    from lab.decision_fixtures import FIXTURES
+    if not criteria and text in FIXTURES:
+        return {"status": "patch", "patch": {"set": deepcopy(FIXTURES[text]), "remove": []}}
     decisions = {"уточнить бюджет": "clarification", "ничего не менять": "no_change",
                  "рядом с хорошими людьми": "unsupported"}
     if text in decisions:

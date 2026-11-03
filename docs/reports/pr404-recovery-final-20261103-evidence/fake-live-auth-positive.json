@@ -1,0 +1,38 @@
+{
+  "source": "72468b2e72bef1deeae7bfb18dee22de4e3c7baf",
+  "expectedBackend": "closed-live-synthetic",
+  "expectedFrontend": "closed-live-synthetic",
+  "realProviderCalls": 0,
+  "cases": [
+    {
+      "id": "ru-balcony",
+      "passed": true,
+      "fakeProviderAttempts": 1,
+      "replayReloadNoNewAttempt": true
+    },
+    {
+      "id": "en-negation",
+      "passed": true,
+      "fakeProviderAttempts": 1,
+      "replayReloadNoNewAttempt": true
+    },
+    {
+      "id": "es-monthly",
+      "passed": true,
+      "fakeProviderAttempts": 1,
+      "replayReloadNoNewAttempt": true
+    }
+  ],
+  "status": "PASS",
+  "runtime": {
+    "schema": "ai-lab-runtime.v1",
+    "parser": "closed-live-synthetic",
+    "source": "72468b2e72bef1deeae7bfb18dee22de4e3c7baf",
+    "instance": "4c4c0997-31bd-491c-9072-d15bffc03498",
+    "provider_transport": "mock",
+    "backendImage": "sha256:2fac74fd45d0ba401439220c7b804ac151ec3d11297209fef130b1607cbcf3ac",
+    "internalNetwork": true,
+    "verifiedProviderCalls": 0
+  },
+  "actor": "existing-synthetic-auth-account-via-real-ui-login"
+}

@@ -1,0 +1,42 @@
+{
+  "source": "fb1877d3fc2aac7c7776bdb384b43d90c4022bf8",
+  "origin": "https://localhost:9443",
+  "mode": "decision-transport-fixture",
+  "apiMocks": false,
+  "providerCalls": 0,
+  "liveSmoke": "NOT_RUN",
+  "status": "PASS",
+  "driverSha256": "9bf57a955cad9f4edc3e5a9e3a0688a55220c038af84e8d87bc6769844cdc2e6",
+  "cases": [
+    {
+      "id": "ru-balcony",
+      "passed": true,
+      "fixtureTransportAttempts": 1,
+      "exactRetryNoNewAttempt": true,
+      "reloadNoNewAttempt": true,
+      "cardsMapHashMatch": true,
+      "rawTextPersisted": false,
+      "total": 4
+    },
+    {
+      "id": "es-monthly",
+      "passed": true,
+      "fixtureTransportAttempts": 1,
+      "exactRetryNoNewAttempt": true,
+      "reloadNoNewAttempt": true,
+      "cardsMapHashMatch": true,
+      "rawTextPersisted": false,
+      "total": 3
+    },
+    {
+      "id": "en-negation",
+      "passed": true,
+      "fixtureTransportAttempts": 1,
+      "exactRetryNoNewAttempt": true,
+      "reloadNoNewAttempt": true,
+      "cardsMapHashMatch": true,
+      "rawTextPersisted": false,
+      "total": 0
+    }
+  ]
+}

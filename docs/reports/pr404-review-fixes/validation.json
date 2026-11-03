@@ -1,0 +1,76 @@
+{
+  "baseSource": "7f8bbabc0a051d46d9911e51907975aeafc7bb00",
+  "backend": {
+    "passed": 1755,
+    "skipped": 17,
+    "deselected": 1041
+  },
+  "linuxLab": {
+    "passed": 73,
+    "skipped": 0
+  },
+  "browserLab": {
+    "passed": 13
+  },
+  "browserMain": {
+    "passed": 63
+  },
+  "mtls": {
+    "schema": "ai-lab-mtls-regression.v1",
+    "statuses": {
+      "anonymous": 400,
+      "untrusted": 400,
+      "operator": 200
+    },
+    "nginxImage": "sha256:ede2b2b165ed266e539739a46a5c9b7733a3a2cccb3778a4f1add1f1957b851f",
+    "configurationSha256": "35b436e02ee0a44a794795670ffb981c9dabb4a9a898abf1fd561e0ab8f2e353",
+    "providerCalls": 0,
+    "backendStarted": false,
+    "realCredentialsMounted": false
+  },
+  "builds": {
+    "successful": 3,
+    "invalidRejected": 2
+  },
+  "realProviderCalls": 0,
+  "productionChanges": false,
+  "oldJournalReadOrModified": false,
+  "priorFullStackEvidenceAppliesToChangedCode": false,
+  "artifacts": [
+    {
+      "file": "backend-unit.txt",
+      "sha256": "19a980db316672ce7ef13b5af9596ae4d053be63f436bd638a708dc8c3c3bbb9",
+      "bytes": 3170
+    },
+    {
+      "file": "main-browser.txt",
+      "sha256": "164b6aae23a25573b46e02c0e291058759c7e9738e04a3b8e5a9ccc305b79b1d",
+      "bytes": 23278
+    },
+    {
+      "file": "mtls.json",
+      "sha256": "d14d8169c8f652172acd9f81ac8b490b5a56729a891c50b524fa568e938d483e",
+      "bytes": 410
+    },
+    {
+      "file": "build-matrix.json",
+      "sha256": "1f0f405f2b0e5354eaca2564192dd594cd25ffdf8c6e5c0654e640b877ca2ff7",
+      "bytes": 614
+    },
+    {
+      "file": "linux-junit.xml",
+      "sha256": "f42102055f97579862a1db1645721bfb89529975a87af17ae6f16a7da5537c91",
+      "bytes": 10698
+    },
+    {
+      "file": "lab-browser-status.json",
+      "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903",
+      "bytes": 45
+    },
+    {
+      "file": "main-browser-status.json",
+      "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903",
+      "bytes": 45
+    }
+  ]
+}

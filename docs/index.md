@@ -4,6 +4,8 @@
 
 ## Start here
 
+AI Search: **[Единый план завершения и текущий прогресс](ai-search-completion-plan.md)**. Продолжать с указанного действия, фиксировать exact source/evidence и блокеры в этом файле. Исправления ревью #404 относятся к S1.0; merge и публичная активация — отдельные шаги.
+
 | Audience | Read in order |
 | --- | --- |
 | New frontend developer | [README](../README.md) → [Local setup](local-development.md) → [Frontend](frontend.md) → [API](api.md) |

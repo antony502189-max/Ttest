@@ -12,7 +12,7 @@ REDIS = "redis://redis:6379/0"
 MARKER = "ttest-ai-text-lab.synthetic.v1"
 
 
-def require_lab():
+def require_lab(*, closed_ui=False):
     # Exact dedicated destinations; no caller-supplied application DB/provider.
     expected = {"APP_ENV": "test", "AI_SYNTHETIC_LAB": MARKER,
                 "DATABASE_URL": DATABASE, "REDIS_URL": REDIS,
@@ -20,7 +20,12 @@ def require_lab():
                 "EXTERNAL_IMPORT_ENABLED": "false", "EXTERNAL_REMOVAL_CHECK_ENABLED": "false"}
     if any(os.environ.get(key) != value for key, value in expected.items()):
         raise RuntimeError("use only the dedicated ai-text-lab launcher/configuration")
-    if os.environ.get("AI_LAB_PARSER", "finite") not in {"finite", "decision-transport-fixture"}:
+    allowed = {"finite", "decision-transport-fixture"}
+    if closed_ui:
+        if os.environ.get("AI_LAB_PARSER") != "closed-live-synthetic":
+            raise RuntimeError("explicit closed LIVE synthetic UI composition required")
+        allowed = {"closed-live-synthetic"}
+    if os.environ.get("AI_LAB_PARSER", "finite") not in allowed:
         raise RuntimeError("unknown lab parser; live provider activation forbidden")
     for name in ("STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "SMTP_HOST", "SENTRY_DSN",
                  "GOOGLE_CLIENT_ID", "WEB_PUSH_PRIVATE_KEY", "OPENAI_API_KEY", "DEEPSEEK_API_KEY",
@@ -101,6 +106,12 @@ class DistributedHTTPGate:
 
 def create_app():
     require_lab()
+    return _assemble_app()
+
+
+def _assemble_app(parser_factory=None):
+    # Shared wiring only. Public composition roots must validate their own
+    # environment before entering here; app.main never calls this function.
     from app.api.v1.ai_search import AISearchRuntime
     from app.db.session import SessionLocal
     from app.main import app
@@ -135,7 +146,9 @@ def create_app():
         return result
 
     sessions.finalize_patch = finalize_with_ack_fault
-    if os.environ.get("AI_LAB_PARSER", "finite") == "decision-transport-fixture":
+    if parser_factory is not None:
+        parser = parser_factory()
+    elif os.environ.get("AI_LAB_PARSER", "finite") == "decision-transport-fixture":
         from lab.decision_parser import LocalDecisionParser
         parser = LocalDecisionParser(parser_redis)
     else:
@@ -146,6 +159,16 @@ def create_app():
         GuestTokens(key=b"synthetic-lab-guest-independent-key-v1", policy=GuestPolicy(ttl_seconds=604800)),
         OperatingHTTPGate(limiter), frozenset({ORIGIN}), 32768,
         AIHTTPPolicy(20, 3, (), ORIGIN))
+    import httpx
+
+    from lab.runtime_contract import LabRuntime, RuntimePairing
+    transport = getattr(parser, "transport", None)
+    kind = "mock" if isinstance(transport, httpx.MockTransport) else "none" if transport is None else (
+        "mock" if isinstance(getattr(transport, "inner", None), httpx.MockTransport) else "https")
+    contract = LabRuntime.create(os.environ.get("AI_LAB_PARSER", "finite"),
+                                 os.environ.get("AI_LAB_SOURCE_SHA"), kind)
+    if not any(item.cls is RuntimePairing for item in app.user_middleware):
+        app.add_middleware(RuntimePairing)
     original_lifespan = app.router.lifespan_context
 
     @asynccontextmanager
@@ -161,11 +184,13 @@ def create_app():
         await bind_journal(SessionLocal, journal, initialize=True)
         await replay_erasure(SessionLocal, journal)
         async with original_lifespan(application):
+            application.state.ai_lab_runtime = contract
             if os.environ.get("AI_SYNTHETIC_SEARCH_DISABLED", "false") == "false":
                 application.state.ai_search_runtime = active
             try:
                 yield
             finally:
+                del application.state.ai_lab_runtime
                 if hasattr(application.state, "ai_search_runtime"):
                     del application.state.ai_search_runtime
                 await limiter.close()

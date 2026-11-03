@@ -6,6 +6,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { chromium } from '@playwright/test'
 import { labControl } from './ai-text-lab-control.mjs'
+import { attestOfflineBackend } from './ai-lab-runtime.mjs'
 
 const origin = 'https://localhost:9443'
 const dir = new URL('../output/ai-review-fixes/', import.meta.url)
@@ -25,6 +26,7 @@ const sessions = []
 async function client() {
   const ctx = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 950 } })
   contexts.push(ctx)
+  await attestOfflineBackend(ctx, source)
   ctx.setDefaultTimeout(20000)
   return ctx
 }

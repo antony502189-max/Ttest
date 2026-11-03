@@ -412,7 +412,9 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
     <DialogContent className="ai-search-dialog">
       <DialogHeader><DialogTitle>{t('Encuentra tu habitación')}</DialogTitle><DialogDescription>{t('Usamos condiciones confirmadas de los anuncios para buscar opciones.')}</DialogDescription></DialogHeader>
       {import.meta.env.VITE_AI_CLOSED_LAB ? <p data-ai-lab-mode={import.meta.env.VITE_AI_CLOSED_LAB}>
-        {t('Prueba cerrada con datos y respuestas simuladas. No envíes datos personales.')}
+        {t(import.meta.env.VITE_AI_CLOSED_LAB === 'closed-live-synthetic'
+          ? 'Prueba cerrada con modelo real y catálogo simulado. Usa solo las frases sintéticas autorizadas. No envíes datos personales.'
+          : 'Prueba cerrada con datos y respuestas simuladas. No envíes datos personales.')}
       </p> : null}
       <label htmlFor="ai-rental-mode">{t('Modo para esta búsqueda')}</label>
       <select id="ai-rental-mode" value={modeChoice} disabled={busy || restoring || restoreFailed || pending !== null || changingSession}

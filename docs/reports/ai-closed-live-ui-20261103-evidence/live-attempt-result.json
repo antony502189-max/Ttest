@@ -1,0 +1,34 @@
+{
+  "source": "cf483c4a88075fa38da46dd7988c41590beb3185",
+  "origin": "https://localhost:9443",
+  "mode": "LIVE_SYNTHETIC",
+  "apiMocks": false,
+  "status": "FAIL",
+  "before": {
+    "attempts": 51,
+    "reserved_micro_usd": 564060,
+    "observed_usage_attempts": 51,
+    "prompt_tokens": 184094,
+    "completion_tokens": 1134,
+    "corpus_sha256": "7b722ab6caa0bf3377a0ace8fcddecf6daa7f7cb9bcebec515ab0cac9997d288"
+  },
+  "cases": [],
+  "driverSha256": "2753e03a8dc42980055b0993ffbfebf4c3dc7263d7b0a38881da220ab1a02f94",
+  "terminalFailureCode": "LLM_FAILURE",
+  "lastOperation": {
+    "status": "failed"
+  },
+  "failure": {
+    "name": "AssertionError",
+    "message": "STOP on failed/uncertain outcome; no new model call\n+ actual - expected\n\n+ 'failed'\n- 'succeeded'\n"
+  },
+  "after": {
+    "attempts": 52,
+    "reserved_micro_usd": 575120,
+    "observed_usage_attempts": 51,
+    "prompt_tokens": 184094,
+    "completion_tokens": 1134,
+    "corpus_sha256": "7b722ab6caa0bf3377a0ace8fcddecf6daa7f7cb9bcebec515ab0cac9997d288"
+  },
+  "newAttempts": 1
+}

@@ -1,0 +1,52 @@
+{
+  "realProviderCalls": 0,
+  "fakeLiveFrontendImage": "sha256:7f094f662211ea2bcf83c4dfca2a91a4b1edd35dabc2383e26ef8b8a791e2caf",
+  "runtimeGuardSha256": "19505273f62c52b9501b2e72af3291a91b5dd0a4d5fc191a8ae8738bd110b13c",
+  "recoveryDriverSha256": "ce3d49ff2b195bf90cee4ada6d504b381d63ca0db06933414807411daaebbc71",
+  "backend": {
+    "networks": "ttest-ai-text-lab-network",
+    "image": "sha256:2fac74fd45d0ba401439220c7b804ac151ec3d11297209fef130b1607cbcf3ac",
+    "source": "72468b2e72bef1deeae7bfb18dee22de4e3c7baf"
+  },
+  "runtimeAttestation": {
+    "schema": "ai-lab-runtime.v1",
+    "parser": "decision-transport-fixture",
+    "source": "72468b2e72bef1deeae7bfb18dee22de4e3c7baf",
+    "instance": "2c142e4f-fefd-4dd5-be41-68c0fba4ae60",
+    "provider_transport": "mock"
+  },
+  "matrixBaseDriverSha256": "a7defa0d2457a73a133cd7e0d8d65f7d88ed946189b262917b7b43c546bc6fcf",
+  "runtimeSource": "72468b2e72bef1deeae7bfb18dee22de4e3c7baf",
+  "positiveActor": "existing-synthetic-auth-account-via-real-ui-login",
+  "frontend": {
+    "buildInfo": {
+      "parser": "decision-transport-fixture",
+      "mockApi": false,
+      "source": "72468b2e72bef1deeae7bfb18dee22de4e3c7baf"
+    },
+    "image": "sha256:ede2b2b165ed266e539739a46a5c9b7733a3a2cccb3778a4f1add1f1957b851f",
+    "source": "72468b2e72bef1deeae7bfb18dee22de4e3c7baf"
+  },
+  "authMatrixDriverSha256": "ad2713d921f62c6000c46c0ec66bd3a0f005959a8842d5409c1dfde188a7fc1d",
+  "ciReexecutesLocalDockerStack": false,
+  "credentialsOrRealBudgetMounted": false,
+  "sourceTarSha256": "611015059feba867ec2a5dc2c2548a1805cec1b058f3e2a93e80ac47b97a1954",
+  "runtimeProjection": {
+    "deploy/ai-text-lab": "25adcf0a536792fdfd7fa86ee0e29773e7f0c056",
+    "index.html": "9afbc2b159bbac68c7b97b704884d44e2e0beafa",
+    "public": "0b8890f4f8170909644368e4aeb793b0673d9c90",
+    "tsconfig.app.json": "3ef751125740ada457f444f98280143da8f9a3f4",
+    "vite.config.ts": "5d350ddb7642a3ce3c8b6ee830a8bcd8715422ee",
+    "scripts": "194062cae4d436fdd56e018b32bd3690e6212c1b",
+    "src": "19afb47a59f5e8a9f658da8bcfc2e0cb4ea8cc36",
+    "package.json": "1dcdf02c1f4085b6ddc5b84118d556fde2007d44",
+    "tests/ai-home-search.spec.ts": "c0bc1c191d6a0d8a2486550b7d5669e805d3a7f3",
+    "package-lock.json": "27f90b535519a0610aa604cdb01cb95131181c08",
+    "playwright.ai-search.config.ts": "2a68300e3678d024e1dd28972f79e5fa83328367",
+    "tests/ai-lab-runtime.spec.ts": "7b90356d08084c19711792dc66c98ad4c307ffef",
+    "backend": "4829a7952052460c6371d01a414e58c9266cf0fa",
+    "tsconfig.json": "db121895897abc5537477129efd4afb0a7617f8d",
+    "playwright.ai-lab.config.ts": "e9250b74a9e7a2e9cb9181b9917ae89bc6230987",
+    "tsconfig.node.json": "8455dcbc2c947322adef8783a42741878edaea9c"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "rawRunDirectory": "output/ai-closed-live-ui-20261103-owner-approved-v2",
+  "subsequentCasesSent": false,
+  "approval": "deepseek-synthetic-ui-smoke-v1",
+  "providerHttpMocks": false,
+  "source": "cf483c4a88075fa38da46dd7988c41590beb3185",
+  "sourceTarSha256": "d043e18185b0b7c78ffd83fb98fe945ae4e0b7650a87f0c067fafe3fcf8d4150",
+  "providerUsageForNewAttempt": "UNKNOWN",
+  "authorizedDateMoscow": "2026-11-03",
+  "input": "exact approved synthetic ru-balcony, empty criteria"
+}

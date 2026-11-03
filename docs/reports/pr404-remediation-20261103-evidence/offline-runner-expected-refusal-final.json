@@ -1,0 +1,16 @@
+{
+  "source": "2f442dc75188b3d7f7362aea087fd5ab7d7fdaf3",
+  "origin": "https://localhost:9443",
+  "mode": "decision-transport-fixture",
+  "apiMocks": false,
+  "providerCalls": null,
+  "liveSmoke": "NOT_RUN",
+  "status": "FAIL",
+  "runtimeAttestations": [],
+  "driverSha256": "9c73495e917dc0f07c2bd01a5ce22e35221688ccb1de4c7e78c599b323c370a7",
+  "cases": [],
+  "failure": {
+    "name": "AssertionError",
+    "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'closed-live-synthetic'\n- 'decision-transport-fixture'\n"
+  }
+}

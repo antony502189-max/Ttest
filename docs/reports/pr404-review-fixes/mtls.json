@@ -1,0 +1,13 @@
+{
+  "schema": "ai-lab-mtls-regression.v1",
+  "statuses": {
+    "anonymous": 400,
+    "untrusted": 400,
+    "operator": 200
+  },
+  "nginxImage": "sha256:ede2b2b165ed266e539739a46a5c9b7733a3a2cccb3778a4f1add1f1957b851f",
+  "configurationSha256": "35b436e02ee0a44a794795670ffb981c9dabb4a9a898abf1fd561e0ab8f2e353",
+  "providerCalls": 0,
+  "backendStarted": false,
+  "realCredentialsMounted": false
+}
