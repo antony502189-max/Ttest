@@ -75,6 +75,7 @@ try {
       await page.locator('.ai-search-dialog > .home-ai-search__action').click()
       const response = await pending
       const answer = await json(response)
+      if (answer.operation.status !== 'succeeded') report.terminalFailureCode = answer.operation.failure_code
       assert.equal(answer.operation.status, 'succeeded', 'STOP on failed/uncertain outcome; no new model call')
       assert.equal(budget().attempts, 52 + index)
       const payload = response.request().postDataJSON()

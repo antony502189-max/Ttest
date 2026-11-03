@@ -191,3 +191,11 @@ def test_entry_validates_existing_journal_before_key_access():
           patch("pathlib.Path.read_text", side_effect=AssertionError("key must remain unopened")),
           pytest.raises(ProviderFailure, match="MISSING_HISTORY")):
         create_app()
+
+
+def test_readable_but_unwritable_existing_journal_fails_before_provider_setup(tmp_path):
+    path = journal(tmp_path)
+    with (patch("lab.closed_ui.os.access", return_value=False),
+          patch("httpx.AsyncHTTPTransport", side_effect=AssertionError("transport must remain uncreated")),
+          pytest.raises(ProviderFailure, match="UI_SMOKE_JOURNAL_NOT_WRITABLE")):
+        parser_at(path)

@@ -5,6 +5,7 @@ explicit factory requires a newly authorized synthetic smoke and reviewed egress
 """
 import argparse
 import json
+import os
 import sqlite3
 from contextlib import closing, contextmanager
 from pathlib import Path
@@ -51,6 +52,10 @@ class ExistingSmokeBudget(EvaluationBudget):
     """
     def __init__(self, path: Path, *, corpus_sha256: str):
         self.path = Path(path).resolve(strict=True)
+        # A root-created eval journal may be readable by the non-root UI user
+        # but reject the first INSERT. Fail startup before reading credentials.
+        if not os.access(self.path, os.W_OK) or not os.access(self.path.parent, os.W_OK):
+            raise ProviderFailure("UI_SMOKE_JOURNAL_NOT_WRITABLE")
         with self._connect() as db:
             self._verify(db, corpus_sha256)
         self.corpus_sha256 = corpus_sha256
