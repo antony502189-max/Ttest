@@ -105,7 +105,10 @@ issuance counters и budgets не сбрасывались. Неуспешные
 | i18n source guard, driver syntax, diff check |PASS |
 
 Числа пересекаются, не суммировать. Новые lab regressions включены в CI.
-Raw результаты и SHA256 находятся в [evidence](ai-closed-ui-preparation-20261103-evidence/SHA256.json).
+Raw результаты и hashes опубликованных Git blobs находятся в
+[evidence](ai-closed-ui-preparation-20261103-evidence/SHA256_GIT_BLOBS.json).
+Исходный Windows-byte manifest сохранён отдельно; отличие CRLF/LF описано в
+[README](ai-closed-ui-preparation-20261103-evidence/README.md).
 Этот отчёт не объявляет CI новой ветки успешным: он проверяется отдельно для
 опубликованного HEAD.
 

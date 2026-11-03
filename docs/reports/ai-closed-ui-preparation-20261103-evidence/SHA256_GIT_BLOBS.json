@@ -1,0 +1,81 @@
+{
+  "source_commit": "5bc8ea9b950748a2ea6c45d6e3144ae4e0c7776f",
+  "representation": "exact committed git blob bytes; LF text normalization",
+  "files": [
+    {
+      "file": "backend-composition-rehearsal.json",
+      "sha256": "2600e252c05745d210ff26817e790f4d420253748a0ac40ff0f430669f38ede3",
+      "bytes": 475
+    },
+    {
+      "file": "backend-unit.txt",
+      "sha256": "cdfcf722e5f8d2d614b3c2b57f248cf440b6740e8a43060e0365e1ca2a1bd349",
+      "bytes": 3151
+    },
+    {
+      "file": "browser-rehearsal.json",
+      "sha256": "8c4b65272b19997cf075f17d6b0c9a53f6ebdd30147d9295a4762bf147916ef2",
+      "bytes": 1089
+    },
+    {
+      "file": "compose-validation.json",
+      "sha256": "7f40c53db8fa970978705f74ad583eba8a8d9862bef6cf8d6f86b96bbf9f1dd7",
+      "bytes": 224
+    },
+    {
+      "file": "en-negation.png",
+      "sha256": "1f503d25403f0e99cbedd4785f8fdf2444e823c17191e16b3ef6b031ba02f42a",
+      "bytes": 122716
+    },
+    {
+      "file": "live-frontend-build.txt",
+      "sha256": "dbf176b5f28ce1a151e34b51ecf8f85ec2a36a55a635b0e8f95b49c8740b3704",
+      "bytes": 15567
+    },
+    {
+      "file": "live-smoke-plan.json",
+      "sha256": "f5ad67eb0df5f7ec8a220b686c6c590cc1686ef66d8155fca2de95998a6c5873",
+      "bytes": 2221
+    },
+    {
+      "file": "main-browser-acceptance.json",
+      "sha256": "4f8381cefbc91439dbcab4b825db8ebaf63cc904fbf0806a1c45fac2a04cb46b",
+      "bytes": 2351
+    },
+    {
+      "file": "main-ci.json",
+      "sha256": "2ba9d20d83a62ce8fed324f4ac6dfe7de24c4d9a183ade28d565584e66062ec4",
+      "bytes": 2287
+    },
+    {
+      "file": "main-default-disabled.json",
+      "sha256": "3eb5e6b9f71204c0491db7f34cb9dfb4be8c4e86e06deb58af74e076d1abbaf4",
+      "bytes": 272
+    },
+    {
+      "file": "mypy.txt",
+      "sha256": "f28611fb35fe6cf042c9dcdb170695a489b0c201d65e4196b1704543fadfce90",
+      "bytes": 211
+    },
+    {
+      "file": "provider-unit.txt",
+      "sha256": "751bcc08afcb7421b70f4a8afa235681a8edaf0dda57ce5073ac3093f76db9ae",
+      "bytes": 110
+    },
+    {
+      "file": "ruff.txt",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    },
+    {
+      "file": "SHA256.json",
+      "sha256": "1a4b286adb5c871a1063c9ed6525c35803939e832b4cac0d99e716abe90c3adc",
+      "bytes": 2015
+    },
+    {
+      "file": "validation.json",
+      "sha256": "7a8dcb3a563b314037a2ba8b0e3030a73959a6d839055b87fc0fbe99e3a629ac",
+      "bytes": 565
+    }
+  ]
+}
