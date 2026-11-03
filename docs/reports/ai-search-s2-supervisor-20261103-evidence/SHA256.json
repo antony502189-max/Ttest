@@ -1,0 +1,50 @@
+[
+  {
+    "file": "cleanup.txt",
+    "sha256": "8505d93b8a79768537613f42b887b50103cae3625cadeded068ee3a14f25ac74"
+  },
+  {
+    "file": "disposable-before-cleanup.txt",
+    "sha256": "e651a9ece442c6872807bec77bf5a4710280b19322307553c44e2af068324ba2"
+  },
+  {
+    "file": "final-targeted.txt",
+    "sha256": "93ce7ada9dfd3db08ef1b745aa7f087fbdb27f4e514b776897b28327d14e6d58"
+  },
+  {
+    "file": "final-targeted.xml",
+    "sha256": "f6a8b3f82e2638540b48910348bd8020b4594c00891c1cf9c258df43132f7ad8"
+  },
+  {
+    "file": "inventory.txt",
+    "sha256": "ee70a894ca8ca5284ddf3b59622201c26d3bc63d8a4edbe4d0fe5c4519f36fdb"
+  },
+  {
+    "file": "lab-regression.txt",
+    "sha256": "ecf2c6e06a7ca8ce003781b8eb9c9db087556589e7414688d72dafaeae694ed9"
+  },
+  {
+    "file": "lab-regression.xml",
+    "sha256": "8c350d90f38596e04bb440acb67fd030b6a7da7c416b3402705038d405550a78"
+  },
+  {
+    "file": "mypy.txt",
+    "sha256": "b1982c137f609dc114e63c3b0f96a47f8002904c35e6d3d2d3675d15e6786b00"
+  },
+  {
+    "file": "origin-main.txt",
+    "sha256": "5fc730877868212162fb6e2413bde1b82ebc56a529a9ea4a9e36de9a7670e02b"
+  },
+  {
+    "file": "provenance.json",
+    "sha256": "3a1bb86ea99846c828dab283aaa76bc0802221bd8071023bd6909663c2d798f5"
+  },
+  {
+    "file": "ruff.txt",
+    "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+  },
+  {
+    "file": "verification.json",
+    "sha256": "bfbbe1cb8e7d79a366f968360ae6039793cae5d2b2d3be645078230f87044f54"
+  }
+]
