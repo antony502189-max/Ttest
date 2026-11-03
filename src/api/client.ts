@@ -97,7 +97,9 @@ export async function api<T>(path: string, init: ApiRequestInit = {}, retried = 
       const value = attestation.ok ? await attestation.json() : null
       if (value?.schema !== 'ai-lab-runtime.v1' || value.parser !== import.meta.env.VITE_AI_CLOSED_LAB
         || value.source !== import.meta.env.VITE_AI_LAB_SOURCE_SHA || typeof value.instance !== 'string') {
-        throw new ApiError(409, 'La versión de búsqueda no coincide. Recarga la aplicación.', {}, 'LAB_RUNTIME_MISMATCH')
+        // A release mismatch says nothing about an earlier operation's commit.
+        // Treat it as temporary unavailability so recovery retains its locator.
+        throw new ApiError(503, 'La versión de búsqueda no coincide. Recarga la aplicación.', {}, 'LAB_RUNTIME_MISMATCH')
       }
       headers.set('X-AI-Lab-Mode', value.parser)
       headers.set('X-AI-Lab-Source', value.source)
@@ -117,6 +119,9 @@ export async function api<T>(path: string, init: ApiRequestInit = {}, retried = 
         fieldErrors?: Record<string, string>
       }
       const detail = body.detail && !Array.isArray(body.detail) && typeof body.detail === 'object' ? body.detail : undefined
+      if (path.startsWith('/ai-search/') && response.status === 409 && body.detail === 'LAB_RUNTIME_MISMATCH') {
+        throw new ApiError(503, 'La versión de búsqueda no coincide. Recarga la aplicación.', {}, 'LAB_RUNTIME_MISMATCH')
+      }
       const validationErrors = validationFieldErrors(Array.isArray(body.detail) ? body.detail : undefined)
       throw new ApiError(
         response.status,

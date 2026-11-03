@@ -65,3 +65,38 @@ test('backend changes after dialog opens: re-attest before identity and session 
   await expect.poll(() => refused).toBeGreaterThan(0)
   expect(writes).toEqual([])
 })
+
+for (const fault of ['attestation', 'request-race']) {
+  test(`release mismatch must preserve uncertain operation locator: ${fault}`, async ({ page }) => {
+    const writes: string[] = []
+    await page.route('**/*', route => {
+      const request = route.request(), url = new URL(request.url())
+      if (url.hostname !== '127.0.0.1') return route.abort()
+      if (url.pathname.endsWith('/ai-search/lab-runtime')) return route.fulfill({ json: {
+        schema: 'ai-lab-runtime.v1', parser: 'decision-transport-fixture',
+        source: (fault === 'attestation' ? 'b' : 'a').repeat(40),
+        instance: '00000000-0000-4000-8000-000000000001', provider_transport: 'mock',
+      } })
+      if (url.pathname.includes('/ai-search/operations/')) return route.fulfill({
+        status: 409, json: { detail: 'LAB_RUNTIME_MISMATCH' },
+      })
+      if (url.pathname.startsWith('/api/v1/ai-search/') && request.method() === 'POST') writes.push(url.pathname)
+      if (url.pathname.endsWith('/ai-search/capabilities')) return route.fulfill({ json: { text: false, map: false } })
+      if (url.pathname.startsWith('/api/')) return route.fulfill({ status: 404, json: {} })
+      return route.continue()
+    })
+    await page.addInitScript(() => {
+      localStorage.setItem('112233:language:v1', 'es')
+      localStorage.setItem('112233:mobile-onboarding:v1', 'done:refreshable')
+      sessionStorage.setItem('112233:ai-continuation:v1:guest', JSON.stringify({
+        sessionId: '00000000-0000-4000-8000-000000000002', operation: {
+          key: '00000000-0000-4000-8000-000000000003', expectedVersion: 0, createdAt: Date.now(),
+        },
+      }))
+    })
+    await page.goto('/#/', { waitUntil: 'networkidle' })
+    const saved = await page.evaluate(() => sessionStorage.getItem('112233:ai-continuation:v1:guest'))
+    expect(saved).toContain('00000000-0000-4000-8000-000000000003')
+    expect(writes).toEqual([])
+  })
+}
