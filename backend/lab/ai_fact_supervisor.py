@@ -15,16 +15,18 @@ import sqlite3
 from collections.abc import Callable, Iterator
 from contextlib import closing, contextmanager
 from dataclasses import asdict, dataclass
+from datetime import timedelta
 from pathlib import Path
 from time import monotonic, time
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.engine import make_url
 
 from app.models import ExternalListingSource
 from app.models.ai_fact_pipeline import AiFactJob
+from app.repositories.ai_fact_quality import source_check_health_predicate
 from app.services.ai_fact_coordinator import FactCoordinatorCursor, FactCoordinatorTick, OfflineFactCoordinator
 
 
@@ -114,6 +116,14 @@ class SupervisorState:
     lease_until: float | None
 
 
+@dataclass(frozen=True)
+class PendingSignals:
+    receipts: int
+    rejected: int
+    deferred: int
+    refresh: int
+
+
 class SyntheticSupervisorJournal:
     def __init__(self, path: Path, *, configuration_sha256: str, policy: SupervisorPolicy):
         if not re.fullmatch(r"DISPOSABLE-fact-supervisor-[A-Za-z0-9_-]+\.sqlite3", path.name):
@@ -135,12 +145,28 @@ class SyntheticSupervisorJournal:
             db.execute("INSERT OR IGNORE INTO supervisor VALUES(1,?,0,0,NULL,NULL,NULL,NULL,0,0,NULL,NULL)", (self.binding,))
             if db.execute("SELECT binding FROM supervisor WHERE id=1").fetchone()[0] != self.binding:
                 raise ValueError("synthetic supervisor configuration binding mismatch")
+            db.execute("CREATE TABLE IF NOT EXISTS receipt_signals (revision INTEGER PRIMARY KEY REFERENCES receipts(revision), "
+                "rejected INTEGER NOT NULL, deferred INTEGER NOT NULL, refresh INTEGER NOT NULL, "
+                "acked INTEGER NOT NULL CHECK(acked IN (0,1)))")
+            db.execute("CREATE TABLE IF NOT EXISTS pending_signals (id INTEGER PRIMARY KEY CHECK(id=1), "
+                "receipts INTEGER NOT NULL CHECK(receipts>=0), rejected INTEGER NOT NULL CHECK(rejected>=0), "
+                "deferred INTEGER NOT NULL CHECK(deferred>=0), refresh INTEGER NOT NULL CHECK(refresh>=0))")
+            db.execute("INSERT OR IGNORE INTO pending_signals VALUES(1,0,0,0,0)")
+            if db.execute("SELECT count(*) FROM receipts").fetchone()[0] > policy.max_receipts:
+                raise ValueError("synthetic supervisor receipt capacity exceeded")
+            # Preserve old disposable journals: bounded, one-time backfill of
+            # retained receipts, never a reset or implicit acknowledgement.
+            missing = db.execute("SELECT r.revision,r.receipt FROM receipts r LEFT JOIN receipt_signals s "
+                                 "ON s.revision=r.revision WHERE s.revision IS NULL ORDER BY r.revision")
+            for row in missing:
+                self._add_signals(db, row["revision"], row["receipt"])
 
     @contextmanager
     def _transaction(self, *, initialize: bool = False) -> Iterator[sqlite3.Connection]:
         with closing(sqlite3.connect(self.path, timeout=1)) as db:
             db.row_factory = sqlite3.Row
             db.execute("PRAGMA synchronous=FULL")
+            db.execute("PRAGMA foreign_keys=ON")
             with db:
                 db.execute("BEGIN IMMEDIATE")
                 application_id = db.execute("PRAGMA application_id").fetchone()[0]
@@ -190,6 +216,7 @@ class SyntheticSupervisorJournal:
         with self._transaction() as db:
             self._guard(db, claim, now)
             db.execute("INSERT INTO receipts VALUES (?,?)", (claim.revision + 1, receipt))
+            self._add_signals(db, claim.revision + 1, receipt)
             db.execute("UPDATE supervisor SET revision=revision+1,source_after=?,reconcile_after=?, "
                 "failures=0,next_at=?,last_success=?,failure_code=NULL,owner=NULL,lease_until=NULL WHERE id=1",
                 (str(tick.cursor.source_after) if tick.cursor.source_after else None,
@@ -213,6 +240,48 @@ class SyntheticSupervisorJournal:
         with self._transaction() as db:
             return db.execute("SELECT count(*) FROM receipts").fetchone()[0]
 
+    @staticmethod
+    def _add_signals(db: sqlite3.Connection, revision: int, receipt: str) -> None:
+        payload = json.loads(receipt)
+        rejected, deferred, refresh_ids = payload["rejected"], payload["proofs_deferred"], payload["content_refresh_due"]
+        if any(type(v) is not int or not 0 <= v <= 200 for v in (rejected, deferred)) or (
+            not isinstance(refresh_ids, list) or len(refresh_ids) > 100
+        ):
+            raise ValueError("invalid bounded supervisor signals")
+        refresh = len(refresh_ids)
+        pending = int(bool(rejected or deferred or refresh))
+        db.execute("INSERT INTO receipt_signals VALUES(?,?,?,?,?)", (revision, rejected, deferred, refresh, 1 - pending))
+        db.execute("UPDATE pending_signals SET receipts=receipts+?,rejected=rejected+?,deferred=deferred+?,refresh=refresh+? "
+                   "WHERE id=1", (pending, rejected, deferred, refresh))
+
+    def pending(self) -> PendingSignals:
+        with self._transaction() as db:
+            row = db.execute("SELECT * FROM pending_signals WHERE id=1").fetchone()
+            return PendingSignals(row["receipts"], row["rejected"], row["deferred"], row["refresh"])
+
+    def receipt_digest(self, revision: int) -> str:
+        with self._transaction() as db:
+            row = db.execute("SELECT receipt FROM receipts WHERE revision=?", (revision,)).fetchone()
+            if row is None:
+                raise ValueError("supervisor receipt not found")
+            return hashlib.sha256(row[0].encode()).hexdigest()
+
+    def acknowledge(self, revision: int, *, expected_digest: str) -> None:
+        """Explicit consumer decision for one exact receipt; idempotent and durable.
+
+        No tick calls this. Acknowledgement never deletes evidence or frees
+        retention capacity, and cannot acknowledge a later/newer receipt.
+        """
+        with self._transaction() as db:
+            row = db.execute("SELECT r.receipt,s.* FROM receipts r JOIN receipt_signals s "
+                             "ON s.revision=r.revision WHERE r.revision=?", (revision,)).fetchone()
+            if row is None or hashlib.sha256(row["receipt"].encode()).hexdigest() != expected_digest:
+                raise ValueError("supervisor receipt acknowledgement mismatch")
+            if not row["acked"]:
+                db.execute("UPDATE pending_signals SET receipts=receipts-1,rejected=rejected-?,deferred=deferred-?, "
+                    "refresh=refresh-? WHERE id=1", (row["rejected"], row["deferred"], row["refresh"]))
+                db.execute("UPDATE receipt_signals SET acked=1 WHERE revision=?", (revision,))
+
 
 @dataclass(frozen=True)
 class SupervisorHealth:
@@ -228,6 +297,9 @@ class SupervisorHealth:
     deferred_proofs: int
     content_refresh_due: int
     receipt_capacity_reached: bool
+    pending_signal_receipts: int
+    source_check_errors: int
+    content_refresh_needed: int
     attention: bool
 
 
@@ -297,7 +369,21 @@ class SyntheticFactSupervisor:
             rows = (await session.execute(select(AiFactJob.status, AiFactJob.attempts, AiFactJob.lease_until)
                 .where(scope, AiFactJob.status.in_(["pending", "running", "failed"]))
                 .order_by(AiFactJob.id).limit(self.journal.policy.max_health_jobs + 1))).all()
+            source = ExternalListingSource.__table__
+            now_sql = func.statement_timestamp()
+            source_rows = (await session.execute(select(source.c.source_name, source.c.current_status,
+                source.c.last_success_at, now_sql.label("checked_at"),
+                source_check_health_predicate(source, now_sql).label("check_healthy"))
+                .where(source.c.source_name.in_(self.coordinator.sources),
+                       source.c.current_status.in_(["active", "unknown", "unavailable"]))
+                .order_by(source.c.id).limit(self.journal.policy.max_health_jobs + 1))).all()
         truncated = len(rows) > self.journal.policy.max_health_jobs
+        truncated |= len(source_rows) > self.journal.policy.max_health_jobs
+        source_rows = source_rows[:self.journal.policy.max_health_jobs]
+        source_errors = sum(not row.check_healthy for row in source_rows)
+        content_due = sum(row.current_status == "active" and (row.last_success_at is None
+            or row.last_success_at > row.checked_at or row.checked_at - row.last_success_at > timedelta(
+                seconds=self.coordinator.sources[row.source_name].content_max_age_seconds)) for row in source_rows)
         rows = rows[:self.journal.policy.max_health_jobs]
         terminal = sum(r.status == "failed" for r in rows)
         expired = sum(r.status == "running" and r.lease_until.timestamp() <= now for r in rows)
@@ -308,11 +394,11 @@ class SyntheticFactSupervisor:
         receipt = self.journal.receipt(state.revision)
         if state.revision > 0 and receipt is None:
             raise SupervisorUnavailable("SYNTHETIC_SUPERVISOR_RECEIPT_MISSING")
-        rejected = receipt["rejected"] if receipt else 0
-        deferred = receipt["proofs_deferred"] if receipt else 0
-        refresh = len(receipt["content_refresh_due"]) if receipt else 0
+        signals = self.journal.pending()
+        rejected, deferred, refresh = signals.rejected, signals.deferred, signals.refresh
         capacity = self.journal.receipt_count() >= self.journal.policy.max_receipts
         return SupervisorHealth(state.revision, stale, state.failures, terminal, expired, retry, pending, truncated,
-            rejected, deferred, refresh, capacity,
+            rejected, deferred, refresh, capacity, signals.receipts, source_errors, content_due,
             stale or state.failures > 0 or terminal > 0 or expired > 0 or retry > 0 or truncated
-            or pending > 0 or rejected > 0 or deferred > 0 or refresh > 0 or capacity)
+            or pending > 0 or rejected > 0 or deferred > 0 or refresh > 0 or capacity
+            or source_errors > 0 or content_due > 0)

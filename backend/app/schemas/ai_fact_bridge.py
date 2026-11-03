@@ -7,7 +7,7 @@ authorize outbound data. A reviewed server builder must supply the packet.
 from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import Field, model_validator
+from pydantic import Field, TypeAdapter, ValidationError, model_validator
 
 from .ai_listing_facts import Code, Contract, Digest
 
@@ -18,8 +18,17 @@ ProviderField = Literal["pets_allowed", "children_allowed", "smoking_allowed", "
 POLICY_FIELDS = frozenset({"pets_allowed", "children_allowed", "smoking_allowed", "room_capacity", "couples_allowed",
                            "students_only", "smoking_indoors_allowed", "smoking_outdoors_allowed"})
 ProviderPath = Annotated[str, Field(min_length=1, max_length=120, pattern=r"^[A-Za-z][A-Za-z0-9_.\[\]-]*$")]
+SOURCE_NAME_PREFIX = r"[A-Za-z][A-Za-z0-9_-]{0,63}"
+SourceName = Annotated[str, Field(pattern=rf"^{SOURCE_NAME_PREFIX}$")]
 OpaqueSource = Annotated[str, Field(max_length=120,
-    pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,63}(?::[A-Za-z0-9_-]{1,55})?$")]
+    pattern=rf"^{SOURCE_NAME_PREFIX}(?::[A-Za-z0-9_-]{{1,55}})?$")]
+
+
+def checked_source_name(value: object) -> str:
+    try:
+        return TypeAdapter(SourceName).validate_python(value, strict=True)
+    except ValidationError:
+        raise ValueError("bridge-compatible source name required") from None
 
 
 class BridgeRejected(ValueError):

@@ -202,6 +202,49 @@ async def test_fresh_content_is_not_reported_as_due(pipeline, coordinator):
     assert not (await coordinator.run_once(FactCoordinatorCursor())).content_refresh_due
 
 
+@pytest.mark.parametrize("head", ["exhausted", "superseded"])
+@pytest.mark.parametrize("concurrent", [False, True])
+async def test_queue_cleanup_does_not_end_source_budget(pipeline, coordinator, head, concurrent):
+    first = await queue(pipeline)
+    second = await queue(pipeline)
+    async with pipeline[1]() as session, session.begin():
+        if head == "exhausted":
+            await session.execute(text("UPDATE ai_fact_jobs SET attempts=2 WHERE id=:id"), {"id": first})
+        else:
+            await session.execute(text("UPDATE ai_fact_sources SET generation=generation+1 "
+                "WHERE source_record_id=(SELECT source_record_id FROM ai_fact_jobs WHERE id=:id)"), {"id": first})
+    if concurrent:
+        await asyncio.gather(*(coordinator.run_once(FactCoordinatorCursor()) for _ in range(2)))
+    else:
+        await coordinator.run_once(FactCoordinatorCursor())
+    assert (await job_state(pipeline, second))[:2] == ("succeeded", 1)
+
+
+async def test_one_attempt_budget_reports_cleanup_then_next_tick_progresses(pipeline, coordinator):
+    first, second = await queue(pipeline), await queue(pipeline)
+    async with pipeline[1]() as session, session.begin():
+        await session.execute(text("UPDATE ai_fact_jobs SET attempts=2 WHERE id=:id"), {"id": first})
+    limited = make_coordinator(pipeline[0], max_jobs=1)
+    assert (await limited.run_once(FactCoordinatorCursor())).job_outcomes == ("skipped_terminal",)
+    assert (await job_state(pipeline, second))[0] == "pending"
+    assert (await limited.run_once(FactCoordinatorCursor())).job_outcomes == ("succeeded",)
+
+
+@pytest.mark.parametrize("name", ["idealista", "synthetic", "Idealista", "A" + "a" * 63])
+async def test_valid_source_prefix_captures_and_runs_with_exact_case(pipeline, coordinator, name):
+    from dataclasses import replace
+
+    from app.services.ai_fact_coordinator import OfflineFactCoordinator
+    await queue(pipeline)
+    async with pipeline[1]() as session, session.begin():
+        await session.execute(text("UPDATE external_listing_sources SET source_name=:name"), {"name": name})
+    source = replace(next(iter(coordinator.sources.values())), source_name=name)
+    valid = OfflineFactCoordinator(pipeline[0], sources=(source,), max_sources=2,
+                                   max_reconcile=2, max_payload_bytes=131_072)
+    result = await valid.run_once(FactCoordinatorCursor())
+    assert result.observed == result.proofs_prepared == 1 and "succeeded" in result.job_outcomes
+
+
 @pytest.mark.parametrize("limit", [0, 101, True])
 async def test_configuration_rejects_unbounded_limits(pipeline, coordinator, limit):
     with pytest.raises(ValueError):

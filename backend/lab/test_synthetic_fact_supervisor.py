@@ -3,6 +3,7 @@ import asyncio
 import sqlite3
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
@@ -288,3 +289,55 @@ async def test_worker_policy_drift_is_refused_before_tick(harness):
     with pytest.raises(SupervisorUnavailable):
         await harness.run_once()
     harness.coordinator.run_once.assert_not_awaited()
+
+
+@pytest.mark.parametrize("name", ["foo.bar", "foo:bar", "foo bar", "a" * 65, "1synthetic", "", "\nfoo"])
+def test_invalid_source_prefix_is_rejected_during_construction(harness, name):
+    source = replace(next(iter(harness.coordinator.sources.values())), source_name=name)
+    with pytest.raises(ValueError, match="^bridge-compatible source name required$") as error:
+        OfflineFactCoordinator(harness.coordinator.pipeline, sources=(source,), max_sources=1,
+                               max_reconcile=1, max_payload_bytes=1024)
+    assert error.value.__cause__ is None
+
+
+def test_pending_signals_survive_clean_tick_reopen_and_concurrent_exact_ack(tmp_path):
+    store = journal(tmp_path)
+    dirty = replace(tick(), rejected=2, proofs_deferred=3)
+    store.complete(store.claim(1000), dirty, 1000)
+    clean = replace(tick(), rejected=0, proofs_deferred=0, content_refresh_due=())
+    store.complete(store.claim(1010), clean, 1010)
+    reopened = journal(tmp_path)
+    pending = reopened.pending()
+    assert (pending.receipts, pending.rejected, pending.deferred, pending.refresh) == (1, 2, 3, 1)
+    with pytest.raises(ValueError, match="acknowledgement mismatch"):
+        reopened.acknowledge(1, expected_digest="0" * 64)
+    digest = reopened.receipt_digest(1)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _: reopened.acknowledge(1, expected_digest=digest), range(2)))
+    assert results == [None, None] and journal(tmp_path).pending().receipts == 0
+    assert reopened.receipt(1)["content_refresh_due"]  # No evidence pruning.
+    store.complete(store.claim(1020), dirty, 1020)
+    reopened.acknowledge(1, expected_digest=digest)  # A retry cannot acknowledge revision3.
+    assert reopened.pending().receipts == 1 and reopened.pending().refresh == 1
+
+
+def test_old_journal_backfills_unhandled_receipts_without_reset(tmp_path):
+    store = journal(tmp_path)
+    store.complete(store.claim(1000), tick(), 1000)
+    with sqlite3.connect(store.path) as db:
+        db.execute("DROP TABLE pending_signals")
+        db.execute("DROP TABLE receipt_signals")
+    reopened = journal(tmp_path)
+    assert reopened.state().revision == 1 and reopened.pending().refresh == 1
+    assert journal(tmp_path).pending().refresh == 1  # No duplicate backfill.
+
+
+def test_signal_totals_rollback_with_checkpoint_and_receipt(tmp_path):
+    store = journal(tmp_path)
+    claim = store.claim(1000)
+    with sqlite3.connect(store.path) as db:
+        db.execute("CREATE TRIGGER fail_checkpoint BEFORE UPDATE OF revision ON supervisor "
+                   "BEGIN SELECT RAISE(ABORT,'synthetic fault'); END")
+    with pytest.raises(sqlite3.IntegrityError):
+        store.complete(claim, tick(), 1000)
+    assert store.pending().receipts == 0 and store.pending().refresh == 0

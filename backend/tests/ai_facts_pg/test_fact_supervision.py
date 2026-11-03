@@ -170,3 +170,51 @@ async def test_capacity_is_attention_even_with_fresh_success(pipeline, coordinat
     assert await runner.run_once() == "committed"
     health = await runner.health()
     assert health.receipt_capacity_reached and health.attention and not health.stale
+
+
+@pytest.mark.parametrize("result", ["blocked", "temporary_error", "unknown"])
+async def test_failed_source_probe_stays_attention_after_successful_tick(pipeline, coordinator, tmp_path, result):
+    await queue(pipeline)
+    async with pipeline[1]() as session, session.begin():
+        await session.execute(text("UPDATE external_listing_sources SET last_success_at=clock_timestamp()"))
+    runner = await supervisor(tmp_path, coordinator)
+    assert await runner.run_once() == "committed"
+    assert not (await runner.health()).attention
+    async with pipeline[1]() as session, session.begin():
+        await session.execute(text("UPDATE external_listing_sources SET last_checked_at=clock_timestamp(), "
+            "last_state_check_at=clock_timestamp(),last_state_check_result=:result"), {"result": result})
+    # A successful parse/proof tick must not erase the newer failed probe.
+    runner.clock = lambda: time.time() + 11
+    assert await runner.run_once() == "committed"
+    assert (await runner.health()).attention
+    assert (await runner.health()).source_check_errors == 1
+    async with pipeline[1]() as session, session.begin():
+        await session.execute(text("UPDATE external_listing_sources SET last_checked_at=statement_timestamp(), "
+            "last_state_check_at=statement_timestamp(),last_state_check_result='active'"))
+    assert (await runner.health()).source_check_errors == 0
+
+
+async def test_old_refresh_receipt_survives_new_clean_page_and_reopen(pipeline, coordinator, tmp_path):
+    from app.services.ai_fact_coordinator import OfflineFactCoordinator
+    await queue(pipeline)
+    await queue(pipeline)
+    async with pipeline[1]() as session, session.begin():
+        await session.execute(text("UPDATE external_listing_sources SET last_success_at=clock_timestamp()"))
+        await session.execute(text("UPDATE external_listing_sources SET last_success_at=clock_timestamp()-interval '121 seconds' "
+            "WHERE id=(SELECT min(id::text)::uuid FROM external_listing_sources)"))
+    paged = OfflineFactCoordinator(pipeline[0], sources=tuple(coordinator.sources.values()),
+                                  max_sources=1, max_reconcile=2, max_payload_bytes=131_072)
+    runner = await supervisor(tmp_path, paged)
+    assert await runner.run_once() == "committed"
+    assert len(runner.journal.receipt(1)["content_refresh_due"]) == 1
+    reopened = await supervisor(tmp_path, paged, clock=lambda: time.time() + 11)
+    assert await reopened.run_once() == "committed"
+    assert not reopened.journal.receipt(2)["content_refresh_due"]
+    assert (await reopened.health()).content_refresh_due == 1
+    async with pipeline[1]() as session, session.begin():
+        await session.execute(text("UPDATE external_listing_sources SET last_success_at=clock_timestamp()"))
+    # Upstream recovery does not silently acknowledge the older durable signal.
+    assert (await reopened.health()).attention
+    digest = reopened.journal.receipt_digest(1)
+    reopened.journal.acknowledge(1, expected_digest=digest)
+    assert not (await reopened.health()).attention

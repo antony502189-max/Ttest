@@ -10,14 +10,14 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from ..repositories.ai_fact_pipeline import FactPipeline
 from ..repositories.ai_fact_snapshots import CapturedParserSnapshot, FactSnapshotReader
-from ..schemas.ai_fact_bridge import BridgeMapping, BridgeRejected, ParserEvidencePacket
+from ..schemas.ai_fact_bridge import BridgeMapping, BridgeRejected, ParserEvidencePacket, checked_source_name
 from ..schemas.ai_fact_pipeline import FactJobClaim, FactJobReceipt, StaleFactWorker
 from ..schemas.ai_listing_facts import Contract, Version
 from .ai_fact_bridge import prepare_captured_source
 
 
 class OfflineFactRun(Contract):
-    outcome: Literal["no_claim", "succeeded", "retry_scheduled", "failed", "stale"]
+    outcome: Literal["no_claim", "succeeded", "retry_scheduled", "failed", "stale", "skipped_terminal", "skipped_superseded"]
     job_id: UUID | None
     receipt: FactJobReceipt | None
     failure_code: Literal["INVALID_RESULT", "EXTRACTOR_FAILED", "STALE_CLAIM"] | None
@@ -37,7 +37,7 @@ class OfflineFactJobRunner:
         self.mapping = BridgeMapping.model_validate(mapping)
         self.extractor_version = TypeAdapter(Version).validate_python(extractor_version, strict=True)
         self.retry_builder_failures = retry_builder_failures
-        self.source_name = source_name
+        self.source_name = checked_source_name(source_name) if source_name is not None else None
 
     @staticmethod
     def _stale(claim: FactJobClaim, receipt: FactJobReceipt | None = None) -> OfflineFactRun:
@@ -58,9 +58,13 @@ class OfflineFactJobRunner:
     async def run_once(self) -> OfflineFactRun:
         """Caller explicitly invokes one bounded attempt. no_claim is not global queue exhaustion."""
         try:
-            claim = await self.pipeline.claim(extractor_version=self.extractor_version, source_name=self.source_name)
+            claim = await self.pipeline.claim(extractor_version=self.extractor_version, source_name=self.source_name,
+                                              report_skips=True)
             if claim is None:
                 return OfflineFactRun(outcome="no_claim", job_id=None, receipt=None, failure_code=None)
+            if isinstance(claim, FactJobReceipt):
+                return OfflineFactRun(outcome="skipped_terminal" if claim.status == "failed" else "skipped_superseded",
+                                      job_id=claim.job_id, receipt=claim, failure_code=None)
             try:
                 ready = await prepare_captured_source(
                     self.reader, claim.source_record_id, builder=self.builder, mapping=self.mapping,

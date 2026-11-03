@@ -9,7 +9,14 @@ from uuid import UUID, uuid5
 
 from ..repositories.ai_fact_snapshots import CapturedParserSnapshot, FactSnapshotReader
 from ..schemas.ai_evidence_support import SUPPORTED_PROVIDER_FIELDS, has_evidence_text
-from ..schemas.ai_fact_bridge import BridgeMapping, BridgeReference, BridgeRejected, ParserEvidencePacket, ParserSpan
+from ..schemas.ai_fact_bridge import (
+    BridgeMapping,
+    BridgeReference,
+    BridgeRejected,
+    ParserEvidencePacket,
+    ParserSpan,
+    checked_source_name,
+)
 from ..schemas.ai_fact_pipeline import FactJobClaim, SourceInput
 from ..schemas.ai_listing_facts import EvidenceSpan, FactBatch, FactObservation, FactVocabulary, Version, digest
 
@@ -258,8 +265,10 @@ async def prepare_captured_source(reader: FactSnapshotReader, source_record_id: 
                                   extractor_version: Version, source_name: str | None = None) -> PreparedFactInput:
     # No default builder. The reviewed future minimizer runs after capture has
     # released its DB connection; old snapshot tokens fail AI-04 observe CAS.
+    if source_name is not None:
+        source_name = checked_source_name(source_name)
     captured = await reader.capture(source_record_id)
-    if source_name is not None and captured.reference.source_identifier.split(":", 1)[0] != source_name:
+    if source_name is not None and captured.reference.source_identifier != f"{source_name}:{source_record_id.hex}":
         raise BridgeRejected("SOURCE_MAPPING_MISMATCH")
     try:
         packet = builder(captured)

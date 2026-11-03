@@ -1,13 +1,24 @@
 """Explicit SQL freshness guard; compose BEFORE count/order/LIMIT/aggregate."""
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import and_, func, literal, or_, select
 from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy.sql.selectable import FromClause
 
 from ..models import ExternalListingSource
 from ..services.ai_fact_quality import FactQualityPolicy
 from ..services.ai_hard_matching import HardMatchPlan
 from .ai_fact_pipeline import FactPipeline
+
+
+def source_check_health_predicate(source: FromClause, now: ColumnElement[datetime]) -> ColumnElement[bool]:
+    """One shared chronology rule for verified eligibility and bounded health."""
+    latest_check_succeeded = or_(source.c.last_checked_at.is_(None),
+        source.c.last_checked_at <= source.c.last_success_at,
+        and_(source.c.last_state_check_result == "active", source.c.last_state_check_at == source.c.last_checked_at,
+             source.c.last_checked_at <= now))
+    return func.coalesce(and_(source.c.current_status == "active", latest_check_succeeded), False)
 
 
 def source_freshness_predicate(listing_id: ColumnElement[UUID], plan: HardMatchPlan,
@@ -23,13 +34,9 @@ def source_freshness_predicate(listing_id: ColumnElement[UUID], plan: HardMatchP
     # older success must not attest current AI evidence after that failure.
     # A positive presence probe clears that failure, but does not advance
     # last_success_at/content freshness; detail import owns that timestamp.
-    latest_check_succeeded = or_(source.c.last_checked_at.is_(None),
-        source.c.last_checked_at <= source.c.last_success_at,
-        and_(source.c.last_state_check_result == "active", source.c.last_state_check_at == source.c.last_checked_at,
-             source.c.last_checked_at <= now))
-    healthy = and_(source.c.current_status == "active", source.c.last_success_at.is_not(None),
+    healthy = and_(source.c.last_success_at.is_not(None),
                    source.c.last_success_at <= now, source.c.last_success_at >= now - age,
-                   latest_check_succeeded)
+                   source_check_health_predicate(source, now))
     return and_(select(1).select_from(source).where(relevant).exists(),
                 ~select(1).select_from(source).where(relevant, ~func.coalesce(healthy, False)).exists())
 

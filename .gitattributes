@@ -18,3 +18,4 @@ docs/reports/ai-search-s2-profile-20261103-evidence/** -text whitespace=cr-at-eo
 docs/reports/ai-search-s1-20261103-evidence/browser-browser.log whitespace=-blank-at-eol,cr-at-eol
 docs/reports/ai-search-s2-checks-20261103-evidence/** -text whitespace=-blank-at-eol,cr-at-eol
 docs/reports/ai-search-s2-supervisor-20261103-evidence/** -text whitespace=-blank-at-eol,cr-at-eol
+docs/reports/pr405-review-fixes-evidence/** -text whitespace=-blank-at-eol,cr-at-eol

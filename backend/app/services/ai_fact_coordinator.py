@@ -17,7 +17,7 @@ from ..models import ExternalListingSource
 from ..repositories.ai_fact_pipeline import FactPipeline
 from ..repositories.ai_fact_snapshots import CapturedParserSnapshot, FactSnapshotReader
 from ..repositories.ai_query_proofs import QueryProofs
-from ..schemas.ai_fact_bridge import BridgeMapping, BridgeRejected, ParserEvidencePacket
+from ..schemas.ai_fact_bridge import BridgeMapping, BridgeRejected, ParserEvidencePacket, checked_source_name
 from ..schemas.ai_fact_pipeline import SourceIdentityConflict
 from ..schemas.ai_listing_facts import Version
 from .ai_fact_bridge import prepare_captured_source
@@ -78,7 +78,8 @@ class OfflineFactCoordinator:
         self.sources: dict[str, SourceFactPolicy] = {}
         self.workers: list[OfflineFactJobRunner] = []
         for policy in sources:
-            if not policy.source_name or len(policy.source_name) > 64 or policy.source_name in self.sources:
+            checked_source_name(policy.source_name)
+            if policy.source_name in self.sources:
                 raise ValueError("unique explicit source names required")
             _bound(policy.content_max_age_seconds, min(pipeline.operating_policy.price_max_age_seconds,
                                                        pipeline.operating_policy.policy_max_age_seconds))

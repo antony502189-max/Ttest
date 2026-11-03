@@ -65,3 +65,11 @@ EN: 8 (balcony/budget/furnished/party); смешанный ES/EN: `mixed-two-cri
 amenities/bills/deposit/dates/stay/rental_mode и комбинации условий. Отдельный conflict-dates
 не доказывает успешный поиск по датам. Дальнейшее расширение corpus относится к S3.4;
 прежний closed LIVE admission автоматически на новые cases не распространяется.
+
+## Статусы и проверка доказательств
+
+Валидатор допускает `not_started`, `partial`, `blocked`, `verified`. Для blocked обязателен `blocker`; для verified gaps должны быть пустыми и требуется `verification`: source_sha (40hex), bounded непустые evidence и release_gates arrays. Каждый record задаёт checkout-contained path и SHA-256. Gate JSON имеет schema `ai-search-gate-review.v1`, criterion, тот же source_sha, outcome `passed`, review_kind `independent_release_gate`, непустой reviewer. Изменённый artifact, wrong-source gate, пустой review или сохраняющиеся gaps запрещают verified.
+
+Это проверка структуры, integrity и source/criterion bindings предоставленных доказательств. Она не аттестует личность reviewer или истинность результатов и не выдаёт release approval. Действительность независимого gate review проверяется в release-процессе. Отчёт этого runner всегда сохраняет `product_acceptance=false` даже при verified criterion; текущие A1–A12 остаются partial. Ни новый status label, ни существование gate JSON не включают capabilities или deployment.
+
+Обязательные validation checks используют явные exceptions, сохраняются под `python -O`. Проверяются exact A1–A12, duplicate suites, типы/лимиты metadata, разрешённые suite kinds, file existence и containment после resolution, включая symlink/outside paths.

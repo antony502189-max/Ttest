@@ -3,34 +3,103 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
 
+STATUSES = frozenset({"not_started", "partial", "blocked", "verified"})
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def strings(value, *, empty=False):
+    return isinstance(value, list) and (empty or bool(value)) and all(
+        isinstance(item, str) and bool(item.strip()) for item in value)
+
+
+def checked_file(root, name):
+    require(isinstance(name, str) and bool(name), "inventory path must be a nonempty string")
+    path = (root / name).resolve()
+    require(not Path(name).is_absolute() and path.is_relative_to(root) and path.is_file(),
+            "inventory path must be an existing file inside the checkout")
+    return path
+
+
+def checked_evidence(root, row):
+    require(isinstance(row, dict), "evidence record required")
+    digest = row.get("sha256")
+    require(isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest), "evidence SHA-256 required")
+    path = checked_file(root, row.get("path"))
+    require(hashlib.sha256(path.read_bytes()).hexdigest() == digest, "evidence digest mismatch")
+    return path
+
+
+def verify_criterion(root, row):
+    verification = row.get("verification")
+    require(isinstance(verification, dict), "verified criterion requires evidence and independent gate review")
+    source = verification.get("source_sha")
+    require(isinstance(source, str) and re.fullmatch(r"[0-9a-f]{40}", source), "verification source SHA required")
+    for kind in ("evidence", "release_gates"):
+        records = verification.get(kind)
+        require(isinstance(records, list) and 1 <= len(records) <= 100, "bounded verification records required")
+        for record in records:
+            path = checked_evidence(root, record)
+            if kind == "release_gates":
+                gate = json.loads(path.read_text(encoding="utf-8"))
+                require(isinstance(gate, dict) and gate.get("schema") == "ai-search-gate-review.v1"
+                        and gate.get("criterion") == row["id"] and gate.get("source_sha") == source
+                        and gate.get("outcome") == "passed" and gate.get("review_kind") == "independent_release_gate"
+                        and isinstance(gate.get("reviewer"), str) and bool(gate["reviewer"].strip()),
+                        "independent gate evidence must match criterion and source")
+
 
 def inventory(root):
-    manifest = root / "docs/ai-search-developer/acceptance-matrix.v1.json"
+    root = Path(root).resolve()
+    manifest_name = "docs/ai-search-developer/acceptance-matrix.v1.json"
+    manifest = checked_file(root, manifest_name)
     data = json.loads(manifest.read_text(encoding="utf-8"))
-    assert data["schema"] == "ai-search-acceptance.v1"
-    assert [row["id"] for row in data["criteria"]] == [f"A{i}" for i in range(1, 13)]
-    suites = {suite["id"]: suite for suite in data["suites"]}
-    assert len(suites) == len(data["suites"])
-    for row in data["criteria"]:
-        assert row["stage"] and row["gaps"] and row["suites"]
-        assert row["status"] == "partial"
-        assert set(row["suites"]) <= suites.keys()
+    require(isinstance(data, dict) and data.get("schema") == "ai-search-acceptance.v1", "invalid inventory schema")
+    require(isinstance(data.get("base_sha"), str) and re.fullmatch(r"[0-9a-f]{40}", data["base_sha"]),
+            "inventory base SHA required")
+    checked_file(root, data.get("plan"))
+    criteria, suite_rows = data.get("criteria"), data.get("suites")
+    require(isinstance(criteria, list) and all(isinstance(row, dict) for row in criteria), "criterion records required")
+    require([row.get("id") for row in criteria] == [f"A{i}" for i in range(1, 13)], "exact ordered A1-A12 required")
+    require(isinstance(suite_rows, list) and bool(suite_rows) and all(isinstance(row, dict) for row in suite_rows),
+            "suite records required")
+    require(all(isinstance(row.get("id"), str) and row["id"] for row in suite_rows), "suite IDs required")
+    suites = {suite["id"]: suite for suite in suite_rows}
+    require(len(suites) == len(suite_rows), "duplicate suite IDs")
+    for row in criteria:
+        require(isinstance(row.get("stage"), str) and bool(row["stage"]), "criterion stage required")
+        require(strings(row.get("suites")) and set(row["suites"]) <= suites.keys(), "unknown/empty criterion suites")
+        require(isinstance(row.get("status"), str) and row["status"] in STATUSES, "invalid criterion status")
+        require(strings(row.get("gaps"), empty=row["status"] == "verified"), "criterion gaps must be explicit")
+        if row["status"] == "blocked":
+            require(isinstance(row.get("blocker"), str) and bool(row["blocker"].strip()), "blocked criterion needs a reason")
+        if row["status"] == "verified":
+            require(not row["gaps"], "verified criterion cannot retain open gaps")
+            verify_criterion(root, row)
     hashes = {}
-    for suite in suites.values():
-        assert suite["kind"] in {"unit", "mock-browser", "disposable-service", "gated"}
-        assert suite["paths"] and suite["limit"]
+    for suite in suite_rows:
+        require(isinstance(suite.get("kind"), str) and suite["kind"] in {
+            "unit", "mock-browser", "disposable-service", "gated"}, "invalid suite kind")
+        require(strings(suite.get("paths")) and isinstance(suite.get("limit"), str) and suite["limit"].strip(),
+                "suite paths and limits required")
+        if suite["kind"] == "mock-browser":
+            checked_file(root, suite.get("config"))
         for name in suite["paths"]:
-            path = (root / name).resolve()
-            assert path.is_relative_to(root) and path.is_file(), name
+            path = checked_file(root, name)
             hashes[name] = hashlib.sha256(path.read_bytes()).hexdigest()
-    hashes[str(manifest.relative_to(root)).replace("\\", "/")] = hashlib.sha256(manifest.read_bytes()).hexdigest()
-    hashes["scripts/ai-search-acceptance.py"] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    hashes[manifest_name] = hashlib.sha256(manifest.read_bytes()).hexdigest()
+    hashes["scripts/ai-search-acceptance.py"] = hashlib.sha256(
+        checked_file(root, "scripts/ai-search-acceptance.py").read_bytes()).hexdigest()
     return data, hashes
 
 
