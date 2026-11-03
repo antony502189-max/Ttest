@@ -28,12 +28,26 @@ Freshness использует реальный `last_success_at` действу
 retired peers исключаются, но один отсутствующий источник не создаёт свежесть.
 Равенство hash и время вычисления projection не обновляют возраст источника.
 
+Уточнение S2.2–S2.3 от 03.11.2026: `last_checked_at`, который новее
+`last_success_at`, означает, что прежний успех больше не подтверждает здоровье
+источника. После blocked/403, temporary_error/429/timeout или unknown AI guard
+исключает запись, audit относит её к source_error. Обычная публикация остаётся
+active по прежнему manual lifecycle. Последующий положительный presence probe
+с согласованными `last_state_check_at/result` снимает этот отказ, но не продлевает
+content freshness: он обновляет last_seen, а `last_success_at` продлевает только
+успешный detail import, сохраняющий snapshot. Без свежего содержимого запись
+остаётся stale даже после повторного presence probe и QueryProofs.prepare.
+Старые timestamps после ранее выполнявшихся presence probes этим изменением
+не перепроверяются: перед приёмкой реального покрытия нужны новые разрешённые
+content measurements. Это не разрешение на автоматический backfill.
+
 `source_freshness_predicate(Listing.id, plan, policy)` — отдельный SQL guard:
 добавляется вместе с existing currentness, hard matching и всеми eligibility
 условиями ДО count/order/seek/LIMIT/aggregate. Время берётся заново через
 statement_timestamp; prepared proof сам по себе TTL не продлевает. Guard не
-заменяет currentness. Он не подключён автоматически к public/runtime query paths:
-первое применение — закрытый explicit audit и synthetic SQL checks.
+заменяет currentness. В VerifiedCardSearch он применяется при явно переданном
+`pipeline.operating_policy`, включая coverage, cards и map. Это не собирает
+production runtime и не включает публичный AI автоматически.
 
 `FactPipeline.purge_expired_evidence(listing_id, retention_seconds=...)` — явный
 вызов очистки AI evidence, без scheduler и real-content ingestion. Срок считается

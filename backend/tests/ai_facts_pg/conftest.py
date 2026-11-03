@@ -66,6 +66,7 @@ async def pipeline(pg):
         connection.execute(text("CREATE TABLE listings (id uuid PRIMARY KEY, status listing_status NOT NULL, deleted_at timestamptz, owner_user_id uuid)"))
         connection.execute(text("CREATE TABLE external_listing_sources (id uuid PRIMARY KEY, canonical_listing_id uuid NOT NULL, "
                                 "fingerprint text NOT NULL, current_status text NOT NULL, last_success_at timestamptz, "
+                                "last_checked_at timestamptz, last_state_check_at timestamptz, last_state_check_result text, "
                                 "content_updated_at timestamptz, raw_payload jsonb NOT NULL DEFAULT '{}', "
                                 "normalized_payload jsonb NOT NULL DEFAULT '{}', source_price_text text, "
                                 "source_name text NOT NULL DEFAULT 'synthetic', external_id text NOT NULL DEFAULT 'fixture', "

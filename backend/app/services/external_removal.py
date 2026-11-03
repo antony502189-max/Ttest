@@ -280,7 +280,9 @@ async def reconcile_source(
                     }
                 )
             elif state == "active":
-                row.last_success_at = row.last_seen_at = row.last_checked_at
+                # A presence probe does not capture/compare the stored detail
+                # payload. Only a successful detail import can renew its age.
+                row.last_seen_at = row.last_checked_at
                 row.consecutive_missing_runs = row.consecutive_unknown_state_runs = 0
                 row.last_error = None
             else:

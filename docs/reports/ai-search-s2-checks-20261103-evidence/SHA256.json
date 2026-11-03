@@ -1,0 +1,87 @@
+[
+  {
+    "file": "baseline.xml",
+    "sha256": "b7c8e4411b1990d6781a01377f6f1114a5607eba4b6d70831a7af3f76c77693c",
+    "bytes": 16153
+  },
+  {
+    "file": "cleanup.json",
+    "sha256": "416151639a2d795b6b22567acaa2c9fd4bf951580b1b08f76e1d6527d42b354b",
+    "bytes": 187
+  },
+  {
+    "file": "facts-final-quality.xml",
+    "sha256": "97b42a04de55693946b426fdd06080898d000ba3fa9110c3213079dba02dfd2c",
+    "bytes": 1433
+  },
+  {
+    "file": "facts-final.log",
+    "sha256": "2b59fb606f50882a16ef238271f4fd3da2b86a614e7139be13465460f40da958",
+    "bytes": 449
+  },
+  {
+    "file": "facts-final.xml",
+    "sha256": "4524be544b17d9cf1c06afbdb77da0cd09945455f0b49c5addd068eb69ac8adc",
+    "bytes": 44844
+  },
+  {
+    "file": "integration-final.log",
+    "sha256": "96ada2e9837acd762e2b7b287ef482e135f0e046ecc9e2215ea89b0cf64a6ab4",
+    "bytes": 1303
+  },
+  {
+    "file": "integration-final.xml",
+    "sha256": "632ac72f857d57d0f3f9b9de64347e98812c815c04b331b8900bf369718fcdcb",
+    "bytes": 17351
+  },
+  {
+    "file": "integration-presence-final.log",
+    "sha256": "2663721dc50a0b2168af9327f6183d15e89bd959afe771707f0e77826c7fd8ef",
+    "bytes": 871
+  },
+  {
+    "file": "integration-presence-final.xml",
+    "sha256": "de9e022ef1d3569a7c31e977c4a912475a5d1e916b2f256c99372f393ebed60a",
+    "bytes": 5801
+  },
+  {
+    "file": "main-post-merge-ci.json",
+    "sha256": "57e48d410ff6cbac38c8428dda0b7372baf7990dff3484c99ea8c918672201f5",
+    "bytes": 1497
+  },
+  {
+    "file": "matrix-inventory.json",
+    "sha256": "6f1912103f248b4374bfa5489845448f0a6178c38c48c712390286eb7199d538",
+    "bytes": 14752
+  },
+  {
+    "file": "migration.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "file": "provenance-final.json",
+    "sha256": "e6cb71bd04c76e03e4cf399d84bd49c57293b643c4b426d63873b5b3c5eb6ced",
+    "bytes": 644
+  },
+  {
+    "file": "red-source-check.xml",
+    "sha256": "9d37449f924f278014ece86a914582549431a2b24ead08894fc3c0600f2426be",
+    "bytes": 6207
+  },
+  {
+    "file": "unit-final.log",
+    "sha256": "32d7a4badda607d1dc5056fdc1ee8bc5d985d61bae02311d79460d99d8e5ae35",
+    "bytes": 194
+  },
+  {
+    "file": "unit-final.xml",
+    "sha256": "2488b1af7b577bca98ba1e57d5d431f39c032ef94e613373cc8f4301ac2e0c8b",
+    "bytes": 19009
+  },
+  {
+    "file": "validation.json",
+    "sha256": "cc721636238e33a5127acb8d92d9f01064b18e44aa6c5cad978c22e5a6162127",
+    "bytes": 2944
+  }
+]

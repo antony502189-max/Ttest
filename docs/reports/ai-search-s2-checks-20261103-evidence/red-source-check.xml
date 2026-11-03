@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="3" time="3.661" timestamp="2026-11-03T21:00:36.547289+03:00" hostname="DESKTOP-KAHKI17"><testcase classname="tests.ai_facts_pg.test_fact_quality" name="test_failed_direct_check_blocks_recent_success_until_successful_recheck[blocked]" time="1.190"><failure message="assert (0 == 1)">pipeline = (&lt;app.repositories.ai_fact_pipeline.FactPipeline object at 0x0000024FC3FDC800&gt;, async_sessionmaker(class_='AsyncSessio...bind=&lt;sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x0000024FC3FE4A90&gt;, autoflush=True, expire_on_commit=False))
+proofs = &lt;app.repositories.ai_query_proofs.QueryProofs object at 0x0000024FBDA4D820&gt;
+result = 'blocked'
+
+    @pytest.mark.parametrize("result", ["blocked", "temporary_error", "unknown"])
+    async def test_failed_direct_check_blocks_recent_success_until_successful_recheck(pipeline, proofs, result):
+        service, sessions = pipeline
+        source = await completed(pipeline)
+        lid = source.canonical_listing_id
+    
+        async def eligible():
+            async with sessions() as session:
+                return await session.scalar(select(func.count()).select_from(Listing).where(
+                    source_freshness_predicate(Listing.id, PLAN, POLICY)))
+    
+        assert await proofs.prepare(lid)
+        assert await eligible() == 1
+        async with sessions() as session, session.begin():
+            # This is the metadata written by external_removal.reconcile_source:
+            # blocked/429/unknown retain manual publication and last_success_at.
+            await session.execute(text("UPDATE external_listing_sources SET last_checked_at=clock_timestamp(), "
+                "last_state_check_at=clock_timestamp(), last_state_check_result=:result"), {"result": result})
+        report = await audit_catalog(service, eligibility=literal(True), plan=PLAN, policy=POLICY, limit=10)
+&gt;       assert report["source_error"] == 1 and report["match"] == 0
+E       assert (0 == 1)
+
+backend\tests\ai_facts_pg\test_fact_quality.py:40: AssertionError</failure></testcase><testcase classname="tests.ai_facts_pg.test_fact_quality" name="test_failed_direct_check_blocks_recent_success_until_successful_recheck[temporary_error]" time="0.885"><failure message="assert (0 == 1)">pipeline = (&lt;app.repositories.ai_fact_pipeline.FactPipeline object at 0x0000024FC5649F70&gt;, async_sessionmaker(class_='AsyncSessio...bind=&lt;sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x0000024FC569EED0&gt;, autoflush=True, expire_on_commit=False))
+proofs = &lt;app.repositories.ai_query_proofs.QueryProofs object at 0x0000024FC57B6FC0&gt;
+result = 'temporary_error'
+
+    @pytest.mark.parametrize("result", ["blocked", "temporary_error", "unknown"])
+    async def test_failed_direct_check_blocks_recent_success_until_successful_recheck(pipeline, proofs, result):
+        service, sessions = pipeline
+        source = await completed(pipeline)
+        lid = source.canonical_listing_id
+    
+        async def eligible():
+            async with sessions() as session:
+                return await session.scalar(select(func.count()).select_from(Listing).where(
+                    source_freshness_predicate(Listing.id, PLAN, POLICY)))
+    
+        assert await proofs.prepare(lid)
+        assert await eligible() == 1
+        async with sessions() as session, session.begin():
+            # This is the metadata written by external_removal.reconcile_source:
+            # blocked/429/unknown retain manual publication and last_success_at.
+            await session.execute(text("UPDATE external_listing_sources SET last_checked_at=clock_timestamp(), "
+                "last_state_check_at=clock_timestamp(), last_state_check_result=:result"), {"result": result})
+        report = await audit_catalog(service, eligibility=literal(True), plan=PLAN, policy=POLICY, limit=10)
+&gt;       assert report["source_error"] == 1 and report["match"] == 0
+E       assert (0 == 1)
+
+backend\tests\ai_facts_pg\test_fact_quality.py:40: AssertionError</failure></testcase><testcase classname="tests.ai_facts_pg.test_fact_quality" name="test_failed_direct_check_blocks_recent_success_until_successful_recheck[unknown]" time="1.017"><failure message="assert (0 == 1)">pipeline = (&lt;app.repositories.ai_fact_pipeline.FactPipeline object at 0x0000024FC57B4230&gt;, async_sessionmaker(class_='AsyncSessio...bind=&lt;sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x0000024FC5851C50&gt;, autoflush=True, expire_on_commit=False))
+proofs = &lt;app.repositories.ai_query_proofs.QueryProofs object at 0x0000024FC5A21A60&gt;
+result = 'unknown'
+
+    @pytest.mark.parametrize("result", ["blocked", "temporary_error", "unknown"])
+    async def test_failed_direct_check_blocks_recent_success_until_successful_recheck(pipeline, proofs, result):
+        service, sessions = pipeline
+        source = await completed(pipeline)
+        lid = source.canonical_listing_id
+    
+        async def eligible():
+            async with sessions() as session:
+                return await session.scalar(select(func.count()).select_from(Listing).where(
+                    source_freshness_predicate(Listing.id, PLAN, POLICY)))
+    
+        assert await proofs.prepare(lid)
+        assert await eligible() == 1
+        async with sessions() as session, session.begin():
+            # This is the metadata written by external_removal.reconcile_source:
+            # blocked/429/unknown retain manual publication and last_success_at.
+            await session.execute(text("UPDATE external_listing_sources SET last_checked_at=clock_timestamp(), "
+                "last_state_check_at=clock_timestamp(), last_state_check_result=:result"), {"result": result})
+        report = await audit_catalog(service, eligibility=literal(True), plan=PLAN, policy=POLICY, limit=10)
+&gt;       assert report["source_error"] == 1 and report["match"] == 0
+E       assert (0 == 1)
+
+backend\tests\ai_facts_pg\test_fact_quality.py:40: AssertionError</failure></testcase></testsuite></testsuites>
