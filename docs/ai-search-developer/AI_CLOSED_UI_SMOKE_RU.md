@@ -99,6 +99,9 @@ transport. Он не читает настоящий eval journal/ключ, не
 и не является браузерной проверкой. Второй проверяет браузерные3 scenarios,
 exact retry/reload и карты в прежнем offline mode; provider replies — fixtures,
 не настоящий LLM. Evidence нового browser driver всегда сохраняется в UUID path.
+Свежие browser contexts разделены паузами35s, соблюдая реальный guest issuance
+limit2/min; часовые buckets и quotas не сбрасываются. При429 ждать технического
+окна, а не обходить ограничение новым identity/IP.
 
 ## Короткий список до закрытого пилота
 

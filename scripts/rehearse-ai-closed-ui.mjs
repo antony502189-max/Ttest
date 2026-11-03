@@ -1,6 +1,7 @@
 // Offline rehearsal of the exact proposed LIVE UI smoke. Provider bytes are
 // synthetic fixtures; UI/HTTPS/backend/PostGIS/Redis/receipts are real.
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { chromium, expect } from '@playwright/test'
@@ -14,7 +15,8 @@ const source = JSON.parse(await readFile(new URL('../output/ai-text-lab/source.j
 const dir = new URL('../output/ai-closed-ui-rehearsal/' + crypto.randomUUID() + '/', import.meta.url)
 await mkdir(dir, { recursive: true })
 const report = { source, origin, mode: 'decision-transport-fixture', apiMocks: false,
-  providerCalls: 0, liveSmoke: 'NOT_RUN', cases: [] }
+  providerCalls: 0, liveSmoke: 'NOT_RUN', status: 'RUNNING',
+  driverSha256: createHash('sha256').update(await readFile(fileURLToPath(import.meta.url))).digest('hex'), cases: [] }
 const browser = await chromium.launch({ ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH
   ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {}) })
 const headers = { Origin: origin, 'X-AI-Request': '1' }
@@ -31,7 +33,10 @@ async function openAI(page) {
   throw Error('onboarding incomplete')
 }
 try {
-  for (const testCase of cases) {
+  for (const [index, testCase] of cases.entries()) {
+    // Real guest issuance is 2/minute. Space fresh contexts; never reset buckets
+    // or retry a model operation to work around admission limits.
+    if (index > 0) await new Promise(resolve => setTimeout(resolve, 35000))
     const ctx = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 950 } })
     try {
       const build = await json(await ctx.request.get(origin + '/build-info.json'))
@@ -76,6 +81,11 @@ try {
       console.log('PASS ' + testCase.id)
     } finally { await ctx.close() }
   }
+  report.status = 'PASS'
+} catch (error) {
+  report.status = 'FAIL'
+  report.failure = { name: error.name, message: error.message.slice(0, 200) }
+  throw error
 } finally {
   await browser.close()
   await writeFile(new URL('result.json', dir), JSON.stringify(report, null, 2) + '\n', { flag: 'wx' })
