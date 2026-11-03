@@ -1,0 +1,15 @@
+{
+  "codeSource": "d596c32e492feae693f8f040e5ccaa1cc883acc6",
+  "finalTargeted": {
+    "passed": 107,
+    "coordinatorCases": 16
+  },
+  "intermediateBroader": {
+    "passed": 506,
+    "skipped": 1,
+    "beforeFinalCaptureNameGuard": true
+  },
+  "exactHeadCIConfirmed": false,
+  "deployed": false,
+  "ownedDisposableContainerRemoved": true
+}

@@ -4,7 +4,7 @@
 
 ## Явная конфигурация
 
-Конструктор требует pipeline с `FactQualityPolicy`, 1–16 `SourceFactPolicy`, `max_sources`, `max_reconcile`, `max_payload_bytes`. Каждая source policy задаёт точное имя источника, reviewed builder, `BridgeMapping`, extractor version, content TTL, число job attempts за tick и retry policy. Production mapping/default builder не добавлены. Builder синхронный, работает после освобождения capture-транзакции; разрешение outbound он не получает.
+Конструктор требует pipeline с `FactQualityPolicy`, 1–16 `SourceFactPolicy`, `max_sources`, `max_reconcile`, `max_payload_bytes`. Каждая source policy задаёт точное имя источника, reviewed builder, `BridgeMapping`, extractor version, content TTL, число job attempts за tick и retry policy. Этот TTL определяет `content_refresh_due`; SQL eligibility по-прежнему применяет существующую `FactQualityPolicy`, отдельный per-source SQL cutoff здесь не вводится. Production mapping/default builder не добавлены. Builder синхронный, работает после освобождения capture-транзакции; разрешение outbound он не получает.
 
 Лимиты: source page ≤100; отдельная catalog page ≤100; сумма job attempts по всем sources ≤100; capture ≤2 MiB; source TTL положительный и не больше минимального operating price/policy TTL. Каждый listing сохраняет существующий bound 128 источников. Reconcile/proof работают максимум с объединением двух страниц (≤200 listing IDs); worker может завершить другие ранее queued IDs, их proof будет подготовлен очередной catalog sweep. Это лимиты количества операций/данных, не wall-clock SLO: process deadline и остановку зависшего builder обеспечивает supervisor.
 

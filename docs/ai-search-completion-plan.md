@@ -1,6 +1,6 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **2.5**, 3 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **2.6**, 3 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
 
@@ -8,7 +8,7 @@
 
 **Текущий этап: S2 — рабочий каталог и обновление фактов. S1.1–S1.3 выполнены в пределах подготовки и targeted merged-source проверок; продуктовые A1–A12 остаются открытыми.**
 
-**Следующее действие S2.2:** собрать и проверить bounded coordinator существующих source capture/observe, OfflineFactJobRunner, reconcile и QueryProofs.prepare с явными source mapping/TTL/limits, recovery и supervision seam. Не создавать готовые primitives заново и не подключать production/import hooks автоматически. [Source-check fixes](reports/AI_SEARCH_S2_SOURCE_CHECKS_20261103.md) приняты локальными synthetic SQL/full-schema тестами; S2.1 реальные coverage/freshness и S2.2 supervised постоянная цепочка остаются открытыми. Ветка `codex/ai-search-acceptance-matrix`, исходный checkpoint `471843e8c68ff13ef8ff29421ac70dbb70a936c0`, main `ece1632e2872240a36646ddf0b2518a027d67d84`.**
+**Следующее действие S2.2:** реализовать локальный synthetic supervisor harness над готовым bounded coordinator: атомарные receipt+checkpoint/CAS, restart/lost-ACK, backoff/deadline и health/terminal-job signals. Не подключать production/import hooks автоматически. Coordinator связывает capture/observe, source-filtered worker, reconcile и proof prepare; явные source mapping/TTL/limits и recovery seam реализованы в `d596c32e492feae693f8f040e5ccaa1cc883acc6`. Финальные targeted107 PASS, Ruff/mypy PASS; [отчёт](reports/AI_SEARCH_S2_COORDINATOR_20261103.md). S2.1 реальные measurements и S2.2 постоянно работающая supervised цепочка остаются открытыми. Main `ece1632e2872240a36646ddf0b2518a027d67d84`; новые commits в main не слиты, exact-head CI/deploy не подтверждены.**
 
 **Передача в новый чат:** пользователь явно запросил GPT‑6.1 Sol (`gpt-6.1-sol`), reasoning `medium`. Продолжить работу, а не составлять новый roadmap. 03.11.2026 GitHub подтвердил #404 merged в16:42:08 Europe/Moscow; merge/main `ece1632e2872240a36646ddf0b2518a027d67d84`, PR head `b709810d368846e8838c13c6e3f56b8b18f08dc6`. `git fetch origin main` выполнен; origin/main совпал с merge SHA. На PR head ранее11 workflows success/2 conditional skipped; S1.3: post-merge AI frontend/combined PostGIS и capacity/security/pages SUCCESS; Full audit теперь SUCCESS; все6 post-merge main workflows SUCCESS (snapshot в отчёте S2). [Отчёт исправлений](https://github.com/antony502189-max/Ttest/blob/b709810d368846e8838c13c6e3f56b8b18f08dc6/docs/reports/PR404_REVIEW_FIXES_20261103.md), локальный snapshot `output/pr404-final-ci.json`. Merge не означает deployment/public activation.
 
@@ -89,7 +89,7 @@
 **Частично реализован.**
 
 - [ ] S2.1 Частично: создан [source-specific профиль](reports/AI_SEARCH_S2_SOURCE_PROFILE_20261103.md), повторены existing synthetic audit4active records и offline field-capabilities (real_records_measured=0). Real public/eligible/verified/unknown/region/freshness оставлены null; первоначальное разрешённое покрытие ещё не выбрано и не измерено. Не обещать всю Испанию по одному Flatio pilot.
-- [ ] S2.2 Частично: разделены presence health и content freshness; presence probe и proof reprepare больше не продлевают возраст stored content. Existing queue/worker/fencing/retry проверены, но bounded coordinator, source-specific refresh и supervision ещё нужны. [Evidence](reports/AI_SEARCH_S2_SOURCE_CHECKS_20261103.md).
+- [ ] S2.2 Частично: presence/content freshness fixes сохранены; bounded coordinator existing primitives реализован в `d596c32e492feae693f8f040e5ccaa1cc883acc6`. Source-filtered claim и captured-name guard защищают mapping, два курсора и лимиты ограничивают tick, refresh_due не продлевает content TTL. Финальные targeted107 PASS, Ruff/mypy PASS. [Coordinator/evidence](reports/AI_SEARCH_S2_COORDINATOR_20261103.md). Durable supervisor harness, разрешённый source-specific detail refresh и постоянная supervised цепочка ещё нужны; S2 не закрыт.
 - [ ] S2.3 Локальная synthetic часть расширена: исправлены direct403/429/timeout/unknown health и stale presence-refresh;3 новых SQL +4 full-schema HTTP/card/map cases. Финально8quality/32freshness-removal PASS; broader296facts/78integration были до последнего presence split и не выданы за exact-final runs. Retirement/remap/delete/conflict/visibility/fencing покрыты existing tests. Реальные source/data и supervised-chain gates остаются открытыми.
 
 Выход: согласованное измеренное покрытие, воспроизводимо свежие данные и работающий процесс их обновления; A3 и data-часть A11.
@@ -175,6 +175,7 @@
 
 | Дата | Версия/этап | Выполнено и доказательство | Следующий шаг |
 | --- | --- | --- | --- |
+| 2026-11-03 | 2.6/S2.2 | Bounded coordinator + source mapping race guards, code `d596c32e492feae693f8f040e5ccaa1cc883acc6`; финальные targeted107 PASS, Ruff/mypy4app files PASS,936runtime inputs provenance PASS; broader506PASS/1skip до final capture guard, не exact-final certification; disposable PG удалён. [Отчёт](reports/AI_SEARCH_S2_COORDINATOR_20261103.md). Реальные источники/provider/production/capacity не активированы; S0–S1 прежние статусы, S2 partial, S3–S7 и B2–B6 остаются открытыми | S2.2 local synthetic supervisor harness: durable receipt+checkpoint/CAS, restart/backoff/deadline/health |
 | 2026-11-03 | 2.5/S2.2–S2.3 | Исправлены direct-check health и presence/content freshness. Финально8SQL +32integration PASS;114unit/1skip, broader296facts/1skip и78integration отмечены как промежуточные до presence split. Миграции только в disposable PG/PostGIS. Main ece1632e:6/6 workflow SUCCESS; новый head CI/deploy не заявлен. Paid/source/outbound/journal/production/capacity не выполнялись | S2.2 bounded coordinator existing primitives/recovery/supervision seam; real S2.1 measurements открыты |
 | 2026-11-03 | 2.4/S1.1–S1.3 | Подготовлена актуальная ветка, исполнимая A1–A12 матрица и CI inventory check; 339 offline, 63 прежних browser, 12 новых A9 и 13 pairing PASS; targeted177 пересекается. Post-merge AI workflows SUCCESS, общий Full audit ещё выполняется. S2.1: existing offline audit4active synthetic records и source/field профиль, real metrics=null,7audit tests PASS. Provider/journal/production/ingestion/capacity не менялись | S2.1 профиль начат; далее S2.2–S2.3 synthetic fault chain, real measurements остаются открытыми |
 | 2026-11-03 | 2.3/S1.0 закрыт, передача | Владелец сообщил о merge#404. GitHub подтвердил merged=true,03.11 в16:42:08 Europe/Moscow, merge SHAece1632e2872240a36646ddf0b2518a027d67d84; git fetch подтвердил тот же origin/main. PR headb709810d ранее прошёл11 workflows/2conditional skipped. По запросу пользователя продолжение передаётся в новый чат GPT‑6.1 Sol/medium | S1.1: полная матрица A1–A12; prerequisite S1.2 перед правками, затем S1.3 merged-main checks |
@@ -184,6 +185,7 @@
 
 ## Изменения маршрута и отложенное
 
+- **2.5→2.6:** следующий локальный increment S2.2 реализован на existing primitives, без новой конкурирующей архитектуры или activation. Добавлены source-name guards для безопасного mapping и documented supervisor contract; реальные measurements и постоянная supervised цепочка не закрыты. A1–A12 и маршрут S2–S7 сохранены.
 - **2.4→2.5:** S2.2–S2.3 продвинуты конкретными freshness fixes и synthetic regression evidence. Presence и content checks разделены без новых migration/activation flags. Маршрут S2–S7 и критерии A1–A12 сохранены; S2 не закрыт.
 - **2.3→2.4:** выполнены S1.1–S1.3; следующий этап S2 по прежнему маршруту. Добавлены исполнимая инвентаризация и первый A9 locale/viewport contract; A1–A12 и внешние gates не ослаблены. Все локальные результаты отделены от post-merge CI и deployment.
 - **2.2→2.3:** владелец слил #404; слияние независимо подтверждено GitHub и fetch. S1.0 закрыт, продолжение — S1.1 с prerequisite S1.2 перед изменениями исходников. По прямому запросу следующий чат создаётся на GPT‑6.1 Sol / medium. S2–S7 и A1–A12 не изменены.
