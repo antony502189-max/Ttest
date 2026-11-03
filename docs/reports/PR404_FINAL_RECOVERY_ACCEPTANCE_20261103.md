@@ -78,3 +78,9 @@ CI note: первый финальный frontend job прошёл63 основ�
 7 pairing/recovery и build matrix, но provenance не нашёл ancestor source из-за
 shallow checkout. Frontend job теперь получает fetch-depth0; проверка исходного
 runtime сохранена, не заменена слабой проверкой только текущего HEAD.
+
+Mobile CI дополнительно обнаружил, что общий production-like runner автоматически
+подхватил lab-only файл без соответствующего build mode. Он исключён из общего
+test discovery и остаётся обязательным в отдельном AI frontend job с
+playwright.ai-lab.config.ts. Проверка --list подтверждает разделение; assertions
+не ослаблялись. Runtime inputs не менялись.
