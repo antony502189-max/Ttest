@@ -1,0 +1,12 @@
+{
+  "ciCheckoutSource": "ece1632e2872240a36646ddf0b2518a027d67d84",
+  "historicalValidatedRuntimeSource": "72468b2e72bef1deeae7bfb18dee22de4e3c7baf",
+  "currentRuntimeInputsMatch": true,
+  "currentRuntimeInputCount": 934,
+  "artifactHashesMatch": true,
+  "historicalEvidenceAppliesToCurrentRuntime": false,
+  "historicalBackendImage": "sha256:2fac74fd45d0ba401439220c7b804ac151ec3d11297209fef130b1607cbcf3ac",
+  "historicalFrontendImage": "sha256:ede2b2b165ed266e539739a46a5c9b7733a3a2cccb3778a4f1add1f1957b851f",
+  "localStackReexecutedInCI": false,
+  "currentContainerAcceptance": "requires independent container attestation and stack run"
+}

@@ -42,7 +42,7 @@ test('all normalized criteria preserve false, units, identity and strength; unsu
   expect(aiConditionRows({ ...intent(1), schema_version: 'future' } as unknown as AIIntent, text => text)).toBeNull()
 })
 
-async function setup(page: Page, enabled = true) {
+async function setup(page: Page, enabled = true, language = 'es') {
   // Deny all nonlocal resources, and stub every API. These tests never touch
   // source sites, real provider APIs or an application database.
   await page.route('**/*', route => {
@@ -55,7 +55,7 @@ async function setup(page: Page, enabled = true) {
     if (url.pathname.startsWith('/api/')) return route.fulfill({ status: 404, json: { detail: 'Not found' } })
     return route.continue()
   })
-  await page.addInitScript(() => { localStorage.setItem('112233:language:v1', 'es'); localStorage.setItem('112233:mobile-onboarding:v1', 'done:refreshable') })
+  await page.addInitScript(language => { localStorage.setItem('112233:language:v1', language); localStorage.setItem('112233:mobile-onboarding:v1', 'done:refreshable') }, language)
 }
 
 test('disabled runtime hides AI entry and preserves manual filters', async ({ page }) => {
@@ -1061,3 +1061,46 @@ test('review expired recovery locator cannot bind a newly entered operation to i
   expect(saved.operation.key).toBe(messages[1].idempotency_key)
   expect(saved.operation.key).not.toBe(messages[0].idempotency_key)
 })
+
+// S1.1 / A9: bounded text path across the required locales and viewport widths.
+// API responses stay synthetic; voice/save/delivery and full a11y remain open.
+const localeSmoke = {
+  es: { entry: 'Escribir mi búsqueda', label: 'Cuéntanos qué necesitas', submit: 'Buscar habitaciones', back: 'Volver a los filtros', text: 'Una habitación con balcón' },
+  ru: { entry: 'Написать запрос', label: 'Расскажите, что вам нужно', submit: 'Найти комнату', back: 'Вернуться к фильтрам', text: 'Комната с балконом' },
+  en: { entry: 'Type my search', label: 'Tell us what you need', submit: 'Find rooms', back: 'Back to filters', text: 'A room with a balcony' },
+}
+for (const [language, copy] of Object.entries(localeSmoke)) {
+  for (const width of [320, 390, 768, 1440]) {
+    test(`A9 text empty result and manual fallback ${language} ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await setup(page, true, language)
+      let queries = 0
+      await page.route('**/api/v1/ai-search/sessions', route => route.fulfill({ json: snapshot(0) }))
+      await page.route('**/api/v1/ai-search/quota', route => route.fulfill({ json: { remaining: 3 } }))
+      await page.route('**/api/v1/ai-search/query', async route => {
+        expect(route.request().postDataJSON().text).toBe(copy.text)
+        queries++
+        await route.fulfill({ json: { operation: { status: 'succeeded', remaining: 2,
+          receipt: { result_ref: ref, count: 0 } }, cards: cards() } })
+      })
+      await page.goto('/#/')
+      const entry = page.getByRole('button', { name: copy.entry, exact: true })
+      await entry.click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(page.getByLabel(copy.label, { exact: true })).toBeVisible()
+      await page.locator('#ai-rental-mode').selectOption('none')
+      await page.getByLabel(copy.label, { exact: true }).fill(copy.text)
+      await page.getByRole('button', { name: copy.submit, exact: true }).click()
+      await expect(dialog.getByRole('heading', { name: /^0 /, level: 3 })).toContainText('0')
+      await expect(dialog.locator('textarea')).toHaveValue('')
+      expect(queries).toBe(1)
+      expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+      await page.getByRole('button', { name: copy.back, exact: true }).click()
+      await expect(dialog).toBeHidden()
+      await expect(entry).toBeFocused()
+      await expect(page.locator('.m2-search-card:visible, .home-search-stage:visible').first()).toBeVisible()
+    })
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "backend/tests/fixtures/ai_listing_audit.json": "3815df2bf738f3bd95f3ac6d5c1336c9f9d84a35f9b7b338dc839df69139e75a",
+  "backend/tests/fixtures/ai_listing_policies.json": "4cf747f565de4bdc69d97f046995199eb36a54771ef01c96be73da9cf6264c85",
+  "backend/lab/fact_coverage.py": "19e8fff00b5ee24322fce1db43af836f7d7ea028b99c4c06ac09d111d186f711",
+  "backend/app/commands/audit_ai_listing_data.py": "830ab48c8ca8a471cfebff81429860e02c54a26ac4cd1b070929f4bdfe736682",
+  "backend/app/repositories/ai_fact_quality.py": "067d287c221c31575f7df863d6cd00330e7d30a259cd74d997b125a3603125fd",
+  "docs/ai-search-developer/AI_FACT_QUALITY_POLICY_RU.md": "46468257d805abbe983c618af12904afe03ac6befb7b2e62f5f801f761498a4e"
+}
