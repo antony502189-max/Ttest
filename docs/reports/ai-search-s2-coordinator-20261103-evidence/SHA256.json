@@ -13,7 +13,7 @@
   },
   {
     "file": "facts-regression.txt",
-    "sha256": "efdb842f08e1b87b69dfddf8be4f329f5ae3b2b7d67232bf767001deb2a861b1"
+    "sha256": "c2670dc5d12441924af868936958f43a69394527e91408e96509013c4e3ba7d9"
   },
   {
     "file": "facts-regression.xml",
@@ -21,7 +21,7 @@
   },
   {
     "file": "final-targeted.txt",
-    "sha256": "25cd8718c69dde4fbfe63a9fe2b744d3b771d852fa25b2682b9125e359c2d3fa"
+    "sha256": "729df121b911e1838e9519f47ef92738e489f3420f0370b14995265519ae4623"
   },
   {
     "file": "final-targeted.xml",
@@ -29,11 +29,11 @@
   },
   {
     "file": "inventory.txt",
-    "sha256": "b89d8b6ac61bf6ecdb19ce2161fd9cb19a2bf87553d45353564cf1c7cf38178a"
+    "sha256": "340dc9e2580843070eda701e6cac299fdc801b62dbadfd467e2a21014830d1ee"
   },
   {
     "file": "mypy.txt",
-    "sha256": "131ac58cf000c6e7c34a7dd94c2ca03d93bdc3560235ec2f7d182145d674a926"
+    "sha256": "3ca9ae326504af22b8b64eb0d3bacfa529328e075680e867724f560d2af000e0"
   },
   {
     "file": "provenance.json",
@@ -41,10 +41,10 @@
   },
   {
     "file": "ruff.txt",
-    "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
   },
   {
     "file": "verification.json",
-    "sha256": "2c95106ac51243e9852539b537b1f58fcd0d7be1e90a654e8bff37392f383483"
+    "sha256": "cc90c20d6a6bef8b1ba28261c46d4f5b8bf7256182f24f58a323c2873599c5f5"
   }
 ]
