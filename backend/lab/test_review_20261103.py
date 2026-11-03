@@ -144,7 +144,7 @@ def test_signed_account_review_artifact_is_required_not_just_hex_format(tmp_path
     if fault == "egress": changes = {"egress_reviewed": False}
     if fault == "access": changes = {"client_access_reviewed": False}
     if fault == "expired": changes = {"expires_at": (datetime.now(UTC) - timedelta(seconds=1)).isoformat()}
-    if fault == "timezone": changes = {"verified_at": datetime.now().isoformat()}
+    if fault == "timezone": changes = {"verified_at": "2026-11-03T00:00:00"}
     if fault == "cap": changes = {"external_cap_micro_usd": 1}
     if fault == "extra": changes = {"secret": "not accepted"}
     document = review_bytes(**changes)

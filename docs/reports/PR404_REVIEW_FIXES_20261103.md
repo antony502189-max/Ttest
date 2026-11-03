@@ -41,6 +41,8 @@ Runbook: [закрытый допуск и ограничения доказат
 
 Проверка опубликованных Git objects после первого коммита нашла CRLF→LF нормализацию трёх новых raw artifacts. Для новой evidence directory добавлено `-text` в .gitattributes; исходные bytes и SHA256 сохранены, не пересчитаны под изменённый лог. Runtime manifest обновлён с учётом самого .gitattributes. Прежние исторические evidence не менялись.
 
+Первый exact-head combined CI прошёл backend unit1692/7skip, затем остановился на DTZ005 в новом негативном тесте naive datetime. Динамический datetime.now() без tz заменён фиксированной некорректной ISO-строкой; проверка отказа сохранена. Пропущенные после lint шага PostGIS/browser проверки не объявляются пройденными; требуется новый полный run.
+
 ## Предел готовности
 
 Для слияния исправлен preparatory scope F1–F8; перед merge нужны новое exact-head CI и итоговый просмотр diff. Это не разрешение real LIVE: independent custody/account cap/egress, точный signed release, реальные user-data/privacy/catalog/migration/capacity gates сохраняются. Полный AI Search остаётся в [едином плане](../ai-search-completion-plan.md), текущий шаг S1.0.

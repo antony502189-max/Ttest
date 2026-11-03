@@ -320,7 +320,7 @@
     "backend/lab/test_closed_ui.py": "4563f5667095cc4ce53b16501cb6c1aed7dafec0",
     "backend/lab/test_closed_ui_boundaries.py": "3cabf0846ebcbfa8f5670832ca7e74ec09dff5cb",
     "backend/lab/test_decision_parser.py": "8ee93233b36fe9bb112c45806be86b6bd291f558",
-    "backend/lab/test_review_20261103.py": "9edc1922c1fb3ba51ea655d08040709039a574c8",
+    "backend/lab/test_review_20261103.py": "224478ef1b975a4c479c2491eda4a0445d18c063",
     "backend/pyproject.toml": "60e4aab0f68fbc0a02929e83398b6d13c7e45b8b",
     "backend/tests/ai_facts_pg/conftest.py": "8407aca8fbcb84a2f52197654f16b777a6999c4a",
     "backend/tests/ai_facts_pg/test_card_values.py": "4468418de70ab648bfc10dfec431b20f2438a6ed",
