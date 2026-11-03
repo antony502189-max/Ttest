@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { chromium, request, expect } from '@playwright/test'
+import { attestOfflineBackend, offlineRequestContext } from './ai-lab-runtime.mjs'
 
 const origin = 'https://localhost:9443'
 const out = new URL('../output/ai-text-lab-smoke/', import.meta.url)
@@ -18,6 +19,7 @@ const evidence = { source, url: origin, parser: 'synthetic-exact-phrases-v1 (not
   apiMocks: false, checks: [], externalRequests: [], browserErrors: [] }
 const browser = await chromium.launch({ headless: true })
 const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 1100 } })
+await attestOfflineBackend(context, source, 'finite')
 const api = context.request
 const page = await context.newPage()
 page.on('request', req => { if (new URL(req.url()).origin !== origin) evidence.externalRequests.push(req.url()) })
@@ -108,7 +110,7 @@ try {
   record('owned session/result/card/map reads + signed pagination')
   await json(await api.post(origin + '/api/v1/ai-search/identity', { headers: { ...headers, Origin: 'https://attacker.invalid' } }), 403)
   await json(await api.post(origin + '/api/v1/ai-search/identity', { headers: { Origin: origin } }), 403)
-  const other = await request.newContext({ ignoreHTTPSErrors: true })
+  const other = await offlineRequestContext(request, { ignoreHTTPSErrors: true }, source)
   try {
     await json(await post('/ai-search/identity', undefined, other))
     await json(await other.get(origin + '/api/v1/ai-search/sessions/' + sid), 404)

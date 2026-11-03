@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { chromium, request, expect } from '@playwright/test'
 import { labControl as control } from './ai-text-lab-control.mjs'
+import { attestOfflineBackend, offlineRequestContext } from './ai-lab-runtime.mjs'
 
 const origin = 'https://localhost:9443'
 const dir = new URL('../output/ai-text-acceptance/', import.meta.url)
@@ -51,6 +52,7 @@ async function call(client, method, path, data, extra = {}) {
 async function guest(language = 'es', width = 1280) {
   const ctx = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width, height: 1100 } })
   contexts.push(ctx)
+  await attestOfflineBackend(ctx, source, 'finite')
   await json(await call(ctx.request, 'POST', '/api/v1/ai-search/identity'))
   const page = await ctx.newPage()
   page.on('request', r => { if (new URL(r.url()).origin !== origin) report.externalRequests.push(r.url()) })
@@ -103,7 +105,7 @@ async function query(client, intent, text, auth = {}, limit = 1) {
   return { answer, body }
 }
 try {
-  const probe = await request.newContext({ ignoreHTTPSErrors: true })
+  const probe = await offlineRequestContext(request, { ignoreHTTPSErrors: true }, source)
   assert.equal((await json(await probe.get(origin + '/build-info.json'))).source, source)
   await probe.dispose()
   // Actual UI on every supported language and representative viewport.
@@ -150,7 +152,7 @@ try {
     await sleep(2000)
   }
   // One authenticated client for non-UI semantic and live-mutation matrix.
-  const api = await request.newContext({ ignoreHTTPSErrors: true })
+  const api = await offlineRequestContext(request, { ignoreHTTPSErrors: true }, source)
   await json(await call(api, 'POST', '/api/v1/ai-search/identity'))
   const login = await json(await call(api, 'POST', '/api/v1/auth/login', { email: 'acceptance-user@synthetic.example', password: 'Synthetic-Lab-Only-2026!' }))
   const auth = { Authorization: 'Bearer ' + login.accessToken }

@@ -6,6 +6,14 @@ export function pairedHeaders(runtime) {
   return { 'X-AI-Lab-Mode': runtime.parser, 'X-AI-Lab-Source': runtime.source, 'X-AI-Lab-Instance': runtime.instance }
 }
 
+export async function offlineRequestContext(request, options, source, parser = 'finite') {
+  const probe = await request.newContext(options)
+  let runtime
+  try { runtime = await attestOfflineBackend({ request: probe, setExtraHTTPHeaders: async () => {} }, source, parser) }
+  finally { await probe.dispose() }
+  return request.newContext({ ...options, extraHTTPHeaders: { ...options?.extraHTTPHeaders, ...pairedHeaders(runtime) } })
+}
+
 export async function attestOfflineBackend(ctx, source, parser = 'decision-transport-fixture') {
   const docker = (...args) => JSON.parse(execFileSync('docker', args, { encoding: 'utf8', timeout: 10000 }))
   const [backend] = docker('inspect', 'ttest-ai-text-lab-backend')

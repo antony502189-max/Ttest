@@ -92,7 +92,19 @@ class ExistingSmokeBudget(EvaluationBudget):
         if not os.access(self.path, os.W_OK) or not os.access(self.path.parent, os.W_OK):
             raise ProviderFailure("UI_SMOKE_JOURNAL_NOT_WRITABLE")
         with self._connect() as db:
-            self._verify(db, corpus_sha256)
+            calls, spent = self._verify(db, corpus_sha256)
+            data = admission.data
+            tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            known = db.execute("SELECT digest FROM closed_ui_authorizations WHERE id=?",
+                               (data["authorization_id"],)).fetchone() if "closed_ui_authorizations" in tables else None
+            if known is not None and known != (admission.digest,):
+                raise ProviderFailure("UI_AUTHORIZATION_BINDING_MISMATCH")
+            if "closed_ui_origin" in tables and db.execute("SELECT journal_id FROM closed_ui_origin WHERE id=1").fetchone() != (data["journal_id"],):
+                raise ProviderFailure("UI_JOURNAL_IDENTITY_MISMATCH")
+            if known is None and (calls, spent) != (data["baseline_attempts"], data["baseline_reserved_micro_usd"]):
+                raise ProviderFailure("UI_SMOKE_BASELINE_MISMATCH")
+            if calls > data["baseline_attempts"] + data["max_new_attempts"]:
+                raise ProviderFailure("PROVIDER_COST_BUDGET_EXHAUSTED")
         self.corpus_sha256 = corpus_sha256
 
     @contextmanager

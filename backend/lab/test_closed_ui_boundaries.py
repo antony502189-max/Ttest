@@ -14,6 +14,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from app.schemas.ai_search_intent import Criteria
+from app.services.ai_closed_deepseek import EvaluationBudget
 from app.services.ai_deepseek_intent import ProviderFailure
 from lab.closed_ui import ExistingSmokeBudget, _UIBudgetTransport, smoke_cases
 from lab.closed_ui_authorization import canonical, host_preflight, verify
@@ -230,3 +231,11 @@ async def test_competing_owned_sessions_cannot_spend_three_slots_on_one_case(tmp
     assert sorted(seen) == sorted(c["id"] for c in cases)
     assert sum(isinstance(result, ProviderFailure) for result in results) == 5
     assert parser.budget.summary()["attempts"] == 54
+
+
+def test_untracked_history_change_rejected_before_key_or_transport(tmp_path):
+    path = journal(tmp_path)
+    proof = admission_fixture(path)
+    EvaluationBudget(path, corpus_sha256=proof.data["corpus_sha256"]).reserve()
+    with pytest.raises(ProviderFailure, match="UI_SMOKE_BASELINE_MISMATCH"):
+        ExistingSmokeBudget(path, corpus_sha256=proof.data["corpus_sha256"], admission=proof)

@@ -37,6 +37,8 @@ jobs:
         run: npx playwright test --config playwright.ai-lab.config.ts
       - name: Lab build-mode matrix (no provider)
         run: node scripts/check-ai-lab-builds.mjs output/ai-lab-build-matrix
+      - name: Exact runtime code and evidence provenance
+        run: node scripts/verify-ai-lab-provenance.mjs output/ai-lab-ci-provenance.json
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -47,4 +49,6 @@ jobs:
             test-results/**
             output/ai-lab-contract-test-results/**
             output/ai-lab-build-matrix/result.json
+            output/ai-lab-ci-provenance.json
+            docs/reports/pr404-remediation-20261103-evidence/**
           if-no-files-found: ignore

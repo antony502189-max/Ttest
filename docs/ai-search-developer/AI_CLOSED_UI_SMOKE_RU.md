@@ -1,5 +1,12 @@
 # Ограниченный synthetic LIVE UI smoke: подготовка
 
+**После review PR404-01–09:** старый публичный approval token и исторические
+run manifests больше не допускают LIVE. Требуется внешнее Ed25519-разрешение
+независимого владельца с pinned public-key fingerprint вне репозитория, exact
+source/images, сроком до1h, физической identity SAME journal и подтверждённым
+внешним spending cap. Реального такого разрешения/подтверждения cap пока нет;
+новый LIVE startup BLOCKED. [Исправления и новая матрица](../reports/PR404_REVIEW_REMEDIATION_20261103.md).
+
 3 ноября 2026, Europe/Moscow. **Пользователь разрешил smoke; LIVE результат FAIL.**
 После исправления readable-but-unwritable journal выполнена1 новая provider
 attempt: cumulative52, резерв575120 microUSD, usage новой попытки неизвестен.
@@ -51,6 +58,32 @@ attempt и debit не должны повториться. При неопред
 дополнительными вызовами при сбое.
 
 ## Подготовленный код и границы активации
+
+Новый обязательный admission: read-only mount `/closed-ui-admission/` с
+`authorization.json` и raw32-byte `authority.pub`. Trust fingerprint задаётся
+release custodian отдельно (`CLOSED_UI_AUTHORITY_SHA256`), не берётся из самого
+JSON или репозитория. Формат и строгая проверка находятся в
+`backend/lab/closed_ui_authorization.py`; production signer в код не добавлен.
+Test signer предназначен только для файлов `DISPOSABLE-*` и никогда не вызывается
+`closed_ui_entry`. Подписанное утверждение об external cap должно опираться на
+реальное независимое account evidence; schema не проверяет provider account.
+
+Payload связывает authorization/journal IDs, UTC issued/expiry, backend/frontend
+Git source и image IDs, corpus, канонические host/runtime file path/device/inode,
+baseline/reserve, case IDs и прежние consumed cases, максимум новых attempts и
+reservation, external cap и hash подтверждения. Подмена/копирование SQLite,
+source/images или proof отвергается до key/IO. Host preflight сверяет реальные
+`docker inspect .Image` и физический original path, затем frontend/backend
+сверяются по runtime attestation перед каждым AI-запросом. Это операционный
+admission, не sandbox против администратора, способного заменить весь host.
+
+Для текущего журнала historical baseline теперь52/575120; prior_case_attempts
+должен включать `ru-balcony:52`. Использовать baseline51, новый файл или другую
+копию нельзя. Новый отдельный допуск мог бы включать только оставшиеся
+`es-monthly`/`en-negation`, до2 attempts/22120 microUSD, cumulative≤54. Это
+описание схемы, **не** новое разрешение или утверждение о готовом provider cap.
+В SAME SQLite атомарно сохраняются origin journal ID, approval digest и UNIQUE
+case→attempt; failure/cancel/lost ACK не освобождают case.
 
 - `backend/lab/closed_ui.py`: exact corpus gate, reopen-only cumulative budget,
   отдельная UI-compatible policy и factory на общей UI/backend composition.
