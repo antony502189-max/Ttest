@@ -8,3 +8,4 @@ docs/reports/ai-closed-ui-preparation-20261103-evidence/live-frontend-build.txt 
 docs/reports/ai-closed-live-ui-20261103-evidence/** -text whitespace=cr-at-eol
 docs/reports/ai-closed-live-ui-20261103-evidence/authorized-execution.ps1.txt whitespace=-blank-at-eof,cr-at-eol
 docs/reports/pr404-remediation-20261103-evidence/** -text whitespace=cr-at-eol
+docs/reports/pr404-recovery-final-20261103-evidence/** -text whitespace=cr-at-eol

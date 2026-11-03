@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 
-const root = new URL('../docs/reports/pr404-remediation-20261103-evidence/', import.meta.url)
+const root = new URL('../docs/reports/pr404-recovery-final-20261103-evidence/', import.meta.url)
 const proof = JSON.parse(await readFile(new URL('provenance.json', root), 'utf8'))
 assert.match(proof.runtimeSource, /^[0-9a-f]{40}$/)
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim()

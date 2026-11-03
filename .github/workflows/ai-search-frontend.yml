@@ -51,4 +51,5 @@ jobs:
             output/ai-lab-build-matrix/result.json
             output/ai-lab-ci-provenance.json
             docs/reports/pr404-remediation-20261103-evidence/**
+            docs/reports/pr404-recovery-final-20261103-evidence/**
           if-no-files-found: ignore
