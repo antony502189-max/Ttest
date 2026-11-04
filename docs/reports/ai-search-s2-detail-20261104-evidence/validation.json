@@ -1,0 +1,59 @@
+{
+  "runtimeSource": "716ae9fa2298c4455ceb6d4392e937a1b8457748",
+  "base": "1990638d61ada0960a864e34568db306151f442b",
+  "merge406": {"merged": true, "mergedAtUTC": "2026-11-04T09:46:54Z", "prHead": "1fe59146862e73d8c44f0bd26eb3147562b42b06"},
+  "scope": "S2.2 bounded synthetic exact-receipt detail refresh; A3/A11 partial",
+  "checks": {
+    "finalTargeted": {"passed": 150, "failed": 0, "skipped": 0, "file": "final-targeted.xml", "freshOwnedPostgresRerun": true},
+    "backendUnit": {"passed": 1752, "skipped": 16, "failed": 0, "integrationDeselected": 1137, "file": "backend-unit.xml"},
+    "ruff": {"passed": true, "scope": "app tests lab"},
+    "mypy": {"passed": true, "sourceFiles": 175, "scope": "app lab/ai_fact_refresh.py lab/ai_fact_process.py"},
+    "provenance": {"passed": true, "inputCount": 946, "historicalEvidenceAppliesToCurrentRuntime": false}
+  },
+  "sourceCaveats": {
+    "configuration-drift-red.xml": "One pass/one expected failure on 822f0ef5 plus regression test; coordinator policy drift during mock GET reproduced before 716ae9fa fix",
+    "pre-binding-targeted.xml": "149 pass before final coordinator binding rechecks; not final-source certification",
+    "pre-binding-backend-unit.xml": "1752 pass/16 skip before final coordinator binding rechecks",
+    "pre-isolation-targeted.xml": "147 pass before explicit READ COMMITTED capacity guard",
+    "pre-isolation-backend-unit.xml": "1752 pass/16 skip before explicit READ COMMITTED capacity guard",
+    "targeted.xml": "63 intermediate pass, subset overlaps final targeted; do not sum",
+    "first-targeted.xml": "15 intermediate pass, subset overlaps final targeted; do not sum",
+    "initial.xml": "Development fixture error: asyncpg UUID subclass rejected by exact type check; fixed before final source",
+    "initial-fix.xml": "Development failure: SQLAlchemy interpreted colon in advisory-lock literal as a bind; fixed before final source",
+    "expanded-targeted.xml": "15 pass/1 failure: racing-test SQL colon literal prevented intended mutation; test fixture corrected before final source"
+  },
+  "interruptedRun": {
+    "certifiesAnything": false,
+    "reason": "Agent prematurely removed owned PG while final targeted pytest was still running",
+    "recovery": "Stopped only verified owned pytest processes 21632/15484, created fresh owned PG, reran entire 150-case targeted suite",
+    "partialJUnitProduced": false,
+    "partialResultsTransferred": false
+  },
+  "environment": {
+    "python": "3.12.14",
+    "pytest": "9.1.1",
+    "platform": "Windows spawn",
+    "postgresImage": "sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5",
+    "host": "127.0.0.1",
+    "port": 55441,
+    "database": "ai_facts_test_detail",
+    "container": "ttest-s2-detail-pg",
+    "originalContainerId": "5c43595bccd5d39beead2d7c7d90e05fbe492ce0c5e5e069ad75b64de2de0048",
+    "finalRerunContainerId": "4d5a7252ecc2ee81dcc9c69abd655b2fc6ef385a7559083422c962ad221cf558",
+    "ownedContainersAndAnonymousVolumesRemoved": true,
+    "applicationOrClosedLabContainersTouched": false,
+    "redisUsed": false
+  },
+  "boundaries": {
+    "HTTP": "Exact MockTransport, explicit synthetic source/cohort and invalid-domain URLs only",
+    "durableEffect": "Source CAS, projection barrier and PG operation receipt in one READ COMMITTED transaction",
+    "ack": "Never automatic; rejected/deferred signals remain the caller's responsibility",
+    "HTTPBudgetAndLeases": "Per-invocation count only; durable pre-HTTP claim/budget/lease/fence still OPEN; GET may repeat before commit",
+    "consumerHardProcessLifecycle": "Not yet rehearsed; async timeout is cooperative with post-return overrun guard",
+    "canonicalImporter": "Not invoked; source-only fixture contract is not real card/map import certification",
+    "newSourceCI": "not yet verified",
+    "deployment": "not performed",
+    "realProviderCalls": 0,
+    "productionActivation": false
+  }
+}

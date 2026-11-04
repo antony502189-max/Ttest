@@ -1,0 +1,2094 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="7" skipped="0" tests="12" time="26.503" timestamp="2026-11-04T16:16:56.504553+03:00" hostname="DESKTOP-KAHKI17"><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_unchanged_detail_refreshes_check_age_without_faking_content_change" time="3.333" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_json_type_change_updates_fingerprint_and_content_time[raw-False-True-1]" time="2.379"><failure message="sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist&#10;[SQL: SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_listing_sources_source_name, external_listing_sources.scope_key AS external_listing_sources_scope_key, external_listing_sources.external_id AS external_listing_sources_external_id, external_listing_sources.source_url AS external_listing_sources_source_url, external_listing_sources.canonical_listing_id AS external_listing_sources_canonical_listing_id, external_listing_sources.raw_payload AS external_listing_sources_raw_payload, external_listing_sources.normalized_payload AS external_listing_sources_normalized_payload, external_listing_sources.fingerprint AS external_listing_sources_fingerprint, external_listing_sources.source_price_text AS external_listing_sources_source_price_text, external_listing_sources.first_seen_at AS external_listing_sources_first_seen_at, external_listing_sources.last_discovered_at AS external_listing_sources_last_discovered_at, external_listing_sources.last_seen_at AS external_listing_sources_last_seen_at, external_listing_sources.last_checked_at AS external_listing_sources_last_checked_at, external_listing_sources.last_success_at AS external_listing_sources_last_success_at, external_listing_sources.content_updated_at AS external_listing_sources_content_updated_at, external_listing_sources.consecutive_missing_runs AS external_listing_sources_consecutive_missing_runs, external_listing_sources.consecutive_unknown_state_runs AS external_listing_sources_consecutive_unknown_state_runs, external_listing_sources.current_status AS external_listing_sources_current_status, external_listing_sources.last_error AS external_listing_sources_last_error, external_listing_sources.removed_at AS external_listing_sources_removed_at, external_listing_sources.removed_reason AS external_listing_sources_removed_reason, external_listing_sources.last_state_check_at AS external_listing_sources_last_state_check_at, external_listing_sources.last_state_check_result AS external_listing_sources_last_state_check_result &#10;FROM external_listing_sources &#10;WHERE external_listing_sources.id = $1::UUID]&#10;[parameters: (UUID('94139307-ab0a-4135-b9a0-148f126dc4f1'),)]&#10;(Background on this error at: https://sqlalche.me/e/20/f405)">self = &lt;sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_cursor object at 0x00000267EF293E80&gt;
+operation = 'SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_l...listing_sources_last_state_check_result \nFROM external_listing_sources \nWHERE external_listing_sources.id = $1::UUID'
+parameters = (UUID('94139307-ab0a-4135-b9a0-148f126dc4f1'),)
+
+    async def _prepare_and_execute(self, operation, parameters):
+        adapt_connection = self._adapt_connection
+    
+        async with adapt_connection._execute_mutex:
+            if not adapt_connection._started:
+                await adapt_connection._start_transaction()
+    
+            if parameters is None:
+                parameters = ()
+    
+            try:
+&gt;               prepared_stmt, attributes = await adapt_connection._prepare(
+                    operation, self._invalidate_schema_cache_asof
+                )
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:526: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:773: in _prepare
+    prepared_stmt = await self._connection.prepare(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:638: in prepare
+    return await self._prepare(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:657: in _prepare
+    stmt = await self._get_statement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:443: in _get_statement
+    statement = await self._protocol.prepare(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+&gt;   ???
+E   asyncpg.exceptions.UndefinedColumnError: column external_listing_sources.scope_key does not exist
+
+asyncpg/protocol/protocol.pyx:165: UndefinedColumnError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;sqlalchemy.engine.base.Connection object at 0x00000267EF2D7140&gt;
+dialect = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGDialect_asyncpg object at 0x00000267EF101400&gt;
+context = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGExecutionContext_asyncpg object at 0x00000267EF15F7A0&gt;
+statement = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGCompiler_asyncpg object at 0x00000267EF15E990&gt;
+parameters = [(UUID('94139307-ab0a-4135-b9a0-148f126dc4f1'),)]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -&gt; CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+&gt;                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1969: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:585: in execute
+    self._adapt_connection.await_(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:563: in _prepare_and_execute
+    self._handle_exception(error)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:513: in _handle_exception
+    self._adapt_connection._handle_exception(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;AdaptedConnection &lt;asyncpg.connection.Connection object at 0x00000267EEEF2F30&gt;&gt;
+error = UndefinedColumnError('column external_listing_sources.scope_key does not exist')
+
+    def _handle_exception(self, error):
+        if self._connection.is_closed():
+            self._transaction = None
+            self._started = False
+    
+        if not isinstance(error, AsyncAdapt_asyncpg_dbapi.Error):
+            exception_mapping = self.dbapi._asyncpg_error_translate
+    
+            for super_ in type(error).__mro__:
+                if super_ in exception_mapping:
+                    translated_error = exception_mapping[super_](
+                        "%s: %s" % (type(error), error)
+                    )
+                    translated_error.pgcode = translated_error.sqlstate = (
+                        getattr(error, "sqlstate", None)
+                    )
+&gt;                   raise translated_error from error
+E                   sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:797: ProgrammingError
+
+The above exception was the direct cause of the following exception:
+
+refresh_setup = (&lt;lab.ai_fact_refresh.SyntheticDetailRefresh object at 0x00000267EEECF7D0&gt;, UUID('94139307-ab0a-4135-b9a0-148f126dc4f1...-a9bd-344f5f296864', 'source_name': 'synthetic', ...}, &lt;function refresh_setup.&lt;locals&gt;.handler at 0x00000267EF1665C0&gt;)
+pipeline = (&lt;app.repositories.ai_fact_pipeline.FactPipeline object at 0x00000267EEC8FBF0&gt;, async_sessionmaker(class_='AsyncSessio...bind=&lt;sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x00000267EEF49B90&gt;, autoflush=True, expire_on_commit=False))
+field = 'raw', nested = False, old = True, new = 1
+
+    @pytest.mark.parametrize("field,nested,old,new", [
+        ("raw", False, True, 1), ("raw", False, False, 0), ("raw", False, 1, True), ("raw", False, 0, False),
+        ("raw", True, True, 1), ("normalized", True, False, 0), ("normalized", False, True, 1),
+    ])
+    async def test_json_type_change_updates_fingerprint_and_content_time(refresh_setup, pipeline, field, nested, old, new):
+        runner, source, _, _, document, _ = refresh_setup
+        async with pipeline[1]() as session, session.begin():
+&gt;           row = await session.get(ExternalListingSource, source)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\ai_facts_pg\test_fact_refresh.py:480: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:591: in get
+    return await greenlet_spawn(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:201: in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:3702: in get
+    return self._get_impl(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:3881: in _get_impl
+    return db_load_fn(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\loading.py:695: in load_on_pk_identity
+    session.execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:2373: in execute
+    return self._execute_internal(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:2271: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1421: in execute
+    return meth(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\sql\elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1848: in _execute_context
+    return self._exec_single_context(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:585: in execute
+    self._adapt_connection.await_(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:563: in _prepare_and_execute
+    self._handle_exception(error)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:513: in _handle_exception
+    self._adapt_connection._handle_exception(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;AdaptedConnection &lt;asyncpg.connection.Connection object at 0x00000267EEEF2F30&gt;&gt;
+error = UndefinedColumnError('column external_listing_sources.scope_key does not exist')
+
+    def _handle_exception(self, error):
+        if self._connection.is_closed():
+            self._transaction = None
+            self._started = False
+    
+        if not isinstance(error, AsyncAdapt_asyncpg_dbapi.Error):
+            exception_mapping = self.dbapi._asyncpg_error_translate
+    
+            for super_ in type(error).__mro__:
+                if super_ in exception_mapping:
+                    translated_error = exception_mapping[super_](
+                        "%s: %s" % (type(error), error)
+                    )
+                    translated_error.pgcode = translated_error.sqlstate = (
+                        getattr(error, "sqlstate", None)
+                    )
+&gt;                   raise translated_error from error
+E                   sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist
+E                   [SQL: SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_listing_sources_source_name, external_listing_sources.scope_key AS external_listing_sources_scope_key, external_listing_sources.external_id AS external_listing_sources_external_id, external_listing_sources.source_url AS external_listing_sources_source_url, external_listing_sources.canonical_listing_id AS external_listing_sources_canonical_listing_id, external_listing_sources.raw_payload AS external_listing_sources_raw_payload, external_listing_sources.normalized_payload AS external_listing_sources_normalized_payload, external_listing_sources.fingerprint AS external_listing_sources_fingerprint, external_listing_sources.source_price_text AS external_listing_sources_source_price_text, external_listing_sources.first_seen_at AS external_listing_sources_first_seen_at, external_listing_sources.last_discovered_at AS external_listing_sources_last_discovered_at, external_listing_sources.last_seen_at AS external_listing_sources_last_seen_at, external_listing_sources.last_checked_at AS external_listing_sources_last_checked_at, external_listing_sources.last_success_at AS external_listing_sources_last_success_at, external_listing_sources.content_updated_at AS external_listing_sources_content_updated_at, external_listing_sources.consecutive_missing_runs AS external_listing_sources_consecutive_missing_runs, external_listing_sources.consecutive_unknown_state_runs AS external_listing_sources_consecutive_unknown_state_runs, external_listing_sources.current_status AS external_listing_sources_current_status, external_listing_sources.last_error AS external_listing_sources_last_error, external_listing_sources.removed_at AS external_listing_sources_removed_at, external_listing_sources.removed_reason AS external_listing_sources_removed_reason, external_listing_sources.last_state_check_at AS external_listing_sources_last_state_check_at, external_listing_sources.last_state_check_result AS external_listing_sources_last_state_check_result 
+E                   FROM external_listing_sources 
+E                   WHERE external_listing_sources.id = $1::UUID]
+E                   [parameters: (UUID('94139307-ab0a-4135-b9a0-148f126dc4f1'),)]
+E                   (Background on this error at: https://sqlalche.me/e/20/f405)
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:797: ProgrammingError</failure></testcase><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_json_type_change_updates_fingerprint_and_content_time[raw-False-False-0]" time="1.505"><failure message="sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist&#10;[SQL: SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_listing_sources_source_name, external_listing_sources.scope_key AS external_listing_sources_scope_key, external_listing_sources.external_id AS external_listing_sources_external_id, external_listing_sources.source_url AS external_listing_sources_source_url, external_listing_sources.canonical_listing_id AS external_listing_sources_canonical_listing_id, external_listing_sources.raw_payload AS external_listing_sources_raw_payload, external_listing_sources.normalized_payload AS external_listing_sources_normalized_payload, external_listing_sources.fingerprint AS external_listing_sources_fingerprint, external_listing_sources.source_price_text AS external_listing_sources_source_price_text, external_listing_sources.first_seen_at AS external_listing_sources_first_seen_at, external_listing_sources.last_discovered_at AS external_listing_sources_last_discovered_at, external_listing_sources.last_seen_at AS external_listing_sources_last_seen_at, external_listing_sources.last_checked_at AS external_listing_sources_last_checked_at, external_listing_sources.last_success_at AS external_listing_sources_last_success_at, external_listing_sources.content_updated_at AS external_listing_sources_content_updated_at, external_listing_sources.consecutive_missing_runs AS external_listing_sources_consecutive_missing_runs, external_listing_sources.consecutive_unknown_state_runs AS external_listing_sources_consecutive_unknown_state_runs, external_listing_sources.current_status AS external_listing_sources_current_status, external_listing_sources.last_error AS external_listing_sources_last_error, external_listing_sources.removed_at AS external_listing_sources_removed_at, external_listing_sources.removed_reason AS external_listing_sources_removed_reason, external_listing_sources.last_state_check_at AS external_listing_sources_last_state_check_at, external_listing_sources.last_state_check_result AS external_listing_sources_last_state_check_result &#10;FROM external_listing_sources &#10;WHERE external_listing_sources.id = $1::UUID]&#10;[parameters: (UUID('1d2a5550-65b6-4660-9b97-67d1bba66fce'),)]&#10;(Background on this error at: https://sqlalche.me/e/20/f405)">self = &lt;sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_cursor object at 0x00000267EF01EAA0&gt;
+operation = 'SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_l...listing_sources_last_state_check_result \nFROM external_listing_sources \nWHERE external_listing_sources.id = $1::UUID'
+parameters = (UUID('1d2a5550-65b6-4660-9b97-67d1bba66fce'),)
+
+    async def _prepare_and_execute(self, operation, parameters):
+        adapt_connection = self._adapt_connection
+    
+        async with adapt_connection._execute_mutex:
+            if not adapt_connection._started:
+                await adapt_connection._start_transaction()
+    
+            if parameters is None:
+                parameters = ()
+    
+            try:
+&gt;               prepared_stmt, attributes = await adapt_connection._prepare(
+                    operation, self._invalidate_schema_cache_asof
+                )
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:526: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:773: in _prepare
+    prepared_stmt = await self._connection.prepare(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:638: in prepare
+    return await self._prepare(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:657: in _prepare
+    stmt = await self._get_statement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:443: in _get_statement
+    statement = await self._protocol.prepare(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+&gt;   ???
+E   asyncpg.exceptions.UndefinedColumnError: column external_listing_sources.scope_key does not exist
+
+asyncpg/protocol/protocol.pyx:165: UndefinedColumnError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;sqlalchemy.engine.base.Connection object at 0x00000267EEC3BE90&gt;
+dialect = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGDialect_asyncpg object at 0x00000267EF2EAFF0&gt;
+context = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGExecutionContext_asyncpg object at 0x00000267EF3FCE60&gt;
+statement = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGCompiler_asyncpg object at 0x00000267EF3FE5A0&gt;
+parameters = [(UUID('1d2a5550-65b6-4660-9b97-67d1bba66fce'),)]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -&gt; CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+&gt;                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1969: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:585: in execute
+    self._adapt_connection.await_(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:563: in _prepare_and_execute
+    self._handle_exception(error)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:513: in _handle_exception
+    self._adapt_connection._handle_exception(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;AdaptedConnection &lt;asyncpg.connection.Connection object at 0x00000267EF1A6A80&gt;&gt;
+error = UndefinedColumnError('column external_listing_sources.scope_key does not exist')
+
+    def _handle_exception(self, error):
+        if self._connection.is_closed():
+            self._transaction = None
+            self._started = False
+    
+        if not isinstance(error, AsyncAdapt_asyncpg_dbapi.Error):
+            exception_mapping = self.dbapi._asyncpg_error_translate
+    
+            for super_ in type(error).__mro__:
+                if super_ in exception_mapping:
+                    translated_error = exception_mapping[super_](
+                        "%s: %s" % (type(error), error)
+                    )
+                    translated_error.pgcode = translated_error.sqlstate = (
+                        getattr(error, "sqlstate", None)
+                    )
+&gt;                   raise translated_error from error
+E                   sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:797: ProgrammingError
+
+The above exception was the direct cause of the following exception:
+
+refresh_setup = (&lt;lab.ai_fact_refresh.SyntheticDetailRefresh object at 0x00000267EF087A10&gt;, UUID('1d2a5550-65b6-4660-9b97-67d1bba66fce...-ab7b-bde9c416f300', 'source_name': 'synthetic', ...}, &lt;function refresh_setup.&lt;locals&gt;.handler at 0x00000267EE835440&gt;)
+pipeline = (&lt;app.repositories.ai_fact_pipeline.FactPipeline object at 0x00000267EF2D7EC0&gt;, async_sessionmaker(class_='AsyncSessio...bind=&lt;sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x00000267F0A9A8D0&gt;, autoflush=True, expire_on_commit=False))
+field = 'raw', nested = False, old = False, new = 0
+
+    @pytest.mark.parametrize("field,nested,old,new", [
+        ("raw", False, True, 1), ("raw", False, False, 0), ("raw", False, 1, True), ("raw", False, 0, False),
+        ("raw", True, True, 1), ("normalized", True, False, 0), ("normalized", False, True, 1),
+    ])
+    async def test_json_type_change_updates_fingerprint_and_content_time(refresh_setup, pipeline, field, nested, old, new):
+        runner, source, _, _, document, _ = refresh_setup
+        async with pipeline[1]() as session, session.begin():
+&gt;           row = await session.get(ExternalListingSource, source)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\ai_facts_pg\test_fact_refresh.py:480: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:591: in get
+    return await greenlet_spawn(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:201: in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:3702: in get
+    return self._get_impl(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:3881: in _get_impl
+    return db_load_fn(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\loading.py:695: in load_on_pk_identity
+    session.execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:2373: in execute
+    return self._execute_internal(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:2271: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1421: in execute
+    return meth(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\sql\elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1848: in _execute_context
+    return self._exec_single_context(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:585: in execute
+    self._adapt_connection.await_(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:563: in _prepare_and_execute
+    self._handle_exception(error)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:513: in _handle_exception
+    self._adapt_connection._handle_exception(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;AdaptedConnection &lt;asyncpg.connection.Connection object at 0x00000267EF1A6A80&gt;&gt;
+error = UndefinedColumnError('column external_listing_sources.scope_key does not exist')
+
+    def _handle_exception(self, error):
+        if self._connection.is_closed():
+            self._transaction = None
+            self._started = False
+    
+        if not isinstance(error, AsyncAdapt_asyncpg_dbapi.Error):
+            exception_mapping = self.dbapi._asyncpg_error_translate
+    
+            for super_ in type(error).__mro__:
+                if super_ in exception_mapping:
+                    translated_error = exception_mapping[super_](
+                        "%s: %s" % (type(error), error)
+                    )
+                    translated_error.pgcode = translated_error.sqlstate = (
+                        getattr(error, "sqlstate", None)
+                    )
+&gt;                   raise translated_error from error
+E                   sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist
+E                   [SQL: SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_listing_sources_source_name, external_listing_sources.scope_key AS external_listing_sources_scope_key, external_listing_sources.external_id AS external_listing_sources_external_id, external_listing_sources.source_url AS external_listing_sources_source_url, external_listing_sources.canonical_listing_id AS external_listing_sources_canonical_listing_id, external_listing_sources.raw_payload AS external_listing_sources_raw_payload, external_listing_sources.normalized_payload AS external_listing_sources_normalized_payload, external_listing_sources.fingerprint AS external_listing_sources_fingerprint, external_listing_sources.source_price_text AS external_listing_sources_source_price_text, external_listing_sources.first_seen_at AS external_listing_sources_first_seen_at, external_listing_sources.last_discovered_at AS external_listing_sources_last_discovered_at, external_listing_sources.last_seen_at AS external_listing_sources_last_seen_at, external_listing_sources.last_checked_at AS external_listing_sources_last_checked_at, external_listing_sources.last_success_at AS external_listing_sources_last_success_at, external_listing_sources.content_updated_at AS external_listing_sources_content_updated_at, external_listing_sources.consecutive_missing_runs AS external_listing_sources_consecutive_missing_runs, external_listing_sources.consecutive_unknown_state_runs AS external_listing_sources_consecutive_unknown_state_runs, external_listing_sources.current_status AS external_listing_sources_current_status, external_listing_sources.last_error AS external_listing_sources_last_error, external_listing_sources.removed_at AS external_listing_sources_removed_at, external_listing_sources.removed_reason AS external_listing_sources_removed_reason, external_listing_sources.last_state_check_at AS external_listing_sources_last_state_check_at, external_listing_sources.last_state_check_result AS external_listing_sources_last_state_check_result 
+E                   FROM external_listing_sources 
+E                   WHERE external_listing_sources.id = $1::UUID]
+E                   [parameters: (UUID('1d2a5550-65b6-4660-9b97-67d1bba66fce'),)]
+E                   (Background on this error at: https://sqlalche.me/e/20/f405)
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:797: ProgrammingError</failure></testcase><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_json_type_change_updates_fingerprint_and_content_time[raw-False-1-True]" time="1.171"><failure message="sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist&#10;[SQL: SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_listing_sources_source_name, external_listing_sources.scope_key AS external_listing_sources_scope_key, external_listing_sources.external_id AS external_listing_sources_external_id, external_listing_sources.source_url AS external_listing_sources_source_url, external_listing_sources.canonical_listing_id AS external_listing_sources_canonical_listing_id, external_listing_sources.raw_payload AS external_listing_sources_raw_payload, external_listing_sources.normalized_payload AS external_listing_sources_normalized_payload, external_listing_sources.fingerprint AS external_listing_sources_fingerprint, external_listing_sources.source_price_text AS external_listing_sources_source_price_text, external_listing_sources.first_seen_at AS external_listing_sources_first_seen_at, external_listing_sources.last_discovered_at AS external_listing_sources_last_discovered_at, external_listing_sources.last_seen_at AS external_listing_sources_last_seen_at, external_listing_sources.last_checked_at AS external_listing_sources_last_checked_at, external_listing_sources.last_success_at AS external_listing_sources_last_success_at, external_listing_sources.content_updated_at AS external_listing_sources_content_updated_at, external_listing_sources.consecutive_missing_runs AS external_listing_sources_consecutive_missing_runs, external_listing_sources.consecutive_unknown_state_runs AS external_listing_sources_consecutive_unknown_state_runs, external_listing_sources.current_status AS external_listing_sources_current_status, external_listing_sources.last_error AS external_listing_sources_last_error, external_listing_sources.removed_at AS external_listing_sources_removed_at, external_listing_sources.removed_reason AS external_listing_sources_removed_reason, external_listing_sources.last_state_check_at AS external_listing_sources_last_state_check_at, external_listing_sources.last_state_check_result AS external_listing_sources_last_state_check_result &#10;FROM external_listing_sources &#10;WHERE external_listing_sources.id = $1::UUID]&#10;[parameters: (UUID('0dae2d44-cb76-48e1-a3d7-e15bbe7b5d76'),)]&#10;(Background on this error at: https://sqlalche.me/e/20/f405)">self = &lt;sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_cursor object at 0x00000267EFC337C0&gt;
+operation = 'SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_l...listing_sources_last_state_check_result \nFROM external_listing_sources \nWHERE external_listing_sources.id = $1::UUID'
+parameters = (UUID('0dae2d44-cb76-48e1-a3d7-e15bbe7b5d76'),)
+
+    async def _prepare_and_execute(self, operation, parameters):
+        adapt_connection = self._adapt_connection
+    
+        async with adapt_connection._execute_mutex:
+            if not adapt_connection._started:
+                await adapt_connection._start_transaction()
+    
+            if parameters is None:
+                parameters = ()
+    
+            try:
+&gt;               prepared_stmt, attributes = await adapt_connection._prepare(
+                    operation, self._invalidate_schema_cache_asof
+                )
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:526: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:773: in _prepare
+    prepared_stmt = await self._connection.prepare(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:638: in prepare
+    return await self._prepare(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:657: in _prepare
+    stmt = await self._get_statement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:443: in _get_statement
+    statement = await self._protocol.prepare(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+&gt;   ???
+E   asyncpg.exceptions.UndefinedColumnError: column external_listing_sources.scope_key does not exist
+
+asyncpg/protocol/protocol.pyx:165: UndefinedColumnError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;sqlalchemy.engine.base.Connection object at 0x00000267F02D92E0&gt;
+dialect = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGDialect_asyncpg object at 0x00000267EEC68860&gt;
+context = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGExecutionContext_asyncpg object at 0x00000267EEFD2960&gt;
+statement = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGCompiler_asyncpg object at 0x00000267EEFD0650&gt;
+parameters = [(UUID('0dae2d44-cb76-48e1-a3d7-e15bbe7b5d76'),)]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -&gt; CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+&gt;                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1969: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:585: in execute
+    self._adapt_connection.await_(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:563: in _prepare_and_execute
+    self._handle_exception(error)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:513: in _handle_exception
+    self._adapt_connection._handle_exception(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;AdaptedConnection &lt;asyncpg.connection.Connection object at 0x00000267EEC216D0&gt;&gt;
+error = UndefinedColumnError('column external_listing_sources.scope_key does not exist')
+
+    def _handle_exception(self, error):
+        if self._connection.is_closed():
+            self._transaction = None
+            self._started = False
+    
+        if not isinstance(error, AsyncAdapt_asyncpg_dbapi.Error):
+            exception_mapping = self.dbapi._asyncpg_error_translate
+    
+            for super_ in type(error).__mro__:
+                if super_ in exception_mapping:
+                    translated_error = exception_mapping[super_](
+                        "%s: %s" % (type(error), error)
+                    )
+                    translated_error.pgcode = translated_error.sqlstate = (
+                        getattr(error, "sqlstate", None)
+                    )
+&gt;                   raise translated_error from error
+E                   sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:797: ProgrammingError
+
+The above exception was the direct cause of the following exception:
+
+refresh_setup = (&lt;lab.ai_fact_refresh.SyntheticDetailRefresh object at 0x00000267EFD0DC40&gt;, UUID('0dae2d44-cb76-48e1-a3d7-e15bbe7b5d76...-ab32-83837dbbe674', 'source_name': 'synthetic', ...}, &lt;function refresh_setup.&lt;locals&gt;.handler at 0x00000267F028EE80&gt;)
+pipeline = (&lt;app.repositories.ai_fact_pipeline.FactPipeline object at 0x00000267EEC69340&gt;, async_sessionmaker(class_='AsyncSessio...bind=&lt;sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x00000267F04427D0&gt;, autoflush=True, expire_on_commit=False))
+field = 'raw', nested = False, old = 1, new = True
+
+    @pytest.mark.parametrize("field,nested,old,new", [
+        ("raw", False, True, 1), ("raw", False, False, 0), ("raw", False, 1, True), ("raw", False, 0, False),
+        ("raw", True, True, 1), ("normalized", True, False, 0), ("normalized", False, True, 1),
+    ])
+    async def test_json_type_change_updates_fingerprint_and_content_time(refresh_setup, pipeline, field, nested, old, new):
+        runner, source, _, _, document, _ = refresh_setup
+        async with pipeline[1]() as session, session.begin():
+&gt;           row = await session.get(ExternalListingSource, source)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\ai_facts_pg\test_fact_refresh.py:480: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:591: in get
+    return await greenlet_spawn(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:201: in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:3702: in get
+    return self._get_impl(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:3881: in _get_impl
+    return db_load_fn(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\loading.py:695: in load_on_pk_identity
+    session.execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:2373: in execute
+    return self._execute_internal(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:2271: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1421: in execute
+    return meth(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\sql\elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1848: in _execute_context
+    return self._exec_single_context(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:585: in execute
+    self._adapt_connection.await_(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:563: in _prepare_and_execute
+    self._handle_exception(error)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:513: in _handle_exception
+    self._adapt_connection._handle_exception(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;AdaptedConnection &lt;asyncpg.connection.Connection object at 0x00000267EEC216D0&gt;&gt;
+error = UndefinedColumnError('column external_listing_sources.scope_key does not exist')
+
+    def _handle_exception(self, error):
+        if self._connection.is_closed():
+            self._transaction = None
+            self._started = False
+    
+        if not isinstance(error, AsyncAdapt_asyncpg_dbapi.Error):
+            exception_mapping = self.dbapi._asyncpg_error_translate
+    
+            for super_ in type(error).__mro__:
+                if super_ in exception_mapping:
+                    translated_error = exception_mapping[super_](
+                        "%s: %s" % (type(error), error)
+                    )
+                    translated_error.pgcode = translated_error.sqlstate = (
+                        getattr(error, "sqlstate", None)
+                    )
+&gt;                   raise translated_error from error
+E                   sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist
+E                   [SQL: SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_listing_sources_source_name, external_listing_sources.scope_key AS external_listing_sources_scope_key, external_listing_sources.external_id AS external_listing_sources_external_id, external_listing_sources.source_url AS external_listing_sources_source_url, external_listing_sources.canonical_listing_id AS external_listing_sources_canonical_listing_id, external_listing_sources.raw_payload AS external_listing_sources_raw_payload, external_listing_sources.normalized_payload AS external_listing_sources_normalized_payload, external_listing_sources.fingerprint AS external_listing_sources_fingerprint, external_listing_sources.source_price_text AS external_listing_sources_source_price_text, external_listing_sources.first_seen_at AS external_listing_sources_first_seen_at, external_listing_sources.last_discovered_at AS external_listing_sources_last_discovered_at, external_listing_sources.last_seen_at AS external_listing_sources_last_seen_at, external_listing_sources.last_checked_at AS external_listing_sources_last_checked_at, external_listing_sources.last_success_at AS external_listing_sources_last_success_at, external_listing_sources.content_updated_at AS external_listing_sources_content_updated_at, external_listing_sources.consecutive_missing_runs AS external_listing_sources_consecutive_missing_runs, external_listing_sources.consecutive_unknown_state_runs AS external_listing_sources_consecutive_unknown_state_runs, external_listing_sources.current_status AS external_listing_sources_current_status, external_listing_sources.last_error AS external_listing_sources_last_error, external_listing_sources.removed_at AS external_listing_sources_removed_at, external_listing_sources.removed_reason AS external_listing_sources_removed_reason, external_listing_sources.last_state_check_at AS external_listing_sources_last_state_check_at, external_listing_sources.last_state_check_result AS external_listing_sources_last_state_check_result 
+E                   FROM external_listing_sources 
+E                   WHERE external_listing_sources.id = $1::UUID]
+E                   [parameters: (UUID('0dae2d44-cb76-48e1-a3d7-e15bbe7b5d76'),)]
+E                   (Background on this error at: https://sqlalche.me/e/20/f405)
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:797: ProgrammingError</failure></testcase><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_json_type_change_updates_fingerprint_and_content_time[raw-False-0-False]" time="1.182"><failure message="sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist&#10;[SQL: SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_listing_sources_source_name, external_listing_sources.scope_key AS external_listing_sources_scope_key, external_listing_sources.external_id AS external_listing_sources_external_id, external_listing_sources.source_url AS external_listing_sources_source_url, external_listing_sources.canonical_listing_id AS external_listing_sources_canonical_listing_id, external_listing_sources.raw_payload AS external_listing_sources_raw_payload, external_listing_sources.normalized_payload AS external_listing_sources_normalized_payload, external_listing_sources.fingerprint AS external_listing_sources_fingerprint, external_listing_sources.source_price_text AS external_listing_sources_source_price_text, external_listing_sources.first_seen_at AS external_listing_sources_first_seen_at, external_listing_sources.last_discovered_at AS external_listing_sources_last_discovered_at, external_listing_sources.last_seen_at AS external_listing_sources_last_seen_at, external_listing_sources.last_checked_at AS external_listing_sources_last_checked_at, external_listing_sources.last_success_at AS external_listing_sources_last_success_at, external_listing_sources.content_updated_at AS external_listing_sources_content_updated_at, external_listing_sources.consecutive_missing_runs AS external_listing_sources_consecutive_missing_runs, external_listing_sources.consecutive_unknown_state_runs AS external_listing_sources_consecutive_unknown_state_runs, external_listing_sources.current_status AS external_listing_sources_current_status, external_listing_sources.last_error AS external_listing_sources_last_error, external_listing_sources.removed_at AS external_listing_sources_removed_at, external_listing_sources.removed_reason AS external_listing_sources_removed_reason, external_listing_sources.last_state_check_at AS external_listing_sources_last_state_check_at, external_listing_sources.last_state_check_result AS external_listing_sources_last_state_check_result &#10;FROM external_listing_sources &#10;WHERE external_listing_sources.id = $1::UUID]&#10;[parameters: (UUID('0a9f86a6-58b0-4266-bc7d-8313ea353217'),)]&#10;(Background on this error at: https://sqlalche.me/e/20/f405)">self = &lt;sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_cursor object at 0x00000267F0C19660&gt;
+operation = 'SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_l...listing_sources_last_state_check_result \nFROM external_listing_sources \nWHERE external_listing_sources.id = $1::UUID'
+parameters = (UUID('0a9f86a6-58b0-4266-bc7d-8313ea353217'),)
+
+    async def _prepare_and_execute(self, operation, parameters):
+        adapt_connection = self._adapt_connection
+    
+        async with adapt_connection._execute_mutex:
+            if not adapt_connection._started:
+                await adapt_connection._start_transaction()
+    
+            if parameters is None:
+                parameters = ()
+    
+            try:
+&gt;               prepared_stmt, attributes = await adapt_connection._prepare(
+                    operation, self._invalidate_schema_cache_asof
+                )
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:526: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:773: in _prepare
+    prepared_stmt = await self._connection.prepare(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:638: in prepare
+    return await self._prepare(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:657: in _prepare
+    stmt = await self._get_statement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:443: in _get_statement
+    statement = await self._protocol.prepare(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+&gt;   ???
+E   asyncpg.exceptions.UndefinedColumnError: column external_listing_sources.scope_key does not exist
+
+asyncpg/protocol/protocol.pyx:165: UndefinedColumnError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;sqlalchemy.engine.base.Connection object at 0x00000267EFF35B80&gt;
+dialect = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGDialect_asyncpg object at 0x00000267EFF304A0&gt;
+context = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGExecutionContext_asyncpg object at 0x00000267EFF8E330&gt;
+statement = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGCompiler_asyncpg object at 0x00000267EFF8F260&gt;
+parameters = [(UUID('0a9f86a6-58b0-4266-bc7d-8313ea353217'),)]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -&gt; CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+&gt;                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1969: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:585: in execute
+    self._adapt_connection.await_(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:563: in _prepare_and_execute
+    self._handle_exception(error)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:513: in _handle_exception
+    self._adapt_connection._handle_exception(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;AdaptedConnection &lt;asyncpg.connection.Connection object at 0x00000267EFCFD5E0&gt;&gt;
+error = UndefinedColumnError('column external_listing_sources.scope_key does not exist')
+
+    def _handle_exception(self, error):
+        if self._connection.is_closed():
+            self._transaction = None
+            self._started = False
+    
+        if not isinstance(error, AsyncAdapt_asyncpg_dbapi.Error):
+            exception_mapping = self.dbapi._asyncpg_error_translate
+    
+            for super_ in type(error).__mro__:
+                if super_ in exception_mapping:
+                    translated_error = exception_mapping[super_](
+                        "%s: %s" % (type(error), error)
+                    )
+                    translated_error.pgcode = translated_error.sqlstate = (
+                        getattr(error, "sqlstate", None)
+                    )
+&gt;                   raise translated_error from error
+E                   sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:797: ProgrammingError
+
+The above exception was the direct cause of the following exception:
+
+refresh_setup = (&lt;lab.ai_fact_refresh.SyntheticDetailRefresh object at 0x00000267EFFF11F0&gt;, UUID('0a9f86a6-58b0-4266-bc7d-8313ea353217...-9de1-1636dd61db76', 'source_name': 'synthetic', ...}, &lt;function refresh_setup.&lt;locals&gt;.handler at 0x00000267EFF48180&gt;)
+pipeline = (&lt;app.repositories.ai_fact_pipeline.FactPipeline object at 0x00000267EFFF3A40&gt;, async_sessionmaker(class_='AsyncSessio...bind=&lt;sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x00000267F0138250&gt;, autoflush=True, expire_on_commit=False))
+field = 'raw', nested = False, old = 0, new = False
+
+    @pytest.mark.parametrize("field,nested,old,new", [
+        ("raw", False, True, 1), ("raw", False, False, 0), ("raw", False, 1, True), ("raw", False, 0, False),
+        ("raw", True, True, 1), ("normalized", True, False, 0), ("normalized", False, True, 1),
+    ])
+    async def test_json_type_change_updates_fingerprint_and_content_time(refresh_setup, pipeline, field, nested, old, new):
+        runner, source, _, _, document, _ = refresh_setup
+        async with pipeline[1]() as session, session.begin():
+&gt;           row = await session.get(ExternalListingSource, source)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\ai_facts_pg\test_fact_refresh.py:480: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:591: in get
+    return await greenlet_spawn(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:201: in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:3702: in get
+    return self._get_impl(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:3881: in _get_impl
+    return db_load_fn(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\loading.py:695: in load_on_pk_identity
+    session.execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:2373: in execute
+    return self._execute_internal(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:2271: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1421: in execute
+    return meth(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\sql\elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1848: in _execute_context
+    return self._exec_single_context(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:585: in execute
+    self._adapt_connection.await_(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:563: in _prepare_and_execute
+    self._handle_exception(error)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:513: in _handle_exception
+    self._adapt_connection._handle_exception(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;AdaptedConnection &lt;asyncpg.connection.Connection object at 0x00000267EFCFD5E0&gt;&gt;
+error = UndefinedColumnError('column external_listing_sources.scope_key does not exist')
+
+    def _handle_exception(self, error):
+        if self._connection.is_closed():
+            self._transaction = None
+            self._started = False
+    
+        if not isinstance(error, AsyncAdapt_asyncpg_dbapi.Error):
+            exception_mapping = self.dbapi._asyncpg_error_translate
+    
+            for super_ in type(error).__mro__:
+                if super_ in exception_mapping:
+                    translated_error = exception_mapping[super_](
+                        "%s: %s" % (type(error), error)
+                    )
+                    translated_error.pgcode = translated_error.sqlstate = (
+                        getattr(error, "sqlstate", None)
+                    )
+&gt;                   raise translated_error from error
+E                   sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist
+E                   [SQL: SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_listing_sources_source_name, external_listing_sources.scope_key AS external_listing_sources_scope_key, external_listing_sources.external_id AS external_listing_sources_external_id, external_listing_sources.source_url AS external_listing_sources_source_url, external_listing_sources.canonical_listing_id AS external_listing_sources_canonical_listing_id, external_listing_sources.raw_payload AS external_listing_sources_raw_payload, external_listing_sources.normalized_payload AS external_listing_sources_normalized_payload, external_listing_sources.fingerprint AS external_listing_sources_fingerprint, external_listing_sources.source_price_text AS external_listing_sources_source_price_text, external_listing_sources.first_seen_at AS external_listing_sources_first_seen_at, external_listing_sources.last_discovered_at AS external_listing_sources_last_discovered_at, external_listing_sources.last_seen_at AS external_listing_sources_last_seen_at, external_listing_sources.last_checked_at AS external_listing_sources_last_checked_at, external_listing_sources.last_success_at AS external_listing_sources_last_success_at, external_listing_sources.content_updated_at AS external_listing_sources_content_updated_at, external_listing_sources.consecutive_missing_runs AS external_listing_sources_consecutive_missing_runs, external_listing_sources.consecutive_unknown_state_runs AS external_listing_sources_consecutive_unknown_state_runs, external_listing_sources.current_status AS external_listing_sources_current_status, external_listing_sources.last_error AS external_listing_sources_last_error, external_listing_sources.removed_at AS external_listing_sources_removed_at, external_listing_sources.removed_reason AS external_listing_sources_removed_reason, external_listing_sources.last_state_check_at AS external_listing_sources_last_state_check_at, external_listing_sources.last_state_check_result AS external_listing_sources_last_state_check_result 
+E                   FROM external_listing_sources 
+E                   WHERE external_listing_sources.id = $1::UUID]
+E                   [parameters: (UUID('0a9f86a6-58b0-4266-bc7d-8313ea353217'),)]
+E                   (Background on this error at: https://sqlalche.me/e/20/f405)
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:797: ProgrammingError</failure></testcase><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_json_type_change_updates_fingerprint_and_content_time[raw-True-True-1]" time="1.161"><failure message="sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist&#10;[SQL: SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_listing_sources_source_name, external_listing_sources.scope_key AS external_listing_sources_scope_key, external_listing_sources.external_id AS external_listing_sources_external_id, external_listing_sources.source_url AS external_listing_sources_source_url, external_listing_sources.canonical_listing_id AS external_listing_sources_canonical_listing_id, external_listing_sources.raw_payload AS external_listing_sources_raw_payload, external_listing_sources.normalized_payload AS external_listing_sources_normalized_payload, external_listing_sources.fingerprint AS external_listing_sources_fingerprint, external_listing_sources.source_price_text AS external_listing_sources_source_price_text, external_listing_sources.first_seen_at AS external_listing_sources_first_seen_at, external_listing_sources.last_discovered_at AS external_listing_sources_last_discovered_at, external_listing_sources.last_seen_at AS external_listing_sources_last_seen_at, external_listing_sources.last_checked_at AS external_listing_sources_last_checked_at, external_listing_sources.last_success_at AS external_listing_sources_last_success_at, external_listing_sources.content_updated_at AS external_listing_sources_content_updated_at, external_listing_sources.consecutive_missing_runs AS external_listing_sources_consecutive_missing_runs, external_listing_sources.consecutive_unknown_state_runs AS external_listing_sources_consecutive_unknown_state_runs, external_listing_sources.current_status AS external_listing_sources_current_status, external_listing_sources.last_error AS external_listing_sources_last_error, external_listing_sources.removed_at AS external_listing_sources_removed_at, external_listing_sources.removed_reason AS external_listing_sources_removed_reason, external_listing_sources.last_state_check_at AS external_listing_sources_last_state_check_at, external_listing_sources.last_state_check_result AS external_listing_sources_last_state_check_result &#10;FROM external_listing_sources &#10;WHERE external_listing_sources.id = $1::UUID]&#10;[parameters: (UUID('e3f88edb-79a6-4bc1-b919-becf9855006e'),)]&#10;(Background on this error at: https://sqlalche.me/e/20/f405)">self = &lt;sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_cursor object at 0x00000267EEE55AE0&gt;
+operation = 'SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_l...listing_sources_last_state_check_result \nFROM external_listing_sources \nWHERE external_listing_sources.id = $1::UUID'
+parameters = (UUID('e3f88edb-79a6-4bc1-b919-becf9855006e'),)
+
+    async def _prepare_and_execute(self, operation, parameters):
+        adapt_connection = self._adapt_connection
+    
+        async with adapt_connection._execute_mutex:
+            if not adapt_connection._started:
+                await adapt_connection._start_transaction()
+    
+            if parameters is None:
+                parameters = ()
+    
+            try:
+&gt;               prepared_stmt, attributes = await adapt_connection._prepare(
+                    operation, self._invalidate_schema_cache_asof
+                )
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:526: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:773: in _prepare
+    prepared_stmt = await self._connection.prepare(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:638: in prepare
+    return await self._prepare(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:657: in _prepare
+    stmt = await self._get_statement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:443: in _get_statement
+    statement = await self._protocol.prepare(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+&gt;   ???
+E   asyncpg.exceptions.UndefinedColumnError: column external_listing_sources.scope_key does not exist
+
+asyncpg/protocol/protocol.pyx:165: UndefinedColumnError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;sqlalchemy.engine.base.Connection object at 0x00000267EF075A00&gt;
+dialect = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGDialect_asyncpg object at 0x00000267EFCBDD60&gt;
+context = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGExecutionContext_asyncpg object at 0x00000267EEFC5370&gt;
+statement = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGCompiler_asyncpg object at 0x00000267EEFC4B00&gt;
+parameters = [(UUID('e3f88edb-79a6-4bc1-b919-becf9855006e'),)]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -&gt; CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+&gt;                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1969: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:585: in execute
+    self._adapt_connection.await_(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:563: in _prepare_and_execute
+    self._handle_exception(error)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:513: in _handle_exception
+    self._adapt_connection._handle_exception(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;AdaptedConnection &lt;asyncpg.connection.Connection object at 0x00000267EEC5A4E0&gt;&gt;
+error = UndefinedColumnError('column external_listing_sources.scope_key does not exist')
+
+    def _handle_exception(self, error):
+        if self._connection.is_closed():
+            self._transaction = None
+            self._started = False
+    
+        if not isinstance(error, AsyncAdapt_asyncpg_dbapi.Error):
+            exception_mapping = self.dbapi._asyncpg_error_translate
+    
+            for super_ in type(error).__mro__:
+                if super_ in exception_mapping:
+                    translated_error = exception_mapping[super_](
+                        "%s: %s" % (type(error), error)
+                    )
+                    translated_error.pgcode = translated_error.sqlstate = (
+                        getattr(error, "sqlstate", None)
+                    )
+&gt;                   raise translated_error from error
+E                   sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:797: ProgrammingError
+
+The above exception was the direct cause of the following exception:
+
+refresh_setup = (&lt;lab.ai_fact_refresh.SyntheticDetailRefresh object at 0x00000267EEF6A210&gt;, UUID('e3f88edb-79a6-4bc1-b919-becf9855006e...-ad63-63f4fdde7b08', 'source_name': 'synthetic', ...}, &lt;function refresh_setup.&lt;locals&gt;.handler at 0x00000267EE834720&gt;)
+pipeline = (&lt;app.repositories.ai_fact_pipeline.FactPipeline object at 0x00000267EFCBF200&gt;, async_sessionmaker(class_='AsyncSessio...bind=&lt;sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x00000267EEF144D0&gt;, autoflush=True, expire_on_commit=False))
+field = 'raw', nested = True, old = True, new = 1
+
+    @pytest.mark.parametrize("field,nested,old,new", [
+        ("raw", False, True, 1), ("raw", False, False, 0), ("raw", False, 1, True), ("raw", False, 0, False),
+        ("raw", True, True, 1), ("normalized", True, False, 0), ("normalized", False, True, 1),
+    ])
+    async def test_json_type_change_updates_fingerprint_and_content_time(refresh_setup, pipeline, field, nested, old, new):
+        runner, source, _, _, document, _ = refresh_setup
+        async with pipeline[1]() as session, session.begin():
+&gt;           row = await session.get(ExternalListingSource, source)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\ai_facts_pg\test_fact_refresh.py:480: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:591: in get
+    return await greenlet_spawn(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:201: in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:3702: in get
+    return self._get_impl(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:3881: in _get_impl
+    return db_load_fn(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\loading.py:695: in load_on_pk_identity
+    session.execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:2373: in execute
+    return self._execute_internal(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:2271: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1421: in execute
+    return meth(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\sql\elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1848: in _execute_context
+    return self._exec_single_context(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:585: in execute
+    self._adapt_connection.await_(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:563: in _prepare_and_execute
+    self._handle_exception(error)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:513: in _handle_exception
+    self._adapt_connection._handle_exception(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;AdaptedConnection &lt;asyncpg.connection.Connection object at 0x00000267EEC5A4E0&gt;&gt;
+error = UndefinedColumnError('column external_listing_sources.scope_key does not exist')
+
+    def _handle_exception(self, error):
+        if self._connection.is_closed():
+            self._transaction = None
+            self._started = False
+    
+        if not isinstance(error, AsyncAdapt_asyncpg_dbapi.Error):
+            exception_mapping = self.dbapi._asyncpg_error_translate
+    
+            for super_ in type(error).__mro__:
+                if super_ in exception_mapping:
+                    translated_error = exception_mapping[super_](
+                        "%s: %s" % (type(error), error)
+                    )
+                    translated_error.pgcode = translated_error.sqlstate = (
+                        getattr(error, "sqlstate", None)
+                    )
+&gt;                   raise translated_error from error
+E                   sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist
+E                   [SQL: SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_listing_sources_source_name, external_listing_sources.scope_key AS external_listing_sources_scope_key, external_listing_sources.external_id AS external_listing_sources_external_id, external_listing_sources.source_url AS external_listing_sources_source_url, external_listing_sources.canonical_listing_id AS external_listing_sources_canonical_listing_id, external_listing_sources.raw_payload AS external_listing_sources_raw_payload, external_listing_sources.normalized_payload AS external_listing_sources_normalized_payload, external_listing_sources.fingerprint AS external_listing_sources_fingerprint, external_listing_sources.source_price_text AS external_listing_sources_source_price_text, external_listing_sources.first_seen_at AS external_listing_sources_first_seen_at, external_listing_sources.last_discovered_at AS external_listing_sources_last_discovered_at, external_listing_sources.last_seen_at AS external_listing_sources_last_seen_at, external_listing_sources.last_checked_at AS external_listing_sources_last_checked_at, external_listing_sources.last_success_at AS external_listing_sources_last_success_at, external_listing_sources.content_updated_at AS external_listing_sources_content_updated_at, external_listing_sources.consecutive_missing_runs AS external_listing_sources_consecutive_missing_runs, external_listing_sources.consecutive_unknown_state_runs AS external_listing_sources_consecutive_unknown_state_runs, external_listing_sources.current_status AS external_listing_sources_current_status, external_listing_sources.last_error AS external_listing_sources_last_error, external_listing_sources.removed_at AS external_listing_sources_removed_at, external_listing_sources.removed_reason AS external_listing_sources_removed_reason, external_listing_sources.last_state_check_at AS external_listing_sources_last_state_check_at, external_listing_sources.last_state_check_result AS external_listing_sources_last_state_check_result 
+E                   FROM external_listing_sources 
+E                   WHERE external_listing_sources.id = $1::UUID]
+E                   [parameters: (UUID('e3f88edb-79a6-4bc1-b919-becf9855006e'),)]
+E                   (Background on this error at: https://sqlalche.me/e/20/f405)
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:797: ProgrammingError</failure></testcase><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_json_type_change_updates_fingerprint_and_content_time[normalized-True-False-0]" time="1.406"><failure message="sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist&#10;[SQL: SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_listing_sources_source_name, external_listing_sources.scope_key AS external_listing_sources_scope_key, external_listing_sources.external_id AS external_listing_sources_external_id, external_listing_sources.source_url AS external_listing_sources_source_url, external_listing_sources.canonical_listing_id AS external_listing_sources_canonical_listing_id, external_listing_sources.raw_payload AS external_listing_sources_raw_payload, external_listing_sources.normalized_payload AS external_listing_sources_normalized_payload, external_listing_sources.fingerprint AS external_listing_sources_fingerprint, external_listing_sources.source_price_text AS external_listing_sources_source_price_text, external_listing_sources.first_seen_at AS external_listing_sources_first_seen_at, external_listing_sources.last_discovered_at AS external_listing_sources_last_discovered_at, external_listing_sources.last_seen_at AS external_listing_sources_last_seen_at, external_listing_sources.last_checked_at AS external_listing_sources_last_checked_at, external_listing_sources.last_success_at AS external_listing_sources_last_success_at, external_listing_sources.content_updated_at AS external_listing_sources_content_updated_at, external_listing_sources.consecutive_missing_runs AS external_listing_sources_consecutive_missing_runs, external_listing_sources.consecutive_unknown_state_runs AS external_listing_sources_consecutive_unknown_state_runs, external_listing_sources.current_status AS external_listing_sources_current_status, external_listing_sources.last_error AS external_listing_sources_last_error, external_listing_sources.removed_at AS external_listing_sources_removed_at, external_listing_sources.removed_reason AS external_listing_sources_removed_reason, external_listing_sources.last_state_check_at AS external_listing_sources_last_state_check_at, external_listing_sources.last_state_check_result AS external_listing_sources_last_state_check_result &#10;FROM external_listing_sources &#10;WHERE external_listing_sources.id = $1::UUID]&#10;[parameters: (UUID('c975f15e-1586-4b90-9a62-d50748e05b2a'),)]&#10;(Background on this error at: https://sqlalche.me/e/20/f405)">self = &lt;sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_cursor object at 0x00000267EF2926E0&gt;
+operation = 'SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_l...listing_sources_last_state_check_result \nFROM external_listing_sources \nWHERE external_listing_sources.id = $1::UUID'
+parameters = (UUID('c975f15e-1586-4b90-9a62-d50748e05b2a'),)
+
+    async def _prepare_and_execute(self, operation, parameters):
+        adapt_connection = self._adapt_connection
+    
+        async with adapt_connection._execute_mutex:
+            if not adapt_connection._started:
+                await adapt_connection._start_transaction()
+    
+            if parameters is None:
+                parameters = ()
+    
+            try:
+&gt;               prepared_stmt, attributes = await adapt_connection._prepare(
+                    operation, self._invalidate_schema_cache_asof
+                )
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:526: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:773: in _prepare
+    prepared_stmt = await self._connection.prepare(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:638: in prepare
+    return await self._prepare(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:657: in _prepare
+    stmt = await self._get_statement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:443: in _get_statement
+    statement = await self._protocol.prepare(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+&gt;   ???
+E   asyncpg.exceptions.UndefinedColumnError: column external_listing_sources.scope_key does not exist
+
+asyncpg/protocol/protocol.pyx:165: UndefinedColumnError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;sqlalchemy.engine.base.Connection object at 0x00000267F02DB800&gt;
+dialect = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGDialect_asyncpg object at 0x00000267EF0C1E20&gt;
+context = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGExecutionContext_asyncpg object at 0x00000267EF173410&gt;
+statement = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGCompiler_asyncpg object at 0x00000267EF172360&gt;
+parameters = [(UUID('c975f15e-1586-4b90-9a62-d50748e05b2a'),)]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -&gt; CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+&gt;                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1969: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:585: in execute
+    self._adapt_connection.await_(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:563: in _prepare_and_execute
+    self._handle_exception(error)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:513: in _handle_exception
+    self._adapt_connection._handle_exception(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;AdaptedConnection &lt;asyncpg.connection.Connection object at 0x00000267EF1A5F40&gt;&gt;
+error = UndefinedColumnError('column external_listing_sources.scope_key does not exist')
+
+    def _handle_exception(self, error):
+        if self._connection.is_closed():
+            self._transaction = None
+            self._started = False
+    
+        if not isinstance(error, AsyncAdapt_asyncpg_dbapi.Error):
+            exception_mapping = self.dbapi._asyncpg_error_translate
+    
+            for super_ in type(error).__mro__:
+                if super_ in exception_mapping:
+                    translated_error = exception_mapping[super_](
+                        "%s: %s" % (type(error), error)
+                    )
+                    translated_error.pgcode = translated_error.sqlstate = (
+                        getattr(error, "sqlstate", None)
+                    )
+&gt;                   raise translated_error from error
+E                   sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:797: ProgrammingError
+
+The above exception was the direct cause of the following exception:
+
+refresh_setup = (&lt;lab.ai_fact_refresh.SyntheticDetailRefresh object at 0x00000267EF1969C0&gt;, UUID('c975f15e-1586-4b90-9a62-d50748e05b2a...-b446-ddb8c17e5de9', 'source_name': 'synthetic', ...}, &lt;function refresh_setup.&lt;locals&gt;.handler at 0x00000267EFF77C40&gt;)
+pipeline = (&lt;app.repositories.ai_fact_pipeline.FactPipeline object at 0x00000267EF3201A0&gt;, async_sessionmaker(class_='AsyncSessio...bind=&lt;sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x00000267F0218DD0&gt;, autoflush=True, expire_on_commit=False))
+field = 'normalized', nested = True, old = False, new = 0
+
+    @pytest.mark.parametrize("field,nested,old,new", [
+        ("raw", False, True, 1), ("raw", False, False, 0), ("raw", False, 1, True), ("raw", False, 0, False),
+        ("raw", True, True, 1), ("normalized", True, False, 0), ("normalized", False, True, 1),
+    ])
+    async def test_json_type_change_updates_fingerprint_and_content_time(refresh_setup, pipeline, field, nested, old, new):
+        runner, source, _, _, document, _ = refresh_setup
+        async with pipeline[1]() as session, session.begin():
+&gt;           row = await session.get(ExternalListingSource, source)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\ai_facts_pg\test_fact_refresh.py:480: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:591: in get
+    return await greenlet_spawn(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:201: in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:3702: in get
+    return self._get_impl(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:3881: in _get_impl
+    return db_load_fn(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\loading.py:695: in load_on_pk_identity
+    session.execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:2373: in execute
+    return self._execute_internal(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:2271: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1421: in execute
+    return meth(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\sql\elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1848: in _execute_context
+    return self._exec_single_context(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:585: in execute
+    self._adapt_connection.await_(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:563: in _prepare_and_execute
+    self._handle_exception(error)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:513: in _handle_exception
+    self._adapt_connection._handle_exception(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;AdaptedConnection &lt;asyncpg.connection.Connection object at 0x00000267EF1A5F40&gt;&gt;
+error = UndefinedColumnError('column external_listing_sources.scope_key does not exist')
+
+    def _handle_exception(self, error):
+        if self._connection.is_closed():
+            self._transaction = None
+            self._started = False
+    
+        if not isinstance(error, AsyncAdapt_asyncpg_dbapi.Error):
+            exception_mapping = self.dbapi._asyncpg_error_translate
+    
+            for super_ in type(error).__mro__:
+                if super_ in exception_mapping:
+                    translated_error = exception_mapping[super_](
+                        "%s: %s" % (type(error), error)
+                    )
+                    translated_error.pgcode = translated_error.sqlstate = (
+                        getattr(error, "sqlstate", None)
+                    )
+&gt;                   raise translated_error from error
+E                   sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist
+E                   [SQL: SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_listing_sources_source_name, external_listing_sources.scope_key AS external_listing_sources_scope_key, external_listing_sources.external_id AS external_listing_sources_external_id, external_listing_sources.source_url AS external_listing_sources_source_url, external_listing_sources.canonical_listing_id AS external_listing_sources_canonical_listing_id, external_listing_sources.raw_payload AS external_listing_sources_raw_payload, external_listing_sources.normalized_payload AS external_listing_sources_normalized_payload, external_listing_sources.fingerprint AS external_listing_sources_fingerprint, external_listing_sources.source_price_text AS external_listing_sources_source_price_text, external_listing_sources.first_seen_at AS external_listing_sources_first_seen_at, external_listing_sources.last_discovered_at AS external_listing_sources_last_discovered_at, external_listing_sources.last_seen_at AS external_listing_sources_last_seen_at, external_listing_sources.last_checked_at AS external_listing_sources_last_checked_at, external_listing_sources.last_success_at AS external_listing_sources_last_success_at, external_listing_sources.content_updated_at AS external_listing_sources_content_updated_at, external_listing_sources.consecutive_missing_runs AS external_listing_sources_consecutive_missing_runs, external_listing_sources.consecutive_unknown_state_runs AS external_listing_sources_consecutive_unknown_state_runs, external_listing_sources.current_status AS external_listing_sources_current_status, external_listing_sources.last_error AS external_listing_sources_last_error, external_listing_sources.removed_at AS external_listing_sources_removed_at, external_listing_sources.removed_reason AS external_listing_sources_removed_reason, external_listing_sources.last_state_check_at AS external_listing_sources_last_state_check_at, external_listing_sources.last_state_check_result AS external_listing_sources_last_state_check_result 
+E                   FROM external_listing_sources 
+E                   WHERE external_listing_sources.id = $1::UUID]
+E                   [parameters: (UUID('c975f15e-1586-4b90-9a62-d50748e05b2a'),)]
+E                   (Background on this error at: https://sqlalche.me/e/20/f405)
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:797: ProgrammingError</failure></testcase><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_json_type_change_updates_fingerprint_and_content_time[normalized-False-True-1]" time="1.765"><failure message="sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist&#10;[SQL: SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_listing_sources_source_name, external_listing_sources.scope_key AS external_listing_sources_scope_key, external_listing_sources.external_id AS external_listing_sources_external_id, external_listing_sources.source_url AS external_listing_sources_source_url, external_listing_sources.canonical_listing_id AS external_listing_sources_canonical_listing_id, external_listing_sources.raw_payload AS external_listing_sources_raw_payload, external_listing_sources.normalized_payload AS external_listing_sources_normalized_payload, external_listing_sources.fingerprint AS external_listing_sources_fingerprint, external_listing_sources.source_price_text AS external_listing_sources_source_price_text, external_listing_sources.first_seen_at AS external_listing_sources_first_seen_at, external_listing_sources.last_discovered_at AS external_listing_sources_last_discovered_at, external_listing_sources.last_seen_at AS external_listing_sources_last_seen_at, external_listing_sources.last_checked_at AS external_listing_sources_last_checked_at, external_listing_sources.last_success_at AS external_listing_sources_last_success_at, external_listing_sources.content_updated_at AS external_listing_sources_content_updated_at, external_listing_sources.consecutive_missing_runs AS external_listing_sources_consecutive_missing_runs, external_listing_sources.consecutive_unknown_state_runs AS external_listing_sources_consecutive_unknown_state_runs, external_listing_sources.current_status AS external_listing_sources_current_status, external_listing_sources.last_error AS external_listing_sources_last_error, external_listing_sources.removed_at AS external_listing_sources_removed_at, external_listing_sources.removed_reason AS external_listing_sources_removed_reason, external_listing_sources.last_state_check_at AS external_listing_sources_last_state_check_at, external_listing_sources.last_state_check_result AS external_listing_sources_last_state_check_result &#10;FROM external_listing_sources &#10;WHERE external_listing_sources.id = $1::UUID]&#10;[parameters: (UUID('a9cbf194-ac71-4b2f-be9e-411787ad7a89'),)]&#10;(Background on this error at: https://sqlalche.me/e/20/f405)">self = &lt;sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_cursor object at 0x00000267EF03D6C0&gt;
+operation = 'SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_l...listing_sources_last_state_check_result \nFROM external_listing_sources \nWHERE external_listing_sources.id = $1::UUID'
+parameters = (UUID('a9cbf194-ac71-4b2f-be9e-411787ad7a89'),)
+
+    async def _prepare_and_execute(self, operation, parameters):
+        adapt_connection = self._adapt_connection
+    
+        async with adapt_connection._execute_mutex:
+            if not adapt_connection._started:
+                await adapt_connection._start_transaction()
+    
+            if parameters is None:
+                parameters = ()
+    
+            try:
+&gt;               prepared_stmt, attributes = await adapt_connection._prepare(
+                    operation, self._invalidate_schema_cache_asof
+                )
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:526: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:773: in _prepare
+    prepared_stmt = await self._connection.prepare(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:638: in prepare
+    return await self._prepare(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:657: in _prepare
+    stmt = await self._get_statement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\asyncpg\connection.py:443: in _get_statement
+    statement = await self._protocol.prepare(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+&gt;   ???
+E   asyncpg.exceptions.UndefinedColumnError: column external_listing_sources.scope_key does not exist
+
+asyncpg/protocol/protocol.pyx:165: UndefinedColumnError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;sqlalchemy.engine.base.Connection object at 0x00000267EF432900&gt;
+dialect = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGDialect_asyncpg object at 0x00000267EFC23D40&gt;
+context = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGExecutionContext_asyncpg object at 0x00000267EF433680&gt;
+statement = &lt;sqlalchemy.dialects.postgresql.asyncpg.PGCompiler_asyncpg object at 0x00000267EF433650&gt;
+parameters = [(UUID('a9cbf194-ac71-4b2f-be9e-411787ad7a89'),)]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -&gt; CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+&gt;                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1969: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:585: in execute
+    self._adapt_connection.await_(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:563: in _prepare_and_execute
+    self._handle_exception(error)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:513: in _handle_exception
+    self._adapt_connection._handle_exception(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;AdaptedConnection &lt;asyncpg.connection.Connection object at 0x00000267EEEF08C0&gt;&gt;
+error = UndefinedColumnError('column external_listing_sources.scope_key does not exist')
+
+    def _handle_exception(self, error):
+        if self._connection.is_closed():
+            self._transaction = None
+            self._started = False
+    
+        if not isinstance(error, AsyncAdapt_asyncpg_dbapi.Error):
+            exception_mapping = self.dbapi._asyncpg_error_translate
+    
+            for super_ in type(error).__mro__:
+                if super_ in exception_mapping:
+                    translated_error = exception_mapping[super_](
+                        "%s: %s" % (type(error), error)
+                    )
+                    translated_error.pgcode = translated_error.sqlstate = (
+                        getattr(error, "sqlstate", None)
+                    )
+&gt;                   raise translated_error from error
+E                   sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:797: ProgrammingError
+
+The above exception was the direct cause of the following exception:
+
+refresh_setup = (&lt;lab.ai_fact_refresh.SyntheticDetailRefresh object at 0x00000267F0B35A60&gt;, UUID('a9cbf194-ac71-4b2f-be9e-411787ad7a89...-9693-672b9c4bfa39', 'source_name': 'synthetic', ...}, &lt;function refresh_setup.&lt;locals&gt;.handler at 0x00000267EF41AB60&gt;)
+pipeline = (&lt;app.repositories.ai_fact_pipeline.FactPipeline object at 0x00000267EEFD1A60&gt;, async_sessionmaker(class_='AsyncSessio...bind=&lt;sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x00000267EF32AA50&gt;, autoflush=True, expire_on_commit=False))
+field = 'normalized', nested = False, old = True, new = 1
+
+    @pytest.mark.parametrize("field,nested,old,new", [
+        ("raw", False, True, 1), ("raw", False, False, 0), ("raw", False, 1, True), ("raw", False, 0, False),
+        ("raw", True, True, 1), ("normalized", True, False, 0), ("normalized", False, True, 1),
+    ])
+    async def test_json_type_change_updates_fingerprint_and_content_time(refresh_setup, pipeline, field, nested, old, new):
+        runner, source, _, _, document, _ = refresh_setup
+        async with pipeline[1]() as session, session.begin():
+&gt;           row = await session.get(ExternalListingSource, source)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\ai_facts_pg\test_fact_refresh.py:480: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:591: in get
+    return await greenlet_spawn(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:201: in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:3702: in get
+    return self._get_impl(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:3881: in _get_impl
+    return db_load_fn(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\loading.py:695: in load_on_pk_identity
+    session.execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:2373: in execute
+    return self._execute_internal(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\session.py:2271: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1421: in execute
+    return meth(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\sql\elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1848: in _execute_context
+    return self._exec_single_context(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:585: in execute
+    self._adapt_connection.await_(
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:563: in _prepare_and_execute
+    self._handle_exception(error)
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:513: in _handle_exception
+    self._adapt_connection._handle_exception(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;AdaptedConnection &lt;asyncpg.connection.Connection object at 0x00000267EEEF08C0&gt;&gt;
+error = UndefinedColumnError('column external_listing_sources.scope_key does not exist')
+
+    def _handle_exception(self, error):
+        if self._connection.is_closed():
+            self._transaction = None
+            self._started = False
+    
+        if not isinstance(error, AsyncAdapt_asyncpg_dbapi.Error):
+            exception_mapping = self.dbapi._asyncpg_error_translate
+    
+            for super_ in type(error).__mro__:
+                if super_ in exception_mapping:
+                    translated_error = exception_mapping[super_](
+                        "%s: %s" % (type(error), error)
+                    )
+                    translated_error.pgcode = translated_error.sqlstate = (
+                        getattr(error, "sqlstate", None)
+                    )
+&gt;                   raise translated_error from error
+E                   sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) &lt;class 'asyncpg.exceptions.UndefinedColumnError'&gt;: column external_listing_sources.scope_key does not exist
+E                   [SQL: SELECT external_listing_sources.id AS external_listing_sources_id, external_listing_sources.source_name AS external_listing_sources_source_name, external_listing_sources.scope_key AS external_listing_sources_scope_key, external_listing_sources.external_id AS external_listing_sources_external_id, external_listing_sources.source_url AS external_listing_sources_source_url, external_listing_sources.canonical_listing_id AS external_listing_sources_canonical_listing_id, external_listing_sources.raw_payload AS external_listing_sources_raw_payload, external_listing_sources.normalized_payload AS external_listing_sources_normalized_payload, external_listing_sources.fingerprint AS external_listing_sources_fingerprint, external_listing_sources.source_price_text AS external_listing_sources_source_price_text, external_listing_sources.first_seen_at AS external_listing_sources_first_seen_at, external_listing_sources.last_discovered_at AS external_listing_sources_last_discovered_at, external_listing_sources.last_seen_at AS external_listing_sources_last_seen_at, external_listing_sources.last_checked_at AS external_listing_sources_last_checked_at, external_listing_sources.last_success_at AS external_listing_sources_last_success_at, external_listing_sources.content_updated_at AS external_listing_sources_content_updated_at, external_listing_sources.consecutive_missing_runs AS external_listing_sources_consecutive_missing_runs, external_listing_sources.consecutive_unknown_state_runs AS external_listing_sources_consecutive_unknown_state_runs, external_listing_sources.current_status AS external_listing_sources_current_status, external_listing_sources.last_error AS external_listing_sources_last_error, external_listing_sources.removed_at AS external_listing_sources_removed_at, external_listing_sources.removed_reason AS external_listing_sources_removed_reason, external_listing_sources.last_state_check_at AS external_listing_sources_last_state_check_at, external_listing_sources.last_state_check_result AS external_listing_sources_last_state_check_result 
+E                   FROM external_listing_sources 
+E                   WHERE external_listing_sources.id = $1::UUID]
+E                   [parameters: (UUID('a9cbf194-ac71-4b2f-be9e-411787ad7a89'),)]
+E                   (Background on this error at: https://sqlalche.me/e/20/f405)
+
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:797: ProgrammingError</failure></testcase><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_equivalent_header_case_and_whitespace_are_accepted[headers0]" time="1.701" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_equivalent_header_case_and_whitespace_are_accepted[headers1]" time="1.668" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_declared_mock_label_allows_dynamic_callbacks_but_not_unbound_source_writes[transport]" time="1.723" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_declared_mock_label_allows_dynamic_callbacks_but_not_unbound_source_writes[handler]" time="1.526" /></testsuite></testsuites>

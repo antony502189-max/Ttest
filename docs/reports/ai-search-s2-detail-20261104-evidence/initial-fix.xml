@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="1.476" timestamp="2026-11-04T13:01:27.593991+03:00" hostname="DESKTOP-KAHKI17"><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_detail_refresh_recovers_current_facts_without_implicit_ack" time="1.219"><failure message="lab.ai_fact_refresh.SyntheticRefreshUnavailable: SYNTHETIC_DETAIL_REFRESH_UNAVAILABLE">pipeline = (&lt;app.repositories.ai_fact_pipeline.FactPipeline object at 0x00000278A794D3D0&gt;, async_sessionmaker(class_='AsyncSessio...bind=&lt;sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x00000278A7952250&gt;, autoflush=True, expire_on_commit=False))
+refresh_setup = (&lt;lab.ai_fact_refresh.SyntheticDetailRefresh object at 0x00000278A7BFFFB0&gt;, UUID('b240a965-9cef-40d1-a21e-637eea6f04ed...-8365-2acee41224a9', 'source_name': 'synthetic', ...}, &lt;function refresh_setup.&lt;locals&gt;.handler at 0x00000278A620E700&gt;)
+
+    async def test_detail_refresh_recovers_current_facts_without_implicit_ack(pipeline, refresh_setup):
+        runner, source, listing, calls, document, _ = refresh_setup
+        store, coordinator = runner.supervisor.journal, runner.supervisor.coordinator
+        assert await guard(coordinator.proofs, listing)
+        assert (await state(pipeline))[0].last_success_at is None
+&gt;       result = await run(runner)
+                 ^^^^^^^^^^^^^^^^^
+
+tests\ai_facts_pg\test_fact_refresh.py:76: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\ai_facts_pg\test_fact_refresh.py:57: in run
+    return await runner.run_receipt(revision, expected_digest=expected or runner.supervisor.journal.receipt_digest(revision))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;lab.ai_fact_refresh.SyntheticDetailRefresh object at 0x00000278A7BFFFB0&gt;
+revision = 1
+expected_digest = '7dce2c76d11be858dc9d7d6760102790a526c7ec73cb1ddb5e5e340fd6b7bd98'
+
+    async def run_receipt(self, revision: int, *, expected_digest: str) -&gt; RefreshReceiptResult:
+        """One exact retained receipt. Never ACK or delete any supervisor evidence."""
+        try:
+            await self._schema()
+            bounded(revision, 10_000)
+            store = self.supervisor.journal
+            if store.receipt_digest(revision) != expected_digest:
+                raise ValueError("exact synthetic receipt required")
+            receipt = store.receipt(revision)
+            if receipt is None:
+                raise ValueError("exact synthetic receipt required")
+            ids = tuple(UUID(value) for value in receipt["content_refresh_due"])
+            if len(ids) &gt; self.policy.max_requests or len(set(ids)) != len(ids) or any(v not in self.cohort for v in ids):
+                raise ValueError("synthetic refresh receipt exceeds explicit cohort/budget")
+            namespace = self._namespace()
+            keys = [digest({"namespace": namespace, "revision": revision, "receipt": expected_digest,
+                            "source": str(v)}) for v in ids]
+            async with self.sessions() as session:
+                known = set((await session.scalars(select(OPERATIONS.c.operation).where(
+                    OPERATIONS.c.operation.in_(keys)))).all())
+                count = int(await session.scalar(select(func.count()).select_from(OPERATIONS)) or 0)
+            # Validate every new target before the first mock GET; no partial unauthorized receipt.
+            targets = [None if key in known else await self._target(source_id) for source_id, key in zip(ids, keys, strict=True)]
+            outcomes = []
+            for target, key in zip(targets, keys, strict=True):
+                if target is None:
+                    outcomes.append("already_applied")
+                elif (target.row.healthy and target.row.last_success_at is not None
+                        and 0 &lt;= (target.row.checked_at - target.row.last_success_at).total_seconds()
+                        &lt;= self.supervisor.coordinator.sources[self.policy.source_name].content_max_age_seconds):
+                    outcomes.append("already_fresh")
+                elif count &gt;= self.policy.max_operations:
+                    outcomes.append("capacity")
+                else:
+                    detail, state = await self._fetch(target)
+                    outcome = await self._write(target, key, namespace, detail, state)
+                    outcomes.append(outcome)
+                    count += int(outcome == "refreshed")
+            return RefreshReceiptResult(tuple(outcomes))
+        except asyncio.CancelledError:
+            raise
+        except Exception:  # noqa: BLE001 -- unknown commit outcome must be recovered via PG receipt, not blind retry here.
+&gt;           raise SyntheticRefreshUnavailable("SYNTHETIC_DETAIL_REFRESH_UNAVAILABLE") from None
+E           lab.ai_fact_refresh.SyntheticRefreshUnavailable: SYNTHETIC_DETAIL_REFRESH_UNAVAILABLE
+
+lab\ai_fact_refresh.py:284: SyntheticRefreshUnavailable</failure></testcase></testsuite></testsuites>

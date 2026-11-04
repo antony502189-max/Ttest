@@ -23,3 +23,5 @@ docs/reports/pr405-review-fixes-evidence/frontend-build.txt whitespace=-blank-at
 docs/reports/pr405-review-fixes-evidence/migration-head.txt whitespace=-blank-at-eof,-blank-at-eol,cr-at-eol
 docs/reports/ai-search-s2-process-20261104-evidence/** -text whitespace=-blank-at-eol,cr-at-eol
 docs/reports/pr406-review-fixes-evidence/** -text whitespace=-blank-at-eol,cr-at-eol
+docs/reports/ai-search-s2-detail-20261104-evidence/** -text whitespace=-blank-at-eol,cr-at-eol
+docs/reports/pr407-review-fixes-evidence/** -text whitespace=-blank-at-eol,cr-at-eol

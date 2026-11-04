@@ -57,7 +57,7 @@ jobs:
         working-directory: backend
         run: |
           ruff check app tests
-          mypy app
+          mypy app lab/ai_fact_refresh.py lab/ai_fact_process.py
       - name: Backend unit regressions
         working-directory: backend
         run: pytest -q -m 'not integration' --junitxml=../output/ai-facts-unit.xml

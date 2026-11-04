@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="2" time="2.523" timestamp="2026-11-04T13:21:05.681023+03:00" hostname="DESKTOP-KAHKI17"><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_configuration_drift_during_get_cannot_commit[consumer]" time="1.097" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_configuration_drift_during_get_cannot_commit[coordinator]" time="1.050"><failure message="Failed: DID NOT RAISE SyntheticRefreshUnavailable">pipeline = (&lt;app.repositories.ai_fact_pipeline.FactPipeline object at 0x000001A98A3F0440&gt;, async_sessionmaker(class_='AsyncSessio...bind=&lt;sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x000001A988833F10&gt;, autoflush=True, expire_on_commit=False))
+refresh_setup = (&lt;lab.ai_fact_refresh.SyntheticDetailRefresh object at 0x000001A98A4F19A0&gt;, UUID('29830808-6b17-4c59-9448-3a3f39734cb3...-af5f-669ec5ca8089', 'source_name': 'synthetic', ...}, &lt;function refresh_setup.&lt;locals&gt;.handler at 0x000001A98A38DDA0&gt;)
+scope = 'coordinator'
+
+    @pytest.mark.parametrize("scope", ["consumer", "coordinator"])
+    async def test_configuration_drift_during_get_cannot_commit(pipeline, refresh_setup, scope):
+        runner, _, _, calls, _, handler = refresh_setup
+    
+        def drift(request):
+            response = handler(request)
+            if scope == "consumer":
+                runner.policy = replace(POLICY, max_requests=1)
+            else:
+                coordinator = runner.supervisor.coordinator
+                coordinator.sources["synthetic"] = replace(coordinator.sources["synthetic"], content_max_age_seconds=59)
+            return response
+    
+        runner.transport = httpx.MockTransport(drift)
+        before = await state(pipeline)
+&gt;       with pytest.raises(SyntheticRefreshUnavailable):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE SyntheticRefreshUnavailable
+
+tests\ai_facts_pg\test_fact_refresh.py:394: Failed</failure></testcase></testsuite></testsuites>

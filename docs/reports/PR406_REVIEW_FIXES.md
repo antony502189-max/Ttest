@@ -1,5 +1,7 @@
 # PR #406 — полное ревью и исправления S2.2, 04.11.2026
 
+Последующее состояние: владелец слил#406, GitHub merged=true04.11 в12:46:54Europe/Moscow; merge/main1990638d61ada0960a864e34568db306151f442b подтверждён fetch. Статусы ready/not merged ниже исторические, на момент завершения review. Merge не означает deployment.
+
 Ревью охватывает весь diff PR от main `20435c2e36cabac5608780fe01ab75e47efe152c`: process harness, unit/PG tests, integration с existing coordinator/supervisor/leases/fences, документацию, runtime manifest и evidence-byte policy. Исходный PR head `17d2857f03ef1b303d46918f6d1d2cc9632e160f` прошёл11/11workflows SUCCESS; это не доказательство корректности найденных ниже edge cases и не CI исправленного source. Все шесть findings исправлены в **`61c4e027e3438ba1c4448cec88a24532677d920c`**. Независимые subagents не использовались; это self-review с воспроизведением и регрессиями.
 
 | ID | Подтверждённая проблема | Исправление и проверка |
@@ -10,6 +12,10 @@
 | F-04 | Arbitrary pickle reducers args/factory исполнялись в controlling parent до child kill boundary | До spawn разрешены только фактически зарегистрированная module-level plain function и максимум16 exact scalar args с type/size bounds. Custom objects/callables, lambda/nested functions, non-finite floats/oversized config отклоняются без запуска reducer. RED marker test и negative input cases |
 | F-05 | Parent start/join exceptions раскрывали исходный текст, включая private configuration | Parent IPC setup/start/join errors дают redacted SYNTHETIC_PROCESS_UNAVAILABLE; cleanup errors — SYNTHETIC_CHILD_REAP_FAILED. Injected private start error проверяет сообщение, suppress cause и закрытие handles |
 | F-06 | PG process fixture имела constant catalog digest и принимала тот же journal с другой schema | Binding теперь содержит hash фактической unique schema и файла fixture bundle; повтор с другой schema отвергнут до DB I/O. Отдельный RED→GREEN test; actual kill/recovery suite также проверяет ровно2pending/completed rematch events |
+
+## Финальный CI и состояние PR
+
+На точном head `1fe59146862e73d8c44f0bd26eb3147562b42b06`: **11/11workflows и18/18jobs SUCCESS**, включая Linux facts/PostGIS/HTTP/browser, production/mobile/full audits. [Combined facts run](https://github.com/antony502189-max/Ttest/actions/runs/41806676886). PR#406 ready, open/merged=false. Snapshot: `output/pr406-final-ci-1fe59146.json`, SHA256 `83339ff7661464af8249b18da2713ce7defa7c757fb59efa6b627ef943f3c7b6`. Этот итог сохранён локально после завершения CI; проверенный PR head не менялся. Описание PR содержит тот же итог. Merge/deploy не выполнены.
 
 ## Итоговая проверка исправленного source
 
@@ -29,4 +35,4 @@ Runtime: existing Python3.12.14/pytest9.1.1 release-venv, Windows spawn. Нов�
 
 SQLite clock и PG lease expiry ускорены только в owned synthetic fixture; natural production timing не заявлен. `committed` pipe status не заменяет durable receipt inspection и не разрешает blind replay unknown commit outcome. На диске остаются существующие fences/claims/receipts; wrapper не совершает compensating mutations от имени погибшего owner.
 
-Проверены совместимость source-filtered jobs, bounded cursor replay, exact receipt ACK/pending signals, source TTL/presence split и независимость обычного app startup. Новых startup/importer/scheduler/capability hooks, provider calls, ingestion, user outbound, real budget changes, large benchmarks или production activation нет. A3/A11 остаются partial; voice/saved/delivery и S3–S7 обязательны. Следующий шаг в едином плане — exact-head CI исправлений; затем S2 source-specific refresh chain. Merge/deploy этим ревью не выполнены.
+Проверены совместимость source-filtered jobs, bounded cursor replay, exact receipt ACK/pending signals, source TTL/presence split и независимость обычного app startup. Новых startup/importer/scheduler/capability hooks, provider calls, ingestion, user outbound, real budget changes, large benchmarks или production activation нет. A3/A11 остаются partial; voice/saved/delivery и S3–S7 обязательны. Exact-head CI исправлений закрыт; следующий шаг после включения проверенного PR в основную базу — S2 source-specific refresh chain. Merge/deploy этим ревью не выполнены.
