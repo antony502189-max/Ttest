@@ -4,7 +4,7 @@
     ".dockerignore": "c88bd8702391bd222311fb0454263580e435ba3d",
     ".env.example": "0de37d94d630eec4f2790b0d52f497795086b334",
     ".env.stripe-test.local": "eedb6db3986650fe98e4f93d1ec058d0b1c2ac67",
-    ".gitattributes": "1aa403a27925ea801fe15db5b50034795c05b0b6",
+    ".gitattributes": "febbcbcd255f0798e7f410fd0fef88701fc59045",
     ".github/visual-baseline-ref": "10a408e333afb9d17760d5439001a5bb183a2f5f",
     ".github/workflows/ai-parser-foundation.yml": "4f805fbe8a5215f99156197a676ab78e04c2faac",
     ".github/workflows/ai-search-facts.yml": "a72ac9d509b5e6dfd391ead50c981e9833a24cd2",

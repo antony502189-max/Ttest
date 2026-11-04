@@ -36,4 +36,6 @@ Backend/PostGIS tests локально не запускались: backend/sche
 
 CI исправленного head фиксируется отдельно; до финального snapshot новый exact-head PASS не заявляется. PR остаётся draft, merge/deploy не выполняются. Дополнительное чтение public detail может завершиться ошибкой или не дать координат: тогда AI карта использует общий Spain/Canaries overview, а не предыдущую ручную область. Центр первой карточки не обещает охват всех результатов нескольких регионов. Bbox-empty не переименован в отсутствие результатов запроса.
 
+После local runs добавлен только scoped `.gitattributes -text` для двух PR408 evidence directories и обновлён обязательный manifest: это сохраняет опубликованные hashes при Windows checkout. Application/test source остаётся c2e932fd; boundary/документация имеют отдельный commit и новый exact-head CI. Нормализованные artifacts не переписаны повторно.
+
 S2 partial; standing refresh/durability/lifecycle, real coverage/provider/data/performance/release gates и S3–S7/B2–B6 OPEN. Voice/saved/delivery обязательны. Ни платных calls, crawling/backfill, budget mutations, больших benchmarks, activation, ни изменений дизайна/production data не выполнялось.
