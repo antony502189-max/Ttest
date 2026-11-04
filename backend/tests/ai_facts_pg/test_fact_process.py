@@ -1,6 +1,7 @@
 """Hard process death in real coordinator work on owned disposable PostgreSQL."""
 
 import asyncio
+import hashlib
 import multiprocessing
 import sqlite3
 import time
@@ -30,7 +31,7 @@ from lab.ai_fact_supervisor import (
 
 pytestmark = pytest.mark.integration
 POLICY = SupervisorPolicy(1, 20, 30, 1, 2, 60, 10, 100)
-BUNDLE, CATALOG = "a" * 64, "b" * 64
+BUNDLE = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 
 
 def make_supervisor(url, schema, path, marker, mode, now):
@@ -62,8 +63,9 @@ def make_supervisor(url, schema, path, marker, mode, now):
     service = OfflineFactCoordinator(pipeline, sources=(SourceFactPolicy(
         "synthetic", mapping(), build, VERSION, 60, 2, False),),
         max_sources=1, max_reconcile=2, max_payload_bytes=131_072)
+    catalog = hashlib.sha256(schema.encode()).hexdigest()
     store = SyntheticSupervisorJournal(Path(path), policy=POLICY, configuration_sha256=configuration_digest(
-        service, builder_bundle_sha256=BUNDLE, catalog_identity_sha256=CATALOG))
+        service, builder_bundle_sha256=BUNDLE, catalog_identity_sha256=catalog))
     if mode == "published":
         prepare = service.proofs.prepare
 
@@ -82,7 +84,7 @@ def make_supervisor(url, schema, path, marker, mode, now):
 
         store.complete = lost_ack
     return SyntheticFactSupervisor(service, store, builder_bundle_sha256=BUNDLE,
-                                   catalog_identity_sha256=CATALOG, clock=lambda: now)
+                                   catalog_identity_sha256=catalog, clock=lambda: now)
 
 
 @pytest.mark.parametrize("mode", ["builder", "published", "receipt"])
@@ -150,6 +152,7 @@ async def test_deadline_kills_work_and_restart_recovers_without_duplicate_public
         assert row.attempts == (2 if mode == "builder" else 1)
         assert row.fence == old_fence + (1 if mode == "builder" else 0)
         events = await session.scalar(select(func.count()).select_from(AiFactRematchEvent))
+        assert events == 2  # one pending barrier, one completed publication for this single listing
         if mode != "builder":
             assert events == events_before
     # All committed refresh signals remain durable until an exact explicit ack.
@@ -164,3 +167,14 @@ async def test_deadline_kills_work_and_restart_recovers_without_duplicate_public
         assert await session.scalar(select(func.count()).select_from(AiFactRematchEvent)) == events
         row = await session.get(AiFactJob, job_id)
         assert row.attempts == (2 if mode == "builder" else 1)
+
+
+async def test_process_fixture_journal_cannot_cross_schemas(pipeline, pg, tmp_path):
+    with pg[0].connect() as connection:
+        schema = connection.scalar(text("SELECT current_schema()"))
+    url = pipeline[1].kw["bind"].url.render_as_string(hide_password=False)
+    path = str(tmp_path / "DISPOSABLE-fact-supervisor-schema.sqlite3")
+    args = (url, schema, path, str(tmp_path / "unused"), "normal", 1000)
+    make_supervisor(*args)
+    with pytest.raises(ValueError, match="binding mismatch"):
+        make_supervisor(url, schema + "_different", *args[2:])
