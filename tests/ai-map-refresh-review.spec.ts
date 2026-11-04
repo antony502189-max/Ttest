@@ -7,12 +7,13 @@ type Viewport = { north: number; south: number; east: number; west: number; zoom
 
 async function fixture(page: Page, lab: boolean, fault: string) {
   const point = lab ? { latitude: 28.09, longitude: -16.70 } : { latitude: 40.42, longitude: -3.70 }
+  const movedPoint = lab ? { latitude: 28.45, longitude: -16.25 } : { latitude: 41.39, longitude: 2.17 }
   const intent = { schema_version: 'ai-search.v1', taxonomy_version: 'rental.v1', session_id: sid, version: 1,
     criteria: { budget: { strength: 'hard', value: { amount: '700.00', currency: 'EUR', period: 'monthly' } } } }
-  const cards = { intent_hash: hash, cards: { total: 1, nextCursor: null, previousCursor: null,
+  const cards = { intent_hash: hash, map_center: { listing_id: 'synthetic-card', ...point }, cards: { total: 1, nextCursor: null, previousCursor: null,
     items: [{ id: 'synthetic-card', title: 'Synthetic', city: lab ? 'Adeje' : 'Madrid', area: 'Centro',
       rentalMode: 'long', price: 650, isExternal: true, sourceUrl: 'https://fixture.invalid/room', ...point }] } }
-  const state = { queries: 0, refreshed: false, maps: [] as Viewport[], failMap: false, oldFinished: false }
+  const state = { queries: 0, refreshed: false, maps: [] as Viewport[], failMap: false, oldFinished: false, detailCalls: 0 }
   let releaseOld!: () => void
   const gate = new Promise<void>(resolve => { releaseOld = resolve })
   await page.addInitScript(() => {
@@ -46,14 +47,20 @@ async function fixture(page: Page, lab: boolean, fault: string) {
     if (path.endsWith('/capabilities')) return route.fulfill({ json: { text: true, map: true } })
     if (path.endsWith('/quota')) return route.fulfill({ json: { remaining: 2 } })
     if (path.endsWith('/identity')) return route.fulfill({ json: { ready: true } })
-    if (path.endsWith('/listings/synthetic-card')) return route.fulfill({ json: {
+    if (path.endsWith('/listings/synthetic-card')) {
+      state.detailCalls++
+      if (fault === 'detail-slow') await gate
+      if (fault === 'detail-404' || fault === 'detail-503') return route.fulfill({ status: fault === 'detail-404' ? 404 : 503, json: {} })
+      return route.fulfill({ json: {
       ...cards.cards.items[0], restrictions: [], amenities: [], imageUrls: [], owner: {}, availableFrom: null,
-    } })
+    } }).catch(() => undefined) }
     if (path.endsWith('/sessions')) return route.fulfill({ json: { intent: { ...intent, version: 0 }, expires_at: '2099-01-01T00:00:00Z' } })
     if (path.endsWith(`/sessions/${sid}`)) return route.fulfill({ json: { intent, expires_at: '2099-01-01T00:00:00Z' } })
     if (path.endsWith('/query')) {
       state.queries++
-      return route.fulfill({ json: { operation: { status: 'succeeded', remaining: 2, receipt: { result_ref: ref, count: 1 } }, cards } })
+      const payload = fault === 'missing-center' ? { ...cards, map_center: null }
+        : fault === 'foreign-center' ? { ...cards, map_center: { listing_id: 'foreign-card', ...point } } : cards
+      return route.fulfill({ json: { operation: { status: 'succeeded', remaining: 2, receipt: { result_ref: ref, count: 1 } }, cards: payload } })
     }
     if (path.endsWith(`/results/${ref}`)) return route.fulfill({ json: { result_ref: ref, count: 1, intent_hash: hash, intent } })
     if (path.endsWith(`/results/${ref}/cards`)) {
@@ -61,6 +68,10 @@ async function fixture(page: Page, lab: boolean, fault: string) {
       if (fault === 'cards-error') return route.fulfill({ status: 503, json: { detail: 'unavailable' } })
       state.refreshed = true
       state.failMap = fault === 'map-error'
+      if (fault === 'zero') return route.fulfill({ json: { ...cards, map_center: null, cards: { ...cards.cards, total: 0, items: [] } } })
+      if (fault.startsWith('cross-')) return route.fulfill({ json: { ...cards,
+        map_center: { listing_id: 'fresh-card', ...movedPoint },
+        cards: { ...cards.cards, items: [{ ...cards.cards.items[0], id: 'fresh-card' }] } } })
       return route.fulfill({ json: cards })
     }
     if (path.endsWith(`/results/${ref}/map`)) {
@@ -72,10 +83,11 @@ async function fixture(page: Page, lab: boolean, fault: string) {
       const old = !state.refreshed
       if (old && fault === 'late') await gate
       if (state.failMap) { state.failMap = false; return route.fulfill({ status: 503, json: { detail: 'unavailable' } }) }
-      const inside = point.latitude >= viewport.south && point.latitude <= viewport.north &&
-        point.longitude >= viewport.west && point.longitude <= viewport.east
+      const location = state.refreshed && (fault.startsWith('cross-') || fault === 'epoch-change') ? movedPoint : point
+      const inside = !(state.refreshed && fault === 'zero') && location.latitude >= viewport.south && location.latitude <= viewport.north &&
+        location.longitude >= viewport.west && location.longitude <= viewport.east
       await route.fulfill({ json: { intent_hash: state.refreshed && fault === 'mismatch' ? 'b'.repeat(64) : hash,
-        map: { items: inside ? [{ type: 'listing', id: old ? 'old-source' : 'fresh-source', price: 650, promoted: false, ...point }] : [] } } }).catch(() => undefined)
+        map: { items: inside ? [{ type: 'listing', id: old ? 'old-source' : 'fresh-source', price: 650, promoted: false, ...location }] : [] } } }).catch(() => undefined)
       if (old) state.oldFinished = true
       return
     }
@@ -89,7 +101,7 @@ async function fixture(page: Page, lab: boolean, fault: string) {
   await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
   await page.getByRole('button', { name: 'Ver mapa', exact: true }).click()
   const map = lab ? page.getByRole('region', { name: 'Локальная координатная карта' }) : page.locator('.ai-result-map')
-  await expect.poll(() => state.maps.length).toBeGreaterThan(0)
+  await expect.poll(() => state.maps.length, { timeout: 2000 }).toBeGreaterThan(0)
   return { state, map, releaseOld }
 }
 
@@ -106,7 +118,10 @@ for (const fault of ['success', 'cards-error', 'late', 'map-error', 'mismatch'])
     })).toEqual({ lat: 40.42, lng: -3.70 })
     if (lab) {
       await map.getByRole('button', { name: 'Масштаб 14' }).click()
+      await expect.poll(() => state.maps.at(-1)!.zoom).toBe(15)
+      const zoomedWest = state.maps.at(-1)!.west
       await map.getByRole('button', { name: 'Сдвинуть область' }).click()
+      await expect.poll(() => state.maps.at(-1)!.west).toBeCloseTo(zoomedWest + .075 / 4)
     } else {
       await page.evaluate(() => { const map = window.__googleMapsTestLastMap!; map.setCenter({ lat: 40.421, lng: -3.701 }); map.getDiv().dispatchEvent(new WheelEvent('wheel')) })
     }
@@ -115,7 +130,6 @@ for (const fault of ['success', 'cards-error', 'late', 'map-error', 'mismatch'])
       return { lat: center.lat(), lng: center.lng(), zoom: map.getZoom() }
     })
     await expect.poll(() => state.maps.at(-1)!.zoom).toBe(lab ? 15 : camera!.zoom)
-    if (lab) await expect.poll(() => state.maps.at(-1)!.west).toBeCloseTo(-16.725)
     const before = state.maps.length, viewport = state.maps.at(-1)!
     if (!lab) expect(viewport).toEqual(await page.evaluate(() => {
       const map = window.__googleMapsTestLastMap!, bounds = map.getBounds(), ne = bounds.getNorthEast(), sw = bounds.getSouthWest()
@@ -154,6 +168,69 @@ for (const fault of ['success', 'cards-error', 'late', 'map-error', 'mismatch'])
     await page.getByRole('button', { name: 'Ver mapa', exact: true }).click()
     await expect(map).toBeVisible()
     expect(state.queries).toBe(1)
+    expect(state.detailCalls).toBe(0)
+    await expect(page.getByText('Búsquedas disponibles hoy: 2')).toBeVisible()
+  })
+}
+
+for (const fault of ['detail-slow', 'detail-404', 'detail-503']) {
+  test(`review map is independent of optional detail: ${fault}`, async ({ page, baseURL }) => {
+    const lab = baseURL?.endsWith(':4176') === true
+    const { state, map, releaseOld } = await fixture(page, lab, fault)
+    await expect(map.locator('[data-listing-id="old-source"]')).toBeVisible()
+    expect(state.detailCalls).toBe(0)
+    releaseOld()
+    expect(state.queries).toBe(1)
+  })
+}
+
+for (const fault of ['missing-center', 'foreign-center']) {
+  test(`review safe overview without usable camera metadata: ${fault}`, async ({ page, baseURL }) => {
+    const lab = baseURL?.endsWith(':4176') === true
+    const { state, map } = await fixture(page, lab, fault)
+    await expect(map).toBeVisible()
+    if (!lab) expect(await page.evaluate(() => {
+      const center = window.__googleMapsTestLastMap!.getCenter()
+      return { lat: center.lat(), lng: center.lng() }
+    })).toEqual({ lat: 32.45, lng: -11.2 })
+    expect(state.detailCalls).toBe(0)
+    expect(state.queries).toBe(1)
+  })
+}
+
+for (const fault of ['cross-auto', 'cross-manual', 'zero', 'epoch-change']) {
+  test(`review live catalog camera and separate snapshots: ${fault}`, async ({ page, baseURL }) => {
+    const lab = baseURL?.endsWith(':4176') === true
+    const { state, map } = await fixture(page, lab, fault)
+    await expect(map.locator('[data-listing-id="old-source"]')).toBeVisible()
+    const mapHandle = lab ? await map.locator('svg').elementHandle() : await page.evaluateHandle(() => window.__googleMapsTestLastMap!)
+    if (fault === 'cross-manual') {
+      if (lab) await map.getByRole('button', { name: 'Масштаб 14' }).click()
+      else await page.evaluate(() => window.__googleMapsTestLastMap!.getDiv().dispatchEvent(new WheelEvent('wheel')))
+      await expect.poll(() => state.maps.at(-1)!.zoom).toBe(lab ? 15 : 13)
+    }
+    const before = state.maps.at(-1)!
+    await page.getByRole('button', { name: 'Actualizar resultados sin gastar una búsqueda' }).click()
+    await expect(page.getByText('La lista y el mapa se actualizan por separado.', { exact: false })).toBeVisible()
+    if (fault === 'cross-auto') {
+      await expect(map.locator('[data-listing-id="fresh-source"]')).toBeVisible()
+      expect(state.maps.at(-1)!.west).not.toBe(before.west)
+    } else if (fault === 'cross-manual' || fault === 'epoch-change') {
+      await expect(map.locator('[data-listing-id]')).toHaveCount(0)
+      await expect(map.getByText(lab ? 'В этой области нет актуальных маркеров.' : 'No hay marcadores actuales en esta zona.', { exact: false })).toBeVisible()
+      expect(state.maps.at(-1)).toEqual(before)
+      if (fault === 'cross-manual') {
+        await map.getByRole('button', { name: lab ? 'Показать область результатов' : 'Mostrar el área de resultados' }).click()
+        await expect(map.locator('[data-listing-id="fresh-source"]')).toBeVisible()
+      }
+    } else {
+      await expect(page.getByText('No encontramos opciones con todas las condiciones confirmadas.', { exact: false })).toBeVisible()
+      await expect(map.getByRole('button', { name: lab ? 'Показать область результатов' : 'Mostrar el área de resultados' })).toHaveCount(0)
+    }
+    if (lab) expect(await mapHandle!.evaluate(element => element.isConnected)).toBe(true)
+    else expect(await mapHandle!.evaluate(map => map === window.__googleMapsTestLastMap)).toBe(true)
+    expect(state.queries).toBe(1)
+    expect(state.detailCalls).toBe(0)
     await expect(page.getByText('Búsquedas disponibles hoy: 2')).toBeVisible()
   })
 }

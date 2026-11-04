@@ -37,6 +37,8 @@ export interface ResultsMapProps {
   serverSource?: { key: string; load: (viewport: MapBounds & { zoom: number }, signal: AbortSignal) => Promise<ListingMapMarker[]> }
   independentSearch?: boolean
   initialCamera?: { lat: number; lng: number; zoom: number }
+  cameraTarget?: { lat: number; lng: number; zoom: number }
+  cameraRequestVersion?: number
   selectedId?: string
   highlightedId?: string
   onSelect: (id: string) => void
@@ -99,7 +101,7 @@ function fitListings(map: google.maps.Map, listings: MappedListing[]) {
 
 const EMPTY_POLYGON: MapPolygonPoint[] = []
 
-export function ResultsMap({ items, serverQuery, serverSource, independentSearch = false, initialCamera, selectedId, highlightedId, onSelect, onHighlight, fullScreen = false, showPreview = true, onBoundsSearch, onPolygonSearch, onDrawingStart, fitResultsKey = 0, initialAction = null, onInitialActionHandled }: ResultsMapProps) {
+export function ResultsMap({ items, serverQuery, serverSource, independentSearch = false, initialCamera, cameraTarget, cameraRequestVersion = 0, selectedId, highlightedId, onSelect, onHighlight, fullScreen = false, showPreview = true, onBoundsSearch, onPolygonSearch, onDrawingStart, fitResultsKey = 0, initialAction = null, onInitialActionHandled }: ResultsMapProps) {
   const { filters, mapPolygon: storedMapPolygon, setMapPolygon, clearMapPolygon } = useApp()
   const mapPolygon = independentSearch ? EMPTY_POLYGON : storedMapPolygon
   const { language, t } = useI18n()
@@ -116,6 +118,7 @@ export function ResultsMap({ items, serverQuery, serverSource, independentSearch
   const serverSourceRef = useRef(serverSource)
   const initialCameraRef = useRef(initialCamera)
   const independentSearchRef = useRef(independentSearch)
+  const previousCameraRequest = useRef(cameraRequestVersion)
   serverSourceRef.current = serverSource
   const drawingLayerRef = useRef<google.maps.Polygon | google.maps.Polyline | null>(null)
   const vertexMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
@@ -206,6 +209,22 @@ export function ResultsMap({ items, serverQuery, serverSource, independentSearch
     })
     return () => { cancelled = true }
   }, [items, selectedId, serverMarkers, serverQueryKey])
+
+  const targetLat = cameraTarget?.lat, targetLng = cameraTarget?.lng, targetZoom = cameraTarget?.zoom
+  useEffect(() => {
+    const map = mapRef.current
+    if (!ready || !independentSearch || !map || targetLat === undefined || targetLng === undefined || targetZoom === undefined) return
+    const force = previousCameraRequest.current !== cameraRequestVersion
+    previousCameraRequest.current = cameraRequestVersion
+    if (hasExploredMapRef.current && !force) return
+    const current = map.getCenter()
+    if (force) hasExploredMapRef.current = false
+    if (current && Math.abs(current.lat() - targetLat) < .000001 && Math.abs(current.lng() - targetLng) < .000001 && map.getZoom() === targetZoom) return
+    programmaticMoveRef.current = true
+    map.setCenter({ lat: targetLat, lng: targetLng })
+    map.setZoom(targetZoom)
+    setBoundsDirty(false)
+  }, [ready, independentSearch, targetLat, targetLng, targetZoom, cameraRequestVersion])
 
   useEffect(() => {
     const map = mapRef.current

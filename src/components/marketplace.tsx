@@ -1137,6 +1137,8 @@ export function MapView(props: {
   serverSource?: import("@/components/map-view").ResultsMapProps['serverSource'];
   independentSearch?: boolean;
   initialCamera?: import("@/components/map-view").ResultsMapProps['initialCamera'];
+  cameraTarget?: import("@/components/map-view").ResultsMapProps['cameraTarget'];
+  cameraRequestVersion?: number;
   selectedId?: string;
   highlightedId?: string;
   onSelect: (id: string) => void;

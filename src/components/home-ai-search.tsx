@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AudioLines, Search } from 'lucide-react'
 import { ApiError } from '@/api/client'
-import { aiCapabilities, aiCardPage, aiResultPage, createAISession, getAIOperation, getAIQuota, getAIResult, getAISession, resetAISession, sendAIMessage, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
+import { aiCapabilities, aiCardPage, aiMapCenter, aiResultPage, createAISession, getAIOperation, getAIQuota, getAIResult, getAISession, resetAISession, sendAIMessage, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
 import { aiConditionRows, aiModeLabel, type AICommittedIntent } from '@/api/ai-intent'
 import type { RentalMode } from '@/types'
 import { AIConditions } from '@/components/ai-conditions'
@@ -33,7 +33,7 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
   const [modeChoice, setModeChoice] = useState<'' | 'keep' | 'none' | RentalMode>('')
   const [needsConversation, setNeedsConversation] = useState(false)
   const [pending, setPending] = useState<AIMessage | null>(null)
-  const [result, setResult] = useState<{ ref: string; hash: string; committed: AICommittedIntent; prices: AIBudgetPrice[]; page: ListingCardPage } | null>(null)
+  const [result, setResult] = useState<{ ref: string; hash: string; committed: AICommittedIntent; prices: AIBudgetPrice[]; center?: { lat: number; lng: number }; page: ListingCardPage } | null>(null)
   const [resultInvalid, setResultInvalid] = useState(false)
   const [remaining, setRemaining] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
@@ -110,7 +110,7 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
             throw new Error('Result binding mismatch')
           if (controller.signal.aborted) return
           setResult({ ref: committed.result_ref, hash: committed.intent_hash, committed,
-            prices: response.budget_prices ?? [], page: aiCardPage(response) })
+            prices: response.budget_prices ?? [], center: aiMapCenter(response), page: aiCardPage(response) })
           setPagingAvailable(true); setResultInvalid(false)
         }
         operationLocator.current = null
@@ -311,7 +311,7 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
           setPagingAvailable(true)
           setResultInvalid(false)
           setResult({ ref: answer.operation.receipt.result_ref, hash: answer.cards.intent_hash, committed,
-            prices: answer.cards.budget_prices ?? [], page: aiCardPage(answer.cards) })
+            prices: answer.cards.budget_prices ?? [], center: aiMapCenter(answer.cards), page: aiCardPage(answer.cards) })
           operationLocator.current = null
           storeAIContinuation(identity, { sessionId: message.session_id, resultRef: committed.result_ref })
           setText('')
@@ -389,7 +389,7 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
       const response = await aiResultPage(result.ref, cursor, controller.signal)
       if (response.intent_hash !== result.hash) throw new ApiError(409, 'AI_REQUERY_REQUIRED')
       if (!controller.signal.aborted) {
-        setResult({ ...result, prices: response.budget_prices ?? [], page: aiCardPage(response) })
+        setResult({ ...result, prices: response.budget_prices ?? [], center: aiMapCenter(response), page: aiCardPage(response) })
         // A result reference freezes conditions, not catalog membership. An
         // explicit first-page refresh must also invalidate the viewport read.
         if (!cursor) setMapRefreshVersion(value => value + 1)
@@ -455,6 +455,7 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
       {remaining !== null ? <small>{t('Búsquedas disponibles hoy')}: {remaining}</small> : null}
       {result ? <section aria-label={t('Resultados confirmados')} aria-busy={busy}>
         <p>{t('Solo mostramos opciones con datos verificados recientes. Puede haber fuentes sin verificar; los resultados no cubren todo el mercado.')}</p>
+        <p>{t('La lista y el mapa se actualizan por separado. Los anuncios pueden cambiar entre ambas lecturas; el mapa solo muestra la zona visible.')}</p>
         <AIConditions intent={result.committed.intent} title="Condiciones de estos resultados" />
         {!resultInvalid ? <>
         <h3>{result.page.total} {t('opciones con condiciones confirmadas')}</h3>
@@ -463,7 +464,7 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
         {mapEnabled ? <Button type="button" variant="outline" aria-pressed={mapVisible} onClick={() => setMapVisible(value => !value)}>{t(mapVisible ? 'Ver lista' : 'Ver mapa')}</Button> : null}
         {!result.page.total ? <p>{t('No encontramos opciones con todas las condiciones confirmadas. Puedes ajustar tu búsqueda.')}</p> : null}
         {mapVisible ? <AIResultMap key={`${result.ref}:${result.hash}`} resultRef={result.ref} intentHash={result.hash} refreshVersion={mapRefreshVersion}
-          initialListingId={result.page.items[0]?.id} /> : null}
+          center={result.center} total={result.page.total} /> : null}
         <div className="ai-search-dialog__cards" hidden={mapVisible} style={{ display: mapVisible ? 'none' : undefined }}>{result.page.items.map(listing => {
           const price = result.prices.find(value => value.listing_id === listing.id)
           const periods = { monthly: 'por mes', weekly: 'por semana', nightly: 'por noche' } as const

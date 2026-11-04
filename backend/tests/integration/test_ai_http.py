@@ -40,6 +40,53 @@ class Parser:
             "set": {"pets": {"strength": "hard", "value": [{"species": "dog", "size": "small", "count": 1}]}}}))
 
 
+@pytest.mark.parametrize("authenticated", [False, True])
+async def test_ai_map_camera_reads_do_not_register_detail_views(active, register_user, authenticated):
+    from geoalchemy2 import Geometry
+    from geoalchemy2.functions import ST_X, ST_Y
+    from sqlalchemy import cast
+
+    from app.models import Listing, ListingView
+
+    async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as client:
+        auth_headers = {}
+        if authenticated:
+            token, _ = await register_user(client, email="ai-map-camera@example.org")
+            auth_headers = {"Authorization": "Bearer " + token}
+        created = await client.post("/api/v1/ai-search/sessions", headers=auth_headers)
+        sid = created.json()["intent"]["session_id"]
+        answer = await client.post("/api/v1/ai-search/query", json=message(sid, 0), headers=auth_headers)
+        assert answer.status_code == 200, answer.text
+        payload = answer.json()
+        ref = payload["operation"]["receipt"]["result_ref"]
+        card_id = payload["cards"]["cards"]["items"][0]["id"]
+        async with SessionLocal() as session:
+            before = await session.scalar(select(Listing.views).where(Listing.id == UUID(card_id)))
+            views_before = await session.scalar(select(func.count()).select_from(ListingView))
+            point = cast(Listing.location, Geometry("POINT", srid=4326))
+            expected = (await session.execute(select(ST_Y(point), ST_X(point)).where(Listing.id == UUID(card_id)))).one()
+        for _ in range(2):  # fresh read/reload: metadata and map do not count a detail visit
+            page = await client.post(f"/api/v1/ai-search/results/{ref}/cards", json={"search": {"limit": 6}}, headers=auth_headers)
+            assert page.status_code == 200, page.text
+            center = page.json().get("map_center")
+            assert center is not None
+            assert center == {"listing_id": card_id, "latitude": expected[0], "longitude": expected[1]}
+            assert "exactLatitude" not in center and "contactPhone" not in center
+            bounds = {"north": 28.5, "south": 27.5, "east": -16.6, "west": -16.9, "zoom": 14}
+            mapped = await client.post(f"/api/v1/ai-search/results/{ref}/map", json={"search": bounds}, headers=auth_headers)
+            assert mapped.status_code == 200 and mapped.json()["map"]["items"], mapped.text
+            assert "listing_visitor" not in client.cookies
+            async with SessionLocal() as session:
+                assert await session.scalar(select(Listing.views).where(Listing.id == UUID(card_id))) == before
+                assert await session.scalar(select(func.count()).select_from(ListingView)) == views_before
+        for _ in range(2):
+            detail = await client.get(f"/api/v1/listings/{card_id}", headers=auth_headers)
+            assert detail.status_code == 200, detail.text
+        async with SessionLocal() as session:
+            assert await session.scalar(select(Listing.views).where(Listing.id == UUID(card_id))) == before + 1
+            assert await session.scalar(select(func.count()).select_from(ListingView)) == views_before + 1
+
+
 @pytest_asyncio.fixture
 async def active(monkeypatch):
     query, _, _, _, _ = await setup("long")
@@ -49,6 +96,32 @@ async def active(monkeypatch):
         gate, frozenset({"https://testserver"}), 131_072, AIHTTPPolicy(10, 5, (), "https://testserver"))
     monkeypatch.setattr(app.state, "ai_search_runtime", value, raising=False)
     return value, parser, gate
+
+
+async def test_live_cards_then_proof_change_map_rechecks_without_snapshot_claim(active):
+    from app.models import ExternalListingSource
+
+    async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as client:
+        created = await client.post("/api/v1/ai-search/sessions")
+        sid = created.json()["intent"]["session_id"]
+        response = await client.post("/api/v1/ai-search/query", json=message(sid, 0))
+        assert response.status_code == 200, response.text
+        ref = response.json()["operation"]["receipt"]["result_ref"]
+        page = await client.post(f"/api/v1/ai-search/results/{ref}/cards", json={"search": {"limit": 6}})
+        assert page.status_code == 200 and page.json()["cards"]["total"] == 3
+        ids = [UUID(card["id"]) for card in page.json()["cards"]["items"]]
+        async with SessionLocal() as session, session.begin():
+            await session.execute(update(ExternalListingSource).where(
+                ExternalListingSource.canonical_listing_id.in_(ids)).values(raw_payload={"proof_epoch_changed": True}))
+        bounds = {"north": 28.5, "south": 27.5, "east": -16.6, "west": -16.9, "zoom": 14}
+        mapped = await client.post(f"/api/v1/ai-search/results/{ref}/map", json={"search": bounds})
+        assert mapped.status_code == 200 and mapped.json()["map"]["items"] == []
+        assert mapped.json()["intent_hash"] == page.json()["intent_hash"]
+        refreshed = await client.post(f"/api/v1/ai-search/results/{ref}/cards", json={"search": {"limit": 6}})
+        assert refreshed.status_code == 200 and refreshed.json()["cards"]["total"] == 0
+        assert refreshed.json()["map_center"] is None
+        assert (await client.get("/api/v1/ai-search/quota")).json()["used"] == 1
+        assert active[1].calls == 1
 
 
 def message(session_id, version):

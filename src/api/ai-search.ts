@@ -7,7 +7,7 @@ export type AICapabilities = { text: boolean; map: boolean; voice: boolean; save
 export type AISession = { intent: AIIntent; expires_at: string }
 export type AIMessage = { idempotency_key: string; session_id: string; expected_version: number; text: string }
 export type AIBudgetPrice = { listing_id: string; matched_amount: number; matched_period: 'monthly' | 'weekly' | 'nightly'; display_amount: number | null; display_period: 'monthly' | 'nightly'; currency: 'EUR'; confirmation: 'current_source_proof' }
-type CardResponse = { budget_prices?: AIBudgetPrice[]; cards: { items: ListingCardDto[]; total: number; nextCursor: string | null; previousCursor: string | null }; intent_hash: string }
+type CardResponse = { map_center?: { listing_id: string; latitude: number; longitude: number } | null; budget_prices?: AIBudgetPrice[]; cards: { items: ListingCardDto[]; total: number; nextCursor: string | null; previousCursor: string | null }; intent_hash: string }
 export type AIExecution = {
   operation: { status: 'reserved' | 'running' | 'succeeded' | 'failed'; failure_code: string | null; remaining: number; receipt: { result_ref: string; count: number } | null }
   cards_error?: string | null
@@ -51,4 +51,12 @@ export function aiCardPage(response: CardResponse): ListingCardPage {
     seen.add(item.id)
     return true
   }).map(toCardListing) }
+}
+
+export function aiMapCenter(response: CardResponse): { lat: number; lng: number } | undefined {
+  const point = response.map_center
+  return point && response.cards.items.some(item => item.id === point.listing_id)
+    && Number.isFinite(point.latitude) && Math.abs(point.latitude) <= 85
+    && Number.isFinite(point.longitude) && Math.abs(point.longitude) <= 180
+    ? { lat: point.latitude, lng: point.longitude } : undefined
 }
