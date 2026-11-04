@@ -1,0 +1,64 @@
+{
+  "runtimeSource": "c4b32cb4d15f4d8bb6dc767618c86ef1f2f750e3",
+  "mergedBase": "20435c2e36cabac5608780fe01ab75e47efe152c",
+  "scope": "S2.2 local synthetic process lifecycle; A3/A11 partial",
+  "environment": {
+    "os": "Windows",
+    "python": "3.12.14",
+    "processStartMethod": "spawn",
+    "postgresImage": "sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5",
+    "container": "ttest-s2-process-pg",
+    "database": "ai_facts_test_process",
+    "host": "127.0.0.1",
+    "port": 55439
+  },
+  "checks": {
+    "targeted": {
+      "passed": 88,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "targeted.xml"
+    },
+    "initialRootWithoutPythonpath": {
+      "passed": 87,
+      "failed": 1,
+      "evidence": "initial-root-without-pythonpath.xml",
+      "cause": "Existing python -c child could not import lab; repeat used documented PYTHONPATH=backend; no source change"
+    },
+    "ruff": {
+      "passed": true,
+      "scope": "backend/lab plus two new test files"
+    },
+    "mypy": {
+      "passed": true,
+      "sourceFiles": 1,
+      "scope": "lab/ai_fact_process.py"
+    },
+    "runtimeProvenance": {
+      "passed": true,
+      "inputCount": 943,
+      "historicalEvidenceAppliesToCurrentRuntime": false
+    }
+  },
+  "faults": [
+    "forced OS kill while synchronous coordinator worker builder holds committed PG claim",
+    "forced OS kill after PG job publication/proof, before SQLite receipt",
+    "forced OS kill after durable SQLite checkpoint/receipt, before return",
+    "KeyboardInterrupt of controlling caller while child alive; cleanup kill/join verified"
+  ],
+  "cleanup": {
+    "ownedContainerRemoved": true,
+    "ownedAnonymousVolumeRemoved": true,
+    "otherContainersTouched": false
+  },
+  "caveats": {
+    "sqliteClock": "Explicit synthetic fixture clock; no natural wall-clock lease wait",
+    "postgresLease": "Expiry accelerated only in owned unique test schema",
+    "descendants": "Trusted factories must not create descendants; only direct child managed",
+    "exactHeadLinuxCI": "not yet verified",
+    "deployment": "not performed",
+    "realCatalogMeasurements": "not performed",
+    "providerCalls": 0,
+    "productionActivation": false
+  }
+}
