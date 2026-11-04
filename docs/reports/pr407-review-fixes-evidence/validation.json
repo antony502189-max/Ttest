@@ -1,0 +1,54 @@
+{
+  "runtimeSource": "d797e68ad0ec9d6dba690a3b063fa080f87b5b65",
+  "reviewedPreFixHead": "b256f95f907947667f52a7abad947eed97e58e87",
+  "base": "1990638d61ada0960a864e34568db306151f442b",
+  "externalReview": {"name": "PR407_CODEX_REVIEW_REPORT.md", "sha256": "3f1d8a892dd14538e1f26f0b4098db6744e105e15cbec12c314939af063b4527", "fullAttachmentPublished": false},
+  "scope": "S2.2 PR407 external review corrections F01-F05 and regressions T01-T03",
+  "checks": {
+    "backendUnit": {"passed": 1752, "skipped": 16, "failed": 0, "deselected": 1155, "file": "backend-unit.xml"},
+    "entireFactsPG": {"passed": 402, "skipped": 1, "failed": 0, "file": "facts-all.xml"},
+    "existingVerifiedCardsMapGallery": {"passed": 54, "failed": 0, "file": "verified-integration.xml"},
+    "newConsumerCardsMap": {"passed": 4, "failed": 0, "file": "cards-e2e.xml", "overlapsEntireFactsPG": true},
+    "targetedFixesAndMultiSource": {"passed": 15, "failed": 0, "file": "fixes-and-multisource.xml", "overlapsEntireFactsPG": true},
+    "ruff": {"passed": true, "scope": "app tests lab"},
+    "mypy": {"passed": true, "sourceFiles": 175, "scope": "app lab/ai_fact_refresh.py lab/ai_fact_process.py", "mandatoryWorkflowNowIncludesBothLabModules": true},
+    "historicalMigrations": {"passed": true, "head": "0079_ai_operating_policy", "alembicCheck": "No new upgrade operations detected", "productionMigrationsModified": false},
+    "provenance": {"passed": true, "inputCount": 947, "historicalEvidenceAppliesToCurrentRuntime": false}
+  },
+  "reproductions": {
+    "file": "reproductions-red.xml",
+    "baselineLabSource": "b256f95f907947667f52a7abad947eed97e58e87",
+    "expectedFailures": 9,
+    "passed": 2,
+    "failures": "7 JSONB boolean/number changes retained old metadata; 2 valid header variants refused",
+    "F01": "Both callback replacement cases confirm behavior is mutable under the same declared label; documented weak trusted model selected, not callback attestation"
+  },
+  "sourceCaveats": {
+    "initial-reproduction-fixture-error.xml": "Initial draft used full ORM get against minimal stand-in table; explicit-column fixture fixed before accepted RED run",
+    "targeted-fixes.xml": "Intermediate run still had initial fixture issue; not final runtime certificate",
+    "cards-first.xml": "Initial full migration fixture lacked proper per-migration/autocommit transaction context",
+    "cards-fixed.xml": "Intermediate cards fixture had strict UUID parsing error in test builder; corrected before cards-e2e.xml"
+  },
+  "F01TrustContract": {
+    "selectedReviewAlternative": "Explicitly document weaker trusted dynamic mock model",
+    "attestsCallbackOrClosureOrResponseBytes": false,
+    "sameKindTransportOrHandlerReplacementAllowed": true,
+    "networkOrSubclassTransportAllowed": false,
+    "responseIdentityPacketByteAndSourceCASGuardsRemainRequired": true
+  },
+  "environment": {
+    "python": "3.12.14", "pytest": "9.1.1", "platform": "Windows",
+    "host": "127.0.0.1", "port": 55442, "database": "ttest_test",
+    "container": "ttest-pr407-review-pg", "containerId": "d9ca0d1ccb8e5196ad2203560fc891158302b8798e3bff0cd9882d6bf42a0ecc",
+    "image": "sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5",
+    "ownedContainerAndAnonymousVolumeRemovedAfterAllTestsCompleted": true,
+    "otherContainersTouched": false, "redisUsed": false
+  },
+  "boundaries": {
+    "newSourceExactHeadLinuxCI": "pending",
+    "oldSource11WorkflowSuccesses": "historical only; conditional skipped steps are not asserted executed",
+    "newHardLifecycleOrPreHTTPBudgetInfrastructure": "not added",
+    "autoACK": false, "realOutbound": false, "providerCalls": 0,
+    "productionActivation": false, "mergeOrDeployment": "not performed", "PRReadyTransition": "not performed"
+  }
+}

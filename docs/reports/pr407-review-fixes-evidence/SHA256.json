@@ -1,0 +1,50 @@
+[
+  {
+    "sha256": "91dc19f848a534ac9ce6b2d15fb02d3fd3d4526a76b3d2a867134e00c4eb8931",
+    "file": "backend-unit.xml"
+  },
+  {
+    "sha256": "a80ea8d24eb405a3dccc6c8ed33ebba6a7a6091624d5b3834588e8bc64f08ef3",
+    "file": "cards-e2e.xml"
+  },
+  {
+    "sha256": "1eeb21a42ca5271cb3dd0f0c9ac59e5c819e4c3bc654fc7c80c3cd99e61f025c",
+    "file": "cards-first.xml"
+  },
+  {
+    "sha256": "05b0fb0e092e63584dc98e9957b93b00ebdcec16636cfa58f6e2a3f05dfba65c",
+    "file": "cards-fixed.xml"
+  },
+  {
+    "sha256": "6c757d041e62bf5ba075261307a001bad6af6f91bad400f510a80326d7323cc4",
+    "file": "facts-all.xml"
+  },
+  {
+    "sha256": "b7a57ab0bc495592b0ff8da87279d01cc7b781216d66a0f954de3da63e818990",
+    "file": "fixes-and-multisource.xml"
+  },
+  {
+    "sha256": "a81118a5f1ef4018e78121139f6715a9a799548fc64990712c435a52116c50a1",
+    "file": "initial-reproduction-fixture-error.xml"
+  },
+  {
+    "sha256": "b35411172b5974a081ec856e52ebd7da828f9fadf943a5826a9ce889d664692d",
+    "file": "pre-fix-ci-b256f95f.json"
+  },
+  {
+    "sha256": "7e36531c36e5dc81cc27e1490a4aaca53b98d1a6cb21cb50a3259c0dc8b6ee41",
+    "file": "reproductions-red.xml"
+  },
+  {
+    "sha256": "fe4e7dccd4df539276f0d1f9cfd268bf0f483ec9e4981b2aaade94d12710fb18",
+    "file": "targeted-fixes.xml"
+  },
+  {
+    "sha256": "c4ab5560109bbf46d463d6fc47cab681d715bced9052b6ffb10b282c555dcdad",
+    "file": "validation.json"
+  },
+  {
+    "sha256": "6416989d9776eebabe718054dc6c44731a29dc3ad1a22cb7d2b1a4cb280eadc8",
+    "file": "verified-integration.xml"
+  }
+]

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="2.614" timestamp="2026-11-04T16:21:30.222569+03:00" hostname="DESKTOP-KAHKI17"><testcase classname="tests.ai_facts_pg.test_fact_refresh_cards" name="test_new_refresh_failure_filters_cards_map_count_before_limit_and_preserves_manual[403]" time="2.096"><error message="failed on setup with &quot;AssertionError&quot;">tests\ai_facts_pg\test_fact_refresh_cards.py:66: in full_sessions
+    revision.module.upgrade()
+alembic\versions\0050_spain_search_indexes.py:17: in upgrade
+    with op.get_context().autocommit_block():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\HONOR\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\contextlib.py:137: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\alembic\runtime\migration.py:329: in autocommit_block
+    assert self._transaction is not None
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError</error></testcase></testsuite></testsuites>

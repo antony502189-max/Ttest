@@ -1,5 +1,7 @@
 # S2.2 — synthetic receipt→detail→facts/proof, 04.11.2026
 
+Исторический initial-source отчёт. После внешнего review#407 исправлены JSONB type semantics, header compatibility, CI typecheck и неоднозначный mock binding contract; актуальные результаты — [PR407_REVIEW_FIXES.md](PR407_REVIEW_FIXES.md). Старый validation.json сохраняет local pre-CI статус: subsequent b256f95f прошёл11workflows SUCCESS, но эти results не сертифицируют новый d797e68a.
+
 Base: merged main **1990638d61ada0960a864e34568db306151f442b**, PR#406 merged владельцем04.11 в12:46:54Europe/Moscow; GitHub и fetch совпали. Existing worktree переиспользован на `codex/ai-search-detail-refresh`; собственные локальные итоги предыдущего review сохранены, чужой старый root checkout не переключался.
 
 Runtime source: **716ae9fa2298c4455ceb6d4392e937a1b8457748**, initial increment822f0ef5. Это локальный source-only synthetic contract A3/A11, не real catalog coverage и не production importer.
