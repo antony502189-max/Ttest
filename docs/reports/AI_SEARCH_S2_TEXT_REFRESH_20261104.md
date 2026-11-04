@@ -2,6 +2,8 @@
 
 4 ноября 2026. Base: merged main `ecfe3a7b114c4142b396c2b64a918d34f105e8cf` (#407), подтверждён GitHub connector и `git ls-remote origin refs/heads/main`. Runtime/test source: `b0a33c6ed0ff7a4395187bbf46861ca915d1b831`.
 
+Создан [draft PR#408](https://github.com/antony502189-max/Ttest/pull/408), open/merged=false. Exact-head CI нового PR ещё не подтверждён; merge/deploy не выполнялись.
+
 ## Результат
 
 В существующем интерфейсе исправлено обновление каталога: после успешного «Actualizar resultados sin gastar una búsqueda» открытая карта заново читает текущий viewport, даже если result_ref и intent_hash не изменились. Раньше карточки обновлялись, а карта оставляла прежние маркеры до движения карты или повторного открытия.
