@@ -27,6 +27,7 @@ from sqlalchemy import (
     func,
     insert,
     literal,
+    or_,
     select,
     text,
     update,
@@ -96,12 +97,20 @@ class _Target:
 
 
 class SyntheticDetailRefresh:
+    """Trusted dynamic mock behavior, immutable policy/cohort/catalog binding.
+
+    mock_bundle_sha256 is a caller declaration, not a hash of the active Python
+    callback or its closure/response bytes. Exact MockTransport instances and
+    handlers may be replaced to model faults/recovery. Every response still
+    passes identity/packet/size checks and source CAS; real transports may not.
+    """
+
     def __init__(self, supervisor: SyntheticFactSupervisor, *, policy: SyntheticRefreshPolicy,
                  cohort: tuple[tuple[UUID, UUID], ...], transport: httpx.MockTransport,
                  mock_bundle_sha256: str):
         supervisor._binding()
         if type(transport) is not httpx.MockTransport or not re.fullmatch(r"[0-9a-f]{64}", mock_bundle_sha256):
-            raise ValueError("explicit reviewed MockTransport fixture required")
+            raise ValueError("explicit trusted MockTransport and declared bundle label required")
         if (type(cohort) is not tuple or not 1 <= len(cohort) <= 100
                 or any(type(pair) is not tuple or len(pair) != 2 or any(not isinstance(v, UUID) for v in pair) for pair in cohort)
                 or len({pair[0] for pair in cohort}) != len(cohort)):
@@ -185,8 +194,8 @@ class SyntheticDetailRefresh:
                 timeout=self.policy.timeout_seconds) as client, client.stream("GET", target.row.source_url) as response:
                 if response.status_code != 200:
                     return None, "blocked" if response.status_code in {403, 429} else "temporary_error"
-                if (response.headers.get("content-type", "").split(";")[0] != "application/json"
-                        or response.headers.get("content-encoding", "identity") != "identity"):
+                if (response.headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/json"
+                        or response.headers.get("content-encoding", "identity").strip().lower() != "identity"):
                     return None, "unknown"
                 data = bytearray()
                 async for chunk in response.aiter_bytes():
@@ -257,9 +266,14 @@ class SyntheticDetailRefresh:
                                        "current_schema() || '/synthetic_ai_detail_refresh',0))"))
             if int(await session.scalar(select(func.count()).select_from(OPERATIONS)) or 0) >= self.policy.max_operations:
                 return "capacity"
-            changed = (json.loads(target.captured.raw_json) != detail.raw
-                or json.loads(target.captured.normalized_json) != detail.normalized
-                or target.captured.source_price_text != detail.price)
+            # Python dict equality treats True==1/False==0. Compare locked
+            # values with PostgreSQL JSONB semantics so type changes advance
+            # fingerprint/content_updated_at; identical JSON stays unchanged.
+            changed = (await session.execute(select(or_(
+                ExternalListingSource.raw_payload.is_distinct_from(literal(detail.raw, type_=JSONB)),
+                ExternalListingSource.normalized_payload.is_distinct_from(literal(detail.normalized, type_=JSONB)),
+                ExternalListingSource.source_price_text.is_distinct_from(literal(detail.price, type_=Text)),
+            )).where(ExternalListingSource.id == target.row.id))).scalar_one()
             values.update(raw_payload=detail.raw, normalized_payload=detail.normalized, source_price_text=detail.price,
                 fingerprint=digest({"raw": detail.raw, "normalized": detail.normalized, "price": detail.price})
                     if changed else target.row.fingerprint,
