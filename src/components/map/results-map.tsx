@@ -36,6 +36,7 @@ export interface ResultsMapProps {
   serverQuery?: Record<string, unknown>
   serverSource?: { key: string; load: (viewport: MapBounds & { zoom: number }, signal: AbortSignal) => Promise<ListingMapMarker[]> }
   independentSearch?: boolean
+  initialCamera?: { lat: number; lng: number; zoom: number }
   selectedId?: string
   highlightedId?: string
   onSelect: (id: string) => void
@@ -98,7 +99,7 @@ function fitListings(map: google.maps.Map, listings: MappedListing[]) {
 
 const EMPTY_POLYGON: MapPolygonPoint[] = []
 
-export function ResultsMap({ items, serverQuery, serverSource, independentSearch = false, selectedId, highlightedId, onSelect, onHighlight, fullScreen = false, showPreview = true, onBoundsSearch, onPolygonSearch, onDrawingStart, fitResultsKey = 0, initialAction = null, onInitialActionHandled }: ResultsMapProps) {
+export function ResultsMap({ items, serverQuery, serverSource, independentSearch = false, initialCamera, selectedId, highlightedId, onSelect, onHighlight, fullScreen = false, showPreview = true, onBoundsSearch, onPolygonSearch, onDrawingStart, fitResultsKey = 0, initialAction = null, onInitialActionHandled }: ResultsMapProps) {
   const { filters, mapPolygon: storedMapPolygon, setMapPolygon, clearMapPolygon } = useApp()
   const mapPolygon = independentSearch ? EMPTY_POLYGON : storedMapPolygon
   const { language, t } = useI18n()
@@ -113,6 +114,8 @@ export function ResultsMap({ items, serverQuery, serverSource, independentSearch
   const [serverCoincidentListings, setServerCoincidentListings] = useState<Listing[]>([])
   const serverQueryKey = serverSource ? JSON.stringify(['source', serverSource.key]) : serverQuery ? JSON.stringify(serverQuery) : ''
   const serverSourceRef = useRef(serverSource)
+  const initialCameraRef = useRef(initialCamera)
+  const independentSearchRef = useRef(independentSearch)
   serverSourceRef.current = serverSource
   const drawingLayerRef = useRef<google.maps.Polygon | google.maps.Polyline | null>(null)
   const vertexMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
@@ -146,6 +149,8 @@ export function ResultsMap({ items, serverQuery, serverSource, independentSearch
   const [mapError, setMapError] = useState('')
   const [boundsDirty, setBoundsDirty] = useState(false)
   const [actionAnnouncement, setActionAnnouncement] = useState('')
+  const [serverLoadState, setServerLoadState] = useState<'idle' | 'loading' | 'error'>('idle')
+  const [mapRetryVersion, setMapRetryVersion] = useState(0)
   const [layer, setLayer] = useState<MapLayerId>('street')
   const [focusSheetOnOpen, setFocusSheetOnOpen] = useState(false)
   const [coincidentIds, setCoincidentIds] = useState<string[]>([])
@@ -218,15 +223,17 @@ export function ResultsMap({ items, serverQuery, serverSource, independentSearch
       lastKey = key
       request?.abort()
       request = new AbortController()
+      setServerLoadState('loading')
       const signal = request.signal
       const source = serverSourceRef.current
       const load = source ? source.load({ ...viewport, zoom }, signal)
         : getMapMarkers({ ...JSON.parse(serverQueryKey), ...viewport, zoom }, signal)
       void load.then(markers => {
-        if (!signal.aborted) { setServerMarkers(markers); setActionAnnouncement('') }
+        if (!signal.aborted) { setServerMarkers(markers); setActionAnnouncement(''); setServerLoadState('idle') }
       }).catch(() => {
         if (!signal.aborted) {
           setServerMarkers([])
+          setServerLoadState('error')
           setActionAnnouncement('No se pudieron cargar los anuncios del mapa. Mueve el mapa para reintentar.')
         }
       })
@@ -237,7 +244,7 @@ export function ResultsMap({ items, serverQuery, serverSource, independentSearch
     return () => { listener.remove(); window.clearTimeout(timer); request?.abort() }
   // The serialized query is the request identity; the object itself may be recreated.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, serverQueryKey])
+  }, [ready, serverQueryKey, mapRetryVersion])
 
   useEffect(() => {
     const map = mapRef.current
@@ -351,7 +358,8 @@ export function ResultsMap({ items, serverQuery, serverSource, independentSearch
       // previously visited area. Only generic searches restore history.
       const communityCamera = routeParams.get('comunidad')
         ? communityMapCamera(routeParams.get('comunidad')!, containerRef.current.clientWidth, containerRef.current.clientHeight) : undefined
-      const startingCamera = deepLinkCamera ?? namedCamera ?? communityCamera ?? previousCamera ?? FIRST_MAP_VIEWPORT
+      const startingCamera = independentSearchRef.current ? initialCameraRef.current ?? FIRST_MAP_VIEWPORT
+        : deepLinkCamera ?? namedCamera ?? communityCamera ?? previousCamera ?? FIRST_MAP_VIEWPORT
       const map = new maps.Map(containerRef.current, {
         center: { lat: startingCamera.lat, lng: startingCamera.lng },
         zoom: startingCamera.zoom,
@@ -869,7 +877,10 @@ export function ResultsMap({ items, serverQuery, serverSource, independentSearch
     {drawing ? <div className="freehand-map-overlay" role="application" aria-label="Mantén pulsado y dibuja el contorno de la zona" onPointerDown={startFreehandStroke} onPointerMove={continueFreehandStroke} onPointerUp={finishFreehandStroke} onPointerCancel={cancelFreehandStroke} onContextMenu={(event) => event.preventDefault()} /> : null}
     <MapLayerSwitcher value={layer} onChange={setLayer} />
     {fullScreen ? <MapToolbar boundsDirty={boundsDirty} canSearchBounds={Boolean(boundsDirty && bounds && onBoundsSearch)} drawing={drawing} pointCount={draftPolygon.length} hasPolygon={mapPolygon.length >= 3} onSearchBounds={searchBounds} onLocate={locateCurrentPosition} onStartDrawing={startDrawing} onAddPoint={addKeyboardPoint} onCancelDrawing={cancelDrawing} onFinishDrawing={finishDrawing} onDeletePolygon={deletePolygon} /> : null}
-    {actionAnnouncement ? <div ref={announcementRef} className="map-action-announcement" role="status" aria-live="polite" tabIndex={-1}>{t(actionAnnouncement)}</div> : null}
+    {actionAnnouncement ? <div ref={announcementRef} className="map-action-announcement" role="status" aria-live="polite" tabIndex={-1}>{t(actionAnnouncement)}
+      {serverSource && serverLoadState === 'error' ? <button type="button" onClick={() => setMapRetryVersion(value => value + 1)}>{t('Reintentar')}</button> : null}
+    </div> : null}
+    {serverSource && serverLoadState === 'loading' ? <p role="status" aria-live="polite">{t('Cargando…')}</p> : null}
     {!ready && !mapError ? <div className="map-loading" role="status" aria-live="polite"><span aria-hidden="true" /><strong>Cargando Google Maps</strong></div> : null}
     {googleMapsConfig.usesDevelopmentMapId ? <p className="map-dev-notice">Mapa de desarrollo: configura un Map ID propio antes de publicar.</p> : null}
     {mapError ? <div className="map-inline-error" role="alert"><strong>Mapa no disponible</strong><span>{mapError}</span></div> : null}

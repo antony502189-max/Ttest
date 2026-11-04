@@ -3,13 +3,14 @@ import { aiResultMap } from '@/api/ai-search'
 import type { ListingMapMarker } from '@/api/listings'
 
 // Only aliased in the explicit ai-synthetic-lab Vite mode. No fixture markers.
-export function AIResultMap({ resultRef, intentHash }: { resultRef: string; intentHash: string }) {
+export function AIResultMap({ resultRef, intentHash, refreshVersion }: { resultRef: string; intentHash: string; refreshVersion: number }) {
   const [markers, setMarkers] = useState<ListingMapMarker[]>([])
   const [error, setError] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [zoom, setZoom] = useState(14)
   const [offset, setOffset] = useState(0)
   const [selected, setSelected] = useState('')
+  const [retryVersion, setRetryVersion] = useState(0)
   const span = zoom === 14 ? .15 : .075
   const west = -16.8 + offset, south = 28.05
   useEffect(() => {
@@ -21,7 +22,7 @@ export function AIResultMap({ resultRef, intentHash }: { resultRef: string; inte
         if (!controller.signal.aborted) { setMarkers(response.map.items); setLoaded(true) }
       }).catch(() => { if (!controller.signal.aborted) setError('Не удалось прочитать verified map API') })
     return () => controller.abort()
-  }, [resultRef, intentHash, zoom, span, west])
+  }, [resultRef, intentHash, refreshVersion, retryVersion, zoom, span, west])
   return <section aria-label="Локальная координатная карта" data-i18n-exempt>
     <p>Локальная карта Adeje · координатная сетка, без внешних тайлов</p>
     <button type="button" style={{ padding: '.4rem .7rem', border: '1px solid #657558', borderRadius: '.5rem' }}
@@ -29,6 +30,7 @@ export function AIResultMap({ resultRef, intentHash }: { resultRef: string; inte
     <button type="button" style={{ padding: '.4rem .7rem', border: '1px solid #657558', borderRadius: '.5rem' }}
       onClick={() => setOffset(value => value === 0 ? .075 : 0)}>Сдвинуть область</button>
     <p role="status">{error || (loaded ? `Маркеров: ${markers.length}` : 'Чтение карты…')}</p>
+    {error ? <button type="button" onClick={() => setRetryVersion(value => value + 1)}>Повторить загрузку карты</button> : null}
     <svg viewBox="0 0 700 300" role="img" aria-label="Маркеры из verified map API" style={{ width: '100%', background: '#e8f2e1', border: '1px solid #657558' }}>
       {[0, 1, 2, 3, 4, 5].map(i => <g key={i} stroke="#bcccb5">
         <path d={`M${i * 140} 0V300 M0 ${i * 60}H700`} />

@@ -43,7 +43,7 @@
   "artifacts": [
     {
       "file": "red.log",
-      "sha256": "2439caf4a5993fa54d6820852f48929e25ca7c3784702a1f2e7e666711b03eee"
+      "sha256": "2dc27a5bd2a443ffa66ec371b835a0736a998e87468d10a693ce259623254e60"
     },
     {
       "file": "targeted.log",
@@ -77,5 +77,16 @@
       "file": "synthetic-map.png",
       "sha256": "7115a6fc3cc443d407eb2d001c8ed85e22db6beb5828ad62a6c9aaa96d20ffc4"
     }
-  ]
+  ],
+  "sanitization": {
+    "date": "2026-11-04",
+    "changes": [
+      {
+        "file": "red.log",
+        "originalSha256": "2439caf4a5993fa54d6820852f48929e25ca7c3784702a1f2e7e666711b03eee",
+        "reason": "replace machine-local workspace prefix; diagnostic content retained"
+      }
+    ],
+    "historicalRunUnchanged": true
+  }
 }

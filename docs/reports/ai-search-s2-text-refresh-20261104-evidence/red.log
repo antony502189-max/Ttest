@@ -32,7 +32,7 @@ Running 1 test using 1 worker
       370 |       releaseOld()
       371 |       await expect.poll(() => oldFinished).toBe(true)
       372 |       await expect(map.locator('[data-listing-id="retired-source"]')).toHaveCount(0)
-        at C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest\tests\ai-home-search.spec.ts:369:69
+        at <workspace>\tests\ai-home-search.spec.ts:369:69
 
     Error Context: test-results\ai-home-search-catalog-ref-91256--another-search-visible-map-chromium\error-context.md
 

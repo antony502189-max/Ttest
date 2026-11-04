@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
-  testDir: './tests', testMatch: 'ai-lab-runtime.spec.ts', workers: 1, timeout: 30000,
+  testDir: './tests', testMatch: ['ai-lab-runtime.spec.ts', 'ai-map-refresh-review.spec.ts'], workers: 1, timeout: 30000,
   outputDir: 'output/ai-lab-contract-test-results',
   use: { baseURL: 'http://127.0.0.1:4176' },
   webServer: {

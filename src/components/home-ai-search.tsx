@@ -462,7 +462,8 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
         <Button type="button" variant="outline" disabled={busy || changingSession || pending !== null || !pagingAvailable} onClick={() => void page()}>{t('Actualizar resultados sin gastar una búsqueda')}</Button>
         {mapEnabled ? <Button type="button" variant="outline" aria-pressed={mapVisible} onClick={() => setMapVisible(value => !value)}>{t(mapVisible ? 'Ver lista' : 'Ver mapa')}</Button> : null}
         {!result.page.total ? <p>{t('No encontramos opciones con todas las condiciones confirmadas. Puedes ajustar tu búsqueda.')}</p> : null}
-        {mapVisible ? <AIResultMap key={`${result.ref}:${result.hash}`} resultRef={result.ref} intentHash={result.hash} refreshVersion={mapRefreshVersion} /> : null}
+        {mapVisible ? <AIResultMap key={`${result.ref}:${result.hash}`} resultRef={result.ref} intentHash={result.hash} refreshVersion={mapRefreshVersion}
+          initialListingId={result.page.items[0]?.id} /> : null}
         <div className="ai-search-dialog__cards" hidden={mapVisible} style={{ display: mapVisible ? 'none' : undefined }}>{result.page.items.map(listing => {
           const price = result.prices.find(value => value.listing_id === listing.id)
           const periods = { monthly: 'por mes', weekly: 'por semana', nightly: 'por noche' } as const

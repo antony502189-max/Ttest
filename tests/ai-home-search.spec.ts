@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { createHash } from 'node:crypto'
 import { aiConditionRows, type AIIntent } from '../src/api/ai-intent'
 
 const sid = '00000000-0000-4000-8000-000000000001'
@@ -395,8 +396,12 @@ test('synthetic text journey shows cards, refreshes catalog and keeps hard condi
     pricePeriod: 'month', priceIsFrom: false, publishedAt: '2026-11-04', promoted: false,
     coverImageUrl: '/api/v1/media/synthetic-room.webp', description: 'Datos simulados, no es un anuncio real.',
   })
-  const response = (fresh: boolean) => ({ ...cards(), cards: { ...cards().cards, total: 1, items: [listing(fresh)] } })
   const currentIntent = (v: number) => intent(v, { ...conditions, ...(v === 2 ? { balcony: hard(true) } : {}) })
+  const hashFor = (v: number) => createHash('sha256').update(JSON.stringify(currentIntent(v))).digest('hex')
+  const response = (fresh: boolean, v: number) => ({ ...cards(), intent_hash: hashFor(v), cards: { ...cards().cards, total: 1, items: [listing(fresh)] } })
+  const mapCalls: string[] = []
+  let wrongBinding = false
+  expect(hashFor(1)).not.toBe(hashFor(2))
   await page.route('**/api/v1/ai-search/quota', route => route.fulfill({ json: { remaining: 3 - version } }))
   await page.route('**/api/v1/ai-search/sessions', route => route.fulfill({ json: snapshot(0) }))
   await page.route(`**/api/v1/ai-search/sessions/${sid}`, route => route.fulfill({ json: {
@@ -404,22 +409,26 @@ test('synthetic text journey shows cards, refreshes catalog and keeps hard condi
   } }))
   for (const [resultRef, v] of [[ref, 1], [nextRef, 2]] as const) {
     await page.route(`**/api/v1/ai-search/results/${resultRef}`, route => route.fulfill({ json: {
-      result_ref: resultRef, count: 1, intent_hash: 'original-intent', intent: currentIntent(v),
+      result_ref: resultRef, count: 1, intent_hash: hashFor(v), intent: currentIntent(v),
     } }))
-    await page.route(`**/api/v1/ai-search/results/${resultRef}/map`, route => route.fulfill({ json: {
-      intent_hash: 'original-intent', map: { items: [{ type: 'listing', id: listing(refreshed).id,
+    await page.route(`**/api/v1/ai-search/results/${resultRef}/map`, route => {
+      expect(Object.keys(route.request().postDataJSON())).toEqual(['search'])
+      mapCalls.push(resultRef)
+      return route.fulfill({ json: {
+      intent_hash: hashFor(wrongBinding ? 1 : v), map: { items: [{ type: 'listing', id: listing(refreshed).id,
         latitude: 40.42, longitude: -3.70, price: 650, promoted: false }] },
-    } }))
+    } }) })
+    await page.route(`**/api/v1/ai-search/results/${resultRef}/cards`, route => {
+      expect(route.request().postDataJSON()).toEqual({ search: { limit: 6 } })
+      refreshed = true
+      return route.fulfill({ json: response(true, v) })
+    })
   }
-  await page.route(`**/api/v1/ai-search/results/${ref}/cards`, route => {
-    refreshed = true
-    return route.fulfill({ json: response(true) })
-  })
   await page.route('**/api/v1/ai-search/query', route => {
     messages.push(route.request().postDataJSON())
     version++
     return route.fulfill({ json: { operation: { status: 'succeeded', remaining: 3 - version,
-      receipt: { result_ref: version === 1 ? ref : nextRef, count: 1 } }, cards: response(version === 2) } })
+      receipt: { result_ref: version === 1 ? ref : nextRef, count: 1 } }, cards: response(version === 2, version) } })
   })
   await page.goto('/#/')
   await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
@@ -449,6 +458,13 @@ test('synthetic text journey shows cards, refreshes catalog and keeps hard condi
   await page.getByRole('button', { name: 'Ver mapa', exact: true }).click()
   await expect(results.locator(`.ai-result-map [data-listing-id="${listing(true).id}"]`)).toHaveCount(1)
   await results.screenshot({ path: 'output/s2-text-journey-synthetic-map.png' })
+  expect(mapCalls).toEqual([ref, ref, nextRef])
+  wrongBinding = true
+  await page.getByRole('button', { name: 'Actualizar resultados sin gastar una búsqueda' }).click()
+  await expect(results.getByText('No se pudieron cargar los anuncios del mapa.', { exact: false })).toBeVisible()
+  await expect(results.locator('.ai-result-map [data-listing-id]')).toHaveCount(0)
+  expect(mapCalls).toEqual([ref, ref, nextRef, nextRef])
+  expect(messages).toHaveLength(2)
 })
 
 test('map rejects a different intent hash and never falls back to manual catalog', async ({ page }) => {

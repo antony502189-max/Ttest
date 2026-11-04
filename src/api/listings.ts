@@ -317,9 +317,9 @@ export async function getOwnedListings(signal?: AbortSignal) {
   return (await api<ListingDto[]>('/listings/mine', { signal })).map(toListing)
 }
 
-export async function getPublicListing(id: string) {
-  const listing = toListing(await api<ListingDto>(`/listings/${id}`))
-  return hydrateIncompleteInternalGallery(listing)
+export async function getPublicListing(id: string, signal?: AbortSignal) {
+  const listing = toListing(await api<ListingDto>(`/listings/${id}`, { signal }))
+  return hydrateIncompleteInternalGallery(listing, signal)
 }
 
 export async function getHomepageHeroListing(signal?: AbortSignal) {
