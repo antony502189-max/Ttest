@@ -1,0 +1,81 @@
+{
+  "base": "ecfe3a7b114c4142b396c2b64a918d34f105e8cf",
+  "source": "b0a33c6ed0ff7a4395187bbf46861ca915d1b831",
+  "currentRuntimeEqualsCommittedSource": true,
+  "environment": {
+    "node": "v24.22.1",
+    "platform": "win32",
+    "playwright": "1.61.1"
+  },
+  "results": {
+    "originalRuntimeRegression": "RED: missing fresh-source marker",
+    "targeted": {
+      "passed": 3,
+      "includedInBrowser": true
+    },
+    "journey": {
+      "passed": 1,
+      "includedInBrowser": true
+    },
+    "browser": {
+      "passed": 79
+    },
+    "pairing": {
+      "passed": 13
+    },
+    "buildMatrix": {
+      "passed": 5
+    },
+    "typecheck": "PASS (tool exit0)",
+    "lint": "PASS; 6 pre-existing warnings (tool exit0)",
+    "i18n": "PASS (tool exit0)",
+    "inputPolicy": "PASS (tool exit0)"
+  },
+  "browserCommand": "node node_modules/@playwright/test/cli.js test --config playwright.ai-search.config.ts --reporter=line",
+  "productAcceptance": false,
+  "realProviderCalls": 0,
+  "syntheticOnly": true,
+  "limitations": [
+    "Mocked browser API and Maps SDK; no model semantics or live SQL certification",
+    "Existing container stack not rebuilt; CI/release not certified by these local runs",
+    "provenance.json was captured before code commit with matching dirty runtime files"
+  ],
+  "artifacts": [
+    {
+      "file": "red.log",
+      "sha256": "2439caf4a5993fa54d6820852f48929e25ca7c3784702a1f2e7e666711b03eee"
+    },
+    {
+      "file": "targeted.log",
+      "sha256": "4096291ba93513416d79921722f028bccb790ffc65fce84bf69e6fe55cd534f2"
+    },
+    {
+      "file": "journey.log",
+      "sha256": "b1802c361b01258d28b25627ad6e3f789d17a5e05cda0f5f46c9a18e32d5336e"
+    },
+    {
+      "file": "browser.log",
+      "sha256": "2ab0151d23a47e4b1e70114c3bdc70afc3e066943901bb97130c0aec87d0e579"
+    },
+    {
+      "file": "pairing.log",
+      "sha256": "96adf84809dcfdc4be09f5c36c09963e8f8a089a5a9d7b8ac15bcfe73a459913"
+    },
+    {
+      "file": "build-matrix.json",
+      "sha256": "1f0f405f2b0e5354eaca2564192dd594cd25ffdf8c6e5c0654e640b877ca2ff7"
+    },
+    {
+      "file": "provenance.json",
+      "sha256": "b48fad2b4fd0db332cd74887792fdc10f38e10f6832a249b591d45c41d1abf74"
+    },
+    {
+      "file": "synthetic-cards.png",
+      "sha256": "5d9aab97e9220809bb5bcc29a2e24e0d59304e25f0bcfe27ba5a2cc3565b2ad9"
+    },
+    {
+      "file": "synthetic-map.png",
+      "sha256": "7115a6fc3cc443d407eb2d001c8ed85e22db6beb5828ad62a6c9aaa96d20ffc4"
+    }
+  ]
+}
