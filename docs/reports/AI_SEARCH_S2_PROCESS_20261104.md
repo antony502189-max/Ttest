@@ -2,6 +2,8 @@
 
 Source: `c4b32cb4d15f4d8bb6dc767618c86ef1f2f750e3`, base merged main `20435c2e36cabac5608780fe01ab75e47efe152c`. Scope: локальная synthetic часть A3/A11, не продуктовая приёмка и не production activation.
 
+Review: [draft PR#406](https://github.com/antony502189-max/Ttest/pull/406). Commit `2c3c6ffa05425c9fc8a95dab8ffe9f98eb6f9cf1` после проверенного Python source добавляет только scoped evidence-byte preservation в `.gitattributes` и manifest; Python не менялся. SHA-256 evidence отдельно проверены через `git show HEAD:<file>`, а не только working files. Owned PostgreSQL container и его anonymous volume удалены. Exact-head Linux CI начат, success пока не заявлен; merge/deploy не выполнены.
+
 `backend/lab/ai_fact_process.py` добавляет конечный явно вызываемый process boundary над существующим supervisor. Spawn создаёт engine и journal внутри child; внешний deadline убивает процесс, даже когда синхронный builder блокирует asyncio. Caller interruption также вызывает kill/join. После bounded reap функция возвращает PID/outcome/exitcode только для завершённого child; если reap не удался — redacted error. Доверенная factory не создаёт descendants; постоянный supervisor/OS service, startup/importer/scheduler/capabilities не добавлены. Parent не меняет durable claims от имени child и не принимает exitcode вместо receipt.
 
 ## Проверенные faults

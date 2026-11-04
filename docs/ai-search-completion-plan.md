@@ -12,6 +12,8 @@
 
 **Передача в новый чат:** пользователь запросил GPT‑6.1 Sol (`gpt-6.1-sol`), reasoning `medium`, полный доступ и автономное продолжение S2.2. Model/thinking задаются через create_thread; permissions нужно подтвердить по developer runtime context нового чата, а не по тексту prompt. Не просить повторных общих разрешений на уже согласованную local synthetic/disposable работу. После проверки фактического профиля сразу реализовывать process lifecycle rehearsal, без нового общего аудита или roadmap. Исторические post-merge #404 main ece1632e evidence остаются историческими; текущая merged база —20435c2e.
 
+**S2.2 review:** создан [draft PR#406](https://github.com/antony502189-max/Ttest/pull/406), merge/deploy не выполнены. Python source/tests — `c4b32cb4`; последующий runtime-boundary commit `2c3c6ffa05425c9fc8a95dab8ffe9f98eb6f9cf1` добавляет только scoped `.gitattributes` для сохранения evidence bytes и обновлённый manifest, application/lab/test Python не менялся. Hashes проверены и для committed Git blobs; owned PostgreSQL container/anonymous volume удалены. CI первого PR head запущен, final exact-head Linux результат пока не подтверждён; не переносить88local PASS на CI. S0–S1 прежние границы, S2 partial, S3–S7/B2–B6 OPEN.
+
 ## Установленное исходное состояние
 
 Пользователь подтвердил: AI Search — новая функция сайта 112233.es, репозиторий `antony502189-max/Ttest`.
