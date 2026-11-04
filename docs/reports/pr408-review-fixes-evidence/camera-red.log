@@ -1,0 +1,47 @@
+
+[WebServer] (node:11308) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+
+(node:10280) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/1] [chromium] › tests\ai-map-refresh-review.spec.ts:94:3 › review viewport-sensitive refresh success
+  1) [chromium] › tests\ai-map-refresh-review.spec.ts:94:3 › review viewport-sensitive refresh success
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('.ai-result-map').locator('[data-listing-id="old-source"]')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for locator('.ai-result-map').locator('[data-listing-id="old-source"]')
+
+
+       96 |     await page.setViewportSize({ width: 390, height: 1000 })
+       97 |     const { state, map, releaseOld } = await fixture(page, lab, fault)
+    >  98 |     if (fault !== 'late') await expect(map.locator('[data-listing-id="old-source"]')).toBeVisible()
+          |                                                                                       ^
+       99 |     const mapHandle = lab ? await map.locator('svg').elementHandle() : await page.evaluateHandle(() => window.__googleMapsTestLastMap!)
+      100 |     if (lab) {
+      101 |       await map.getByRole('button', { name: 'Масштаб 14' }).click()
+        at <workspace>\tests\ai-map-refresh-review.spec.ts:98:87
+
+    Error Context: test-results\ai-map-refresh-review-revi-cbf9d-t-sensitive-refresh-success-chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ai-map-refresh-review-revi-cbf9d-t-sensitive-refresh-success-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ai-map-refresh-review-revi-cbf9d-t-sensitive-refresh-success-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  1 failed
+    [chromium] › tests\ai-map-refresh-review.spec.ts:94:3 › review viewport-sensitive refresh success

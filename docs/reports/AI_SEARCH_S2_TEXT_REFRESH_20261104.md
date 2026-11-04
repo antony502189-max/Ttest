@@ -4,6 +4,8 @@
 
 Создан [draft PR#408](https://github.com/antony502189-max/Ttest/pull/408), open/merged=false. Exact-head CI нового PR ещё не подтверждён; merge/deploy не выполнялись.
 
+Дополнение после внешнего review04.11: GitHub независимо подтвердил для857bafa9 **8success/2skipped workflows**; три conditional Full audit steps skipped и не считаются выполненными. Это завершившийся CI исходного head. Исправления F01–F07, новые проверки и отдельный CI gate текущего source — [PR408_REVIEW_FIXES.md](PR408_REVIEW_FIXES.md). Исходный red.log очищен от machine-local prefix с сохранением original digest/причины/new hash в validation.json; исторический run не повторно аттестован.
+
 ## Результат
 
 В существующем интерфейсе исправлено обновление каталога: после успешного «Actualizar resultados sin gastar una búsqueda» открытая карта заново читает текущий viewport, даже если result_ref и intent_hash не изменились. Раньше карточки обновлялись, а карта оставляла прежние маркеры до движения карты или повторного открытия.

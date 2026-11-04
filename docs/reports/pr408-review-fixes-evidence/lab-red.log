@@ -1,0 +1,39 @@
+
+[WebServer] (node:22832) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:10916) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/1] [chromium] › tests\ai-map-refresh-review.spec.ts:78:3 › review viewport-sensitive refresh success
+  1) [chromium] › tests\ai-map-refresh-review.spec.ts:78:3 › review viewport-sensitive refresh success
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('region', { name: 'Локальная координатная карта' }).locator('[data-listing-id="fresh-source"]')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByRole('region', { name: 'Локальная координатная карта' }).locator('[data-listing-id="fresh-source"]')
+
+
+      109 |       }
+      110 |     } else {
+    > 111 |       await expect(map.locator('[data-listing-id="fresh-source"]')).toBeVisible()
+          |                                                                     ^
+      112 |       releaseOld()
+      113 |       await expect.poll(() => state.oldFinished).toBe(true)
+      114 |       await expect(map.locator('[data-listing-id="old-source"]')).toHaveCount(0)
+        at <workspace>\tests\ai-map-refresh-review.spec.ts:111:69
+
+    Error Context: output\ai-lab-contract-test-results\ai-map-refresh-review-revi-cbf9d-t-sensitive-refresh-success-chromium\error-context.md
+
+
+  1 failed
+    [chromium] › tests\ai-map-refresh-review.spec.ts:78:3 › review viewport-sensitive refresh success
