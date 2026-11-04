@@ -5,16 +5,16 @@ import type { MappedListing } from '@/types'
 
 const EMPTY_ITEMS: MappedListing[] = []
 
-export function AIResultMap({ resultRef, intentHash }: { resultRef: string; intentHash: string }) {
+export function AIResultMap({ resultRef, intentHash, refreshVersion }: { resultRef: string; intentHash: string; refreshVersion: number }) {
   const [selected, setSelected] = useState('')
   const source = useMemo(() => ({
-    key: `${resultRef}:${intentHash}`,
+    key: `${resultRef}:${intentHash}:${refreshVersion}`,
     async load(viewport: MapBounds & { zoom: number }, signal: AbortSignal) {
       const response = await aiResultMap(resultRef, viewport, signal)
       if (response.intent_hash !== intentHash) throw new Error('AI_MAP_INTENT_MISMATCH')
       return response.map.items
     },
-  }), [resultRef, intentHash])
+  }), [resultRef, intentHash, refreshVersion])
   return <div className="ai-result-map"><MapView items={EMPTY_ITEMS} serverSource={source} independentSearch
     selectedId={selected} onSelect={setSelected} /></div>
 }

@@ -314,6 +314,143 @@ test('verified map uses original result and viewport only, preserving promotions
   expect(await page.getByRole('dialog').evaluate(element => Number(getComputedStyle(element).zIndex))).toBeGreaterThan(100)
 })
 
+for (const scenario of ['visible-map', 'pending-map', 'failed-refresh'] as const) {
+  test(`catalog refresh updates the same result map without another search: ${scenario}`, async ({ page }) => {
+    await setup(page)
+    const marker = (id: string) => ({ type: 'listing', id, latitude: 28.12, longitude: -16.72, price: 650, promoted: false })
+    let refreshed = false
+    let messages = 0
+    let mapRequests = 0
+    let oldFinished = false
+    let releaseOld!: () => void
+    const gate = new Promise<void>(resolve => { releaseOld = resolve })
+    await page.route(`**/api/v1/ai-search/results/${ref}`, route => route.fulfill({ json: {
+      result_ref: ref, count: 0, intent_hash: 'original-intent', intent: intent(1),
+    } }))
+    await page.route('**/api/v1/ai-search/sessions', route => route.fulfill({ json: snapshot(0) }))
+    await page.route(`**/api/v1/ai-search/sessions/${sid}`, route => route.fulfill({ json: snapshot(1) }))
+    await page.route('**/api/v1/ai-search/query', route => {
+      messages++
+      return route.fulfill({ json: { operation: { status: 'succeeded', remaining: 2,
+        receipt: { result_ref: ref, count: 0 } }, cards: cards() } })
+    })
+    await page.route(`**/api/v1/ai-search/results/${ref}/cards`, route => {
+      expect(route.request().postDataJSON()).toEqual({ search: { limit: 6 } })
+      if (scenario === 'failed-refresh') return route.fulfill({ status: 503, json: { detail: 'unavailable' } })
+      refreshed = true
+      return route.fulfill({ json: cards() })
+    })
+    await page.route(`**/api/v1/ai-search/results/${ref}/map`, async route => {
+      mapRequests++
+      const old = !refreshed
+      if (old && scenario === 'pending-map') await gate
+      await route.fulfill({ json: { intent_hash: 'original-intent', map: {
+        items: [marker(old ? 'retired-source' : 'fresh-source')],
+      } } }).catch(() => undefined)
+      if (old) oldFinished = true
+    })
+    await page.goto('/#/')
+    await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
+    await page.getByLabel('Modo para esta búsqueda').selectOption('none')
+    await page.getByLabel('Cuéntanos qué necesitas').fill(requestText)
+    await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+    await page.getByRole('button', { name: 'Ver mapa', exact: true }).click()
+    const map = page.locator('.ai-result-map')
+    await expect.poll(() => mapRequests).toBeGreaterThan(0)
+    if (scenario !== 'pending-map') await expect(map.locator('[data-listing-id="retired-source"]')).toHaveCount(1)
+    await page.getByRole('button', { name: 'Actualizar resultados sin gastar una búsqueda' }).click()
+    if (scenario === 'failed-refresh') {
+      await expect(page.getByText('No se pudo cargar la página. Conservamos los últimos resultados.')).toBeVisible()
+      await expect(map.locator('[data-listing-id="retired-source"]')).toHaveCount(1)
+      expect(mapRequests).toBe(1)
+    } else {
+      // A successful list refresh must reload even though result_ref and hash
+      // are unchanged. An old in-flight map must not restore retired sources.
+      await expect(map.locator('[data-listing-id="fresh-source"]')).toHaveCount(1)
+      releaseOld()
+      await expect.poll(() => oldFinished).toBe(true)
+      await expect(map.locator('[data-listing-id="retired-source"]')).toHaveCount(0)
+    }
+    expect(messages).toBe(1)
+    await expect(page.getByText('Búsquedas disponibles hoy: 2')).toBeVisible()
+  })
+}
+
+test('synthetic text journey shows cards, refreshes catalog and keeps hard conditions on followup', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1100 })
+  await setup(page)
+  const nextRef = '00000000-0000-4000-8000-000000000005'
+  const conditions = { budget: hard({ amount: '700.00', currency: 'EUR', period: 'monthly' }),
+    pets: hard([{ species: 'cat', size: 'small', count: 1 }]) }
+  let version = 0
+  let refreshed = false
+  const messages: Record<string, unknown>[] = []
+  const listing = (fresh: boolean) => ({
+    id: fresh ? '00000000-0000-4000-8000-000000000004' : '00000000-0000-4000-8000-000000000003',
+    title: fresh ? 'Muestra sintética: habitación con balcón' : 'Muestra sintética: habitación para ti y tu gato',
+    city: 'Madrid', area: 'Centro', approximateAddress: 'Centro', rentalMode: 'long', price: 650,
+    roomType: 'Individual', currentResidents: 1, roomCapacity: 1, roomSizeM2: 14, availableFrom: null,
+    billsIncluded: true, restrictions: [], advertiserType: 'Particular', isExternal: true,
+    sourceUrl: 'https://fixture.invalid/room', primarySource: 'Synthetic', sourcePriceText: null,
+    pricePeriod: 'month', priceIsFrom: false, publishedAt: '2026-11-04', promoted: false,
+    coverImageUrl: '/api/v1/media/synthetic-room.webp', description: 'Datos simulados, no es un anuncio real.',
+  })
+  const response = (fresh: boolean) => ({ ...cards(), cards: { ...cards().cards, total: 1, items: [listing(fresh)] } })
+  const currentIntent = (v: number) => intent(v, { ...conditions, ...(v === 2 ? { balcony: hard(true) } : {}) })
+  await page.route('**/api/v1/ai-search/quota', route => route.fulfill({ json: { remaining: 3 - version } }))
+  await page.route('**/api/v1/ai-search/sessions', route => route.fulfill({ json: snapshot(0) }))
+  await page.route(`**/api/v1/ai-search/sessions/${sid}`, route => route.fulfill({ json: {
+    intent: currentIntent(version), expires_at: '2099-01-01T00:00:00Z',
+  } }))
+  for (const [resultRef, v] of [[ref, 1], [nextRef, 2]] as const) {
+    await page.route(`**/api/v1/ai-search/results/${resultRef}`, route => route.fulfill({ json: {
+      result_ref: resultRef, count: 1, intent_hash: 'original-intent', intent: currentIntent(v),
+    } }))
+    await page.route(`**/api/v1/ai-search/results/${resultRef}/map`, route => route.fulfill({ json: {
+      intent_hash: 'original-intent', map: { items: [{ type: 'listing', id: listing(refreshed).id,
+        latitude: 40.42, longitude: -3.70, price: 650, promoted: false }] },
+    } }))
+  }
+  await page.route(`**/api/v1/ai-search/results/${ref}/cards`, route => {
+    refreshed = true
+    return route.fulfill({ json: response(true) })
+  })
+  await page.route('**/api/v1/ai-search/query', route => {
+    messages.push(route.request().postDataJSON())
+    version++
+    return route.fulfill({ json: { operation: { status: 'succeeded', remaining: 3 - version,
+      receipt: { result_ref: version === 1 ? ref : nextRef, count: 1 } }, cards: response(version === 2) } })
+  })
+  await page.goto('/#/')
+  await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
+  await page.getByLabel('Modo para esta búsqueda').selectOption('none')
+  await page.getByLabel('Cuéntanos qué necesitas').fill(requestText)
+  await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+  const results = page.getByRole('region', { name: 'Resultados confirmados' })
+  await expect(results.locator('[data-listing-id]')).toHaveAttribute('data-listing-id', listing(false).id)
+  await page.getByRole('button', { name: 'Ver mapa', exact: true }).click()
+  await expect(results.locator(`.ai-result-map [data-listing-id="${listing(false).id}"]`)).toHaveCount(1)
+  await page.getByRole('button', { name: 'Actualizar resultados sin gastar una búsqueda' }).click()
+  await expect(results.locator(`.ai-result-map [data-listing-id="${listing(true).id}"]`)).toHaveCount(1)
+  await expect(results.locator(`.ai-result-map [data-listing-id="${listing(false).id}"]`)).toHaveCount(0)
+  expect(messages).toHaveLength(1)
+  await expect(page.getByText('Búsquedas disponibles hoy: 2')).toBeVisible()
+  await page.getByRole('button', { name: 'Ver lista', exact: true }).click()
+  await expect(results.locator('[data-listing-id]')).toHaveAttribute('data-listing-id', listing(true).id)
+  await page.getByLabel('¿Qué quieres cambiar?').fill('Y con balcón obligatorio, conservando el presupuesto y mi gato')
+  await page.getByRole('button', { name: 'Actualizar búsqueda', exact: true }).click()
+  await expect(page.getByText('Búsquedas disponibles hoy: 1')).toBeVisible()
+  await expect(results.getByText('700.00 EUR / mes', { exact: true })).toBeVisible()
+  await expect(results.getByText('Gato · Pequeño × 1', { exact: true })).toBeVisible()
+  await expect(results.getByText('Balcón', { exact: true })).toBeVisible()
+  expect(messages.map(message => message.expected_version)).toEqual([0, 1])
+  expect(messages[0].idempotency_key).not.toBe(messages[1].idempotency_key)
+  await results.screenshot({ path: 'output/s2-text-journey-synthetic-cards.png' })
+  await page.getByRole('button', { name: 'Ver mapa', exact: true }).click()
+  await expect(results.locator(`.ai-result-map [data-listing-id="${listing(true).id}"]`)).toHaveCount(1)
+  await results.screenshot({ path: 'output/s2-text-journey-synthetic-map.png' })
+})
+
 test('map rejects a different intent hash and never falls back to manual catalog', async ({ page }) => {
   await setup(page)
   let legacyMaps = 0

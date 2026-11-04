@@ -26,6 +26,7 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
   const [enabled, setEnabled] = useState(false)
   const [mapEnabled, setMapEnabled] = useState(false)
   const [mapVisible, setMapVisible] = useState(false)
+  const [mapRefreshVersion, setMapRefreshVersion] = useState(0)
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const [session, setSession] = useState<AISession | null>(null)
@@ -387,7 +388,13 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
     try {
       const response = await aiResultPage(result.ref, cursor, controller.signal)
       if (response.intent_hash !== result.hash) throw new ApiError(409, 'AI_REQUERY_REQUIRED')
-      if (!controller.signal.aborted) { setResult({ ...result, prices: response.budget_prices ?? [], page: aiCardPage(response) }); setNotice('') }
+      if (!controller.signal.aborted) {
+        setResult({ ...result, prices: response.budget_prices ?? [], page: aiCardPage(response) })
+        // A result reference freezes conditions, not catalog membership. An
+        // explicit first-page refresh must also invalidate the viewport read.
+        if (!cursor) setMapRefreshVersion(value => value + 1)
+        setNotice('')
+      }
     } catch (error) {
       if (!controller.signal.aborted) {
         if (unavailable(error)) lostConversation()
@@ -455,7 +462,7 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
         <Button type="button" variant="outline" disabled={busy || changingSession || pending !== null || !pagingAvailable} onClick={() => void page()}>{t('Actualizar resultados sin gastar una búsqueda')}</Button>
         {mapEnabled ? <Button type="button" variant="outline" aria-pressed={mapVisible} onClick={() => setMapVisible(value => !value)}>{t(mapVisible ? 'Ver lista' : 'Ver mapa')}</Button> : null}
         {!result.page.total ? <p>{t('No encontramos opciones con todas las condiciones confirmadas. Puedes ajustar tu búsqueda.')}</p> : null}
-        {mapVisible ? <AIResultMap key={`${result.ref}:${result.hash}`} resultRef={result.ref} intentHash={result.hash} /> : null}
+        {mapVisible ? <AIResultMap key={`${result.ref}:${result.hash}`} resultRef={result.ref} intentHash={result.hash} refreshVersion={mapRefreshVersion} /> : null}
         <div className="ai-search-dialog__cards" hidden={mapVisible} style={{ display: mapVisible ? 'none' : undefined }}>{result.page.items.map(listing => {
           const price = result.prices.find(value => value.listing_id === listing.id)
           const periods = { monthly: 'por mes', weekly: 'por semana', nightly: 'por noche' } as const
