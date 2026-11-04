@@ -144,6 +144,7 @@ class SyntheticDetailRefresh:
             await (await session.connection()).run_sync(lambda connection: OPERATIONS.create(connection, checkfirst=True))
 
     def _namespace(self) -> str:
+        self.supervisor._binding()
         with self.supervisor.journal._transaction() as db:
             row = db.execute("SELECT binding,namespace FROM synthetic_refresh_binding WHERE id=1").fetchone()
             if row is None or row["binding"] != self.binding or self._configuration() != self.binding:
@@ -192,6 +193,7 @@ class SyntheticDetailRefresh:
                     if len(data) + len(chunk) > self.policy.max_payload_bytes:
                         return None, "unknown"
                     data.extend(chunk)
+            self._namespace()
             detail = _Detail.model_validate_json(bytes(data))
             if ((detail.source_id, detail.canonical_listing_id, detail.source_name) != (
                     target.row.id, target.row.canonical_listing_id, target.row.source_name)
@@ -238,6 +240,7 @@ class SyntheticDetailRefresh:
             values: dict[str, Any] = {"last_checked_at": now, "last_state_check_at": now, "last_state_check_result": state}
             if detail is None:
                 await session.execute(update(ExternalListingSource).where(ExternalListingSource.id == target.row.id).values(**values))
+                self._namespace()
                 return "failed"
             # JSONB::text adds whitespace; a small HTTP document can still
             # exceed the existing reader's exact stored snapshot byte bound.
@@ -248,6 +251,7 @@ class SyntheticDetailRefresh:
                     self.supervisor.coordinator.reader.max_payload_bytes):
                 values["last_state_check_result"] = "unknown"
                 await session.execute(update(ExternalListingSource).where(ExternalListingSource.id == target.row.id).values(**values))
+                self._namespace()
                 return "failed"
             await session.execute(text("SELECT pg_advisory_xact_lock(hashtextextended("
                                        "current_schema() || '/synthetic_ai_detail_refresh',0))"))
@@ -268,6 +272,7 @@ class SyntheticDetailRefresh:
             await pipeline._publish(session, anchor, visible, updated)
             await session.execute(insert(OPERATIONS).values(operation=operation, namespace=namespace,
                                                           source_id=target.row.id, committed_at=now))
+            self._namespace()
             return "refreshed"
 
     async def run_receipt(self, revision: int, *, expected_digest: str) -> RefreshReceiptResult:

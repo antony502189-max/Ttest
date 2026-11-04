@@ -376,12 +376,17 @@ async def test_unchanged_detail_refreshes_check_age_without_faking_content_chang
     assert after.last_success_at is not None and after.content_updated_at == before.content_updated_at
 
 
-async def test_configuration_drift_during_get_cannot_commit(pipeline, refresh_setup):
+@pytest.mark.parametrize("scope", ["consumer", "coordinator"])
+async def test_configuration_drift_during_get_cannot_commit(pipeline, refresh_setup, scope):
     runner, _, _, calls, _, handler = refresh_setup
 
     def drift(request):
         response = handler(request)
-        runner.policy = replace(POLICY, max_requests=1)
+        if scope == "consumer":
+            runner.policy = replace(POLICY, max_requests=1)
+        else:
+            coordinator = runner.supervisor.coordinator
+            coordinator.sources["synthetic"] = replace(coordinator.sources["synthetic"], content_max_age_seconds=59)
         return response
 
     runner.transport = httpx.MockTransport(drift)

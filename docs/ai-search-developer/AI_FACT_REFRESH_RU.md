@@ -10,6 +10,8 @@ Existing supervisor guard проверяет loopback `ai_facts_test_*`/`ttest_t
 
 `await consumer.initialize()` выполняется только явным caller. В уже owned SQLite supervisor journal добавляется один immutable config/namespace row, в owned PG schema — таблица `synthetic_ai_detail_refresh_receipts`. Production migrations не меняются. Binding включает supervisor config, source policy, cohort и mock bundle digest; namespace переживает reopening и различает независимые journals. Caller-provided digest не является самостоятельной аттестацией полномочий или полного runtime bundle. Изменение policy/cohort/bundle/sessions/transport не обходит binding. Runtime/test provenance проверяется отдельно через runtime-input manifest.
 
+Consumer повторно проверяет как собственный binding, так и actual coordinator configuration перед GET, после I/O и перед завершением mutation transaction. Смена source policy во время mock GET не может записать content freshness под старым journal binding.
+
 ## Один exact receipt
 
 ```python
