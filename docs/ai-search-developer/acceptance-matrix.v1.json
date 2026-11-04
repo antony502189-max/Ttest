@@ -1,0 +1,330 @@
+{
+  "schema": "ai-search-acceptance.v1",
+  "base_sha": "ece1632e2872240a36646ddf0b2518a027d67d84",
+  "plan": "docs/ai-search-completion-plan.md",
+  "suites": [
+    {
+      "id": "intent",
+      "kind": "unit",
+      "paths": [
+        "backend/tests/test_ai_search_intent.py",
+        "backend/tests/test_ai_deepseek_intent.py",
+        "backend/tests/test_ai_parser_regressions.py",
+        "backend/lab/test_decision_parser.py"
+      ],
+      "limit": "Typed patches/MockTransport/local finite parser; no semantic acceptance of a real model."
+    },
+    {
+      "id": "facts",
+      "kind": "unit",
+      "paths": [
+        "backend/tests/test_ai_typed_hard_matching.py",
+        "backend/tests/test_ai_hard_facts.py",
+        "backend/tests/test_ai_fact_quality.py",
+        "backend/tests/test_ai_fact_bridge.py",
+        "backend/tests/test_ai_card_cursors.py"
+      ],
+      "limit": "Predicate/validation tests; no running SQL or real catalog coverage."
+    },
+    {
+      "id": "quota",
+      "kind": "unit",
+      "paths": [
+        "backend/tests/test_ai_search_quota.py"
+      ],
+      "limit": "Schemas and fake attempt gate; durable debit and Madrid DST require PostgreSQL."
+    },
+    {
+      "id": "voice",
+      "kind": "unit",
+      "paths": [
+        "backend/tests/test_ai_offline_asr.py"
+      ],
+      "limit": "Mock ASR HTTP validation only; no microphone, real ASR or voice UI."
+    },
+    {
+      "id": "saved",
+      "kind": "unit",
+      "paths": [
+        "backend/tests/test_ai_saved_search_boundary.py",
+        "backend/tests/test_ai_saved_contract.py"
+      ],
+      "limit": "Protects manual matcher/legacy delivery and schema rollback; does not implement public AI save/delivery."
+    },
+    {
+      "id": "operations",
+      "kind": "unit",
+      "paths": [
+        "backend/tests/test_ai_provider_privacy.py",
+        "backend/tests/test_ai_erasure_journal.py",
+        "backend/tests/test_ai_observability.py",
+        "backend/tests/test_ai_capacity_acceptance.py",
+        "backend/tests/test_ai_acceptance_inventory.py",
+        "backend/lab/test_synthetic_fact_supervisor.py"
+      ],
+      "limit": "Negative privacy/temporary journal/metric/fixture capacity gates, not provider or performance certification."
+    },
+    {
+      "id": "browser",
+      "kind": "mock-browser",
+      "paths": [
+        "tests/ai-home-search.spec.ts",
+        "tests/ai-saved-searches.spec.ts",
+        "tests/google-maps-final-acceptance.spec.ts",
+        "playwright.ai-search.config.ts"
+      ],
+      "limit": "Mock API/browser contracts, including 12 locale/viewport text cases; no real model/backend.",
+      "config": "playwright.ai-search.config.ts"
+    },
+    {
+      "id": "pairing",
+      "kind": "mock-browser",
+      "paths": [
+        "tests/ai-lab-runtime.spec.ts",
+        "playwright.ai-lab.config.ts"
+      ],
+      "limit": "Mock release-pairing and recovery guards; no closed LIVE run.",
+      "config": "playwright.ai-lab.config.ts"
+    },
+    {
+      "id": "quota-pg",
+      "kind": "disposable-service",
+      "paths": [
+        "backend/tests/ai_search_pg/test_quota.py",
+        "backend/tests/ai_search_pg/test_execution.py",
+        "backend/tests/ai_search_pg/test_sessions.py",
+        "backend/tests/ai_search_pg/test_voice_execution.py",
+        "backend/tests/ai_search_pg/test_saved_searches.py"
+      ],
+      "limit": "Disposable loopback PostgreSQL/Redis only; providers/ASR/query stand-ins. See existing CI.",
+      "workflow": ".github/workflows/ai-search-facts.yml"
+    },
+    {
+      "id": "facts-pg",
+      "kind": "disposable-service",
+      "paths": [
+        "backend/tests/ai_facts_pg/test_typed_hard_matching.py",
+        "backend/tests/ai_facts_pg/test_query_proofs.py",
+        "backend/tests/ai_facts_pg/test_live_inputs.py",
+        "backend/tests/ai_facts_pg/test_offline_fact_worker.py",
+        "backend/tests/ai_facts_pg/test_fact_coordinator.py",
+        "backend/tests/ai_facts_pg/test_fact_supervision.py",
+        "backend/tests/ai_facts_pg/test_fact_retention.py"
+      ],
+      "limit": "Actual SQL/constraints against disposable PostGIS; synthetic facts do not prove source coverage.",
+      "workflow": ".github/workflows/ai-search-facts.yml"
+    },
+    {
+      "id": "http-pg",
+      "kind": "disposable-service",
+      "paths": [
+        "backend/tests/integration/test_ai_verified_cards.py",
+        "backend/tests/integration/test_ai_http.py",
+        "backend/tests/integration/test_ai_browser_recovery.py",
+        "backend/tests/integration/test_ai_saved_searches.py",
+        "backend/tests/integration/test_ai_saved_review.py",
+        "backend/tests/integration/test_ai_account_erasure.py",
+        "backend/tests/ai_http_browser/test_ai_http_browser.py",
+        "backend/tests/integration/test_ai_operating_freshness.py"
+      ],
+      "limit": "Real local HTTP/SQL/cookies with synthetic runtime; requires explicit disposable service environment.",
+      "workflow": ".github/workflows/ai-search-facts.yml"
+    },
+    {
+      "id": "closed-stack",
+      "kind": "gated",
+      "paths": [
+        "scripts/accept-ai-text-lab.mjs",
+        "scripts/accept-ai-parser-ui.mjs",
+        "scripts/accept-ai-release.mjs",
+        "scripts/accept-ai-release-ops.mjs"
+      ],
+      "limit": "Existing synthetic full stack drivers; operator-owned stack/admission required. Never auto-started by this matrix."
+    },
+    {
+      "id": "real-provider",
+      "kind": "gated",
+      "paths": [
+        "backend/lab/intent_cases.v1.json",
+        "backend/lab/intent_eval.py",
+        "scripts/smoke-ai-closed-live-ui.mjs",
+        "docs/ai-search-developer/PR404_CLOSED_LIVE_ADMISSION_RU.md"
+      ],
+      "limit": "Historical 24-case corpus and closed pilot driver only; no new calls authorized, prior LIVE FAILED."
+    },
+    {
+      "id": "capacity",
+      "kind": "gated",
+      "paths": [
+        "scripts/check-ai-map-capacity.py",
+        "scripts/benchmark-ai-map.py",
+        "scripts/accept-ai-release.mjs"
+      ],
+      "limit": "ISSUE-004 OPEN; large benchmarks deferred. SQL fixtures and protocol checks cannot establish browser voice SLO."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "A1",
+      "stage": "S3.4",
+      "status": "partial",
+      "suites": [
+        "intent",
+        "facts",
+        "facts-pg",
+        "real-provider"
+      ],
+      "gaps": [
+        "Real-model ES/RU/EN semantic correctness across every supported field and SQL IDs/reasons on eligible catalog remains unaccepted."
+      ]
+    },
+    {
+      "id": "A2",
+      "stage": "S3.4",
+      "status": "partial",
+      "suites": [
+        "intent",
+        "quota-pg",
+        "real-provider"
+      ],
+      "gaps": [
+        "Real-model ambiguity/conflict/unknown/no-change/unsupported plus unchanged hard criteria must pass the full chain."
+      ]
+    },
+    {
+      "id": "A3",
+      "stage": "S2.2вЂ“S2.3",
+      "status": "partial",
+      "suites": [
+        "facts",
+        "facts-pg",
+        "http-pg",
+        "browser"
+      ],
+      "gaps": [
+        "Real-source coverage/freshness and supervised invalidation/retirement remain open; preserve TOP/boost/native/external/gallery/favorites/long-term EUR1000 cap."
+      ]
+    },
+    {
+      "id": "A4",
+      "stage": "S3.2",
+      "status": "partial",
+      "suites": [
+        "quota",
+        "quota-pg",
+        "closed-stack"
+      ],
+      "gaps": [
+        "Production runtime and exact merged-SHA service evidence required: guest3/auth200, Europe/Madrid DST, no debit on failure/no coverage; eligible zero debits once."
+      ]
+    },
+    {
+      "id": "A5",
+      "stage": "S3.2вЂ“S3.3",
+      "status": "partial",
+      "suites": [
+        "quota-pg",
+        "http-pg",
+        "browser",
+        "pairing",
+        "closed-stack"
+      ],
+      "gaps": [
+        "Target environment provider/ownership/recovery acceptance remains open; synthetic/browser/receipt tests do not prove deployment."
+      ]
+    },
+    {
+      "id": "A6",
+      "stage": "S4.1",
+      "status": "partial",
+      "suites": [
+        "voice",
+        "quota-pg"
+      ],
+      "gaps": [
+        "Missing real ASR transport, public HTTP media policy/codecs/duration, microphone stop/cancel/correction UI and multilingual/mixed-speech E2E; one Send and one debit."
+      ]
+    },
+    {
+      "id": "A7",
+      "stage": "S4.2",
+      "status": "partial",
+      "suites": [
+        "saved",
+        "quota-pg",
+        "http-pg",
+        "browser"
+      ],
+      "gaps": [
+        "Public owned committed-snapshot create/retry/disable flow and UI after registration missing; existing collection browser test covers list/delete only."
+      ]
+    },
+    {
+      "id": "A8",
+      "stage": "S4.3",
+      "status": "partial",
+      "suites": [
+        "saved",
+        "quota-pg",
+        "http-pg"
+      ],
+      "gaps": [
+        "Dry-run/snapshot/legacy exclusion are not delivery. Missing actual rematch/delivery worker, fencing/retry/idempotency/live eligibility/disable-delete race E2E; no real outbound authorized."
+      ]
+    },
+    {
+      "id": "A9",
+      "stage": "S4.4",
+      "status": "partial",
+      "suites": [
+        "browser",
+        "pairing",
+        "http-pg",
+        "closed-stack"
+      ],
+      "gaps": [
+        "12 locale/width initialв†’emptyв†’manual-fallback cases added at 320/390/768/1440; full loading/error/retry/accessibility/card/map/voice/save/registration matrix across all combinations remains open."
+      ]
+    },
+    {
+      "id": "A10",
+      "stage": "S5.2вЂ“S5.3",
+      "status": "partial",
+      "suites": [
+        "operations",
+        "capacity"
+      ],
+      "gaps": [
+        "No accepted browser voice p95<=10s; SQL/map p95<=500ms p99<=1000ms zero errors at 100k/500k/1m concurrency50/100/200 remains OPEN."
+      ]
+    },
+    {
+      "id": "A11",
+      "stage": "S6.1вЂ“S6.2",
+      "status": "partial",
+      "suites": [
+        "operations",
+        "facts-pg",
+        "http-pg",
+        "closed-stack",
+        "real-provider"
+      ],
+      "gaps": [
+        "Provider/account/payload privacy, real coverage/freshness, supervised workers, production migrations/backup/restore/erasure/kill-switch/telemetry require external evidence."
+      ]
+    },
+    {
+      "id": "A12",
+      "stage": "S7.1вЂ“S7.3",
+      "status": "partial",
+      "suites": [
+        "closed-stack",
+        "real-provider",
+        "capacity"
+      ],
+      "gaps": [
+        "No deployed SHA/capabilities acceptance, real pilot or agreed observation period; A1вЂ“A11 remain prerequisites."
+      ]
+    }
+  ]
+}

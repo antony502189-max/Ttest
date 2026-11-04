@@ -1,0 +1,84 @@
+{
+  "source_base": "471843e8c68ff13ef8ff29421ac70dbb70a936c0",
+  "main_base": "ece1632e2872240a36646ddf0b2518a027d67d84",
+  "stage": "S2.2–S2.3",
+  "criteria": [
+    "A3",
+    "A4",
+    "A11"
+  ],
+  "results": {
+    "baseline.xml": {
+      "tests": "100",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "82.859"
+    },
+    "red-source-check.xml": {
+      "tests": "3",
+      "failures": "3",
+      "errors": "0",
+      "skipped": "0",
+      "time": "3.661"
+    },
+    "facts-final.xml": {
+      "tests": "297",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "1",
+      "time": "272.390"
+    },
+    "integration-final.xml": {
+      "tests": "78",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "310.019"
+    },
+    "facts-final-quality.xml": {
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "12.066"
+    },
+    "integration-presence-final.xml": {
+      "tests": "32",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "70.691"
+    },
+    "unit-final.xml": {
+      "tests": "115",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "1",
+      "time": "9.076"
+    }
+  },
+  "limits": "296 facts and 78 integration were before the final presence/content separation; final changed paths rerun:8 SQL +32 full-schema integration. Counts overlap.",
+  "real_provider_calls": 0,
+  "real_source_requests": 0,
+  "real_budget_journal_read_or_changed": false,
+  "production_changed": false,
+  "capacity_benchmarks": false,
+  "input_sha256": {
+    "backend/app/repositories/ai_fact_quality.py": "0e7da0732fc606da045f982abb84a47e5389e6d55cb42319081fc0fc24280190",
+    "backend/app/services/external_removal.py": "c0e4131919d2c9d8e5f6931a1289dceb2746f67ec347fb7d8e0f97d2cf67da61",
+    "backend/tests/ai_facts_pg/conftest.py": "bffa924afbff01403d8013654fbde48b7ec9b7ce2f448516658d782070807e8a",
+    "backend/tests/ai_facts_pg/test_fact_quality.py": "fc09c94a81e573ccdfa5c6c8f464adac649ffb59b0e6d557ebab90a5d021d078",
+    "backend/tests/integration/test_ai_operating_freshness.py": "1eeb072426bb1de3f805919586caa7ee8c727a795ee345ff6e1b44aa296f226e",
+    ".github/workflows/ai-search-facts.yml": "9f640ea1b8abf1fb5d5684b35d7cd0a78260ae1f6daf77b21a157635572cb471",
+    "docs/ai-search-developer/acceptance-matrix.v1.json": "9584953586da4eb676cc786d77920dcedc36bedb1eb1db07420b5f9d30187798"
+  },
+  "validation": {
+    "ruff_changed_files": "PASS",
+    "mypy_app_before_presence_split": "172 PASS",
+    "mypy_final_changed_app_files": "2 PASS",
+    "CI_YAML_and_selected_regression": "PASS"
+  },
+  "test_database": "owned disposable loopback PostgreSQL16/PostGIS3.4, port55439; no application/lab database",
+  "test_postgres_image": "sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5"
+}

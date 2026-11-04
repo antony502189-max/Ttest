@@ -30,6 +30,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Validate full AI acceptance inventory
+        run: python3 scripts/ai-search-acceptance.py --output output/ai-search-s1/ci-matrix.json
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
@@ -50,6 +52,7 @@ jobs:
         with:
           name: ai-search-browser-results
           path: |
+            output/ai-search-s1/ci-matrix.json
             output/ai-home-*.png
             test-results/**
             output/ai-lab-contract-test-results/**

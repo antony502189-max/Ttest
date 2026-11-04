@@ -1,0 +1,50 @@
+[
+  {
+    "file": "cleanup.txt",
+    "sha256": "18f55cb027c478f03eea6042a93c43fe688696fa76e53a755df1d96695db3a7a"
+  },
+  {
+    "file": "coordinator.xml",
+    "sha256": "46aaa73d4ba470691fff17e1b80781bab6dd7733d7475b4ac48aac5e0e160008"
+  },
+  {
+    "file": "disposable-before-cleanup.txt",
+    "sha256": "42031c799ec306a8fdac545cc505002a7213b48d1650c832272ead3a0d07db49"
+  },
+  {
+    "file": "facts-regression.txt",
+    "sha256": "c2670dc5d12441924af868936958f43a69394527e91408e96509013c4e3ba7d9"
+  },
+  {
+    "file": "facts-regression.xml",
+    "sha256": "429563e6f35ade66224352a72ebdaf15a42d529ccd324ecd1c4e235a06aaa7b6"
+  },
+  {
+    "file": "final-targeted.txt",
+    "sha256": "729df121b911e1838e9519f47ef92738e489f3420f0370b14995265519ae4623"
+  },
+  {
+    "file": "final-targeted.xml",
+    "sha256": "6ff1a772ae7cc5efc1d4064239db8f79f04d94814571636ed9817dddf4dfd8ac"
+  },
+  {
+    "file": "inventory.txt",
+    "sha256": "340dc9e2580843070eda701e6cac299fdc801b62dbadfd467e2a21014830d1ee"
+  },
+  {
+    "file": "mypy.txt",
+    "sha256": "3ca9ae326504af22b8b64eb0d3bacfa529328e075680e867724f560d2af000e0"
+  },
+  {
+    "file": "provenance.json",
+    "sha256": "fd8fdd516bdb26b45ecc86d45157c175b460eade72f02df3291392753e01df23"
+  },
+  {
+    "file": "ruff.txt",
+    "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+  },
+  {
+    "file": "verification.json",
+    "sha256": "cc90c20d6a6bef8b1ba28261c46d4f5b8bf7256182f24f58a323c2873599c5f5"
+  }
+]

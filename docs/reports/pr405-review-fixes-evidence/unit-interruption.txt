@@ -1,0 +1,2 @@
+"C:\Users\HONOR\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe" "C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Scripts\pytest.exe" -q -m "not integration" --junitxml=../docs/reports/pr405-review-fixes-evidence/backend-unit.xml
+Stopped local unit run after progress remained at 16%; rerunning with verbose faulthandler diagnostics.

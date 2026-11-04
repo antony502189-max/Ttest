@@ -1,0 +1,82 @@
+[
+  {
+    "file": "a9-final.log",
+    "sha256": "fe9d70f1cf40f005ef3834de4fea56c10bce86faef2a8e89396efc8287ca6b72",
+    "bytes": 1871
+  },
+  {
+    "file": "browser-browser.log",
+    "sha256": "875dd581ae2c60b64a56be532011ca2b187e44c22b7e498de7354224e12de1ce",
+    "bytes": 44253
+  },
+  {
+    "file": "browser-final-browser.log",
+    "sha256": "08af4bce13e5f8ec3616347756c6c6a9802c0743e1f3af31fe5b2619a3be0933",
+    "bytes": 11217
+  },
+  {
+    "file": "browser-final-pairing.log",
+    "sha256": "242bafca7a155b736d4e3582e4b41bbe5db5c35329f7e0d58bbc37024537435a",
+    "bytes": 2238
+  },
+  {
+    "file": "browser-final.json",
+    "sha256": "c3717fe98f9cc0011fa6b8b452339dfd38a1773ed62965897551aa2e08f73660",
+    "bytes": 14932
+  },
+  {
+    "file": "browser.json",
+    "sha256": "ae64e570a57382d06b36e68001a807b96e102cf7b914665a1406a2265a99c403",
+    "bytes": 14587
+  },
+  {
+    "file": "merged-targeted.xml",
+    "sha256": "d6a1fcac4ea4ffb676724488286c58387f7807634d2db4f504d63b791fbda251",
+    "bytes": 30086
+  },
+  {
+    "file": "post-merge-ci.json",
+    "sha256": "175eecd750f4c72ff03cf3d23fe6881ce2ce0959ce8409d51bc159a250e3d460",
+    "bytes": 1913
+  },
+  {
+    "file": "provenance-final.json",
+    "sha256": "8ce241f26346f4faf828ba8debb937d0387a7a53cffa0d0edea3b2de158a8e8e",
+    "bytes": 644
+  },
+  {
+    "file": "unit-final-facts.log",
+    "sha256": "fcf68bff4c54f1ca4921ff141fd3c5c5f6aa51340151d0c37924ccf8017da8b4",
+    "bytes": 183
+  },
+  {
+    "file": "unit-final-intent.log",
+    "sha256": "2b1296c42a88a02fc38631d86cda3c192bc781dea31e671d2ae0d4545e6d46f8",
+    "bytes": 183
+  },
+  {
+    "file": "unit-final-operations.log",
+    "sha256": "f55d622efbdfdc67c853e3d56b1dfe6f2343df266d9b52fe9f2872f2b5e70d88",
+    "bytes": 101
+  },
+  {
+    "file": "unit-final-quota.log",
+    "sha256": "35599830d843681a46111b0a97f879fc060f0003147e76193331d00933d098d5",
+    "bytes": 101
+  },
+  {
+    "file": "unit-final-saved.log",
+    "sha256": "743be469f53eb747b87db979ecc2ae5ddd2454b485b6021b9a7109f24c1d5813",
+    "bytes": 101
+  },
+  {
+    "file": "unit-final-voice.log",
+    "sha256": "099d4364e8cc29c605c50f807dfe38f87b77e37ba0297ebb93364c61dfa1d719",
+    "bytes": 101
+  },
+  {
+    "file": "unit-final.json",
+    "sha256": "846fb050f34188d481cdc6068fb8e48cdd3052ddb0d519cda472fd473dafc595",
+    "bytes": 17176
+  }
+]

@@ -1,0 +1,87 @@
+{
+  "reviewedHead": "76d9c44c72b8fd00044d0ac587db017b4b416672",
+  "runtimeSource": "a31ac490d4eeb3ec8357bfd79fe339b4a7ca1e1f",
+  "primaryFix": "52b4c313f3c22df343ba0072cc9322f609e90df1",
+  "findingsFixed": [
+    "F-01",
+    "F-02",
+    "F-03",
+    "F-04",
+    "F-05",
+    "F-06",
+    "F-07"
+  ],
+  "additionalFix": "loopback ttest_test CI fixture compatibility",
+  "junit": {
+    "facts-final.xml": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "1",
+        "tests": "478",
+        "time": "218.624",
+        "timestamp": "2026-11-04T02:39:56.252657+03:00",
+        "hostname": "DESKTOP-KAHKI17"
+      }
+    ],
+    "ci-catalog-final.xml": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "53",
+        "time": "18.985",
+        "timestamp": "2026-11-04T02:43:48.384413+03:00",
+        "hostname": "DESKTOP-KAHKI17"
+      }
+    ],
+    "integration-final.xml": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "1",
+        "tests": "120",
+        "time": "263.991",
+        "timestamp": "2026-11-04T02:40:53.951062+03:00",
+        "hostname": "DESKTOP-KAHKI17"
+      }
+    ],
+    "quota-pg-final.xml": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "350",
+        "time": "156.738",
+        "timestamp": "2026-11-04T02:44:30.044142+03:00",
+        "hostname": "DESKTOP-KAHKI17"
+      }
+    ],
+    "backend-unit-diagnostic.xml": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "16",
+        "tests": "1719",
+        "time": "95.386",
+        "timestamp": "2026-11-04T02:37:43.545633+03:00",
+        "hostname": "DESKTOP-KAHKI17"
+      }
+    ]
+  },
+  "countsOverlap": true,
+  "unitRunBeforeFinalSourceNameErrorRedactionAndCiAlias": true,
+  "factsRunBeforeLabCiAlias": true,
+  "ciCatalogRunAfterAlias": true,
+  "ciFinalGreenClaimedAtEvidenceCapture": false,
+  "runtimeInputs": 940,
+  "ownedPostgresAndRedisRemoved": true,
+  "productionBoundaryDiffEmpty": true,
+  "merged": false,
+  "deployed": false
+}

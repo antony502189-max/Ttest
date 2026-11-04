@@ -1,14 +1,16 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **2.2**, 3 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **2.8**, 4 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
 
 **Конечный результат:** посетитель 112233.es вводит текст или отправляет голос, получает реальные подходящие объявления и уточняет условия; после регистрации сохраняет AI-поиск и получает уведомления о новых совпадениях. Функция работает на сайте с настоящими backend, моделью и обновляемым каталогом. Обработаны ошибки, квоты и восстановление. Текстовый стенд — промежуточный результат, а не завершение всей функции.
 
-**Текущий этап: S1 — закрепить полную приёмочную матрицу на актуальном main.**
+**Текущий этап: S2 — рабочий каталог и обновление фактов. S1.1–S1.3 выполнены в пределах подготовки и targeted merged-source проверок; продуктовые A1–A12 остаются открытыми.**
 
-**Следующее действие S1.0:** проверить exact-head CI опубликованных исправлений PR #404 и итоговый diff по внешнему ревью F1–F8, затем передать владельцу решение о merge. Исправления и локальные проверки описаны в [отчёте](reports/PR404_REVIEW_FIXES_20261103.md). Пользователь поручил исправить и закоммитить; слияние оставил на следующий шаг. Сам merge сейчас не выполнять. После штатного merge — S1.1–S1.3; не начинать новый общий аудит и не разрабатывать готовые части повторно.
+**Следующее действие S2.2:** после исправлений review PR#405 и проверки CI текущего head — bounded process-isolated synthetic rehearsal готовых coordinator/journal с принудительным deadline/kill и restart после interruption. Review F-01–F-07 исправлен в runtime source `a31ac490d4eeb3ec8357bfd79fe339b4a7ca1e1f` (основной fix `52b4c313f3c22df343ba0072cc9322f609e90df1`); [отчёт](reports/PR405_REVIEW_FIXES.md). Локально facts477PASS/1skip, full-schema119PASS/1skip, quota/Redis350PASS, CI-catalog53PASS, browser75PASS/pairing13PASS; counts пересекаются, unit1703/16skip имеет точные source-оговорки в отчёте. Ruff/mypy174 и940-input provenance PASS. Старые5red jobs reviewed head не переносятся на новый SHA, final exact-head CI подтверждать через [checks PR#405](https://github.com/antony502189-max/Ttest/pull/405/checks). PR остаётся Draft, main `ece1632e2872240a36646ddf0b2518a027d67d84`, новых merge/deploy нет. S2.1 реальные measurements и постоянная supervised refresh chain открыты.**
+
+**Передача в новый чат:** пользователь явно запросил GPT‑6.1 Sol (`gpt-6.1-sol`), reasoning `medium`. Продолжить работу, а не составлять новый roadmap. 03.11.2026 GitHub подтвердил #404 merged в16:42:08 Europe/Moscow; merge/main `ece1632e2872240a36646ddf0b2518a027d67d84`, PR head `b709810d368846e8838c13c6e3f56b8b18f08dc6`. `git fetch origin main` выполнен; origin/main совпал с merge SHA. На PR head ранее11 workflows success/2 conditional skipped; S1.3: post-merge AI frontend/combined PostGIS и capacity/security/pages SUCCESS; Full audit теперь SUCCESS; все6 post-merge main workflows SUCCESS (snapshot в отчёте S2). [Отчёт исправлений](https://github.com/antony502189-max/Ttest/blob/b709810d368846e8838c13c6e3f56b8b18f08dc6/docs/reports/PR404_REVIEW_FIXES_20261103.md), локальный snapshot `output/pr404-final-ci.json`. Merge не означает deployment/public activation.
 
 ## Установленное исходное состояние
 
@@ -16,7 +18,7 @@
 
 03.11.2026 через GitHub проверен **main `4a60e1632d3b234f4b5321d224b3abfd041769a3`**, merge PR #403. Сохранённый `origin/main` указывает на тот же SHA. Рабочая папка `C:\Users\HONOR\Documents\Codex\Ttest` находится на старом локальном main `f7845b16f0d31f4d03ded2e2cedebf17bad1a2f4` и содержит чужие незавершённые изменения. Поэтому отсутствие AI в этой папке объяснялось устаревшим checkout. Прежний вывод о неопределённом проекте исправлен.
 
-Код изучен через `git show origin/main:…`, без reset, переключения ветки или изменения существующих worktrees. Production-версия, текущие контейнеры и CI этой сессией не проверялись. Результаты ниже взяты из сохранённых отчётов; это не новые прогоны на merged main.
+Код изучен через `git show origin/main:…`, без reset, переключения ветки или изменения существующих worktrees. На исходном S0 production-версия, текущие контейнеры и CI не проверялись; новые post-merge S1.3 результаты приведены ниже. Результаты ниже взяты из сохранённых отчётов; это не новые прогоны на merged main.
 
 | Область | Уже реализовано | Осталось |
 | --- | --- | --- |
@@ -43,7 +45,7 @@
 
 Старые упоминания «#403 draft, merge запрещён» исторические: PR уже merged. Не нужно снова его сливать; merge не доказывает deploy или разрешение публичного запуска. Старый `08_NEXT_ACTIONS.md` — журнал промежуточных веток, не актуальный порядок оставшейся работы.
 
-**Уточнение PR #404 от 03.11:** пользователь имел в виду следующий PR [#404](https://github.com/antony502189-max/Ttest/pull/404), а не #403. GitHub: open, draft, merged=false, mergeable=true; head `7f8bbabc0a051d46d9911e51907975aeafc7bb00`, base текущий main4a60e163. На точном head11 workflows success,2 conditional skipped; submitted reviews и review threads отсутствуют. Это подготовка закрытого LIVE-контура, runtime pairing/journal admission/recovery; не публичный запуск AI. В этой сессии проверены metadata/CI, независимое code review113 изменённых файлов не выполнено. Перед включением изменений в основную базу нужны финальное ревью и выход из draft; не считать PR уже слитым. Отчёт PR сохраняет предыдущую реальную LIVE-попытку как FAILED, journal52/$0.575120 reserved; прежние51/56 из старого roadmap не использовать как текущий остаток бюджета. Новые вызовы модели и merge не выполнялись.
+**Исторический срез PR #404 до исправлений и merge (03.11):** пользователь имел в виду следующий PR [#404](https://github.com/antony502189-max/Ttest/pull/404), а не #403. GitHub: open, draft, merged=false, mergeable=true; head `7f8bbabc0a051d46d9911e51907975aeafc7bb00`, base текущий main4a60e163. На точном head11 workflows success,2 conditional skipped; submitted reviews и review threads отсутствуют. Это подготовка закрытого LIVE-контура, runtime pairing/journal admission/recovery; не публичный запуск AI. В этой сессии проверены metadata/CI, независимое code review113 изменённых файлов не выполнено. Перед включением изменений в основную базу нужны финальное ревью и выход из draft; не считать PR уже слитым. Отчёт PR сохраняет предыдущую реальную LIVE-попытку как FAILED, journal52/$0.575120 reserved; прежние51/56 из старого roadmap не использовать как текущий остаток бюджета. Новые вызовы модели и merge не выполнялись.
 
 ## Продуктовый контракт и полная приёмка
 
@@ -72,12 +74,15 @@
 
 ### S1 — закрепить приёмку и рабочую базу
 
-**В работе.**
+**Готов в пределах критериев выхода S1. Полная продуктовая приёмка A1–A12 не закрыта.**
 
-- [ ] S1.0 Ревью PR #404, исправление обнаруженных блокеров и проверка exact-head CI. После штатного merge сверить новый main и использовать его как базу S1.2; если PR не принят, явно сохранить его статус и не считать изменения доступными в main.
-- [ ] S1.1 Оформить исполнимую матрицу A1–A12; связать existing fixtures/drivers/tests и недостающие сценарии.
-- [ ] S1.2 Подготовить рабочую ветку от проверенного main в допустимом checkout, сохранив чужие изменения; закрепить там этот план и AGENTS. Не делать reset/слепой pull грязной папки.
-- [ ] S1.3 Проверить целевые существующие тесты на merged SHA; зафиксировать расхождения с прежним evidence, точный runtime и конфигурацию.
+- [x] S1.0 Ревью PR #404, исправления F1–F8, exact-head CI и подтверждение merge завершены. Владелец слил PR; GitHub и origin/main подтвердили merge SHAece1632e. Исправления доступны в main; post-merge checks и работа deployed версии этим не подтверждены.
+- Исполнение S1.0 на03.11: commits `a6fad628`/`546abf7c`/`b709810d`,11 запускаемых workflows success/2 conditional skipped на итоговом PR head. #404 merged владельцем. Реальный LIVE/public rollout не разрешён этой приёмкой.
+- [x] S1.1 [Полная матрица](ai-search-developer/AI_SEARCH_ACCEPTANCE_MATRIX_RU.md) + machine-readable JSON + `scripts/ai-search-acceptance.py`: 14 наборов/12 критериев, exact paths/commands/limits/gaps. Закрыт первый локальный пробел A9: ES/RU/EN × 320/390/768/1440, 12 browser cases PASS. Остальные A9 и A6–A8 gaps сохранены.
+- [x] S1.2 Чистота existing worktree подтверждена до switch; создана `codex/ai-search-acceptance-matrix` от origin/main `ece1632e`, перенесены канонические план/AGENTS. Старый root checkout и чужие deploy/docs/untracked изменения сохранены.
+- [x] S1.3 На merged application source `ece1632e`: targeted177 PASS; матричные offline339 PASS (наборы пересекаются, не суммировать), TypeScript PASS; итоговый общий browser прогон75 PASS (63 прежних +12 новых A9), pairing13 PASS. Первые12 новых cases исправлены после неоднозначного тестового селектора. Python3.12.14/pytest9.1.1/pydantic2.13.4/httpx0.28.1, Node24.22.1/Playwright1.61.1. Post-merge AI frontend и combined PostGIS/HTTP workflows SUCCESS. Все6 post-merge main workflows SUCCESS подтверждены в S2; CI новых изменений отдельно не подтверждён. Локальный первый `.audit-venv` запуск не прошёл collection из-за отсутствующих dependencies; принят повтор на существующем release-venv с PYTHONPATH текущего backend. [Отчёт](reports/AI_SEARCH_S1_MATRIX_20261103.md).
+
+04.11 S1.1/S1.3: по review PR#405 исправлены pytest source-root policy и optimized inventory/status progression. Backend console/root collection восстановлены, lab остаётся исключён из production packages. Новый CI gate рассматривается по текущему PR head, не по старым main success; [подробности](reports/PR405_REVIEW_FIXES.md).
 
 Выход: одна актуальная рабочая база и воспроизводимый набор приёмки без повторной разработки готовых компонентов.
 
@@ -85,9 +90,9 @@
 
 **Частично реализован.**
 
-- [ ] S2.1 Определить первоначальное покрытие из разрешённых источников; измерить public/eligible/verified/unknown по регионам/полям. Не обещать всю Испанию по одному Flatio pilot.
-- [ ] S2.2 Довести постоянную цепочку source check→facts→proof→invalidation/reprepare, очереди и supervision. Пересборка proof не продлевает source freshness.
-- [ ] S2.3 Проверить unavailable/403/429, retirement/remap/delete, противоречия, смену цены/видимости, backlog и корректность выдачи.
+- [ ] S2.1 Частично: создан [source-specific профиль](reports/AI_SEARCH_S2_SOURCE_PROFILE_20261103.md), повторены existing synthetic audit4active records и offline field-capabilities (real_records_measured=0). Real public/eligible/verified/unknown/region/freshness оставлены null; первоначальное разрешённое покрытие ещё не выбрано и не измерено. Не обещать всю Испанию по одному Flatio pilot.
+- [ ] S2.2 Частично: presence/content freshness fixes сохранены; bounded coordinator existing primitives реализован в `d596c32e492feae693f8f040e5ccaa1cc883acc6`. Source-filtered claim и captured-name guard защищают mapping, два курсора и лимиты ограничивают tick, refresh_due не продлевает content TTL. Финальные targeted107 PASS, Ruff/mypy PASS. [Coordinator/evidence](reports/AI_SEARCH_S2_COORDINATOR_20261103.md). Durable synthetic supervisor harness реализован в `f76d99a25bbb3800621f97079474985f397a90ba`:153targeted и100lab/1skip PASS (пересекаются), [evidence](reports/AI_SEARCH_S2_SUPERVISOR_20261103.md). Review F-02–F-05: current source-check health согласован с SQL eligibility, pending signals старых receipts сохраняются до exact-receipt ack, queue cleanup не обрывает budget, source grammar едина; runtime source `a31ac490d4eeb3ec8357bfd79fe339b4a7ca1e1f`, [tests](reports/PR405_REVIEW_FIXES.md). Hard process deadline/restart rehearsal, разрешённый source-specific detail refresh и постоянная supervised цепочка ещё нужны; S2 не закрыт.
+- [ ] S2.3 Локальная synthetic часть расширена: исправлены direct403/429/timeout/unknown health и stale presence-refresh;3 новых SQL +4 full-schema HTTP/card/map cases. Финально8quality/32freshness-removal PASS; broader296facts/78integration были до последнего presence split и не выданы за exact-final runs. Retirement/remap/delete/conflict/visibility/fencing покрыты existing tests. Реальные source/data и supervised-chain gates остаются открытыми.
 
 Выход: согласованное измеренное покрытие, воспроизводимо свежие данные и работающий процесс их обновления; A3 и data-часть A11.
 
@@ -150,7 +155,7 @@
 | ID | Состояние | Условие снятия |
 | --- | --- | --- |
 | B0 | СНЯТ: целевой проект найден | Подтверждение пользователя и проверка main03.11 |
-| B1 | Local main устарел, есть чужие изменения | S1.2: безопасная актуальная рабочая база и перенос плана |
+| B1 | СНЯТ для разработки: S1.2 выполнен | Новая ветка от ece1632e в проверенном чистом existing worktree; чужие изменения старого root сохранены |
 | B2 | Real-user outbound BLOCKED в коде | S3.1: account/data owner, account reference без секретов, проверенные contract/DPA/region/training/retention/deletion/уведомление и minimization. Сначала подготовить reviewable пакет и negative tests, затем запросить только отсутствующие account-сведения |
 | B3 | Capacity ISSUE-004 OPEN; большие прогоны ранее отложены | Сохранить A10 обязательным. Подготовить bounded план S5; перед возобновлением явно отложенных больших benchmarks получить конкретное поручение, если его ещё нет в сессии |
 | B4 | Нет постоянного доказанного рабочего каталога/покрытия | S2: source-specific профиль, coverage/freshness measurements, update/retirement chain и разрешённый объём ingestion |
@@ -172,12 +177,24 @@
 
 | Дата | Версия/этап | Выполнено и доказательство | Следующий шаг |
 | --- | --- | --- | --- |
+| 2026-11-04 | 2.8/S1.1/S1.3/S2.2 review | По прямому запросу владельца исправлены F-01–F-07 PR#405; hypotheses воспроизведены RED, runtime source `a31ac490d4eeb3ec8357bfd79fe339b4a7ca1e1f`. Facts477/1skip, schema119/1skip, quota350, CI-catalog53, browser75/pairing13 PASS; source/overlap caveats и unit1703/16skip в [отчёте](reports/PR405_REVIEW_FIXES.md). Ruff/mypy174 и940inputs PASS, owned PG/Redis удалены. Новый CI должен быть green на текущем head; merge/deploy не выполнялись. S0–S1 прежние границы, S2 partial, S3–S7/B2–B6 OPEN | S2.2 bounded hard process deadline/kill/restart rehearsal после review fixes/current-head CI |
+| 2026-11-03 | 2.7/S2.2 | Durable synthetic supervisor harness, source `f76d99a25bbb3800621f97079474985f397a90ba`:153targeted PASS,100lab PASS/1skip (пересекаются), Ruff/mypy и939runtime inputs provenance PASS. Atomic rollback, process exit claim recovery, lost ACK, fencing, backoff/deadline, health/terminal jobs; owned PG удалён. Draft PR#405 создан; новых CI/merge/deploy PASS не заявлено. [Отчёт](reports/AI_SEARCH_S2_SUPERVISOR_20261103.md). S0–S1 прежние, S2 partial, S3–S7 и B2–B6 OPEN | S2.2 bounded process-isolated synthetic coordinator/journal deadline/kill/restart rehearsal |
+| 2026-11-03 | 2.6/S2.2 | Bounded coordinator + source mapping race guards, code `d596c32e492feae693f8f040e5ccaa1cc883acc6`; финальные targeted107 PASS, Ruff/mypy4app files PASS,936runtime inputs provenance PASS; broader506PASS/1skip до final capture guard, не exact-final certification; disposable PG удалён. [Отчёт](reports/AI_SEARCH_S2_COORDINATOR_20261103.md). Реальные источники/provider/production/capacity не активированы; S0–S1 прежние статусы, S2 partial, S3–S7 и B2–B6 остаются открытыми | S2.2 local synthetic supervisor harness: durable receipt+checkpoint/CAS, restart/backoff/deadline/health |
+| 2026-11-03 | 2.5/S2.2–S2.3 | Исправлены direct-check health и presence/content freshness. Финально8SQL +32integration PASS;114unit/1skip, broader296facts/1skip и78integration отмечены как промежуточные до presence split. Миграции только в disposable PG/PostGIS. Main ece1632e:6/6 workflow SUCCESS; новый head CI/deploy не заявлен. Paid/source/outbound/journal/production/capacity не выполнялись | S2.2 bounded coordinator existing primitives/recovery/supervision seam; real S2.1 measurements открыты |
+| 2026-11-03 | 2.4/S1.1–S1.3 | Подготовлена актуальная ветка, исполнимая A1–A12 матрица и CI inventory check; 339 offline, 63 прежних browser, 12 новых A9 и 13 pairing PASS; targeted177 пересекается. Post-merge AI workflows SUCCESS, общий Full audit ещё выполняется. S2.1: existing offline audit4active synthetic records и source/field профиль, real metrics=null,7audit tests PASS. Provider/journal/production/ingestion/capacity не менялись | S2.1 профиль начат; далее S2.2–S2.3 synthetic fault chain, real measurements остаются открытыми |
+| 2026-11-03 | 2.3/S1.0 закрыт, передача | Владелец сообщил о merge#404. GitHub подтвердил merged=true,03.11 в16:42:08 Europe/Moscow, merge SHAece1632e2872240a36646ddf0b2518a027d67d84; git fetch подтвердил тот же origin/main. PR headb709810d ранее прошёл11 workflows/2conditional skipped. По запросу пользователя продолжение передаётся в новый чат GPT‑6.1 Sol/medium | S1.1: полная матрица A1–A12; prerequisite S1.2 перед правками, затем S1.3 merged-main checks |
 | 2026-11-03 | 1.0/S0 | Создан предварительный план/AGENTS. Осмотрен только старый checkoutf7845b16; AI в нём не найден. Вывод был неполным | Проверить ветки и актуальный репозиторий |
 | 2026-11-03 | 2.0/S0→S1 | Пользователь подтвердил112233.es. Через GitHub подтверждён main4a60e163/merged#403. Изучены актуальный roadmap, policies, release/parser/capacity evidence, UI/runtime/execution/voice/saved и исходный scope. Общий план заменён конкретным остаточным маршрутом; B0 снят. Новые runtime tests, paid calls, crawling и deployment не выполнялись | S1.1: оформить исполнимую полную матрицу на existing fixtures/drivers; затем S1.2–S1.3 |
 | 2026-11-03 | 2.2/S1.0 | Получен пользовательский внешний review PR404 на7f8bbabc. F1–F8 исправлены в изолированной копии ветки: closed access/mTLS, manifest coverage, attestation recovery, namespace/WS, private journal/process fencing, signed operational evidence, единый spec и log severity. Локально1755 backend/73 Linux/13 lab browser/63 main browser PASS; отдельно настоящий nginx mTLS и build matrix. [Отчёт и ограничения](reports/PR404_REVIEW_FIXES_20261103.md). Реальные provider/journal/production не менялись | Exact-head CI и итоговый diff; merge по следующему поручению пользователя |
 
 ## Изменения маршрута и отложенное
 
+- **2.7→2.8:** прямой запрос пользователя поставил устранение review PR#405 перед следующим локальным rehearsal. Исправлены подтверждённые import/health/backlog/liveness/identity/inventory дефекты и CI disposable-DB compatibility. Основной маршрут и A1–A12 не изменены; synthetic code, Linux CI и release по-прежнему разделены.
+- **2.6→2.7:** реализован следующий локальный S2.2 increment supervision, а не новая архитектура. Отдельный owned synthetic journal не является budget journal. Cooperative deadline и hard process lifecycle разделены; следующий rehearsal закрывает оставшийся локальный lifecycle gap. Критерии A1–A12, реальные data/provider и production gates сохранены.
+- **2.5→2.6:** следующий локальный increment S2.2 реализован на existing primitives, без новой конкурирующей архитектуры или activation. Добавлены source-name guards для безопасного mapping и documented supervisor contract; реальные measurements и постоянная supervised цепочка не закрыты. A1–A12 и маршрут S2–S7 сохранены.
+- **2.4→2.5:** S2.2–S2.3 продвинуты конкретными freshness fixes и synthetic regression evidence. Presence и content checks разделены без новых migration/activation flags. Маршрут S2–S7 и критерии A1–A12 сохранены; S2 не закрыт.
+- **2.3→2.4:** выполнены S1.1–S1.3; следующий этап S2 по прежнему маршруту. Добавлены исполнимая инвентаризация и первый A9 locale/viewport contract; A1–A12 и внешние gates не ослаблены. Все локальные результаты отделены от post-merge CI и deployment.
+- **2.2→2.3:** владелец слил #404; слияние независимо подтверждено GitHub и fetch. S1.0 закрыт, продолжение — S1.1 с prerequisite S1.2 перед изменениями исходников. По прямому запросу следующий чат создаётся на GPT‑6.1 Sol / medium. S2–S7 и A1–A12 не изменены.
 - **2.1→2.2:** S1.0 продолжен по полученному внешнему ревью. Порядок S2–S7 и A1–A12 не изменены; код, инструкции и единый план переносятся в ветку #404 одним набором. Локальные проверки не заменяют exact-head CI или LIVE admission.
 - **2.0→2.1:** после уточнения пользователя про PR #404 добавлен S1.0 перед выбором рабочей базы. Причина: #404 содержит продолжение того же AI-контура и ещё находится в Draft; его изменения нельзя считать слитыми или начинать разрабатывать повторно. Следующий результат — конкретное ревью/исправления/exact-head проверки. Порядок S2–S7 и критерии A1–A12 сохранены.
 - **1.0→2.0:** исправлена устаревшая исходная точка; учтены реализованные компоненты/исторические проверки. Схема S0–S7 сохранена, задачи конкретизированы. Голос и saved/delivery включены в полное завершение по найденному scope. Прежние SLO и ISSUE-004 сохранены.

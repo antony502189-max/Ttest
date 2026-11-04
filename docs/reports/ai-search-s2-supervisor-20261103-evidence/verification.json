@@ -1,0 +1,16 @@
+{
+  "codeSource": "f76d99a25bbb3800621f97079474985f397a90ba",
+  "finalTargetedPassed": 153,
+  "newHarnessUnitCases": 28,
+  "newSupervisionPgCases": 10,
+  "separateLabPassed": 100,
+  "separateLabSkipped": 1,
+  "countsOverlap": true,
+  "runtimeInputs": 939,
+  "draftPR": 405,
+  "exactHeadCIConfirmed": false,
+  "merged": false,
+  "deployed": false,
+  "ownedDisposablePgRemoved": true,
+  "hardCoordinatorProcessDeadlineRehearsed": false
+}

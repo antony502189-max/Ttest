@@ -18,6 +18,38 @@ POLICY = FactQualityPolicy(price_max_age_seconds=60, policy_max_age_seconds=120,
 PLAN = plan(next(c for c in CASES if c["name"] == "pets"))
 
 
+@pytest.mark.parametrize("result", ["blocked", "temporary_error", "unknown"])
+async def test_failed_direct_check_blocks_recent_success_until_successful_recheck(pipeline, proofs, result):
+    service, sessions = pipeline
+    source = await completed(pipeline)
+    lid = source.canonical_listing_id
+
+    async def eligible():
+        async with sessions() as session:
+            return await session.scalar(select(func.count()).select_from(Listing).where(
+                source_freshness_predicate(Listing.id, PLAN, POLICY)))
+
+    assert await proofs.prepare(lid)
+    assert await eligible() == 1
+    async with sessions() as session, session.begin():
+        # This is the metadata written by external_removal.reconcile_source:
+        # blocked/429/unknown retain manual publication and last_success_at.
+        await session.execute(text("UPDATE external_listing_sources SET last_checked_at=clock_timestamp(), "
+            "last_state_check_at=clock_timestamp(), last_state_check_result=:result"), {"result": result})
+    report = await audit_catalog(service, eligibility=literal(True), plan=PLAN, policy=POLICY, limit=10)
+    assert report["source_error"] == 1 and report["match"] == 0
+    assert await eligible() == 0
+    await service.reconcile_listing(lid)
+    await proofs.prepare(lid)
+    assert await eligible() == 0, "repair/reprepare cannot turn a failed source check into success"
+    async with sessions() as session, session.begin():
+        await session.execute(text("UPDATE external_listing_sources SET last_checked_at=statement_timestamp(), "
+            "last_success_at=statement_timestamp(), last_state_check_at=statement_timestamp(), "
+            "last_state_check_result='active'"))
+    assert await eligible() == 1
+    assert (await audit_catalog(service, eligibility=literal(True), plan=PLAN, policy=POLICY, limit=10))["match"] == 1
+
+
 async def test_freshness_sql_before_count_and_limit_and_audit_reasons(pipeline):
     service, sessions = pipeline
     source = await completed(pipeline)

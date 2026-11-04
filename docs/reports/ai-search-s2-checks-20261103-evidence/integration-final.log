@@ -1,0 +1,15 @@
+........................................................................ [ 92%]
+......                                                                   [100%]
+============================== warnings summary ===============================
+tests/integration/test_ai_verified_cards.py::test_dense_ai_map_thresholds_edges_and_live_proof_changes
+  tests\integration\test_ai_verified_cards.py:422: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    async def test_dense_ai_map_thresholds_edges_and_live_proof_changes(record_property):
+
+tests/integration/test_external_removal.py::test_150_record_keyset_sweep_bounded_http_and_provider_circuit[active]
+tests/integration/test_external_removal.py::test_150_record_keyset_sweep_bounded_http_and_provider_circuit[blocked]
+tests/integration/test_external_removal.py::test_150_record_keyset_sweep_bounded_http_and_provider_circuit[temporary_error]
+  tests\integration\test_external_removal.py:270: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    @pytest.mark.parametrize("state", ["active", "blocked", "temporary_error"])
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+78 passed, 4 warnings in 310.02s (0:05:10)

@@ -1,13 +1,24 @@
 """Explicit SQL freshness guard; compose BEFORE count/order/LIMIT/aggregate."""
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import and_, func, literal, select
+from sqlalchemy import and_, func, literal, or_, select
 from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy.sql.selectable import FromClause
 
 from ..models import ExternalListingSource
 from ..services.ai_fact_quality import FactQualityPolicy
 from ..services.ai_hard_matching import HardMatchPlan
 from .ai_fact_pipeline import FactPipeline
+
+
+def source_check_health_predicate(source: FromClause, now: ColumnElement[datetime]) -> ColumnElement[bool]:
+    """One shared chronology rule for verified eligibility and bounded health."""
+    latest_check_succeeded = or_(source.c.last_checked_at.is_(None),
+        source.c.last_checked_at <= source.c.last_success_at,
+        and_(source.c.last_state_check_result == "active", source.c.last_state_check_at == source.c.last_checked_at,
+             source.c.last_checked_at <= now))
+    return func.coalesce(and_(source.c.current_status == "active", latest_check_succeeded), False)
 
 
 def source_freshness_predicate(listing_id: ColumnElement[UUID], plan: HardMatchPlan,
@@ -18,8 +29,14 @@ def source_freshness_predicate(listing_id: ColumnElement[UUID], plan: HardMatchP
     age = literal(policy.max_age(plan))
     relevant = and_(source.c.canonical_listing_id == listing_id,
                      source.c.current_status.in_(["active", "unknown", "unavailable"]))
-    healthy = and_(source.c.current_status == "active", source.c.last_success_at.is_not(None),
-                   source.c.last_success_at <= now, source.c.last_success_at >= now - age)
+    # Direct 403/429/unknown probes intentionally preserve manual publication.
+    # They advance last_checked_at without last_success_at; a still-recent
+    # older success must not attest current AI evidence after that failure.
+    # A positive presence probe clears that failure, but does not advance
+    # last_success_at/content freshness; detail import owns that timestamp.
+    healthy = and_(source.c.last_success_at.is_not(None),
+                   source.c.last_success_at <= now, source.c.last_success_at >= now - age,
+                   source_check_health_predicate(source, now))
     return and_(select(1).select_from(source).where(relevant).exists(),
                 ~select(1).select_from(source).where(relevant, ~func.coalesce(healthy, False)).exists())
 
@@ -44,13 +61,20 @@ async def audit_catalog(pipeline: FactPipeline, *, eligibility: ColumnElement[bo
         outcomes = []
         for listing_id in ids:
             sources = (await session.execute(select(
-                ExternalListingSource.current_status, ExternalListingSource.last_success_at
+                ExternalListingSource.current_status, ExternalListingSource.last_success_at,
+                ExternalListingSource.last_checked_at, ExternalListingSource.last_state_check_at,
+                ExternalListingSource.last_state_check_result
             ).where(ExternalListingSource.canonical_listing_id == listing_id,
                     ExternalListingSource.current_status.in_(["active", "unknown", "unavailable"])).limit(129))).all()
             if len(sources) > 128:
                 raise ValueError("source bound exceeded; counts unavailable")
             projection = await pipeline._read_current_projection(session, listing_id)
             outcomes.append(classify(plan, projection, checks=tuple(s.last_success_at for s in sources),
-                                     source_error=any(s.current_status != "active" for s in sources),
+                                     source_error=any(s.current_status != "active" or (
+                                         s.last_checked_at is not None and (
+                                             s.last_success_at is None or s.last_checked_at > s.last_success_at
+                                         ) and not (s.last_state_check_result == "active"
+                                             and s.last_state_check_at == s.last_checked_at
+                                             and s.last_checked_at <= now)) for s in sources),
                                      now=now, policy=policy))
         return counters(outcomes)

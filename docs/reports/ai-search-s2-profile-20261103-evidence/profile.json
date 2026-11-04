@@ -1,0 +1,32 @@
+{
+  "schema": "ai-search-source-profile.v1",
+  "source": "ece1632e2872240a36646ddf0b2518a027d67d84",
+  "fixture_only": true,
+  "real_records_measured": 0,
+  "real_public": null,
+  "real_eligible": null,
+  "real_verified": null,
+  "real_unknown": null,
+  "by_region": null,
+  "real_freshness": null,
+  "standing_ingestion_authorized": false,
+  "fixture_active_records": 4,
+  "fixture_source_counts": {
+    "AlquilerDocenteCanarias": 0,
+    "Flatio": 1,
+    "Fotocasa": 1,
+    "Habitaclia": 1,
+    "Idealista": 1,
+    "Milanuncios": 0,
+    "PisoCompartido": 0,
+    "Pisos": 0,
+    "ThinkSpain": 0
+  },
+  "freshness_scope": "Historical Flatio pilot only: price/availability <=24h, other fields <=7d; not global defaults",
+  "required_measurements": [
+    "source + approved region + sampling instant + complete public/eligible denominator",
+    "per-field verified/unknown/conditional/conflict/stale/source_error; null for unavailable metrics",
+    "last_success_at and generation/currentness proof; reprepare cannot refresh source age",
+    "owner-approved standing update, retirement, retention and supervision policy"
+  ]
+}

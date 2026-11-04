@@ -7,7 +7,7 @@ must review this against importer transactions before enabling concurrent live u
 
 import json
 from datetime import datetime, timedelta
-from typing import Literal
+from typing import Literal, overload
 from uuid import UUID, uuid4, uuid5
 
 from pydantic import TypeAdapter, ValidationError
@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from ..models import ExternalListingSource, Listing
 from ..models.ai_fact_pipeline import AiFactCatalog, AiFactJob, AiFactRematchEvent, AiFactSource
 from ..models.ai_listing_facts import AiListingFact, AiListingFactBatch, AiListingSearchFeatures
+from ..schemas.ai_fact_bridge import checked_source_name
 from ..schemas.ai_fact_pipeline import (
     FactJobClaim,
     FactJobReceipt,
@@ -152,9 +153,20 @@ class FactPipeline:
             await self._publish(session, anchor, visible, authority)
             return job_id
 
-    async def claim(self, *, extractor_version: Version | None = None) -> FactJobClaim | None:
+    @overload
+    async def claim(self, *, extractor_version: Version | None = None, source_name: str | None = None,
+                    report_skips: Literal[False] = False) -> FactJobClaim | None: ...
+
+    @overload
+    async def claim(self, *, extractor_version: Version | None = None, source_name: str | None = None,
+                    report_skips: Literal[True]) -> FactJobClaim | FactJobReceipt | None: ...
+
+    async def claim(self, *, extractor_version: Version | None = None, source_name: str | None = None,
+                    report_skips: bool = False) -> FactJobClaim | FactJobReceipt | None:
         if extractor_version is not None:
             extractor_version = TypeAdapter(Version).validate_python(extractor_version, strict=True)
+        if source_name is not None:
+            source_name = checked_source_name(source_name)
         async with self.sessions() as session, session.begin():
             now = await _now(session)
             query = select(AiFactJob).where(or_(
@@ -163,6 +175,9 @@ class FactPipeline:
             ))
             if extractor_version is not None:
                 query = query.where(AiFactJob.extractor_version == extractor_version)
+            if source_name is not None:
+                query = query.where(AiFactJob.source_record_id.in_(select(ExternalListingSource.id).where(
+                    ExternalListingSource.source_name == source_name)))
             job = await session.scalar(query.order_by(AiFactJob.available_at, AiFactJob.id)
                                        .limit(1).with_for_update(skip_locked=True))
             if job is None:
@@ -170,10 +185,10 @@ class FactPipeline:
             source = await session.get(AiFactSource, job.source_record_id)
             if source is None or source.generation != job.generation or source.source_status != "active":
                 job.status, job.lease_until = "superseded", None
-                return None
+                return self._receipt(job) if report_skips else None
             if job.attempts >= self.policy.max_attempts:
                 job.status, job.lease_until, job.failure_code = "failed", None, "ATTEMPTS_EXHAUSTED"
-                return None
+                return self._receipt(job) if report_skips else None
             # Read the DB clock before dirtying status: SQLAlchemy may autoflush
             # this SELECT, and running rows must already carry a lease.
             lease_until = await _now(session) + timedelta(seconds=self.policy.lease_seconds)

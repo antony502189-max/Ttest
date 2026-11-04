@@ -1,0 +1,332 @@
+{
+  "schema": "ai-search-acceptance-run.v1",
+  "observed_at": "2026-11-03T14:05:47.161183+00:00",
+  "source": "ece1632e2872240a36646ddf0b2518a027d67d84",
+  "worktree_status": " M AGENTS.md\n M docs/ai-search-completion-plan.md\n M tests/ai-home-search.spec.ts\n?? docs/ai-search-developer/acceptance-matrix.v1.json\n?? scripts/ai-search-acceptance.py\n",
+  "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
+  "input_sha256": {
+    "backend/tests/test_ai_search_intent.py": "2f91543a03b86f1f73f84e6028e4c68f05c4d6978d80d6f49ad1b61580816ae8",
+    "backend/tests/test_ai_deepseek_intent.py": "20db6131996e41201ff2790c1bfafea30cd7031902e29e804cb4f56b7338e4bb",
+    "backend/tests/test_ai_parser_regressions.py": "ff1211a0e8827cc037d171dcda1ef15ee9d17caf09f081bf3f2729a139f6a5f0",
+    "backend/lab/test_decision_parser.py": "f19dfa31340147bae541b4451bcbf646e07069dcb8216b90ef5da075a8eb19a0",
+    "backend/tests/test_ai_typed_hard_matching.py": "95bec73b588311033c44fb88daf10c8276eb1f37a26db0aa29151ac3982b387f",
+    "backend/tests/test_ai_hard_facts.py": "490968562432e9520597467728d8db7316931dbec54c698971ac8cfe23273021",
+    "backend/tests/test_ai_fact_quality.py": "00336858768dde2af3e8b4b88daecd37ab05427375205c0faed5c662c45bbca7",
+    "backend/tests/test_ai_fact_bridge.py": "73927cb7b8bcbbacc76af98796849707943618bfebadf46a33ab29c1c259b418",
+    "backend/tests/test_ai_card_cursors.py": "b22e13000bb7e97bd3ed46d2525f07d852af7cc5dd13c561d1589577a3bcc062",
+    "backend/tests/test_ai_search_quota.py": "1e65856003b251d74f3791ec2b87c5324b8659d472d44f03d21ec800a325d851",
+    "backend/tests/test_ai_offline_asr.py": "650e3ac50ecfe7a84950c6754df62033174735760045c53bdf2c48defcf94d1d",
+    "backend/tests/test_ai_saved_search_boundary.py": "2a6fc32852a93f91332028cdfda966e5b83bde791ab43f58c554226cc168109f",
+    "backend/tests/test_ai_saved_contract.py": "e2a9b0b3d18a8557ab24e3d573b91d6972e5f8a0b7829e18bfdc262aff95e7d6",
+    "backend/tests/test_ai_provider_privacy.py": "2f64f6873561d4477a469f37af3680f1b423a2847d29b3444b5e20752d8b9af8",
+    "backend/tests/test_ai_erasure_journal.py": "0a026175994d22a4d01ef82f1ad1011eec3e3c80ae59f3cff1ce8c690216b3d9",
+    "backend/tests/test_ai_observability.py": "1d19a0cc58582dfd7ea7fce65978ad62e6820476bf5b130d4070ca6a7350dd38",
+    "backend/tests/test_ai_capacity_acceptance.py": "d8a24dcf83c799e827891ad190cf0a6503af5f6c666ceaf2b974394e29a6ea5f",
+    "tests/ai-home-search.spec.ts": "8910e5f5e8e00436da8085e0285e5d2789e025e86ea8c3f733bc1a1247ef5e22",
+    "tests/ai-saved-searches.spec.ts": "b58553450a95e5aecff68fa9c3d4ea7628811c2b5d82f2c3128ace84eaf58f27",
+    "tests/google-maps-final-acceptance.spec.ts": "898dd1b8a87a7327e31965855b1bc85ea1bf797e32a19d26e315f4265e92d220",
+    "playwright.ai-search.config.ts": "719f3fcfe56b91732d74793dae399ebf337ff03a861e2e64e2cb5418523ef092",
+    "tests/ai-lab-runtime.spec.ts": "5dc15037109d050484c10921f525dc53e8839dbd4bf9608b26cd0346bf8d5939",
+    "playwright.ai-lab.config.ts": "dd6836cd0d5666c7257b58139d2c8e8e57815f8343e35452c6aaa1f76908422e",
+    "backend/tests/ai_search_pg/test_quota.py": "f4d22725ecdcd28559355d709eb370d3c39670e21bbf00e5bdd7838d7af3d3b2",
+    "backend/tests/ai_search_pg/test_execution.py": "3c12dfe04ce92eeb5da789575c3237cdf0262d3f910e8eec291a3444205cc485",
+    "backend/tests/ai_search_pg/test_sessions.py": "e3dccf0c1fad0a9467702005a25702f2aeea08beee2f712d35e5a54e26a9cc97",
+    "backend/tests/ai_search_pg/test_voice_execution.py": "793a480b4c209cf18235e166e1c619fffc95ddc262ff606dbefcb09de62b1378",
+    "backend/tests/ai_search_pg/test_saved_searches.py": "249c8381747bdaf3aa29e8302cbc3832de2e1a5fdca3c1acde714cf18a258a62",
+    "backend/tests/ai_facts_pg/test_typed_hard_matching.py": "7dd0cad915b3c3493f55beb11922c94805ca041a9fe852fe19c575e83d83b0a5",
+    "backend/tests/ai_facts_pg/test_query_proofs.py": "68df621ebdf66f1ec81cdcd90b534f85bfa2aef0badc27b48a4abd43f21caa25",
+    "backend/tests/ai_facts_pg/test_live_inputs.py": "491ecb620f9450862834bdcd12ee0014ebb973958f37d196a058f172eeed1973",
+    "backend/tests/ai_facts_pg/test_offline_fact_worker.py": "c8b29ae3967203c7586848c7be3404a950334db7c44a7fb186ce53de17e53c7c",
+    "backend/tests/ai_facts_pg/test_fact_retention.py": "204e92d0c1cc3eab6e99fd5408cb31c87317b2749758c2518f35907873d24a4a",
+    "backend/tests/integration/test_ai_verified_cards.py": "14ce729a4b2919c71da6c9ccdd36aeacd3b040f82af5334bb5ebd50d0bbb3eb9",
+    "backend/tests/integration/test_ai_http.py": "ea48476c892044c03e85d6794c3db3a52e91f59c7942e0ba9916e0eb34c99840",
+    "backend/tests/integration/test_ai_browser_recovery.py": "8ec74443a0c14322e15cf7be8c99975b141275c2409e1913f0c7b86420b71d5a",
+    "backend/tests/integration/test_ai_saved_searches.py": "f58b0cdd611d75f4445441a9449632c69d7d5179e003b8695a2c9e59e3ca8350",
+    "backend/tests/integration/test_ai_saved_review.py": "12bf472060c8261aeb53382de12afc2edc990761e38c097cc9ee312aaa94be58",
+    "backend/tests/integration/test_ai_account_erasure.py": "51c27496843300e29e8f20fea06c2a7fadff05567acd777b5c4ce4318edb6e40",
+    "backend/tests/ai_http_browser/test_ai_http_browser.py": "6f9b4b166005ab32a81464682abe6f3c5c1269690582657ce4b268e2a0c52734",
+    "scripts/accept-ai-text-lab.mjs": "7af4fd6ad1733e34b1c536f7e107f1f35a165415f9f1dbf3ed62f649b5b77b1a",
+    "scripts/accept-ai-parser-ui.mjs": "ce3d49ff2b195bf90cee4ada6d504b381d63ca0db06933414807411daaebbc71",
+    "scripts/accept-ai-release.mjs": "d2d78de0397b8b7fdc28c6b959a81095c94042ab82b073f30dbe5b02ea5e7ce5",
+    "scripts/accept-ai-release-ops.mjs": "8981139e1124b9a1b0e6e9627a5013222428444e7d174ec316276fc272814940",
+    "backend/lab/intent_cases.v1.json": "7b722ab6caa0bf3377a0ace8fcddecf6daa7f7cb9bcebec515ab0cac9997d288",
+    "backend/lab/intent_eval.py": "2626430797b78684684ce0f748d949048eb195e1b5714c121402c9bcd15b61f8",
+    "scripts/smoke-ai-closed-live-ui.mjs": "224db7f69ad5376bfad4a85ac9b03fc3c401fcb254c73ba1cbf797e8c5c420c3",
+    "docs/ai-search-developer/PR404_CLOSED_LIVE_ADMISSION_RU.md": "0b0978e8f26de3dba8e58b6e1b70903fd091440f2bec583833e805454e41ba68",
+    "scripts/check-ai-map-capacity.py": "3b8625a2257692c44c5e3ae0233500ac04d13cd12bac6511267cf283f196fc5f",
+    "scripts/benchmark-ai-map.py": "835e3af89752a91d966b8a4a5d0e0215690ce276eedae560cb1d8fce79468779",
+    "docs/ai-search-developer/acceptance-matrix.v1.json": "62d88d7d858a6fdd51bd623f3befb45442db0de4369ff130e3f7485bc51cf28b"
+  },
+  "mode": "mock-browser",
+  "product_acceptance": false,
+  "results": [
+    {
+      "suite": "intent",
+      "kind": "unit",
+      "limit": "Typed patches/MockTransport/local finite parser; no semantic acceptance of a real model.",
+      "status": "not_run"
+    },
+    {
+      "suite": "facts",
+      "kind": "unit",
+      "limit": "Predicate/validation tests; no running SQL or real catalog coverage.",
+      "status": "not_run"
+    },
+    {
+      "suite": "quota",
+      "kind": "unit",
+      "limit": "Schemas and fake attempt gate; durable debit and Madrid DST require PostgreSQL.",
+      "status": "not_run"
+    },
+    {
+      "suite": "voice",
+      "kind": "unit",
+      "limit": "Mock ASR HTTP validation only; no microphone, real ASR or voice UI.",
+      "status": "not_run"
+    },
+    {
+      "suite": "saved",
+      "kind": "unit",
+      "limit": "Protects manual matcher/legacy delivery and schema rollback; does not implement public AI save/delivery.",
+      "status": "not_run"
+    },
+    {
+      "suite": "operations",
+      "kind": "unit",
+      "limit": "Negative privacy/temporary journal/metric/fixture capacity gates, not provider or performance certification.",
+      "status": "not_run"
+    },
+    {
+      "suite": "browser",
+      "kind": "mock-browser",
+      "limit": "Mock API/browser contracts, including 12 locale/viewport text cases; no real model/backend.",
+      "status": "failed",
+      "argv": [
+        "node",
+        "node_modules/@playwright/test/cli.js",
+        "test",
+        "--config",
+        "playwright.ai-search.config.ts"
+      ],
+      "exit_code": 1,
+      "seconds": 162.469,
+      "log": "output\\ai-search-s1\\browser-browser.log"
+    },
+    {
+      "suite": "pairing",
+      "kind": "mock-browser",
+      "limit": "Mock release-pairing and recovery guards; no closed LIVE run.",
+      "status": "passed",
+      "argv": [
+        "node",
+        "node_modules/@playwright/test/cli.js",
+        "test",
+        "--config",
+        "playwright.ai-lab.config.ts"
+      ],
+      "exit_code": 0,
+      "seconds": 35.016,
+      "log": "output\\ai-search-s1\\browser-pairing.log"
+    },
+    {
+      "suite": "quota-pg",
+      "kind": "disposable-service",
+      "limit": "Disposable loopback PostgreSQL/Redis only; providers/ASR/query stand-ins. See existing CI.",
+      "status": "not_run"
+    },
+    {
+      "suite": "facts-pg",
+      "kind": "disposable-service",
+      "limit": "Actual SQL/constraints against disposable PostGIS; synthetic facts do not prove source coverage.",
+      "status": "not_run"
+    },
+    {
+      "suite": "http-pg",
+      "kind": "disposable-service",
+      "limit": "Real local HTTP/SQL/cookies with synthetic runtime; requires explicit disposable service environment.",
+      "status": "not_run"
+    },
+    {
+      "suite": "closed-stack",
+      "kind": "gated",
+      "limit": "Existing synthetic full stack drivers; operator-owned stack/admission required. Never auto-started by this matrix.",
+      "status": "not_run"
+    },
+    {
+      "suite": "real-provider",
+      "kind": "gated",
+      "limit": "Historical 24-case corpus and closed pilot driver only; no new calls authorized, prior LIVE FAILED.",
+      "status": "not_run"
+    },
+    {
+      "suite": "capacity",
+      "kind": "gated",
+      "limit": "ISSUE-004 OPEN; large benchmarks deferred. SQL fixtures and protocol checks cannot establish browser voice SLO.",
+      "status": "not_run"
+    }
+  ],
+  "criteria": [
+    {
+      "id": "A1",
+      "stage": "S3.4",
+      "status": "partial",
+      "suites": [
+        "intent",
+        "facts",
+        "facts-pg",
+        "real-provider"
+      ],
+      "gaps": [
+        "Real-model ES/RU/EN semantic correctness across every supported field and SQL IDs/reasons on eligible catalog remains unaccepted."
+      ]
+    },
+    {
+      "id": "A2",
+      "stage": "S3.4",
+      "status": "partial",
+      "suites": [
+        "intent",
+        "quota-pg",
+        "real-provider"
+      ],
+      "gaps": [
+        "Real-model ambiguity/conflict/unknown/no-change/unsupported plus unchanged hard criteria must pass the full chain."
+      ]
+    },
+    {
+      "id": "A3",
+      "stage": "S2.2–S2.3",
+      "status": "partial",
+      "suites": [
+        "facts",
+        "facts-pg",
+        "http-pg",
+        "browser"
+      ],
+      "gaps": [
+        "Real-source coverage/freshness and supervised invalidation/retirement remain open; preserve TOP/boost/native/external/gallery/favorites/long-term EUR1000 cap."
+      ]
+    },
+    {
+      "id": "A4",
+      "stage": "S3.2",
+      "status": "partial",
+      "suites": [
+        "quota",
+        "quota-pg",
+        "closed-stack"
+      ],
+      "gaps": [
+        "Production runtime and exact merged-SHA service evidence required: guest3/auth200, Europe/Madrid DST, no debit on failure/no coverage; eligible zero debits once."
+      ]
+    },
+    {
+      "id": "A5",
+      "stage": "S3.2–S3.3",
+      "status": "partial",
+      "suites": [
+        "quota-pg",
+        "http-pg",
+        "browser",
+        "pairing",
+        "closed-stack"
+      ],
+      "gaps": [
+        "Target environment provider/ownership/recovery acceptance remains open; synthetic/browser/receipt tests do not prove deployment."
+      ]
+    },
+    {
+      "id": "A6",
+      "stage": "S4.1",
+      "status": "partial",
+      "suites": [
+        "voice",
+        "quota-pg"
+      ],
+      "gaps": [
+        "Missing real ASR transport, public HTTP media policy/codecs/duration, microphone stop/cancel/correction UI and multilingual/mixed-speech E2E; one Send and one debit."
+      ]
+    },
+    {
+      "id": "A7",
+      "stage": "S4.2",
+      "status": "partial",
+      "suites": [
+        "saved",
+        "quota-pg",
+        "http-pg",
+        "browser"
+      ],
+      "gaps": [
+        "Public owned committed-snapshot create/retry/disable flow and UI after registration missing; existing collection browser test covers list/delete only."
+      ]
+    },
+    {
+      "id": "A8",
+      "stage": "S4.3",
+      "status": "partial",
+      "suites": [
+        "saved",
+        "quota-pg",
+        "http-pg"
+      ],
+      "gaps": [
+        "Dry-run/snapshot/legacy exclusion are not delivery. Missing actual rematch/delivery worker, fencing/retry/idempotency/live eligibility/disable-delete race E2E; no real outbound authorized."
+      ]
+    },
+    {
+      "id": "A9",
+      "stage": "S4.4",
+      "status": "partial",
+      "suites": [
+        "browser",
+        "pairing",
+        "http-pg",
+        "closed-stack"
+      ],
+      "gaps": [
+        "12 locale/width initial→empty→manual-fallback cases added at 320/390/768/1440; full loading/error/retry/accessibility/card/map/voice/save/registration matrix across all combinations remains open."
+      ]
+    },
+    {
+      "id": "A10",
+      "stage": "S5.2–S5.3",
+      "status": "partial",
+      "suites": [
+        "operations",
+        "capacity"
+      ],
+      "gaps": [
+        "No accepted browser voice p95<=10s; SQL/map p95<=500ms p99<=1000ms zero errors at 100k/500k/1m concurrency50/100/200 remains OPEN."
+      ]
+    },
+    {
+      "id": "A11",
+      "stage": "S6.1–S6.2",
+      "status": "partial",
+      "suites": [
+        "operations",
+        "facts-pg",
+        "http-pg",
+        "closed-stack",
+        "real-provider"
+      ],
+      "gaps": [
+        "Provider/account/payload privacy, real coverage/freshness, supervised workers, production migrations/backup/restore/erasure/kill-switch/telemetry require external evidence."
+      ]
+    },
+    {
+      "id": "A12",
+      "stage": "S7.1–S7.3",
+      "status": "partial",
+      "suites": [
+        "closed-stack",
+        "real-provider",
+        "capacity"
+      ],
+      "gaps": [
+        "No deployed SHA/capabilities acceptance, real pilot or agreed observation period; A1–A11 remain prerequisites."
+      ]
+    }
+  ]
+}

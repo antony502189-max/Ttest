@@ -1,0 +1,47 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.14, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\HONOR\.codex\worktrees\main-integration-audit\Ttest\backend
+configfile: pyproject.toml
+plugins: anyio-4.14.2, platformdirs-4.13.0, asyncio-1.4.0, cov-7.1.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+collecting ... collected 30 items
+
+tests/test_ai_http_boundary.py::test_signed_guest_identity_is_server_minted_bounded_and_policy_bound PASSED [  3%]
+tests/test_ai_http_boundary.py::test_http_api_is_disabled_without_database_provider_or_runtime PASSED [  6%]
+tests/test_ai_http_boundary.py::test_ai_telemetry_drops_whole_event_and_transaction_but_preserves_other_routes PASSED [ 10%]
+tests/test_ai_http_boundary.py::test_private_validation_never_exports_body_keys_or_values PASSED [ 13%]
+tests/test_ai_http_boundary.py::test_session_creation_accepts_only_explicit_typed_mode_and_legacy_empty_body PASSED [ 16%]
+tests/test_ai_http_review.py::test_dependency_cancellation_is_private_unavailable_not_generic_500 PASSED [ 20%]
+tests/test_ai_http_review.py::test_actual_http_task_cancellation_still_propagates PASSED [ 23%]
+tests/test_ai_http_review.py::test_operation_lookup_is_owned_read_only_and_does_not_require_a_live_session PASSED [ 26%]
+tests/test_ai_http_review.py::test_proxy_identity_uses_explicit_trust_and_ignores_untrusted_forwarding PASSED [ 30%]
+tests/test_ai_http_review.py::test_cors_preflight_allows_ai_header_only_for_allowlisted_origin PASSED [ 33%]
+tests/test_ai_http_review.py::test_unvalidated_private_paths_are_redacted_in_application_logs_and_metrics[/sessions/PRIVATE_SENTINEL-get] PASSED [ 36%]
+tests/test_ai_http_review.py::test_unvalidated_private_paths_are_redacted_in_application_logs_and_metrics[/results/PRIVATE_SENTINEL/cards-post] PASSED [ 40%]
+tests/test_ai_http_review.py::test_unvalidated_private_paths_are_redacted_in_application_logs_and_metrics[/PRIVATE_SENTINEL-get] PASSED [ 43%]
+tests/test_ai_http_review.py::test_guest_cookie_flow_rejects_external_documents_before_mint[cross-site] PASSED [ 46%]
+tests/test_ai_http_review.py::test_guest_cookie_flow_rejects_external_documents_before_mint[same-site] PASSED [ 50%]
+tests/test_ai_http_review.py::test_deadline_bounds_gate_and_session_read_without_inventing_release PASSED [ 53%]
+tests/test_ai_http_review.py::test_retry_after_and_configuration_capabilities_are_explicit[error0-ATTEMPT_LIMIT-17] PASSED [ 56%]
+tests/test_ai_http_review.py::test_retry_after_and_configuration_capabilities_are_explicit[error1-QUOTA_EXHAUSTED-864] PASSED [ 60%]
+tests/test_ai_http_review.py::test_policy_requires_explicit_budgets_and_bounded_proxy_trust[0-2-proxies0] PASSED [ 63%]
+tests/test_ai_http_review.py::test_policy_requires_explicit_budgets_and_bounded_proxy_trust[nan-2-proxies1] PASSED [ 66%]
+tests/test_ai_http_review.py::test_policy_requires_explicit_budgets_and_bounded_proxy_trust[1-0-proxies2] PASSED [ 70%]
+tests/test_ai_http_review.py::test_policy_requires_explicit_budgets_and_bounded_proxy_trust[1-2-proxies3] PASSED [ 73%]
+tests/test_ai_http_review.py::test_policy_requires_explicit_budgets_and_bounded_proxy_trust[1-2-proxies4] PASSED [ 76%]
+tests/test_ai_http_review.py::test_server_access_logger_drops_raw_private_url_but_keeps_ordinary_requests PASSED [ 80%]
+tests/test_ai_http_review.py::test_deadline_covers_slow_stream_before_body_validation PASSED [ 83%]
+tests/test_ai_http_review.py::test_late_synchronous_result_is_rejected_and_not_claimed_within_deadline PASSED [ 86%]
+tests/test_ai_http_review.py::test_https_guest_origin_survives_tls_termination_with_internal_http_scope PASSED [ 90%]
+tests/test_ai_http_review.py::test_guest_origin_policy_rejects_unsafe_or_non_origin_values[http://public.invalid] PASSED [ 93%]
+tests/test_ai_http_review.py::test_guest_origin_policy_rejects_unsafe_or_non_origin_values[https://testserver/private] PASSED [ 96%]
+tests/test_ai_http_review.py::test_guest_origin_policy_rejects_unsafe_or_non_origin_values[https://testserver?secret=x] PASSED [100%]
+
+============================== warnings summary ===============================
+..\..\..\..\..\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\fastapi\testclient.py:1
+  C:\Users\HONOR\Documents\Codex\Ttest\output\release-venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 30 passed, 1 warning in 3.56s ========================
