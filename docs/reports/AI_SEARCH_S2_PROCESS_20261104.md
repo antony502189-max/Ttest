@@ -1,5 +1,7 @@
 # S2.2 — bounded process lifecycle rehearsal, 04.11.2026
 
+Этот отчёт хранит исходный rehearsal source c4b32cb4. Последующее полное ревью выявило и исправило6edge cases; актуальные исправления и проверки source61c4e027 описаны в [PR406 review report](PR406_REVIEW_FIXES.md). Исторические результаты ниже не переносятся на новый runtime автоматически.
+
 Source: `c4b32cb4d15f4d8bb6dc767618c86ef1f2f750e3`, base merged main `20435c2e36cabac5608780fe01ab75e47efe152c`. Scope: локальная synthetic часть A3/A11, не продуктовая приёмка и не production activation.
 
 Review: [draft PR#406](https://github.com/antony502189-max/Ttest/pull/406). Commit `2c3c6ffa05425c9fc8a95dab8ffe9f98eb6f9cf1` после проверенного Python source добавляет только scoped evidence-byte preservation в `.gitattributes` и manifest; Python не менялся. SHA-256 evidence отдельно проверены через `git show HEAD:<file>`, а не только working files. Owned PostgreSQL container и его anonymous volume удалены. Exact-head Linux CI начат, success пока не заявлен; merge/deploy не выполнены.

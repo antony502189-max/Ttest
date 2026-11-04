@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="12" time="8.135" timestamp="2026-11-04T12:07:17.769905+03:00" hostname="DESKTOP-KAHKI17"><testcase classname="tests.test_ai_fact_process" name="test_clean_exit_without_tick_result_is_not_committed" time="2.328"><failure message="BrokenPipeError: [WinError 109] Канал был закрыт">def test_clean_exit_without_tick_result_is_not_committed():
+&gt;       result = run_isolated_tick(premature_exit_factory, (), deadline_seconds=5)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\test_ai_fact_process.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\lab\ai_fact_process.py:116: in run_isolated_tick
+    elif process.exitcode == 0 and receive.poll():
+                                   ^^^^^^^^^^^^^^
+..\..\..\..\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\multiprocessing\connection.py:257: in poll
+    return self._poll(timeout)
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;multiprocessing.connection.PipeConnection object at 0x000001FB68D04680&gt;
+timeout = 0.0
+
+    def _poll(self, timeout):
+        if (self._got_empty_message or
+&gt;                   _winapi.PeekNamedPipe(self._handle)[0] != 0):
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E                   BrokenPipeError: [WinError 109] Канал был закрыт
+
+..\..\..\..\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\multiprocessing\connection.py:344: BrokenPipeError</failure></testcase><testcase classname="tests.test_ai_fact_process" name="test_start_time_is_part_of_deadline" time="1.117" /><testcase classname="tests.test_ai_fact_process" name="test_custom_pickle_arguments_are_rejected_before_parent_execution" time="0.018" /><testcase classname="tests.test_ai_fact_process" name="test_parent_start_failure_is_redacted_and_handles_are_closed" time="0.001" /><testcase classname="tests.test_ai_fact_process" name="test_failed_reap_does_not_repeat_its_full_budget" time="0.001" /><testcase classname="tests.test_ai_fact_process" name="test_policy_rejects_unbounded_process_work[deadline_seconds-0]" time="0.001" /><testcase classname="tests.test_ai_fact_process" name="test_policy_rejects_unbounded_process_work[deadline_seconds-True]" time="0.001" /><testcase classname="tests.test_ai_fact_process" name="test_policy_rejects_unbounded_process_work[deadline_seconds-3601]" time="0.001" /><testcase classname="tests.test_ai_fact_process" name="test_policy_rejects_unbounded_process_work[reap_seconds-0]" time="0.001" /><testcase classname="tests.test_ai_fact_process" name="test_policy_rejects_unbounded_process_work[reap_seconds-31]" time="0.001" /><testcase classname="tests.test_ai_fact_process" name="test_child_factory_failure_is_redacted_and_reaped" time="2.603" /><testcase classname="tests.test_ai_fact_process" name="test_controller_interruption_kills_and_reaps_actual_child" time="0.224" /></testsuite></testsuites>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.805" timestamp="2026-11-04T12:08:23.681584+03:00" hostname="DESKTOP-KAHKI17"><testcase classname="tests.ai_facts_pg.test_fact_process" name="test_process_fixture_journal_cannot_cross_schemas" time="0.457"><failure message="Failed: DID NOT RAISE ValueError">pipeline = (&lt;app.repositories.ai_fact_pipeline.FactPipeline object at 0x000001B98E0A3530&gt;, async_sessionmaker(class_='AsyncSessio...bind=&lt;sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x000001B98F826F50&gt;, autoflush=True, expire_on_commit=False))
+pg = (Engine(postgresql+psycopg://postgres:***@127.0.0.1:55440/ai_facts_test_review406), &lt;module 'facts_migration' from 'C:\\Users\\HONOR\\.codex\\worktrees\\main-integration-audit\\Ttest\\backend\\alembic\\versions\\0069_ai_listing_facts.py'&gt;)
+tmp_path = WindowsPath('C:/Users/HONOR/AppData/Local/Temp/pytest-of-HONOR/pytest-203/test_process_fixture_journal_c0')
+
+    async def test_process_fixture_journal_cannot_cross_schemas(pipeline, pg, tmp_path):
+        with pg[0].connect() as connection:
+            schema = connection.scalar(text("SELECT current_schema()"))
+        url = pipeline[1].kw["bind"].url.render_as_string(hide_password=False)
+        path = str(tmp_path / "DISPOSABLE-fact-supervisor-schema.sqlite3")
+        args = (url, schema, path, str(tmp_path / "unused"), "normal", 1000)
+        make_supervisor(*args)
+&gt;       with pytest.raises(ValueError, match="binding mismatch"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+backend\tests\ai_facts_pg\test_fact_process.py:176: Failed</failure></testcase></testsuite></testsuites>
