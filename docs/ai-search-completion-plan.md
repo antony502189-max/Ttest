@@ -1,6 +1,6 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.1**, 4 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.2**, 4 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
 
@@ -8,13 +8,17 @@
 
 **Текущий этап: S2 — рабочий каталог и обновление фактов. S1.1–S1.3 выполнены в пределах подготовки и targeted merged-source проверок; продуктовые A1–A12 остаются открытыми.**
 
-**Следующее действие S2.2:** подтвердить exact-head Linux CI исправлений полного review PR#406, затем продолжить source-specific refresh chain. Все6findings исправлены в runtime source `61c4e027e3438ba1c4448cec88a24532677d920c`:1729backend unit PASS/16skip,82coordinator/supervisor/PG PASS,116lab PASS/1skip/8subtests (наборы пересекаются), Ruff/mypy174 и943inputs provenance PASS. [Review/evidence](reports/PR406_REVIEW_FIXES.md). Прежний head17d2857f прошёл11/11workflows, но его results не переносятся на исправленный source. S2 partial: real measurements/permitted detail refresh/permanent supervision OPEN; S3–S7 и release gates OPEN. Existing worktree и чужой старый root checkout сохраняются.**
+**Следующее действие S2.2:** exact-head CI/review bounded synthetic detail-refresh increment от merged main `1990638d61ada0960a864e34568db306151f442b`. Source `716ae9fa2298c4455ceb6d4392e937a1b8457748`: exact receipt→MockTransport detail→guarded source/projection/PG operation receipt→existing coordinator/proof; automatic ACK отсутствует. Unit1752PASS/16skip, финальный targeted150PASS на свежем owned PG; Ruff/mypy175 и946inputs provenance PASS. [Отчёт/evidence](reports/AI_SEARCH_S2_DETAIL_20261104.md). После этого gate остаётся bounded durable pre-HTTP budget/lease/fence + process lifecycle composition consumer; real ingestion не разрешён этим synthetic contract. S2 partial, S3–S7/B2–B6 OPEN; deployment не выполнен.**
 
 **Передача в новый чат:** пользователь запросил GPT‑6.1 Sol (`gpt-6.1-sol`), reasoning `medium`, полный доступ и автономное продолжение S2.2. Model/thinking задаются через create_thread; permissions нужно подтвердить по developer runtime context нового чата, а не по тексту prompt. Не просить повторных общих разрешений на уже согласованную local synthetic/disposable работу. После проверки фактического профиля сразу реализовывать process lifecycle rehearsal, без нового общего аудита или roadmap. Исторические post-merge #404 main ece1632e evidence остаются историческими; текущая merged база —20435c2e.
 
 **Исторический срез S2.2 до полного review:** создан [draft PR#406](https://github.com/antony502189-max/Ttest/pull/406), merge/deploy не выполнены. Python source/tests — `c4b32cb4`; последующий runtime-boundary commit `2c3c6ffa05425c9fc8a95dab8ffe9f98eb6f9cf1` добавляет только scoped `.gitattributes` для сохранения evidence bytes и обновлённый manifest, application/lab/test Python не менялся. Hashes проверены и для committed Git blobs; owned PostgreSQL container/anonymous volume удалены. CI первого PR head запущен, final exact-head Linux результат пока не подтверждён; не переносить88local PASS на CI. S0–S1 прежние границы, S2 partial, S3–S7/B2–B6 OPEN.
 
-**Review04.11:** по прямому запросу владельца выполнено полное self-review diff#406, шесть подтверждённых findings имеют RED→GREEN. Исправлены false committed на clean exit, startup deadline accounting, двойной reap budget, arbitrary parent pickle, parent error redaction и fixture schema binding. Owned review PG/volume удалены. Код проверен локально, exact-head CI нового source ещё ожидается; merge/deploy не выполнены. S0–S1 прежние границы, S2 partial, S3–S7/B2–B6 OPEN.
+**Review04.11, локальный срез до финального CI:** по прямому запросу владельца выполнено полное self-review diff#406, шесть подтверждённых findings имеют RED→GREEN. Исправлены false committed на clean exit, startup deadline accounting, двойной reap budget, arbitrary parent pickle, parent error redaction и fixture schema binding. Owned review PG/volume удалены. Код проверен локально, exact-head CI нового source ещё ожидается; merge/deploy не выполнены. S0–S1 прежние границы, S2 partial, S3–S7/B2–B6 OPEN.
+
+**Итог CI/review04.11:** head1fe59146 —11/11workflows,18/18jobs SUCCESS. [Combined facts/PostGIS/HTTP/browser](https://github.com/antony502189-max/Ttest/actions/runs/41806676886), [production audit](https://github.com/antony502189-max/Ttest/actions/runs/41806676510), [mobile](https://github.com/antony502189-max/Ttest/actions/runs/41806676622). PR#406 переведён в ready, open/merged=false; новых незакрытых findings в проверенном diff нет. Snapshot output/pr406-final-ci-1fe59146.json, SHA256=83339ff7661464af8249b18da2713ce7defa7c757fb59efa6b627ef943f3c7b6. Описание PR содержит exact-head CI proof; этот финальный статус плана сохранён локально и синхронизирован в canonical root без изменения проверенного PR head. Следующее действие указано выше; merge/deploy не выполнялись.
+
+**Merge#406 / S2.2 detail04.11:** GitHub merged=true,04.11 в12:46:54Europe/Moscow, merge/main1990638d; fetch подтвердил тот же origin/main. Existing worktree сохранён, новая codex/ai-search-detail-refresh от merged main; локальные review statuses перенесены, старый root с чужими изменениями не менялся. Post-merge main на13:23:36:5/6SUCCESS, Full audit in_progress. Новый code source716ae9fa — отдельные local tests/CI, не deployed release. Synthetic detail contract продвинут, standing supervision и real data gates не закрыты.
 
 ## Установленное исходное состояние
 
@@ -102,6 +106,8 @@
 
 Выход: согласованное измеренное покрытие, воспроизводимо свежие данные и работающий процесс их обновления; A3 и data-часть A11.
 
+04.11 S2.2 detail increment: source `716ae9fa2298c4455ceb6d4392e937a1b8457748`,150targeted и1752unit/16skip PASS (пересекаются), Ruff/mypy175/946inputs PASS. Source-only mock detail, exact receipt/PG atomic effect, CAS/race/rollback/age/capacity и повторный binding guard проверены; implicit ACK отсутствует. [Detail contract/evidence](reports/AI_SEARCH_S2_DETAIL_20261104.md). Pre-HTTP durable budget/lease/fence и lifecycle composition consumer ещё OPEN; real/standing refresh не включён.
+
 ### S3 — настоящий текстовый AI
 
 **Частично реализован.**
@@ -183,6 +189,8 @@
 
 | Дата | Версия/этап | Выполнено и доказательство | Следующий шаг |
 | --- | --- | --- | --- |
+| 2026-11-04 | 3.2/S2.2 detail | #406 merged владельцем в1990638d, независимо проверено. Source716ae9fa: bounded exact-receipt mock detail refresh, source CAS/projection/PG receipt atomicity, no implicit ACK, race/replay/rollback/capacity/binding guards. Unit1752/16skip PASS; финальный targeted150PASS на свежем owned PG после отдельно сохранённого interruption. Ruff/mypy175 и946inputs PASS. [Отчёт](reports/AI_SEARCH_S2_DETAIL_20261104.md). S2 partial, S3–S7 OPEN, activation/deploy отсутствуют | Exact-head CI/review нового detail increment |
+| 2026-11-04 | 3.1/S2.2 финальный CI | Head1fe59146:11/11workflows и18/18jobs SUCCESS; полный self-review и6fixes завершены, PR#406 ready/open/not merged. Источник61c4e027; описание PR и локальный CI snapshot фиксируют exact-head доказательства. S2 partial, остальные gates открыты, deployment не выполнялся | После включения#406 вmain продолжить bounded synthetic source-specific refresh contract |
 | 2026-11-04 | 3.1/S2.2 review | Полное self-review#406:6RED→GREEN findings исправлены в61c4e027.1729unit/16skip,82PG/coordinator/supervisor,116lab/1skip/8subtests PASS; Ruff/mypy174 и943inputs provenance PASS. Старый17d2857f CI11/11SUCCESS отдельно от нового source. [Отчёт](reports/PR406_REVIEW_FIXES.md); owned PG/volume удалены, activation/merge/deploy не выполнены | Exact-head CI исправлений#406 |
 | 2026-11-04 | 3.0/S2.2 | `c4b32cb4d15f4d8bb6dc767618c86ef1f2f750e3`: внешний spawn/kill/join для finite synthetic tick. Реальный coordinator прерван в builder после PG claim, после PG publication и после SQLite receipt; restart/lease/fence/pending signals/no duplicate publication проверены. Final88PASS, Ruff/mypy1file и943inputs provenance PASS; ранний87/1FAIL без root PYTHONPATH сохранён отдельно. [Отчёт](reports/AI_SEARCH_S2_PROCESS_20261104.md). S0–S1 прежние, S2 partial, S3–S7/B2–B6 OPEN; production/provider/budget/data не активированы | S2.2 exact-head Linux CI/review process lifecycle increment |
 | 2026-11-04 | 2.9/merge#405 и передача | Владелец слил#405; GitHub merged=true и fetch подтвердили main `20435c2e36cabac5608780fe01ab75e47efe152c`,11:43:09 Europe/Moscow. PR headc2affaf4:11/11workflows,18/18checks SUCCESS. Post-merge6runs:3SUCCESS/3in_progress при передаче, deploy не заявлен. Existing worktree переведён чисто на новую codex/ai-search-process-lifecycle от main; old root/чужие изменения сохранены. Пользователь запросил новый чат Sol/medium/full access | S2.2 process-isolated synthetic deadline/kill/restart code + tests; сверить post-merge CI без подмены доказательств |
@@ -198,6 +206,7 @@
 
 ## Изменения маршрута и отложенное
 
+- **3.1→3.2:** владелец слил#406, пользователь поручил продолжать основной план. Реализован следующий source-specific synthetic detail seam на existing primitives; operation receipt не подменяет future pre-HTTP budget/leases или реальные source permissions. Маршрут и A1–A12 сохранены.
 - **3.0→3.1:** прямое поручение владельца — полное ревью и исправления#406 перед продолжением S2. Шесть воспроизведённых проблем закрыты локально; production/data/provider/performance gates и A1–A12 не ослаблены.
 - **2.9→3.0:** выполнен следующий локальный S2.2 hard process rehearsal на existing coordinator/journal/PG primitives. Готовность локального кода отделена от Linux CI, постоянной supervision и deployed release. Следующий gate — exact-head CI/review этого increment; S2–S7 и A1–A12 не ослаблены.
 - **2.8→2.9:** владелец слил#405; merge независимо проверен. Review gate снят для merged кода, deployment/data/provider/product gates не менялись. Следующий S2.2 остаётся прежним; продолжение передаётся в новый чат по прямому запросу пользователя.

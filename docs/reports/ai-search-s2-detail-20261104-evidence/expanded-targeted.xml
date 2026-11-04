@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="16" time="16.501" timestamp="2026-11-04T13:06:36.404217+03:00" hostname="DESKTOP-KAHKI17"><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_detail_refresh_recovers_current_facts_without_implicit_ack" time="1.529" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_unknown_commit_outcome_reopens_without_second_get_or_publication" time="1.114" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_http_failure_does_not_refresh_or_retire_manual_source[403]" time="0.949" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_http_failure_does_not_refresh_or_retire_manual_source[429]" time="0.901" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_http_failure_does_not_refresh_or_retire_manual_source[302]" time="1.037" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_http_failure_does_not_refresh_or_retire_manual_source[404]" time="0.905" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_http_failure_does_not_refresh_or_retire_manual_source[500]" time="0.976" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_invalid_details_are_not_promoted_to_fresh_content[identity]" time="1.058" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_invalid_details_are_not_promoted_to_fresh_content[canonical]" time="0.931" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_invalid_details_are_not_promoted_to_fresh_content[source]" time="0.954" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_invalid_details_are_not_promoted_to_fresh_content[packet]" time="0.929" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_invalid_details_are_not_promoted_to_fresh_content[size]" time="1.092" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_invalid_details_are_not_promoted_to_fresh_content[json]" time="0.915" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_invalid_details_are_not_promoted_to_fresh_content[content_type]" time="0.905" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_invalid_details_are_not_promoted_to_fresh_content[encoding]" time="1.087" /><testcase classname="tests.ai_facts_pg.test_fact_refresh" name="test_racing_catalog_change_is_not_overwritten[payload]" time="0.934"><failure message="AssertionError: assert (('failed',) == ('stale',)&#10;  &#10;  At index 0 diff: 'failed' != 'stale'&#10;  Use -v to get more diff)">pipeline = (&lt;app.repositories.ai_fact_pipeline.FactPipeline object at 0x0000024B3705D760&gt;, async_sessionmaker(class_='AsyncSessio...bind=&lt;sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x0000024B36A56A90&gt;, autoflush=True, expire_on_commit=False))
+refresh_setup = (&lt;lab.ai_fact_refresh.SyntheticDetailRefresh object at 0x0000024B37088080&gt;, UUID('ce020674-38ae-49d5-b4f8-14895e99ce0d...-8da8-e3bb9f45e93e', 'source_name': 'synthetic', ...}, &lt;function refresh_setup.&lt;locals&gt;.handler at 0x0000024B372BC400&gt;)
+change = 'payload'
+
+    @pytest.mark.parametrize("change", ["payload", "fingerprint", "url", "source", "canonical", "retired", "deleted", "hidden", "health"])
+    async def test_racing_catalog_change_is_not_overwritten(pipeline, refresh_setup, change):
+        runner, _, _, calls, _, handler = refresh_setup
+    
+        async def race(request):
+            response = handler(request)
+            sql = {"payload": "UPDATE external_listing_sources SET raw_payload='{}'::jsonb || '{\"race\":true}'::jsonb",
+                "fingerprint": "UPDATE external_listing_sources SET fingerprint=repeat('a',64)",
+                "url": "UPDATE external_listing_sources SET source_url='https://example.invalid/other'",
+                "source": "UPDATE external_listing_sources SET source_name='other'",
+                "canonical": "UPDATE external_listing_sources SET canonical_listing_id='00000000-0000-0000-0000-000000000001'",
+                "retired": "UPDATE external_listing_sources SET current_status='missing'",
+                "deleted": "DELETE FROM external_listing_sources",
+                "hidden": "UPDATE listings SET status='hidden'",
+                "health": "UPDATE external_listing_sources SET last_checked_at=clock_timestamp(),last_state_check_result='blocked'"}[change]
+            async with pipeline[1]() as session, session.begin():
+                await session.execute(text(sql))
+            return response
+    
+        runner.transport = httpx.MockTransport(race)
+&gt;       assert (await run(runner)).outcomes == ("stale",) and len(calls) == 1
+E       AssertionError: assert (('failed',) == ('stale',)
+E         
+E         At index 0 diff: 'failed' != 'stale'
+E         Use -v to get more diff)
+
+tests\ai_facts_pg\test_fact_refresh.py:176: AssertionError</failure></testcase></testsuite></testsuites>
