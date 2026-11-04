@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="4.676" timestamp="2026-11-04T20:30:13.431130+03:00" hostname="DESKTOP-KAHKI17"><testcase classname="tests.integration.test_ai_http" name="test_ai_map_camera_reads_do_not_register_detail_views[False]" time="2.266"><failure message="assert None is not None">active = (AISearchRuntime(sessions=&lt;app.repositories.ai_search_sessions.SearchSessions object at 0x00000207FB834680&gt;, cards=&lt;ap...://testserver')), &lt;test_ai_http.Parser object at 0x00000207FB47AED0&gt;, &lt;test_ai_http.Gate object at 0x00000207FB9DFBC0&gt;)
+register_user = &lt;function register at 0x00000207FB6F5D00&gt;, authenticated = False
+
+    @pytest.mark.parametrize("authenticated", [False, True])
+    async def test_ai_map_camera_reads_do_not_register_detail_views(active, register_user, authenticated):
+        from geoalchemy2 import Geometry
+        from geoalchemy2.functions import ST_X, ST_Y
+        from sqlalchemy import cast
+
+        from app.models import Listing, ListingView
+
+        async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as client:
+            auth_headers = {}
+            if authenticated:
+                token, _ = await register_user(client, email="ai-map-camera@example.org")
+                auth_headers = {"Authorization": "Bearer " + token}
+            created = await client.post("/api/v1/ai-search/sessions", headers=auth_headers)
+            sid = created.json()["intent"]["session_id"]
+            answer = await client.post("/api/v1/ai-search/query", json=message(sid, 0), headers=auth_headers)
+            assert answer.status_code == 200, answer.text
+            payload = answer.json()
+            ref = payload["operation"]["receipt"]["result_ref"]
+            card_id = payload["cards"]["cards"]["items"][0]["id"]
+            async with SessionLocal() as session:
+                before = await session.scalar(select(Listing.views).where(Listing.id == UUID(card_id)))
+                views_before = await session.scalar(select(func.count()).select_from(ListingView))
+                point = cast(Listing.location, Geometry("POINT", srid=4326))
+                expected = (await session.execute(select(ST_Y(point), ST_X(point)).where(Listing.id == UUID(card_id)))).one()
+            for _ in range(2):  # fresh read/reload: metadata and map do not count a detail visit
+                page = await client.post(f"/api/v1/ai-search/results/{ref}/cards", json={"search": {"limit": 6}}, headers=auth_headers)
+                assert page.status_code == 200, page.text
+                center = page.json().get("map_center")
+&gt;               assert center is not None
+E               assert None is not None
+
+tests\integration\test_ai_http.py:72: AssertionError</failure></testcase><testcase classname="tests.integration.test_ai_http" name="test_ai_map_camera_reads_do_not_register_detail_views[True]" time="1.990"><failure message="assert None is not None">active = (AISearchRuntime(sessions=&lt;app.repositories.ai_search_sessions.SearchSessions object at 0x00000207FC3A2390&gt;, cards=&lt;ap...://testserver')), &lt;test_ai_http.Parser object at 0x00000207FC3A17C0&gt;, &lt;test_ai_http.Gate object at 0x00000207FC3D7A40&gt;)
+register_user = &lt;function register at 0x00000207FB6F5D00&gt;, authenticated = True
+
+    @pytest.mark.parametrize("authenticated", [False, True])
+    async def test_ai_map_camera_reads_do_not_register_detail_views(active, register_user, authenticated):
+        from geoalchemy2 import Geometry
+        from geoalchemy2.functions import ST_X, ST_Y
+        from sqlalchemy import cast
+
+        from app.models import Listing, ListingView
+
+        async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as client:
+            auth_headers = {}
+            if authenticated:
+                token, _ = await register_user(client, email="ai-map-camera@example.org")
+                auth_headers = {"Authorization": "Bearer " + token}
+            created = await client.post("/api/v1/ai-search/sessions", headers=auth_headers)
+            sid = created.json()["intent"]["session_id"]
+            answer = await client.post("/api/v1/ai-search/query", json=message(sid, 0), headers=auth_headers)
+            assert answer.status_code == 200, answer.text
+            payload = answer.json()
+            ref = payload["operation"]["receipt"]["result_ref"]
+            card_id = payload["cards"]["cards"]["items"][0]["id"]
+            async with SessionLocal() as session:
+                before = await session.scalar(select(Listing.views).where(Listing.id == UUID(card_id)))
+                views_before = await session.scalar(select(func.count()).select_from(ListingView))
+                point = cast(Listing.location, Geometry("POINT", srid=4326))
+                expected = (await session.execute(select(ST_Y(point), ST_X(point)).where(Listing.id == UUID(card_id)))).one()
+            for _ in range(2):  # fresh read/reload: metadata and map do not count a detail visit
+                page = await client.post(f"/api/v1/ai-search/results/{ref}/cards", json={"search": {"limit": 6}}, headers=auth_headers)
+                assert page.status_code == 200, page.text
+                center = page.json().get("map_center")
+&gt;               assert center is not None
+E               assert None is not None
+
+tests\integration\test_ai_http.py:72: AssertionError</failure></testcase></testsuite></testsuites>

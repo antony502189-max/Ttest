@@ -39,3 +39,10 @@ CI исправленного head фиксируется отдельно; до
 После local runs добавлен только scoped `.gitattributes -text` для двух PR408 evidence directories и обновлён обязательный manifest: это сохраняет опубликованные hashes при Windows checkout. Application/test source остаётся c2e932fd; boundary/документация имеют отдельный commit и новый exact-head CI. Нормализованные artifacts не переписаны повторно.
 
 S2 partial; standing refresh/durability/lifecycle, real coverage/provider/data/performance/release gates и S3–S7/B2–B6 OPEN. Voice/saved/delivery обязательны. Ни платных calls, crawling/backfill, budget mutations, больших benchmarks, activation, ни изменений дизайна/production data не выполнялось.
+
+
+## Финальный exact-head CI
+
+Head `a1e58024621531ded64527aea7da5adbe745690b`: **10workflow runs,8SUCCESS/2SKIPPED**, без failure/cancelled. [Frontend](https://github.com/antony502189-max/Ttest/actions/runs/41867527374), [Full audit](https://github.com/antony502189-max/Ttest/actions/runs/41867527466), mobile/production/payment/security/capacity/source snapshot успешны. Phase2 visual parity и PR298 UI parity skipped. В Full audit126706207929 три conditional steps (production deployment configuration, dependency security policy, complete local audit) skipped; они не объявлены выполненными.
+
+Snapshot `output/pr408-final-ci-a1e58024.json`, SHA256 `8e5f7c4d469cd313c2c0a58f31fa6983cd20de2454eb3001b5c47be95f96fdc8`. PR description обновлён. Финальный CI appendix и canonical plan сохранены локально без изменения проверенного PR head; committed raw validation сохраняет исторический pre-CI capture. PR draft/open/merged=false подтверждён после CI. Следующее действие — повторное review исправлений; merge/deploy отсутствуют.
