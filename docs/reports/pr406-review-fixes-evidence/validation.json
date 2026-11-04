@@ -1,0 +1,46 @@
+{
+  "runtimeSource": "61c4e027e3438ba1c4448cec88a24532677d920c",
+  "reviewBase": "20435c2e36cabac5608780fe01ab75e47efe152c",
+  "reviewedPreFixHead": "17d2857f03ef1b303d46918f6d1d2cc9632e160f",
+  "scope": "S2.2, complete PR406 diff self-review and six reproduced fixes",
+  "checks": {
+    "backendUnit": {"passed": 1729, "skipped": 16, "deselected": 1092, "failed": 0, "file": "backend-unit.xml"},
+    "coordinatorSupervisorPG": {"passed": 82, "failed": 0, "file": "coordinator-supervisor-pg.xml"},
+    "lab": {"passed": 116, "skipped": 1, "subtestsPassed": 8, "failed": 0, "file": "lab.xml"},
+    "ruff": {"passed": true, "scope": "backend/app tests lab"},
+    "mypy": {"passed": true, "sourceFiles": 174, "scope": "backend/app lab/ai_fact_process.py"},
+    "provenance": {"passed": true, "inputCount": 943, "historicalEvidenceAppliesToCurrentRuntime": false}
+  },
+  "reproductions": {
+    "fiveProcessFaults": {"expectedFailures": 5, "file": "reproductions-red.xml", "baseline": "17d2857f plus regression tests"},
+    "schemaBinding": {"expectedFailures": 1, "file": "schema-binding-red.xml", "baseline": "pre-fix fixture plus regression test"}
+  },
+  "intermediateCaveats": {
+    "intermediate-backend-unit.xml": "1728 pass/1 fail/16 skip, lambda validator incomplete; superseded by final backend-unit.xml",
+    "intermediate-process-unit.xml": "11 pass/1 fail, Windows BrokenPipe poll after clean exit; superseded by final backend unit and PG suites",
+    "process-targeted.xml": "16 pass at intermediate runtime; overlaps final suites, do not sum or transfer source certification"
+  },
+  "environment": {
+    "python": "3.12.14",
+    "pytest": "9.1.1",
+    "platform": "Windows spawn",
+    "postgresImage": "sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5",
+    "container": "ttest-pr406-review-pg",
+    "database": "ai_facts_test_review406",
+    "host": "127.0.0.1",
+    "port": 55440,
+    "ownedContainerAndAnonymousVolumeRemoved": true,
+    "otherContainersTouched": false
+  },
+  "boundaries": {
+    "synchronousCallerInterruption": "KeyboardInterrupt cleanup verified with an actual live child",
+    "asyncToThreadCancellation": "Does not interrupt the controlling thread; child remains managed by that thread until its deadline",
+    "hardParentDeathAndDescendants": "Require external OS supervision; not certified",
+    "leaseTiming": "Accelerated only in owned synthetic fixtures; no production timing claim",
+    "durableRecovery": "Receipt/checkpoint/pending refresh/PG lease/fence and no duplicate publication verified",
+    "newSourceLinuxCI": "pending",
+    "deployment": "not performed",
+    "providerCalls": 0,
+    "productionActivation": false
+  }
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "file": "backend-unit.xml",
+    "sha256": "871c6c387edcece488796e9ff3157967cb6e536a6c20c60fe2d7ea7aab0285ae"
+  },
+  {
+    "file": "coordinator-supervisor-pg.xml",
+    "sha256": "7eca38f29c128855ea717677e00b1bf56ba1d3ea233c12e2ca8c0f3657bd8607"
+  },
+  {
+    "file": "intermediate-backend-unit.xml",
+    "sha256": "d90ad9e69b345ca75911fb2ee239445925558f3bb2217ba5de9da81aeeb6f69e"
+  },
+  {
+    "file": "intermediate-process-unit.xml",
+    "sha256": "52d8999a2d3d3f398c1d5651bd0f8ec576a2758a6537d7a7286c3e6e34204043"
+  },
+  {
+    "file": "lab.xml",
+    "sha256": "2994e2077c317056a4c02ddbaca4e3a8a121d5f9dc7851e28a9ff91af5933ebe"
+  },
+  {
+    "file": "pre-fix-ci-17d2857f.json",
+    "sha256": "8a421ed726682be25b51492488556361ee22a3d6a2c0b22cb83fc91891d1d3b1"
+  },
+  {
+    "file": "process-targeted.xml",
+    "sha256": "a8beb4a570ac518f2b039e4b77cdd054d7b12472d1f13207590636cb89ca522b"
+  },
+  {
+    "file": "reproductions-red.xml",
+    "sha256": "19ec26376c29708a2d6965eff47a0f2b29f4f565b98921ab6c3e8a050b0c0a9e"
+  },
+  {
+    "file": "schema-binding-red.xml",
+    "sha256": "548bac34945d9ec23c52f3ef4946b3175e262677fefd9a1e4e537935443cff17"
+  },
+  {
+    "file": "validation.json",
+    "sha256": "1f6f3e0575661f1bb927da9e2a1fde2a7f14fdef38b3703a07f462265cff3dc5"
+  }
+]
