@@ -1,0 +1,90 @@
+
+[WebServer] (node:14828) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 79 tests using 1 worker
+
+(node:30036) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/79] [chromium] › tests\ai-home-search.spec.ts:24:1 › all normalized criteria preserve false, units, identity and strength; unsupported contracts fail closed
+[2/79] [chromium] › tests\ai-home-search.spec.ts:61:1 › disabled runtime hides AI entry and preserves manual filters
+[3/79] [chromium] › tests\ai-home-search.spec.ts:68:1 › mobile reference panel, private text, zero confirmed results and followup version
+[4/79] [chromium] › tests\ai-home-search.spec.ts:107:1 › lost response and running attempt reuse exact key/text even with zero remaining
+[5/79] [chromium] › tests\ai-home-search.spec.ts:136:1 › terminal conflict resyncs session and requires deliberate resubmission
+[6/79] [chromium] › tests\ai-home-search.spec.ts:158:1 › pages use original result reference and never submit another message
+[7/79] [chromium] › tests\ai-home-search.spec.ts:192:1 › confirmed cards preserve server TOP order, native gallery recovery and external destination
+[8/79] [chromium] › tests\ai-home-search.spec.ts:233:1 › body rejection allows editing without replaying an unreserved operation
+[9/79] [chromium] › tests\ai-home-search.spec.ts:246:1 › reopening reads current quota without creating a session or charging another message
+[10/79] [chromium] › tests\ai-home-search.spec.ts:274:1 › verified map uses original result and viewport only, preserving promotions without another debit
+[11/79] [chromium] › tests\ai-home-search.spec.ts:318:3 › catalog refresh updates the same result map without another search: visible-map
+[12/79] [chromium] › tests\ai-home-search.spec.ts:318:3 › catalog refresh updates the same result map without another search: pending-map
+[13/79] [chromium] › tests\ai-home-search.spec.ts:318:3 › catalog refresh updates the same result map without another search: failed-refresh
+[14/79] [chromium] › tests\ai-home-search.spec.ts:379:1 › synthetic text journey shows cards, refreshes catalog and keeps hard conditions on followup
+[15/79] [chromium] › tests\ai-home-search.spec.ts:454:1 › map rejects a different intent hash and never falls back to manual catalog
+[16/79] [chromium] › tests\ai-home-search.spec.ts:477:1 › late map response from an earlier result cannot replace a followup map
+[17/79] [chromium] › tests\ai-home-search.spec.ts:518:1 › explicit home mode seeds a typed create, followup conflict keeps original result conditions
+[18/79] [chromium] › tests\ai-home-search.spec.ts:559:1 › lost seeded reset acknowledgement preserves mode and command key until deliberate continuation
+[19/79] [chromium] › tests\ai-home-search.spec.ts:599:4 › normalized conditions in ru fit mobile and show both strengths
+[20/79] [chromium] › tests\ai-home-search.spec.ts:599:4 › normalized conditions in en fit mobile and show both strengths
+[21/79] [chromium] › tests\ai-home-search.spec.ts:619:1 › result metadata hash mismatch never labels or replaces previous cards
+[22/79] [chromium] › tests\ai-home-search.spec.ts:635:3 › terminal expired settles before expired session refresh and permits explicit new identity
+[23/79] [chromium] › tests\ai-home-search.spec.ts:635:3 › terminal not-found settles before expired session refresh and permits explicit new identity
+[24/79] [chromium] › tests\ai-home-search.spec.ts:635:3 › terminal guest-expired settles before expired session refresh and permits explicit new identity
+[25/79] [chromium] › tests\ai-home-search.spec.ts:635:3 › terminal replayed-success settles before expired session refresh and permits explicit new identity
+[26/79] [chromium] › tests\ai-home-search.spec.ts:635:3 › terminal result-expired settles before expired session refresh and permits explicit new identity
+[27/79] [chromium] › tests\ai-home-search.spec.ts:692:3 › transient refresh 503 retains draft, identity and resynchronizes version
+[28/79] [chromium] › tests\ai-home-search.spec.ts:692:3 › transient refresh 429 retains draft, identity and resynchronizes version
+[29/79] [chromium] › tests\ai-home-search.spec.ts:692:3 › transient refresh network retains draft, identity and resynchronizes version
+[30/79] [chromium] › tests\ai-home-search.spec.ts:692:3 › transient refresh timeout retains draft, identity and resynchronizes version
+[31/79] [chromium] › tests\ai-home-search.spec.ts:728:1 › slow refresh frees draft and card navigation while guarding version-sensitive actions
+[32/79] [chromium] › tests\ai-home-search.spec.ts:752:3 › expiry on refresh disables paging or settles receipt without cards
+[33/79] [chromium] › tests\ai-home-search.spec.ts:752:3 › expiry on page disables paging or settles receipt without cards
+[34/79] [chromium] › tests\ai-home-search.spec.ts:752:3 › expiry on receipt disables paging or settles receipt without cards
+[35/79] [chromium] › tests\ai-home-search.spec.ts:779:1 › explicit live resets use current version, preserve draft and cards, and survive server failure
+[36/79] [chromium] › tests\ai-home-search.spec.ts:815:1 › expired create failure keeps draft and zero quota refreshes on reopen without an owned session
+[37/79] [chromium] › tests\ai-home-search.spec.ts:844:1 › quota refresh works before a session exists after the day changes
+[38/79] [chromium] › tests\ai-home-search.spec.ts:865:1 › an ambiguous HTTP 409 preserves the exact pending operation
+[39/79] [chromium] › tests\ai-home-search.spec.ts:887:3 › query 401 AI_GUEST_IDENTITY_INVALID_OR_EXPIRED releases old-owner pending and keeps editable draft
+[40/79] [chromium] › tests\ai-home-search.spec.ts:887:3 › query 401 AI_GUEST_IDENTITY_REQUIRED releases old-owner pending and keeps editable draft
+[41/79] [chromium] › tests\ai-home-search.spec.ts:917:1 › hard quota rejection releases unreserved pending and recovers on authoritative rollover
+[42/79] [chromium] › tests\ai-home-search.spec.ts:944:3 › paging AI_REQUERY_REQUIRED invalidates only results and preserves live conversation
+[43/79] [chromium] › tests\ai-home-search.spec.ts:944:3 › paging RESULT_NOT_FOUND invalidates only results and preserves live conversation
+[44/79] [chromium] › tests\ai-home-search.spec.ts:944:3 › paging hash-mismatch invalidates only results and preserves live conversation
+[45/79] [chromium] › tests\ai-home-search.spec.ts:968:1 › missing cards on terminal receipt resyncs a live session instead of discarding it
+[46/79] [chromium] › tests\ai-home-search.spec.ts:986:1 › lost reset acknowledgement blocks old paging and preserves the lifecycle key
+[47/79] [chromium] › tests\ai-home-search.spec.ts:1018:1 › unsettled query blocks stale paging but its exact replay remains available
+[48/79] [chromium] › tests\ai-home-search.spec.ts:1045:3 › review recovery after hard reload: succeeded, no raw payload or second inference
+[49/79] [chromium] › tests\ai-home-search.spec.ts:1045:3 › review recovery after hard reload: running, no raw payload or second inference
+[50/79] [chromium] › tests\ai-home-search.spec.ts:1045:3 › review recovery after hard reload: failed, no raw payload or second inference
+[51/79] [chromium] › tests\ai-home-search.spec.ts:1045:3 › review recovery after hard reload: expired-owner, no raw payload or second inference
+[52/79] [chromium] › tests\ai-home-search.spec.ts:1045:3 › review recovery after hard reload: not-yet-admitted, no raw payload or second inference
+[53/79] [chromium] › tests\ai-home-search.spec.ts:1097:1 › review metadata transient failure retains receipt and retries only read-only status/metadata
+[54/79] [chromium] › tests\ai-home-search.spec.ts:1122:34 › review both rental modes and exclusive map/list at 390px
+[55/79] [chromium] › tests\ai-home-search.spec.ts:1122:34 › review both rental modes and exclusive map/list at 1440px
+[56/79] [chromium] › tests\ai-home-search.spec.ts:1151:3 › review operation locator rejects expired without status access
+[57/79] [chromium] › tests\ai-home-search.spec.ts:1151:3 › review operation locator rejects future without status access
+[58/79] [chromium] › tests\ai-home-search.spec.ts:1151:3 › review operation locator rejects foreign-identity without status access
+[59/79] [chromium] › tests\ai-home-search.spec.ts:1151:3 › review operation locator rejects extra-payload without status access
+[60/79] [chromium] › tests\ai-home-search.spec.ts:1169:1 › review expired recovery locator cannot bind a newly entered operation to its old key
+[61/79] [chromium] › tests\ai-home-search.spec.ts:1211:5 › A9 text empty result and manual fallback es 320px
+[62/79] [chromium] › tests\ai-home-search.spec.ts:1211:5 › A9 text empty result and manual fallback es 390px
+[63/79] [chromium] › tests\ai-home-search.spec.ts:1211:5 › A9 text empty result and manual fallback es 768px
+[64/79] [chromium] › tests\ai-home-search.spec.ts:1211:5 › A9 text empty result and manual fallback es 1440px
+[65/79] [chromium] › tests\ai-home-search.spec.ts:1211:5 › A9 text empty result and manual fallback ru 320px
+[66/79] [chromium] › tests\ai-home-search.spec.ts:1211:5 › A9 text empty result and manual fallback ru 390px
+[67/79] [chromium] › tests\ai-home-search.spec.ts:1211:5 › A9 text empty result and manual fallback ru 768px
+[68/79] [chromium] › tests\ai-home-search.spec.ts:1211:5 › A9 text empty result and manual fallback ru 1440px
+[69/79] [chromium] › tests\ai-home-search.spec.ts:1211:5 › A9 text empty result and manual fallback en 320px
+[70/79] [chromium] › tests\ai-home-search.spec.ts:1211:5 › A9 text empty result and manual fallback en 390px
+[71/79] [chromium] › tests\ai-home-search.spec.ts:1211:5 › A9 text empty result and manual fallback en 768px
+[72/79] [chromium] › tests\ai-home-search.spec.ts:1211:5 › A9 text empty result and manual fallback en 1440px
+[73/79] [chromium] › tests\ai-saved-searches.spec.ts:4:3 › owned AI collection restores names, paginates and deletes after reload at 320px
+[74/79] [chromium] › tests\ai-saved-searches.spec.ts:4:3 › owned AI collection restores names, paginates and deletes after reload at 1280px
+[75/79] [chromium] › tests\google-maps-final-acceptance.spec.ts:25:1 › selected Advanced Marker has priority, opens the sheet, and programmatic selection stays clean
+[76/79] [chromium] › tests\google-maps-final-acceptance.spec.ts:39:1 › manual pan exposes Search this area while a result refit does not
+[77/79] [chromium] › tests\google-maps-final-acceptance.spec.ts:52:1 › map/list, multiple canonical zones, and polygon restore from URL and reload
+[78/79] [chromium] › tests\google-maps-final-acceptance.spec.ts:70:1 › official district hierarchy selects a stable ID and restores it from URL
+[79/79] [chromium] › tests\google-maps-final-acceptance.spec.ts:87:1 › map auth errors keep a usable fallback
+  79 passed (4.4m)

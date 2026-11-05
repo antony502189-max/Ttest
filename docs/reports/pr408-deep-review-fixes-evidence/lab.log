@@ -1,0 +1,38 @@
+
+[WebServer] (node:29620) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 27 tests using 1 worker
+
+
+(node:15076) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/27] [chromium] › tests\ai-lab-runtime.spec.ts:4:3 › lab frontend refuses mismatched backend before sessions or query: live-backend
+[2/27] [chromium] › tests\ai-lab-runtime.spec.ts:4:3 › lab frontend refuses mismatched backend before sessions or query: stale-source
+[3/27] [chromium] › tests\ai-lab-runtime.spec.ts:4:3 › lab frontend refuses mismatched backend before sessions or query: unavailable
+[4/27] [chromium] › tests\ai-lab-runtime.spec.ts:4:3 › lab frontend refuses mismatched backend before sessions or query: paired
+[5/27] [chromium] › tests\ai-lab-runtime.spec.ts:35:1 › backend changes after dialog opens: re-attest before identity and session POST
+[6/27] [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: attestation
+[7/27] [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: request-race
+[8/27] [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: disconnect
+[9/27] [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: invalid-json
+[10/27] [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: http-500
+[11/27] [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: aborted
+[12/27] [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: timeout
+[13/27] [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: restart
+[14/27] [chromium] › tests\ai-map-refresh-review.spec.ts:109:3 › review viewport-sensitive refresh success
+[15/27] [chromium] › tests\ai-map-refresh-review.spec.ts:109:3 › review viewport-sensitive refresh cards-error
+[16/27] [chromium] › tests\ai-map-refresh-review.spec.ts:109:3 › review viewport-sensitive refresh late
+[17/27] [chromium] › tests\ai-map-refresh-review.spec.ts:109:3 › review viewport-sensitive refresh map-error
+[18/27] [chromium] › tests\ai-map-refresh-review.spec.ts:109:3 › review viewport-sensitive refresh mismatch
+[19/27] [chromium] › tests\ai-map-refresh-review.spec.ts:177:3 › review map is independent of optional detail: detail-slow
+[20/27] [chromium] › tests\ai-map-refresh-review.spec.ts:177:3 › review map is independent of optional detail: detail-404
+[21/27] [chromium] › tests\ai-map-refresh-review.spec.ts:177:3 › review map is independent of optional detail: detail-503
+[22/27] [chromium] › tests\ai-map-refresh-review.spec.ts:188:3 › review safe overview without usable camera metadata: missing-center
+[23/27] [chromium] › tests\ai-map-refresh-review.spec.ts:188:3 › review safe overview without usable camera metadata: foreign-center
+[24/27] [chromium] › tests\ai-map-refresh-review.spec.ts:202:3 › review live catalog camera and separate snapshots: cross-auto
+[25/27] [chromium] › tests\ai-map-refresh-review.spec.ts:202:3 › review live catalog camera and separate snapshots: cross-manual
+[26/27] [chromium] › tests\ai-map-refresh-review.spec.ts:202:3 › review live catalog camera and separate snapshots: zero
+[27/27] [chromium] › tests\ai-map-refresh-review.spec.ts:202:3 › review live catalog camera and separate snapshots: epoch-change
+  27 passed (1.5m)

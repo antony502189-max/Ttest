@@ -14,9 +14,12 @@ discover rows newly eligible or moved before the seek point. No stale card is
 kept merely to preserve an earlier page's total or order.
 """
 from dataclasses import dataclass
+from math import isfinite
 from uuid import UUID
 
-from sqlalchemy import and_, select, text
+from geoalchemy2 import Geometry
+from geoalchemy2.functions import ST_X, ST_Y
+from sqlalchemy import and_, cast, select, text
 
 from ..models import CatalogState, Listing
 from ..models.ai_query_proof import AiQueryProof
@@ -64,11 +67,19 @@ class VerifiedBudgetPrice:
 
 
 @dataclass(frozen=True)
+class VerifiedMapCenter:
+    listing_id: str
+    latitude: float
+    longitude: float
+
+
+@dataclass(frozen=True)
 class VerifiedCardResult:
     cards: ListingCardSearchResponse
     intent_hash: str
     reason_codes: tuple[str, ...]
     budget_prices: tuple[VerifiedBudgetPrice, ...] = ()
+    map_center: VerifiedMapCenter | None = None
 
 
 class SourceCoverageUnavailable(ValueError):
@@ -166,7 +177,21 @@ class VerifiedCardSearch:
                 Listing.id.in_([UUID(card.id) for card in cards.items])))).all())
             budget_prices = tuple(VerifiedBudgetPrice(card.id, values[UUID(card.id)], budget.value.period,
                 card.price, "nightly" if card.rentalMode == "holiday" else "monthly") for card in cards.items)
-        return VerifiedCardResult(cards, normalized_hash, tuple(group.name for group in compiled.criteria), budget_prices)
+        # Camera metadata uses only public approximate geometry from an already
+        # verified page, inside this same read-only repeatable-read snapshot.
+        # Never call the side-effecting public detail/view-accounting endpoint.
+        map_center = None
+        if cards.items:
+            location = cast(Listing.location, Geometry("POINT", srid=4326))
+            positions = {str(row[0]): (row[1], row[2]) for row in (await session.execute(
+                select(Listing.id, ST_Y(location), ST_X(location)).where(
+                    Listing.id.in_([UUID(card.id) for card in cards.items])))).all()}
+            for card in cards.items:
+                latitude, longitude = positions[card.id]
+                if latitude is not None and longitude is not None and isfinite(latitude) and isfinite(longitude) and abs(latitude) <= 85 and abs(longitude) <= 180:
+                    map_center = VerifiedMapCenter(card.id, latitude, longitude)
+                    break
+        return VerifiedCardResult(cards, normalized_hash, tuple(group.name for group in compiled.criteria), budget_prices, map_center)
 
 
     async def map_owned(self, subject: QuotaSubject, session_id: UUID, expected_version: int,

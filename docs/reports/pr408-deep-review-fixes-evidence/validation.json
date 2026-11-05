@@ -1,0 +1,178 @@
+{
+  "source": "1542814f7abdf3ab5b7eb237a7ea4e4884b56981",
+  "reviewedHead": "a1e58024621531ded64527aea7da5adbe745690b",
+  "reviewSha256": "154c6250cf23def40f0192f05a005c3e933da1f6a5717833b6550fddb84964df",
+  "results": {
+    "browser": {
+      "passed": 93,
+      "exitCode": 0
+    },
+    "lab": {
+      "passed": 27,
+      "exitCode": 0
+    },
+    "unit": {
+      "passed": 1752,
+      "skipped": 16,
+      "exitCode": 0
+    },
+    "postgresIntegration": {
+      "passed": 65,
+      "skipped": 1,
+      "exitCode": 0
+    },
+    "focusedMain": {
+      "passed": 12,
+      "includedInFull": true
+    },
+    "focusedLab": {
+      "passed": 12,
+      "includedInFull": true
+    },
+    "buildModes": 5,
+    "typecheck": "PASS",
+    "lint": "PASS,6pre-existing warnings",
+    "i18n": "PASS",
+    "ruff": "PASS app/tests/lab",
+    "mypy": {
+      "passed": true,
+      "files": 175
+    },
+    "alembicUpgrade": "PASS after pg_isready",
+    "alembicCheck": "No new upgrade operations detected",
+    "runtimeInputs": 947
+  },
+  "reproductions": {
+    "browser": {
+      "failed": 2,
+      "runtime": "a1e58024",
+      "issues": [
+        "detail requested on map open",
+        "slow detail blocks map read"
+      ]
+    },
+    "postgres": {
+      "failed": 2,
+      "reason": "map_center absent on original server",
+      "fixtureCorrection": "reserved email domain replaced before accepted RED"
+    }
+  },
+  "database": {
+    "name": "ttest_test",
+    "host": "127.0.0.1",
+    "port": 55443,
+    "purpose": "pr408-deep-review",
+    "containerId": "05fcaa8cf44d31852929e700e907f3c7f019859aa18aeab3fa5dfbfc3d8b49a9",
+    "ownedContainerAndAnonymousVolumeRemovedAfterAllPytestsAndChecks": true
+  },
+  "runtimeEqualsCommittedSource": true,
+  "productAcceptance": false,
+  "realProviderCalls": 0,
+  "realSourceCrawling": false,
+  "productionActivation": false,
+  "contract": "Live cards/map reads, not one catalog snapshot; center belongs to returned cards same read-only transaction and uses approximate geometry only",
+  "githubCI": "This is a local capture; current exact-head results are separately published in PR408 checks/description; previous-head-ci.json is historical a1e58024",
+  "caveats": [
+    "Counts overlap: focused/camera PG cases are included in full suites",
+    "First migration attempt ran before server readiness; only ready log accepted",
+    "Provenance captured with matching dirty runtime before code commit",
+    "Local browser APIs/SDK synthetic; no real Google Maps/provider/data/performance/deployed certification"
+  ],
+  "sanitization": "LF, trailing whitespace and local user/workspace prefixes normalized; original local digests retained",
+  "scan": {
+    "localUserPaths": 0,
+    "commonCredentialPatterns": 0
+  },
+  "artifacts": [
+    {
+      "file": "browser-red.log",
+      "sha256": "ebbba39ec339e37baa5d5a8e21dcc7f845f784093094f29991475f81fb29dd1f",
+      "originalLocalSha256": "604e4473eca625b04558cd87420db2a70c6c79a33af3e7fc72d807a7f23bf65f"
+    },
+    {
+      "file": "pg-red.log",
+      "sha256": "31fc65bc88b27093767b01646b38717981da4a4152773464c7a2c1d3216da602",
+      "originalLocalSha256": "eae3aca4ade16b290928f86221fd9a1124332f2c4d06abe71118a452c63b3986"
+    },
+    {
+      "file": "pg-red.xml",
+      "sha256": "3fb3073894c6f1cd8df778b8802c574bff2551683c0881277999c18171a1d476",
+      "originalLocalSha256": "f8d197e3d7479e026b409a413b7a73af3666d70edf4ae3ee9aed12a87193724b"
+    },
+    {
+      "file": "browser.log",
+      "sha256": "badc1e452f128b3c52bf78959f74f90c9b8f997d4350af5302214b621d189031",
+      "originalLocalSha256": "c2fe91c9d82e190234d48b33321b3b699b0c8ff8174e9ebddab5966304ef0929"
+    },
+    {
+      "file": "lab.log",
+      "sha256": "149a1852422b49fbc3e4da72d1394acca03f6023946c1aaa96f7372e16162966",
+      "originalLocalSha256": "398efcaa4369874abe559929735a9f5da41086ed7e0a7409642d2a28ee6263b8"
+    },
+    {
+      "file": "unit.log",
+      "sha256": "91d75d24c7913a8a54bf92945c7b2bc08ddce9bce25dc4ee58b21a4040bc9286",
+      "originalLocalSha256": "ea674a7e58565c3c0f3174e308b3b3edb8ab2c4fef28574810b2ba4cd013d677"
+    },
+    {
+      "file": "unit.xml",
+      "sha256": "d86527ee25132269d0ecce13e6d5f1980e9ccd6d338bd9b291e243b69af9db7d",
+      "originalLocalSha256": "7a07b591909b8472a14860d268aeacde2dc6baaa145df64fb31440dcd01478e0"
+    },
+    {
+      "file": "integration.log",
+      "sha256": "2e6bfc0e74e5b739a1d2ac61d1e64865b9bbb9b4dc708118577dbc60339a6282",
+      "originalLocalSha256": "13cdfe692850194e17da616984a72d25f9c2f29c01ad2018be771f9656d85c29"
+    },
+    {
+      "file": "integration.xml",
+      "sha256": "968c6c58c67be1317c4e3f4c1bbb5845ba6ea5a0d400afd76fcd0008bda2e055",
+      "originalLocalSha256": "feacd31b6a832c49174dce1aee947b05fcdf264525cc5f6b0a9a6ad54651566d"
+    },
+    {
+      "file": "typecheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalLocalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "lint.log",
+      "sha256": "2dd6ba6a4b375d047923fb629533fe56117340488074e07a9106547591cdace1",
+      "originalLocalSha256": "089436e3d3d954155eac9ab2a2765ad153b296eb5d66766fbc3c169d565a6bde"
+    },
+    {
+      "file": "ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "originalLocalSha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "file": "mypy.log",
+      "sha256": "8f2d516d77da81d862dcfbd983b998030c4174278b0690d11e808830dcff2b5d",
+      "originalLocalSha256": "a8cd5b744039011213f398853d03d4d581d7dd6893cb2c87ae3b622c028381ff"
+    },
+    {
+      "file": "schema-check.log",
+      "sha256": "a8b5bb3c7c66a7b08b8eb65789823291c41bc6981cf86fbcb048fbd55f8fd04f",
+      "originalLocalSha256": "6dbb36b0c84bdfc8c1e4790962c19e6469e39214ce3775c409c137a92cff842b"
+    },
+    {
+      "file": "migrations.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalLocalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "build-matrix.json",
+      "sha256": "1f0f405f2b0e5354eaca2564192dd594cd25ffdf8c6e5c0654e640b877ca2ff7",
+      "originalLocalSha256": "1f0f405f2b0e5354eaca2564192dd594cd25ffdf8c6e5c0654e640b877ca2ff7"
+    },
+    {
+      "file": "provenance.json",
+      "sha256": "1404234cad1e0631bb76b6eab9d5a7dd1f8fc14f1ef084c96253a9b4fc94f989",
+      "originalLocalSha256": "1404234cad1e0631bb76b6eab9d5a7dd1f8fc14f1ef084c96253a9b4fc94f989"
+    },
+    {
+      "file": "previous-head-ci.json",
+      "sha256": "8e5f7c4d469cd313c2c0a58f31fa6983cd20de2454eb3001b5c47be95f96fdc8",
+      "originalLocalSha256": "8e5f7c4d469cd313c2c0a58f31fa6983cd20de2454eb3001b5c47be95f96fdc8"
+    }
+  ]
+}

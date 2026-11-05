@@ -34,4 +34,10 @@ Raw JUnit, manifest/source caveats и SHA256 — [evidence](pr407-review-fixes-e
 
 Не добавлялись immutable HTTP-fixture framework, durable request budgets/leases, process lifecycle нового consumer или другая инфраструктура вне замечаний. Они не переименованы в «исправленные bugs» и не объявлены production-ready. No automatic ACK, canonical importer/media/notifications, scheduler, migrations edits, capability activation, paid calls, provider budget/reset или real source crawling. Дизайн сайта не менялся.
 
-S0–S1 сохраняют прежние границы, S2/A3/A11 partial, S3–S7 и B2–B6 OPEN. PR остаётся draft; ready/merge/deploy не выполнялись. Следующее действие — exact-head Linux CI исправлений и повторная оценка владельцем, затем работа над существующим текстовым пользовательским контуром в разрешённом scope.
+S0–S1 сохраняют прежние границы, S2/A3/A11 partial, S3–S7 и B2–B6 OPEN. PR остаётся draft; ready/merge/deploy не выполнялись. Следующее действие — повторная оценка владельцем, затем работа над существующим текстовым пользовательским контуром в разрешённом scope.
+
+## Финальный exact-head CI
+
+Head `c7e57a9affa6357c481a7ef7e6e4812b7d60cd51`: **11/11 workflows,18/18 jobs SUCCESS**, включая expanded mypy и [facts/PostGIS/HTTP/cards/map/browser](https://github.com/antony502189-max/Ttest/actions/runs/41840194671). Три условных full-audit шага (production deployment configuration, dependency security policy, complete local audit) skipped; failure-only infrastructure log upload также skipped. Их выполнение не заявляется.
+
+Локальный snapshot `output/pr407-final-ci-c7e57a9a.json`, SHA256 `4a336037a151d4466d97b25bfcac489912b20c6d7f546749236d04f2854a64d8`. PR description обновлён. Финальный CI статус записан локально без изменения проверенного PR head; committed raw validation сохраняет исторический pre-CI срез.

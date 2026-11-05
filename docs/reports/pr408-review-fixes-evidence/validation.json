@@ -1,0 +1,110 @@
+{
+  "source": "c2e932fd3670ad294bd6ed2623bab539e30a2c56",
+  "reviewedHead": "857bafa9beff2b40264c13c788c04866f8c94adb",
+  "externalReviewSha256": "2b4705aec7fcef0e5c6c64971ee6b3fcd96d08e30eb5e3d887d7855e7cd8fc16",
+  "results": {
+    "browser": {
+      "passed": 84,
+      "exitCode": 0
+    },
+    "lab": {
+      "passed": 18,
+      "exitCode": 0
+    },
+    "buildMatrix": {
+      "passed": 5,
+      "exitCode": 0
+    },
+    "typecheck": {
+      "exitCode": 0
+    },
+    "lint": {
+      "exitCode": 0,
+      "preExistingWarnings": 6
+    },
+    "i18n": {
+      "exitCode": 0
+    },
+    "inputPolicy": {
+      "exitCode": 0
+    },
+    "provenance": {
+      "inputs": 947,
+      "exitCode": 0
+    }
+  },
+  "originalCI": {
+    "head": "857bafa9beff2b40264c13c788c04866f8c94adb",
+    "success": 8,
+    "skipped": 2,
+    "fullAuditJob": 126639884201,
+    "skippedSteps": [
+      "Validate production deployment configuration",
+      "Validate dependency security policy",
+      "Run complete local audit"
+    ]
+  },
+  "correctedHeadCI": "pending; not certified by original-head CI",
+  "runtimeEqualsCommittedSource": true,
+  "syntheticOnly": true,
+  "productAcceptance": false,
+  "realProviderCalls": 0,
+  "collection": "line endings, trailing whitespace and local user/workspace prefixes normalized; original local digests retained",
+  "scan": {
+    "localUserPaths": 0,
+    "commonCredentialPatterns": 0
+  },
+  "caveats": [
+    "RED runs use reviewed runtime with new tests; final fixture also repairs detail JSON amenities and waits for offset before counting",
+    "Final full suites include all focused cases; counts are not additive",
+    "provenance capture predates code commit but has identical runtime files",
+    "No local backend/PostGIS tests; no production/real-provider/data certification"
+  ],
+  "artifacts": [
+    {
+      "file": "lab-red.log",
+      "sha256": "54b46187f3777cf940e83a43fbb4224da6f743443b857ab65b9b960682175b95",
+      "originalLocalSha256": "474ee69d0654476e5efe31270812b6617a1fc0c45d6115c1ab369c49d1b9aca8"
+    },
+    {
+      "file": "camera-red.log",
+      "sha256": "41209d40d5f854096536377d5ab858d8d9b78c41e5f440dab9c221589b3f15e7",
+      "originalLocalSha256": "1dfb0215d137d370749576555b2a078f4c29b937b0c2619340d279fa73289cf5"
+    },
+    {
+      "file": "browser.log",
+      "sha256": "46a0767ff2c6c061ebc7630b402a118d6d290987df5307c7425c9f756602c96f",
+      "originalLocalSha256": "9c2396fc0b0c0fb1911b9cfa105605e58e5da38e9ffd8a32449c971cf91187e6"
+    },
+    {
+      "file": "lab.log",
+      "sha256": "4c9b0121bc14e7494d5cad14de0bb859f470020a50132afb6aa651f6f2fe81d6",
+      "originalLocalSha256": "283c8874e36f34f882cab1efdeb0610229fad7ac1fde559a1d2af62823c04ec3"
+    },
+    {
+      "file": "typecheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalLocalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "lint.log",
+      "sha256": "27695a21030dcdad0a010f23e806fe0e81198d88cd651e1b07f4022b27d235d8",
+      "originalLocalSha256": "df70c6f8e0f0deeb529dac4ad62f83ef23d9d5c90fac07a256acd28e9f1e8112"
+    },
+    {
+      "file": "build-matrix.json",
+      "sha256": "1f0f405f2b0e5354eaca2564192dd594cd25ffdf8c6e5c0654e640b877ca2ff7",
+      "originalLocalSha256": "1f0f405f2b0e5354eaca2564192dd594cd25ffdf8c6e5c0654e640b877ca2ff7"
+    },
+    {
+      "file": "provenance.json",
+      "sha256": "ff370a4f4a7197d8fbb4b2e07af717b318a1d22bc6eaea4d27d31a3d9204d3df",
+      "originalLocalSha256": "ff370a4f4a7197d8fbb4b2e07af717b318a1d22bc6eaea4d27d31a3d9204d3df"
+    },
+    {
+      "file": "original-head-ci.json",
+      "sha256": "6d54baf34c7dc73ef55aa6747188ef54255d6c20e7b05e7fecc3eedf1c7de8ec",
+      "originalLocalSha256": "6d54baf34c7dc73ef55aa6747188ef54255d6c20e7b05e7fecc3eedf1c7de8ec"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+
+[WebServer] (node:13088) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+
+(node:9388) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/1] [chromium] › tests\ai-home-search.spec.ts:318:3 › catalog refresh updates the same result map without another search: visible-map
+  1) [chromium] › tests\ai-home-search.spec.ts:318:3 › catalog refresh updates the same result map without another search: visible-map 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.ai-result-map').locator('[data-listing-id="fresh-source"]')
+    Expected: 1
+    Received: 0
+    Timeout:  7000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 7000ms
+      - waiting for locator('.ai-result-map').locator('[data-listing-id="fresh-source"]')
+        18 × locator resolved to 0 elements
+           - unexpected value "0"
+
+
+      367 |       // A successful list refresh must reload even though result_ref and hash
+      368 |       // are unchanged. An old in-flight map must not restore retired sources.
+    > 369 |       await expect(map.locator('[data-listing-id="fresh-source"]')).toHaveCount(1)
+          |                                                                     ^
+      370 |       releaseOld()
+      371 |       await expect.poll(() => oldFinished).toBe(true)
+      372 |       await expect(map.locator('[data-listing-id="retired-source"]')).toHaveCount(0)
+        at <workspace>\tests\ai-home-search.spec.ts:369:69
+
+    Error Context: test-results\ai-home-search-catalog-ref-91256--another-search-visible-map-chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ai-home-search-catalog-ref-91256--another-search-visible-map-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ai-home-search-catalog-ref-91256--another-search-visible-map-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  1 failed
+    [chromium] › tests\ai-home-search.spec.ts:318:3 › catalog refresh updates the same result map without another search: visible-map 

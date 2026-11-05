@@ -1,0 +1,8 @@
+........................................................s.........       [100%]
+============================== warnings summary ===============================
+tests/integration/test_ai_verified_cards.py::test_dense_ai_map_thresholds_edges_and_live_proof_changes
+  tests\integration\test_ai_verified_cards.py:422: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    async def test_dense_ai_map_thresholds_edges_and_live_proof_changes(record_property):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+65 passed, 1 skipped, 1 warning in 211.83s (0:03:31)

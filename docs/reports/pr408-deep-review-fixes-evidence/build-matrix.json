@@ -1,0 +1,30 @@
+{
+  "providerCalls": 0,
+  "cases": [
+    {
+      "name": "production-inherited-live",
+      "passed": true,
+      "compiledMode": ""
+    },
+    {
+      "name": "fixture",
+      "passed": true,
+      "compiledMode": "decision-transport-fixture"
+    },
+    {
+      "name": "live-labelled-only",
+      "passed": true,
+      "compiledMode": "closed-live-synthetic"
+    },
+    {
+      "name": "unknown-mode/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "passed": true,
+      "rejected": true
+    },
+    {
+      "name": "closed-live-synthetic/invalid-source",
+      "passed": true,
+      "rejected": true
+    }
+  ]
+}

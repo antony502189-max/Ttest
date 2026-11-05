@@ -1,0 +1,77 @@
+
+[WebServer] (node:14204) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+(node:39236) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/2] [chromium] › tests\ai-map-refresh-review.spec.ts:101:3 › review viewport-sensitive refresh success
+  1) [chromium] › tests\ai-map-refresh-review.spec.ts:101:3 › review viewport-sensitive refresh success
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 0
+    Received: 4
+
+      159 |     await expect(map).toBeVisible()
+      160 |     expect(state.queries).toBe(1)
+    > 161 |     expect(state.detailCalls).toBe(0)
+          |                               ^
+      162 |     await expect(page.getByText('Búsquedas disponibles hoy: 2')).toBeVisible()
+      163 |   })
+      164 | }
+        at <workspace>\tests\ai-map-refresh-review.spec.ts:161:31
+
+    Error Context: test-results\ai-map-refresh-review-revi-cbf9d-t-sensitive-refresh-success-chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ai-map-refresh-review-revi-cbf9d-t-sensitive-refresh-success-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ai-map-refresh-review-revi-cbf9d-t-sensitive-refresh-success-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+(node:18004) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[2/2] [chromium] › tests\ai-map-refresh-review.spec.ts:167:3 › review map is independent of optional detail: detail-slow
+  2) [chromium] › tests\ai-map-refresh-review.spec.ts:167:3 › review map is independent of optional detail: detail-slow
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 0
+    Received:   0
+
+    Call Log:
+    - Timeout 2000ms exceeded while waiting on the predicate
+
+      94 |   await page.getByRole('button', { name: 'Ver mapa', exact: true }).click()
+      95 |   const map = lab ? page.getByRole('region', { name: 'Локальная координатная карта' }) : page.locator('.ai-result-map')
+    > 96 |   await expect.poll(() => state.maps.length, { timeout: 2000 }).toBeGreaterThan(0)
+         |                                                                 ^
+      97 |   return { state, map, releaseOld }
+      98 | }
+      99 |
+        at fixture (<workspace>\tests\ai-map-refresh-review.spec.ts:96:65)
+        at <workspace>\tests\ai-map-refresh-review.spec.ts:169:40
+
+    Error Context: test-results\ai-map-refresh-review-revi-8b5a7-optional-detail-detail-slow-chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ai-map-refresh-review-revi-8b5a7-optional-detail-detail-slow-chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ai-map-refresh-review-revi-8b5a7-optional-detail-detail-slow-chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  2 failed
+    [chromium] › tests\ai-map-refresh-review.spec.ts:101:3 › review viewport-sensitive refresh success
+    [chromium] › tests\ai-map-refresh-review.spec.ts:167:3 › review map is independent of optional detail: detail-slow

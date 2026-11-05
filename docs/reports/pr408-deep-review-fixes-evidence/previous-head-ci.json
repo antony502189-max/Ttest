@@ -1,0 +1,347 @@
+{
+  "head": "a1e58024621531ded64527aea7da5adbe745690b",
+  "codeSource": "c2e932fd3670ad294bd6ed2623bab539e30a2c56",
+  "capturedAt": {
+    "current_time": "2026-11-04 16:41:01 UTC"
+  },
+  "workflow_runs": [
+    {
+      "id": 41867527596,
+      "name": "Audit Source Snapshot",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 2407,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527596/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527596/logs",
+      "workflow_id": 322219639
+    },
+    {
+      "id": 41867527538,
+      "name": "Security dependency and static audit",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 329,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527538/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527538/logs",
+      "workflow_id": 385578941
+    },
+    {
+      "id": 41867527355,
+      "name": "Phase 2 release visual parity",
+      "status": "completed",
+      "conclusion": "skipped",
+      "run_number": 427,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527355/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527355/logs",
+      "workflow_id": 379495815
+    },
+    {
+      "id": 41867527374,
+      "name": "AI Search private frontend",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 121,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527374/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527374/logs",
+      "workflow_id": 398043415
+    },
+    {
+      "id": 41867527549,
+      "name": "Mobile validation",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 2449,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527549/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527549/logs",
+      "workflow_id": 320688877
+    },
+    {
+      "id": 41867527466,
+      "name": "Full audit",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 2390,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527466/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527466/logs",
+      "workflow_id": 327410770
+    },
+    {
+      "id": 41867527722,
+      "name": "Capacity smoke safeguards",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 2333,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527722/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527722/logs",
+      "workflow_id": 327741226
+    },
+    {
+      "id": 41867527592,
+      "name": "PR298 UI parity for monthly rent cap",
+      "status": "completed",
+      "conclusion": "skipped",
+      "run_number": 313,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527592/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527592/logs",
+      "workflow_id": 379937045
+    },
+    {
+      "id": 41867527786,
+      "name": "Payment audit",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 287,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527786/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527786/logs",
+      "workflow_id": 384332231
+    },
+    {
+      "id": 41867527661,
+      "name": "Production audit",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 2308,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527661/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/41867527661/logs",
+      "workflow_id": 326195212
+    }
+  ],
+  "fullAudit": {
+    "jobs": [
+      {
+        "id": 126706207929,
+        "name": "full-audit",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 41867527466,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Checkout repository",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Install pinned visual baselines",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Set up Python 3.12",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Install Python visual-audit dependency",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Set up Node.js 22",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Show tool versions",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7
+          },
+          {
+            "name": "Validate production deployment configuration",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 8
+          },
+          {
+            "name": "Validate dependency security policy",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 9
+          },
+          {
+            "name": "Run complete local audit",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 10
+          },
+          {
+            "name": "Run real frontend and backend integration audit",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 11
+          },
+          {
+            "name": "Capture Docker state",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 12
+          },
+          {
+            "name": "Upload audit artifacts",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13
+          },
+          {
+            "name": "Stop audit infrastructure",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 14
+          },
+          {
+            "name": "Post Set up Node.js 22",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 26
+          },
+          {
+            "name": "Post Set up Python 3.12",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 27
+          },
+          {
+            "name": "Post Checkout repository",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 28
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 29
+          }
+        ]
+      }
+    ]
+  },
+  "frontend": {
+    "jobs": [
+      {
+        "id": 126706196379,
+        "name": "browser",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 41867527374,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Run npm ci",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Validate full AI acceptance inventory",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5
+          },
+          {
+            "name": "Run npm run lint",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6
+          },
+          {
+            "name": "Run npm run typecheck",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7
+          },
+          {
+            "name": "Run npm run build",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8
+          },
+          {
+            "name": "Run npx playwright install --with-deps chromium",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9
+          },
+          {
+            "name": "Isolated mocked AI browser contracts",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10
+          },
+          {
+            "name": "Fail-closed lab release pairing (no real provider)",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 11
+          },
+          {
+            "name": "Lab build-mode matrix (no provider)",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 12
+          },
+          {
+            "name": "Exact runtime code and evidence provenance",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13
+          },
+          {
+            "name": "Upload browser evidence",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 14
+          },
+          {
+            "name": "Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 27
+          },
+          {
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 28
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 29
+          }
+        ]
+      }
+    ]
+  }
+}

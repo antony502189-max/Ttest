@@ -1,0 +1,29 @@
+
+[WebServer] (node:31660) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 18 tests using 1 worker
+
+
+(node:1392) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/18] [chromium] › tests\ai-lab-runtime.spec.ts:4:3 › lab frontend refuses mismatched backend before sessions or query: live-backend
+[2/18] [chromium] › tests\ai-lab-runtime.spec.ts:4:3 › lab frontend refuses mismatched backend before sessions or query: stale-source
+[3/18] [chromium] › tests\ai-lab-runtime.spec.ts:4:3 › lab frontend refuses mismatched backend before sessions or query: unavailable
+[4/18] [chromium] › tests\ai-lab-runtime.spec.ts:4:3 › lab frontend refuses mismatched backend before sessions or query: paired
+[5/18] [chromium] › tests\ai-lab-runtime.spec.ts:35:1 › backend changes after dialog opens: re-attest before identity and session POST
+[6/18] [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: attestation
+[7/18] [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: request-race
+[8/18] [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: disconnect
+[9/18] [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: invalid-json
+[10/18] [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: http-500
+[11/18] [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: aborted
+[12/18] [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: timeout
+[13/18] [chromium] › tests\ai-lab-runtime.spec.ts:70:3 › release mismatch must preserve uncertain operation locator: restart
+[14/18] [chromium] › tests\ai-map-refresh-review.spec.ts:97:3 › review viewport-sensitive refresh success
+[15/18] [chromium] › tests\ai-map-refresh-review.spec.ts:97:3 › review viewport-sensitive refresh cards-error
+[16/18] [chromium] › tests\ai-map-refresh-review.spec.ts:97:3 › review viewport-sensitive refresh late
+[17/18] [chromium] › tests\ai-map-refresh-review.spec.ts:97:3 › review viewport-sensitive refresh map-error
+[18/18] [chromium] › tests\ai-map-refresh-review.spec.ts:97:3 › review viewport-sensitive refresh mismatch
+  18 passed (52.0s)
