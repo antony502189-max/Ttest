@@ -8,7 +8,7 @@
     ".github/visual-baseline-ref": "10a408e333afb9d17760d5439001a5bb183a2f5f",
     ".github/workflows/ai-parser-foundation.yml": "4f805fbe8a5215f99156197a676ab78e04c2faac",
     ".github/workflows/ai-search-facts.yml": "a72ac9d509b5e6dfd391ead50c981e9833a24cd2",
-    ".github/workflows/ai-search-frontend.yml": "f85af4a61a15492c9f5540713fc4784f54e011ef",
+    ".github/workflows/ai-search-frontend.yml": "6e7570596863fd1d00148f4229dcb4cf8e866936",
     ".github/workflows/ai-search-quota.yml": "d2796a31cd7068dee1ac3147b9f5b6d8754105f9",
     ".github/workflows/audit-source-snapshot.yml": "5fcc818e0e022db3f9db999baf73f9390dd9287e",
     ".github/workflows/capacity-smoke.yml": "b2841a6b097296f639e0fc37851ccf427ae9d772",

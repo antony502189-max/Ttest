@@ -31,6 +31,10 @@ Raw local logs/XML, sanitization и source caveats — [evidence](ai-search-s2-c
 
 ## Границы и продолжение
 
+### CI timeout follow-up
+
+На head86f4ab2b combined facts job127330452219 завершён SUCCESS:1767unit/7skip,112schema,1002combined/1skip,77verified/1skip,4HTTP и1cookie PASS. Frontend job127330452789 отменён на общем15min deadline: после установки Chromium/build успели пройти72из93 browser cases без failures; pairing/build-mode/provenance steps не выполнялись. Это не frontend PASS. Лимит только общего CI job поднят15→30min; все suites и test timeouts сохранены. Manifest949 обновлён, policy/provenance PASS. Backend/src не менялись; source2859 evidence сохраняет свои границы. Новый head требует собственного CI.
+
 Транспорт только exact trusted dynamic MockTransport, один synthetic `.invalid` host/cohort. Bundle label не аттестует handler/closure/response bytes и не является sandbox. Обязательные packet/identity/size/source CAS проверки сохранены.
 
 Это synthetic request cap, **не** настоящий provider budget journal, global account/USD cap, permission на crawling или exactly-once HTTP. После неопределённого dispatch GET может повториться после lease, с новой reservation; физическое число requests может быть меньше charged reservations. Claim/write fencing относится к этому consumer/namespace и проверяется по DB state, не по одному child exit.
