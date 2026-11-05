@@ -151,7 +151,7 @@ async def test_new_refresh_failure_filters_cards_map_count_before_limit_and_pres
         return httpx.Response(status, json={"invalid": "detail"})
 
     consumer = SyntheticDetailRefresh(supervisor, policy=SyntheticRefreshPolicy(
-        "synthetic", "example.invalid", 4, 131_072, 1, 10), cohort=tuple(cohort),
+        "synthetic", "example.invalid", 4, 131_072, 1, 10, 20, 30), cohort=tuple(cohort),
         transport=httpx.MockTransport(response), mock_bundle_sha256=BUNDLE)
     await consumer.initialize()
     result = await consumer.run_receipt(1, expected_digest=journal.receipt_digest(1))

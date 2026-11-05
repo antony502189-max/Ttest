@@ -1,0 +1,120 @@
+{
+  "base": "afdf180c922da65de8f0fbdf3e89005e30faf481",
+  "source": "2859b4444edc209888a2b932eff8e5870e803e5a",
+  "local": {
+    "unit": {
+      "passed": 1758,
+      "skipped": 16,
+      "exitCode": 0
+    },
+    "targetedPolicyProcess": {
+      "passed": 55,
+      "includedInUnit": true
+    },
+    "ruff": "PASS app/tests/lab",
+    "mypy": {
+      "files": 175,
+      "passed": true
+    },
+    "inputPolicy": "PASS",
+    "runtimeInputs": 949,
+    "postgresql": "NOT RUN: Docker Desktop installation registry missing",
+    "containerCreated": false,
+    "registryOrInstallationChanged": false
+  },
+  "ci": {
+    "head": "2859b4444edc209888a2b932eff8e5870e803e5a",
+    "run": 42049048343,
+    "job": 127319847731,
+    "unit": {
+      "passed": 1767,
+      "skipped": 7
+    },
+    "schemaTests": {
+      "passed": 112
+    },
+    "combinedFactsOfflineQuotaPostgres": {
+      "passed": 1002,
+      "skipped": 1
+    },
+    "verifiedCardsMapSavedGallery": {
+      "passed": 77,
+      "skipped": 1
+    },
+    "realHTTPBrowserRecovery": {
+      "passed": 4
+    },
+    "cookieBoundary": {
+      "passed": 1
+    },
+    "newClaimAndProcessCases": {
+      "passed": 12,
+      "skipped": 0,
+      "verifiedInDownloadedJUnit": true
+    },
+    "artifact": 13426512749,
+    "artifactSha256": "09c0b614b6909d8cc8a17ee3baf4fdc8b71de4b9406db0931ce8f7d748f8b0d9"
+  },
+  "currentPRHeadCI": "Current exact head status is separately published in PR409/checks and description; this CI run is code-source evidence",
+  "caveats": [
+    "Combined suites overlap offline/unit; counts are not additive",
+    "interrupted-unit.log is not PASS; final verbose/faulthandler rerun is the accepted local run",
+    "provenance captured before commit with matching dirty runtime files",
+    "CI artifact is actual Linux PostgreSQL/process execution, not local execution"
+  ],
+  "namespaceBudgetOnly": true,
+  "providerBudgetJournalMutated": false,
+  "realSourceOutbound": false,
+  "automaticACK": false,
+  "productionActivation": false,
+  "mergeOrDeploy": false,
+  "productAcceptance": false,
+  "runtimeMatchesCommittedSource": true,
+  "artifacts": [
+    {
+      "file": "unit.log",
+      "sha256": "5449ae9c5c4f57c4926410acf00504ad5836f6e8e623e8b0f079838ffb020fb1",
+      "originalLocalSha256": "765b8aaa4558365031a2cde51e3b5797672ff655e8b528e9092eeb8cf2051c9e"
+    },
+    {
+      "file": "unit.xml",
+      "sha256": "6138796dddad00aad4f139bd539c5b5aa954ace81f05527882e66ab167e1b524",
+      "originalLocalSha256": "e9c4dfff8d534d63a2f3656f73650a3b5a846af8f9d3079a8615b2a776166afe"
+    },
+    {
+      "file": "interrupted-unit.log",
+      "sha256": "d9697d638ac4189f090af44cb654a5734e002d65982f4330a438024ac30ec731",
+      "originalLocalSha256": "a9220241540662979a73da52f06602d8eb1e3f15ee481d4442b42f7b297be1b5"
+    },
+    {
+      "file": "ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "originalLocalSha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "file": "mypy.log",
+      "sha256": "8f2d516d77da81d862dcfbd983b998030c4174278b0690d11e808830dcff2b5d",
+      "originalLocalSha256": "a8cd5b744039011213f398853d03d4d581d7dd6893cb2c87ae3b622c028381ff"
+    },
+    {
+      "file": "provenance.json",
+      "sha256": "8ae8c847ea7720e6967ef22790b14f0bb16d2991a59a5854c216a77c6381f9bc",
+      "originalLocalSha256": "8ae8c847ea7720e6967ef22790b14f0bb16d2991a59a5854c216a77c6381f9bc"
+    },
+    {
+      "file": "ci-facts.xml",
+      "sha256": "3c88186d550369d6eb02fd53c314598896f601495291c47813a209d90d9bad1a",
+      "originalLocalSha256": "3c88186d550369d6eb02fd53c314598896f601495291c47813a209d90d9bad1a"
+    },
+    {
+      "file": "ci-junit-proof.json",
+      "sha256": "dd92199c673fd2646eddddd7536b098ec2cd48c33cd1602de51e1bf890ef6385",
+      "originalLocalSha256": "27d2e9fb30b36fb9a90e14f336b0435f57d0cebc51b0bd786ca603ea1c1ea00b"
+    },
+    {
+      "file": "ci-excerpt.log",
+      "sha256": "646daf9f8b416f752b938cad65c5cb373b3777542c77f6808a2d9aff7a4aee27",
+      "originalLocalSha256": "646daf9f8b416f752b938cad65c5cb373b3777542c77f6808a2d9aff7a4aee27"
+    }
+  ]
+}
