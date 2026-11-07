@@ -1,0 +1,95 @@
+{
+  "database_time": "2026-11-07 23:05:10.04761+00",
+  "operations": [
+    {
+      "expected_session_version": 0,
+      "status": "succeeded",
+      "result_count": 11,
+      "madrid_date": "2026-11-07"
+    },
+    {
+      "expected_session_version": 1,
+      "status": "succeeded",
+      "result_count": 3,
+      "madrid_date": "2026-11-07"
+    },
+    {
+      "expected_session_version": 2,
+      "status": "succeeded",
+      "result_count": 12,
+      "madrid_date": "2026-11-07"
+    }
+  ],
+  "committed_results": [
+    {
+      "session_version": 1,
+      "result_count": 11,
+      "criteria": {
+        "budget": {
+          "value": {
+            "amount": "600",
+            "period": "monthly",
+            "currency": "EUR"
+          },
+          "strength": "hard"
+        },
+        "rental_mode": {
+          "value": "long",
+          "strength": "hard"
+        }
+      }
+    },
+    {
+      "session_version": 2,
+      "result_count": 3,
+      "criteria": {
+        "budget": {
+          "value": {
+            "amount": "400",
+            "period": "monthly",
+            "currency": "EUR"
+          },
+          "strength": "hard"
+        },
+        "rental_mode": {
+          "value": "long",
+          "strength": "hard"
+        }
+      }
+    },
+    {
+      "session_version": 3,
+      "result_count": 12,
+      "criteria": {
+        "rental_mode": {
+          "value": "long",
+          "strength": "hard"
+        }
+      }
+    }
+  ],
+  "usage_days": [
+    {
+      "madrid_date": "2026-11-07",
+      "used": 3,
+      "reserved": 0
+    }
+  ],
+  "real_query_proofs": 12,
+  "provider": {
+    "requested_model": "deepseek-flash",
+    "attempts": 3,
+    "reserved_micro_usd": 33180,
+    "observed_usage_attempts": 3,
+    "prompt_tokens": 11027,
+    "completion_tokens": 94,
+    "observed_peak_micro_usd": 3421
+  },
+  "provider_key_mounted": false,
+  "backend_egress": false,
+  "snapshot_at": "2026-11-07T22:51:11.962441+00:00",
+  "production_build": {
+    "commit": "1292c6807ece59999238bb31c80e09ef7e2c3212"
+  },
+  "local_url": "http://localhost:9444/#/"
+}

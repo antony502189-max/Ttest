@@ -1,129 +1,119 @@
-# S2.1 / S3.2 — подключение текстового runtime, 08.11.2026
+# S2.1 / S3 / S6 — настоящий закрытый текстовый показ, 08.11.2026
 
-База — настоящий `origin/main` `afdf180c922da65de8f0fbdf3e89005e30faf481`.
-Application source: `23419bfb251d99d856194a2e199f4d49eb69cbc9`.
-Работа в existing worktree, отдельная ветка `codex/ai-search-text-runtime`.
-Изменения PR409 не входят в application diff этого increment; ждать его merge не нужно.
-Root checkout не переключался, чужие изменения сохранены.
+**UI→DeepSeek→PostgreSQL→реальные карточки/карта прошёл 3/3.**
+Application source `baf8f5ae4f0cb0d92d84257097abb25c6d8102c7`, [draft PR410](https://github.com/antony502189-max/Ttest/pull/410).
+Владелец явно разрешил три показанные фразы и дополнительный предел $0.10.
+Это закрытая демонстрация на снимке реальных публичных данных, не synthetic
+corpus и не public production release. Первоначальный вопрос был непонятен
+владельцу; после простого конкретного объяснения получено явное «Да, разрешаю
+такой закрытый показ». Повторного общего согласования не запрашивалось.
 
-**Работающего LIVE демо ещё нет.** Изменение соединяет существующие компоненты
-в приложении вне test-only lab и устанавливает обязательный startup lifecycle.
-Оно не создаёт разрешённый provider adapter, AI-проекции реальных объявлений
-или демонстрационную среду. Ни UI→модель→SQL, ни работа на выпущенном сайте
-этой проверкой не подтверждены.
+| Действие в настоящем браузере | Принятый intent | SQL result count |
+| --- | --- | ---: |
+| «до 600 евро в месяц» | long + hard budget600EUR/monthly | 11 |
+| «теперь до 400 евро в месяц» | long + hard budget400EUR/monthly | 3 |
+| «убери ограничение бюджета» | long, только пользовательский budget удалён | 12 |
 
-## Что изменилось
+Прежний public long-term cap1000EUR сохранён. Карта прочитана из verified SQL API:
+10 маркеров в выбранном viewport при первом запросе,3 при400EUR,11 при финальных
+12 карточках. Viewport не охватывает весь каталог. Это координатная сетка без
+внешних тайлов; fixture markers и mock model transport отсутствуют.
 
-`app.services.ai_text_runtime.assemble_text_runtime` собирает существующие
-`AISearchRuntime`, `TextSearchExecution`, `QuotaLedger`, owned `SearchSessions`,
-`VerifiedCardSearch`, `GuestTokens`, distributed Redis HTTP/attempt/inflight gates.
-SQL-карточки и карта используют прежние proof/currentness/freshness guards.
-Словари intent берутся из того же `FactPipeline`; source TTL обязателен.
-Cursor key отделён от всех guest verification keys. Parser deadline должен
-помещаться в execution deadline, тот — в HTTP deadline.
+## Доступный результат
 
-`install_text_runtime(app, runtime)` публикует capabilities только после:
+Оставлена открытая deliverable вкладка **http://localhost:9444/#/** в in-app browser.
+На компьютере владельца работает SSH tunnel9444→VPS loopback19444.
+Это локальный адрес для закрытого показа, не ссылка для внешнего заказчика.
+Существующую вкладку/скриншоты можно показать заказчику. Новая вкладка открывает
+landing, а не автоматически чужую owned session.
 
-1. Обычного application startup.
-2. Проверки application schema `0079_ai_operating_policy` (старую production0066
-   нельзя объявить совместимой аргументом запуска).
-3. Успешного Redis ping.
-4. Загрузки существующего настроенного deletion journal и `replay_erasure`,
-   который проверяет его DB binding и завершает принятые удаления.
+![Реальные карточки после трёх запросов](ai-private-demo-20261108-evidence/real-cards-final.png)
 
-При ошибке runtime не публикуется; при shutdown убирается, Redis закрывается.
-Установка не заменяет существующий runtime. Явный kill switch через снятие
-`app.state.ai_search_runtime` сразу закрывает прежние HTTP routes.
+![Координатная карта первого результата](ai-private-demo-20261108-evidence/real-map-600.png)
 
-Импорт/сборка не включают AI, не открывают provider, не делают миграций,
-не инициализируют journal, не создают фактов и не запускают сбор объявлений.
-`app.main` по умолчанию остался выключенным. Deployment должен передать
-отдельно разрешённый parser и pipeline, затем вызвать installer в собственной
-явной factory; существующий `maintain_ai_search --loop` требует отдельного
-supervisor. Само наличие этих функций не является готовой конфигурацией выпуска.
+VPS directory `/srv/112233-ai-private-demo-20261108`, отдельный Compose project
+`ttest-ai-text-demo-20261108`. Только отдельная demo DB мигрирована0066→0079.
+Production current и public build-info остались
+`1292c6807ece59999238bb31c80e09ef7e2c3212`, production DB0066 не изменялась.
+Private backend подключён к отдельным PostgreSQL/PostGIS и Redis, maintenance
+supervisor работает. Порт demo опубликован только на127.0.0.1 VPS. HTTP только
+на loopback, межмашинное соединение зашифровано SSH; browser/security exceptions
+и изменения Windows certificate store не использовались.
 
-## Настоящий сервер и каталог: только чтение
+## Настоящие данные и точная граница доказательства
 
-SSH с существующим ключом и strict host verification подтвердил hostname
-`vmi3640228`, `/srv/112233.es/current` и public `build-info.json`:
-deployed SHA `1292c6807ece59999238bb31c80e09ef7e2c3212`.
-Это не текущий main. БД — `0066_complimentary_ads`; таблиц `ai_*` нет.
-Public `/api/v1/ai-search/capabilities` не ответил успешно; статус HTTP не был
-сохранён, поэтому конкретный код ошибки не заявляется.
+Read-only production inventory по existing `visible_query()`:
+1439public cards/132source-healthy≤24h. Это не AI proof coverage всего сайта.
+Для разрешённого показа экспортирован минимальный public PisoCompartido subset:
+**12 записей**, snapshot **08.11 01:51:11MSK**. Аккаунты, контакты, raw payload
+и описания не копировались; technical owner связывает FK в изолированной БД.
+Из исходного каталога сохранены публичные title/цены/карточные поля/фото/ссылки,
+approximate coordinates и исходные source check timestamps. Нового crawling,
+backfill, ручного продления freshness или отправки объявлений модели не было.
 
-Выполнены aggregate SQL в `REPEATABLE READ READ ONLY`, statement timeout5s,
-без экспорта записей, raw payload, контактов, credentials или персональных данных.
-Публичный знаменатель взят из **существующего `visible_query()`**, включая
-ценовой cap и owner/moderation restrictions. Не добавлялся самодельный expiry
-predicate: отдельная предварительная диагностическая проверка с
-`expires_at > now()` дала0, но это не predicate приложения и не знаменатель отчёта.
+`ai_pisocompartido_price` допускает только price/rental_mode: число в source price
+text должно совпасть с import amount/EUR/period/month и mode/long; starting price,
+валюта/период/сумма с расхождением отвергаются. Cadence берётся из existing
+import.price_period, а не нового чтения внешней страницы. Прочие legacy booleans
+не становятся AI facts. **12 реальных SQL proofs** подготовлены существующими
+observe→claim→complete→QueryProofs. Поиск использует прежние currentness/source
+health/proof-age guards и owned session/quota, не новый упрощённый SQL обход.
 
-Срез08.11 01:30MSK: **1439 публичных карточек**, **132** проходят отдельный
-source health/freshness≤24h guard. **132 — не AI verified coverage**: AI-таблиц
-на этом сервере пока нет. Проверенное наличие источника не подтверждает все
-свойства объявления или возможность бронирования.
+Snapshot статичен, текущие часы продолжают влиять на eligibility. Этот показ не
+доказывает постоянное обновление, точность всего импортера, полное покрытие полей,
+доступность бронирования или всю Испанию. Видимые legacy данные1m² и отдельные
+испанские строки требуют дальнейшей продуктовой/data проверки; не исправлялись
+выдумыванием значений. Исправлен обнаруженный NaN возраста карточек: копируются
+настоящие public publication/creation timestamps, proofs перепроверены без LLM.
 
-Срез08.11 01:35MSK по тому же public/source predicate:
+Первый seed дошёл до SQL constraint failure из-за неhex fingerprint новой копии;
+в изолированной DB сохранены12 записей, fingerprint исправлен на digest, затем
+реальные proofs подготовлены. Сброса DB/provider journal и повторных paid calls
+для этого не было. Seeder исправлен для следующего разрешённого нового стенда.
 
-| Источник | Свежий public subset | Цена≤600€/мес | Цена≤400€/мес | С public approximate location |
-| --- | ---: | ---: | ---: | ---: |
-| AlquilerDocenteCanarias | 9 | 9 | 4 | 9 |
-| Habitaclia | 94 | 6 | 1 | 0 |
-| PisoCompartido | 12 | 11 | 3 | 12 |
-| Pisos | 17 | 16 | 6 | 17 |
+## Модель, расходы и cleanup
 
-Цены здесь — текущие stored card values, не результаты inference или принятые
-AI proofs. Habitaclia не подходит для обещания карты: adapter сознательно
-не считает page viewport координатами объекта. Предлагаемый первый небольшой
-cohort — существующий public PisoCompartido subset (до20 записей, сейчас12),
-без нового crawling/backfill. Его source-specific price/evidence mapping и
-подготовка proof на изолированной копии **ещё нужны**; snapshot быстро стареет.
+Использован настоящий `https://api.deepseek.com/chat/completions`, requested model
+`deepseek-flash`, non-thinking, max_tokens1024, один attempt на операцию, parser10s
+в execution15s/HTTP20s. Account balance endpoint200/is_available=true проверен
+без generation call. Все три generation responses200, usage подтверждён3/3.
+Ввод ограничен exact тремя фразами и соответствующим typed состоянием600→400→none;
+history, IDs, контакты и объявления в payload не входят.
 
-Raw aggregate evidence: [inventory](ai-text-runtime-20261108-evidence/production-inventory.json),
-[demo candidates](ai-text-runtime-20261108-evidence/demo-candidates.json).
-Оба содержат query hashes, DB timestamps и только агрегаты.
+Отдельный persistent demo journal: **3 attempts**, **33180microUSD ($0.033180)
+reserved**,11027prompt/94completion tokens. По peak ставкам observed usage estimate
+3421microUSD ($0.003421), это не invoice. Peak cache-miss $0.30/1M input и $1.20/1M
+output сверены08.11 по [официальной pricing page](https://api-docs.deepseek.com/quick_start/pricing/).
+Резерв ниже согласованного $0.10, cache/off-peak скидки для admission не учитывались.
+Прежний synthetic journal52/575120microUSD не открывался и не изменялся.
 
-## Проверки и их предел
+**После трёх обращений ключ отмонтирован, его временная private server copy удалена,
+backend egress отключён.** В памяти перезапущенного backend фиктивная строка
+`budget-exhausted-no-live-key`, persistent journal запрещает четвёртый dispatch.
+Результаты/карта/страницы продолжают читаться. Новых model calls не разрешено.
+Guest quota и demo provider budget различны: во время проверки прошла полночь
+Europe/Madrid, UI снова показал3 guest searches; DB сохраняет used3/reserved0 за
+07.11, а provider limit остаётся исчерпанным. Это не reset provider allowance.
 
-Новые10 unit cases проверяют startup/capabilities/kill switch, несовместимую
-БД, недоступный Redis, отсутствие/ошибку journal replay, независимость ключей,
-freshness и вложенные deadlines. Dependency IO подменён; это не настоящий
-PG/Redis/provider или пользовательская LIVE приёмка.
+## Код и проверки
 
-До переноса на независимый main base:133 focused PASS, full1768 PASS/16skip,
-404 deselected. Эти counts включают несвязанные unit cases из409 и не считаются
-exact-final validation новой базы. Итоговый прогон main base фиксируется в
-[validation.json](ai-text-runtime-20261108-evidence/validation.json): **1762 PASS/16skip/404deselected**, failures/errors0, новые10 cases входят в1762. Наборы пересекаются, не суммировать.
+Независимая ветка от `origin/main afdf180c`, без application changes409.
+`ai_text_runtime` собирает прежние runtime dependencies вне test-only lab и
+публикует capabilities после schema0079, Redis, configured journal binding/replay.
+Обычный `app.main` default OFF, public RealUserOutboundDenied не изменён.
+Private factory/Compose, exact phrase gate, bounded journal и real price adapter
+лежат отдельно; [операции и ограничения](../../deploy/ai-text-demo/README.md).
+Frontend private mode переиспользует настоящий UI и existing coordinate renderer.
 
-Ruff новых файлов, mypy нового runtime, input policy и provenance949 PASS.
-Frontend TypeScript и production Vite build с mock API disabled PASS.
-Frontend tree/package/lock/vite config совпадают до/после переноса на main base.
-Build имеет обычное предупреждение о chunk>500kB; browser/LIVE/SLO из него
-не следуют. Docker daemon локально недоступен; установка/реестр не менялись.
-Windows PostgreSQL18 запущен, но PostGIS extension отсутствует; полноценный
-локальный SQL/card/map стенд в этой сессии не запускался.
+Финально **1775unit PASS/16skip/404deselected**, в том числе23 focused cases.
+Ruff, mypy runtime/price adapter, TypeScript и private Vite build PASS.
+Actual Linux PG/PostGIS/Redis + HTTP/browser + DeepSeek3/3 проверены на отдельном
+стенде, не на production. Runtime files сверены LF-normalized SHA256 с работающим
+контейнером. Предварительные1762/1768counts не суммируются с финальными.
+Raw агрегаты/receipts/usage/проверки/hash: [evidence](ai-private-demo-20261108-evidence/live-result.json),
+[attestation](ai-private-demo-20261108-evidence/runtime-attestation.json).
 
-## Конкретное оставшееся решение
-
-Пользователь не понял первоначальный технический вопрос; это **не разрешение**
-на внешнюю передачу текста или расходы. Предложение следует объяснять просто:
-модель получает только заранее показанные владельцу фразы об аренде и текущие
-typed criteria; объявления остаются в SQL и не отправляются модели.
-Для первого закрытого показа выбрать3 фиксированные неперсональные фразы,
-например бюджет600€/мес, его уточнение400€/мес и снятие ограничения бюджета,
-и согласовать до3 provider attempts с явным дополнительным пределом резерва.
-Это предложение, не принятое разрешение и не новый бюджет.
-
-Нельзя переиспользовать неиспользованные старые attempts как автоматическое
-разрешение: прежний LIVE UI smoke завершился FAIL, baseline journal52/
-575120microUSD исторический, заново не проверялся и не менялся.
-Существующий driver и signed admission привязаны к прежнему corpus/случаям;
-они не являются готовым launcher для предложенных новых фраз/реальных данных.
-Тариф на дату нового запуска и текущие journal counters надо сверить до IO.
-
-После точного решения о provider attempts, cohort и месте закрытого показа —
-подготовить разрешённый limited parser, real source mapping/proofs и запуск
-существующего UI с новым application composition. Затем проверить реальные
-действия пользователя и дать наблюдаемый адрес. Не выдавать текущую подготовку
-за показ заказчику. Public real-user outbound/production activation не включены;
-S2/S3/S6 partial, voice/saved/delivery/performance/release gates открыты.
+PR410 draft, merge не выполнялся. Current-head CI фиксируется отдельно, старый
+зелёный CI не сертификат новых изменений. S2/S3/S6 partial: ближайший bounded
+текстовый показ выполнен, но произвольный текст, полный account/privacy gate,
+standing refresh/quality/performance/voice/saved/delivery/release остаются OPEN.
