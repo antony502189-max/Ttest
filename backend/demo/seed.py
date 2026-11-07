@@ -19,6 +19,7 @@ async def seed():
     from app.repositories.ai_fact_snapshots import FactSnapshotReader
     from app.repositories.ai_query_proofs import QueryProofs
     from app.repositories.listings import point
+    from app.schemas.ai_listing_facts import digest
     from app.services.ai_erasure_journal import bind_journal, configured_journal
     from app.services.ai_pisocompartido_price import prepare_price
     snapshot = json.loads(Path("/demo-input/catalog.json").read_text())
@@ -46,6 +47,8 @@ async def seed():
             lid, sid = UUID(card.pop("id")), UUID(source.pop("id"))
             # Coordinates are the existing public approximate position, never an exact address.
             lat, lng = card.pop("latitude"), card.pop("longitude")
+            if card.get("published_at"):
+                card["published_at"] = datetime.fromisoformat(card["published_at"])
             listing = Listing(id=lid, owner_user_id=host_id, **card,
                 location=point(lng, lat) if lat is not None and lng is not None else None,
                 status="published", description="", approximate_address="")
@@ -54,7 +57,7 @@ async def seed():
             for key in ("last_success_at", "last_checked_at", "content_updated_at", "last_state_check_at"):
                 source[key] = datetime.fromisoformat(source[key]) if source[key] else None
             connection.add(ExternalListingSource(id=sid, canonical_listing_id=lid, **source,
-                raw_payload={}, fingerprint="private-public-snapshot"))
+                raw_payload={}, fingerprint=digest(source["normalized_payload"])))
     service = pipeline(SessionLocal)
     reader = FactSnapshotReader(SessionLocal, max_payload_bytes=65536)
     proofs = QueryProofs(service)

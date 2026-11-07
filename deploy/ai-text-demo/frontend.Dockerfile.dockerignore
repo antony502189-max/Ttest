@@ -1,0 +1,8 @@
+**
+!output/
+!output/private-demo-dist/
+!output/private-demo-dist/**
+!deploy/
+!deploy/ai-text-demo/
+!deploy/ai-text-demo/nginx.conf
+!deploy/ai-text-demo/frontend.Dockerfile

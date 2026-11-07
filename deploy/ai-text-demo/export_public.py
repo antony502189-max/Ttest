@@ -25,6 +25,7 @@ def main():
     source_fields = ["id", "source_name", "external_id", "source_url", "source_price_text", "current_status", "last_success_at", "last_checked_at", "content_updated_at", "last_state_check_at", "last_state_check_result"]
     price_fields = ["source_name", "source_price_text", "rental_mode", "price_currency", "price_period", "price_is_from", "price_amount"]
     card = ",".join(f"'{k}',l.{k}" for k in card_fields) + ", 'latitude',ST_Y(l.location::geometry),'longitude',ST_X(l.location::geometry)"
+    card += ",'published_at',coalesce(l.published_at,l.created_at)"
     source = ",".join(f"'{k}',s.{k}" for k in source_fields)
     normalized = ",".join(f"'{k}',s.normalized_payload->'{k}'" for k in price_fields)
     sql = ("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY; SET LOCAL statement_timeout='5000ms'; "

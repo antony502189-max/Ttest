@@ -8,8 +8,8 @@ x-env: &env
   DATABASE_URL: postgresql+asyncpg://ai_demo:private-demo-only@postgres:5432/ai_text_demo_20261108
   AI_MAINTENANCE_DATABASE_URL: postgresql+asyncpg://ai_demo:private-demo-only@postgres:5432/ai_text_demo_20261108
   REDIS_URL: redis://redis:6379/0
-  FRONTEND_APP_URL: https://localhost:9444
-  FRONTEND_ORIGINS: https://localhost:9444
+  FRONTEND_APP_URL: http://localhost:9444
+  FRONTEND_ORIGINS: http://localhost:9444
   EXTERNAL_IMPORT_ENABLED: 'false'
   EXTERNAL_REMOVAL_CHECK_ENABLED: 'false'
   JWT_SECRET: ${DEMO_JWT_SECRET:?independent demo key required}
@@ -43,7 +43,7 @@ services:
     environment: *env
     volumes:
       - state:/demo-state
-      - ./private:/demo-input:ro
+      - ./private/catalog.json:/demo-input/catalog.json:ro
       - ./secrets/deepseek.env:/demo-secrets/deepseek.env:ro
     networks: [ internal, egress ]
     mem_limit: 768m
@@ -61,8 +61,7 @@ services:
     build: { context: ../.., dockerfile: deploy/ai-text-demo/frontend.Dockerfile, args: { BASE_IMAGE: '${DEMO_FRONTEND_BASE:?existing frontend image required}' } }
     image: ttest-private-text-ui:20261108
     ports: [ '127.0.0.1:19444:8443' ]
-    volumes: [ './tls:/demo-tls:ro' ]
-    networks: [ internal ]
+    networks: [ internal, egress ]
     mem_limit: 128m
 volumes:
   pg: { labels: { es.ttest.purpose: ai-private-text-demo-20261108 } }

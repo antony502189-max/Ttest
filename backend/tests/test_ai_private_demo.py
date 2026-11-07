@@ -64,3 +64,17 @@ async def test_exact_demo_phrases_and_states_only_before_provider_io():
     refined = current.model_copy(update={"criteria": Criteria.model_validate_json(json.dumps({
         "rental_mode": {"strength": "hard", "value": "long"}, "budget": budget}))})
     await gate.prepare(PHRASES[1], refined)
+
+
+async def test_exhausted_demo_never_reads_provider_key(monkeypatch):
+    from types import SimpleNamespace
+
+    from demo import entry
+    monkeypatch.setattr(entry, "require_demo", lambda: None)
+    monkeypatch.setattr(entry, "DemoBudget", lambda *a, **k: SimpleNamespace(summary=lambda: {"attempts": 3}))
+    def forbidden(*args, **kwargs):
+        raise AssertionError("provider key must remain unmounted")
+    monkeypatch.setattr(entry.Path, "read_text", forbidden)
+    parser = entry.DemoParser()
+    assert parser.key.get_secret_value() == "budget-exhausted-no-live-key"
+    await parser.transport.aclose()

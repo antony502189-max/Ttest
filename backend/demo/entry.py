@@ -17,7 +17,7 @@ from app.services.ai_closed_deepseek import RESERVE_MICRO_USD, EvaluationBudget,
 from app.services.ai_decision_intent import DecisionDeepSeekIntent
 from app.services.ai_deepseek_intent import DeepSeekPolicy, OutboundIntentInput, ProviderFailure
 
-ORIGIN = "https://localhost:9444"
+ORIGIN = "http://localhost:9444"  # Loopback only, reached through an encrypted SSH tunnel.
 DATABASE = "postgresql+asyncpg://ai_demo:private-demo-only@postgres:5432/ai_text_demo_20261108"
 APPROVAL = "owner-approved-private-text-demo-20261108-v1"
 PHRASES = ("до 600 евро в месяц", "теперь до 400 евро в месяц", "убери ограничение бюджета")
@@ -64,16 +64,21 @@ class DemoBudget(EvaluationBudget):
 class DemoParser(DecisionDeepSeekIntent):
     def __init__(self):
         require_demo()
+        self.budget = DemoBudget(Path("/demo-state/provider.sqlite3"), corpus_sha256=BINDING)
         # The key is mounted only in the private backend, never source/build/UI.
-        key = Path("/demo-secrets/deepseek.env").read_text(encoding="utf-8").strip()
-        prefix = "AI_INTENT_EVAL_DEEPSEEK_KEY="
-        if not key.startswith(prefix) or "\n" in key:
-            raise ValueError("DEDICATED_DEMO_KEY_REQUIRED")
-        self.key, self.gate = SecretStr(key[len(prefix):]), DemoGate()
+        # An exhausted demo can serve its durable results with NO mounted key.
+        if self.budget.summary()["attempts"] >= 3:
+            self.key = SecretStr("budget-exhausted-no-live-key")
+        else:
+            key = Path("/demo-secrets/deepseek.env").read_text(encoding="utf-8").strip()
+            prefix = "AI_INTENT_EVAL_DEEPSEEK_KEY="
+            if not key.startswith(prefix) or "\n" in key or not key[len(prefix):]:
+                raise ValueError("DEDICATED_DEMO_KEY_REQUIRED")
+            self.key = SecretStr(key[len(prefix):])
+        self.gate = DemoGate()
         self.policy = DeepSeekPolicy(model="deepseek-flash", timeout_seconds=8,
             total_budget_seconds=10, max_tokens=1024, max_attempts=1,
             retry_delay_seconds=0, max_response_bytes=65536)
-        self.budget = DemoBudget(Path("/demo-state/provider.sqlite3"), corpus_sha256=BINDING)
         self.transport = DemoTransport(httpx.AsyncHTTPTransport(retries=0, trust_env=False,
             limits=httpx.Limits(max_connections=1, max_keepalive_connections=0)), self.budget)
 
