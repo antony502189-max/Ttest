@@ -1,0 +1,507 @@
+{
+  "schema": "ai-text-readonly-production-inventory.v1",
+  "deployed_sha": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+  "query_sha256": "e8ffe16c2d93da283c7a106e97d130340916836cf3c09d5a8df388a7c3a50e59",
+  "source_freshness_profile_seconds": 86400,
+  "mode": "read_only_aggregate_no_payload_export",
+  "database": {
+    "database_time": "2026-11-07T22:30:32.841442+00:00",
+    "database_revision": "0066_complimentary_ads"
+  },
+  "public_catalog": [
+    {
+      "source": "AlquilerDocenteCanarias",
+      "mode": "long",
+      "province": null,
+      "public_count": 10,
+      "source_healthy_24h": 9
+    },
+    {
+      "source": "Flatio",
+      "mode": "long",
+      "province": null,
+      "public_count": 4,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Fotocasa",
+      "mode": "long",
+      "province": null,
+      "public_count": 20,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Habitaclia",
+      "mode": "long",
+      "province": "38",
+      "public_count": 151,
+      "source_healthy_24h": 94
+    },
+    {
+      "source": "Habitaclia",
+      "mode": "long",
+      "province": null,
+      "public_count": 30,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "PisoCompartido",
+      "mode": "long",
+      "province": "38",
+      "public_count": 26,
+      "source_healthy_24h": 12
+    },
+    {
+      "source": "PisoCompartido",
+      "mode": "long",
+      "province": null,
+      "public_count": 1,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "02",
+      "public_count": 10,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "03",
+      "public_count": 18,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "04",
+      "public_count": 51,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "05",
+      "public_count": 4,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "06",
+      "public_count": 15,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "07",
+      "public_count": 6,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "08",
+      "public_count": 19,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "10",
+      "public_count": 19,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "11",
+      "public_count": 55,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "12",
+      "public_count": 13,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "13",
+      "public_count": 8,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "16",
+      "public_count": 3,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "18",
+      "public_count": 24,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "19",
+      "public_count": 1,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "21",
+      "public_count": 18,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "22",
+      "public_count": 8,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "23",
+      "public_count": 17,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "24",
+      "public_count": 11,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "25",
+      "public_count": 4,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "27",
+      "public_count": 3,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "28",
+      "public_count": 12,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "29",
+      "public_count": 68,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "30",
+      "public_count": 52,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "31",
+      "public_count": 3,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "32",
+      "public_count": 9,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "33",
+      "public_count": 48,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "34",
+      "public_count": 6,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "35",
+      "public_count": 44,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "36",
+      "public_count": 10,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "37",
+      "public_count": 22,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "38",
+      "public_count": 26,
+      "source_healthy_24h": 7
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "39",
+      "public_count": 36,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "40",
+      "public_count": 7,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "41",
+      "public_count": 74,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "44",
+      "public_count": 3,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "45",
+      "public_count": 21,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "46",
+      "public_count": 15,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "47",
+      "public_count": 8,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "48",
+      "public_count": 7,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "49",
+      "public_count": 3,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "50",
+      "public_count": 14,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": "52",
+      "public_count": 8,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "long",
+      "province": null,
+      "public_count": 357,
+      "source_healthy_24h": 10
+    },
+    {
+      "source": "Pisos",
+      "mode": "holiday",
+      "province": "29",
+      "public_count": 14,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "holiday",
+      "province": "37",
+      "public_count": 1,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": "Pisos",
+      "mode": "holiday",
+      "province": null,
+      "public_count": 15,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": null,
+      "mode": "long",
+      "province": null,
+      "public_count": 6,
+      "source_healthy_24h": 0
+    },
+    {
+      "source": null,
+      "mode": "holiday",
+      "province": null,
+      "public_count": 1,
+      "source_healthy_24h": 0
+    }
+  ],
+  "source_records": [
+    {
+      "source_name": "AlquilerDocenteCanarias",
+      "current_status": "active",
+      "records": 10,
+      "oldest_success": "2026-10-23T08:44:45.294963+00:00",
+      "newest_success": "2026-11-07T21:49:29.455005+00:00"
+    },
+    {
+      "source_name": "AlquilerDocenteCanarias",
+      "current_status": "missing",
+      "records": 1,
+      "oldest_success": "2026-08-18T19:27:34.636231+00:00",
+      "newest_success": "2026-08-18T19:27:34.636231+00:00"
+    },
+    {
+      "source_name": "AlquilerDocenteCanarias",
+      "current_status": "rejected",
+      "records": 7,
+      "oldest_success": "2026-09-20T11:41:01.944379+00:00",
+      "newest_success": "2026-10-08T09:57:06.565834+00:00"
+    },
+    {
+      "source_name": "Flatio",
+      "current_status": "active",
+      "records": 25,
+      "oldest_success": "2026-10-09T19:02:09.166415+00:00",
+      "newest_success": "2026-11-06T12:47:21.271949+00:00"
+    },
+    {
+      "source_name": "Flatio",
+      "current_status": "rejected",
+      "records": 4,
+      "oldest_success": "2026-08-26T14:27:25.852172+00:00",
+      "newest_success": "2026-10-08T22:26:45.784267+00:00"
+    },
+    {
+      "source_name": "Fotocasa",
+      "current_status": "active",
+      "records": 72,
+      "oldest_success": "2026-10-06T14:33:11.986059+00:00",
+      "newest_success": "2026-10-06T16:37:03.404791+00:00"
+    },
+    {
+      "source_name": "Fotocasa",
+      "current_status": "missing",
+      "records": 60,
+      "oldest_success": "2026-08-10T07:41:29.756625+00:00",
+      "newest_success": "2026-10-06T04:58:36.800168+00:00"
+    },
+    {
+      "source_name": "Habitaclia",
+      "current_status": "active",
+      "records": 267,
+      "oldest_success": "2026-10-09T19:04:28.591101+00:00",
+      "newest_success": "2026-11-07T21:50:36.218061+00:00"
+    },
+    {
+      "source_name": "Habitaclia",
+      "current_status": "missing",
+      "records": 15,
+      "oldest_success": "2026-09-18T20:55:51.598611+00:00",
+      "newest_success": "2026-10-06T16:25:40.051391+00:00"
+    },
+    {
+      "source_name": "Idealista",
+      "current_status": "missing",
+      "records": 2,
+      "oldest_success": "2026-08-02T11:26:16.635707+00:00",
+      "newest_success": "2026-08-02T16:06:06.523757+00:00"
+    },
+    {
+      "source_name": "Idealista",
+      "current_status": "source_retired",
+      "records": 46,
+      "oldest_success": "2026-08-02T17:39:04.965424+00:00",
+      "newest_success": "2026-08-02T18:41:15.556248+00:00"
+    },
+    {
+      "source_name": "PisoCompartido",
+      "current_status": "active",
+      "records": 63,
+      "oldest_success": "2026-10-07T21:27:58.272644+00:00",
+      "newest_success": "2026-11-07T21:48:59.52062+00:00"
+    },
+    {
+      "source_name": "PisoCompartido",
+      "current_status": "missing",
+      "records": 7,
+      "oldest_success": "2026-09-17T21:50:57.17351+00:00",
+      "newest_success": "2026-09-27T23:52:16.276608+00:00"
+    },
+    {
+      "source_name": "PisoCompartido",
+      "current_status": "rejected",
+      "records": 9,
+      "oldest_success": "2026-08-08T13:10:00.635505+00:00",
+      "newest_success": "2026-10-07T21:28:12.7335+00:00"
+    },
+    {
+      "source_name": "Pisos",
+      "current_status": "active",
+      "records": 1395,
+      "oldest_success": "2026-10-09T10:25:56.425341+00:00",
+      "newest_success": "2026-11-07T21:49:06.327867+00:00"
+    }
+  ],
+  "ai_verified_count": null,
+  "note": "AI tables absent; source freshness alone is not verified AI coverage."
+}

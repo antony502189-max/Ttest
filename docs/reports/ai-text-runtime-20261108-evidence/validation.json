@@ -1,0 +1,39 @@
+{
+  "schema": "ai-text-runtime-validation.v1",
+  "application_source": "23419bfb251d99d856194a2e199f4d49eb69cbc9",
+  "base_main": "afdf180c922da65de8f0fbdf3e89005e30faf481",
+  "backend": {
+    "passed": 1762,
+    "skipped": 16,
+    "failures": 0,
+    "errors": 0,
+    "deselected": 404,
+    "new_runtime_cases": 10,
+    "new_cases_included_in_total": true
+  },
+  "ruff": "PASS new runtime/test",
+  "mypy": "PASS new runtime",
+  "frontend": "TypeScript + Vite production build PASS, mock API disabled; frontend tree unchanged across rebase",
+  "provenance": {
+    "status": "PASS",
+    "runtime_inputs": 949,
+    "historical_docker_acceptance_applies": false
+  },
+  "real_provider_calls": 0,
+  "server_mutations": 0,
+  "actual_pg_redis_card_map_or_live_ui_acceptance": false,
+  "artifacts": [
+    {
+      "file": "backend-main-base.xml",
+      "sha256": "f0897c17cfde409732969a9aa828b773d0b0514d9b387074d50a1a9785cc9d7f"
+    },
+    {
+      "file": "demo-candidates.json",
+      "sha256": "0ac7392493dec5ece2b60ebac83ba6df776ee0f8ef47decb6e6e32e353e9e680"
+    },
+    {
+      "file": "production-inventory.json",
+      "sha256": "9437b94c049ab14014a73978becc0e44bd615aa39a284a673b894b815421a49a"
+    }
+  ]
+}

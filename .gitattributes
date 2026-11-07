@@ -31,3 +31,5 @@ docs/reports/ai-search-s2-text-refresh-20261104-evidence/** -text whitespace=-bl
 docs/reports/pr408-review-fixes-evidence/** -text whitespace=-blank-at-eol,cr-at-eol
 
 docs/reports/pr408-deep-review-fixes-evidence/** -text whitespace=-blank-at-eol,cr-at-eol
+
+docs/reports/ai-text-runtime-20261108-evidence/** -text whitespace=cr-at-eol
