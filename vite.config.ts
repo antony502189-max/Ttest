@@ -54,6 +54,7 @@ function isolateMockDataFromProduction(mockMode: boolean): Plugin {
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const syntheticLab = mode === 'ai-synthetic-lab'
+  const privateDemo = mode === 'ai-private-demo'
   const labMode = syntheticLab ? (process.env.VITE_AI_CLOSED_LAB
     || loadEnv(mode, process.cwd(), 'VITE_').VITE_AI_CLOSED_LAB || 'finite') : ''
   const labSource = syntheticLab ? (process.env.VITE_AI_LAB_SOURCE_SHA
@@ -75,7 +76,10 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_AI_LAB_SOURCE_SHA': JSON.stringify(labSource),
     },
     base: process.env.VITE_BASE_PATH || '/',
-    plugins: [isolateMockDataFromProduction(mockMode), react(), tailwindcss(), ...(syntheticLab ? [{
+    plugins: [isolateMockDataFromProduction(mockMode), react(), tailwindcss(), ...(privateDemo ? [{
+      name: 'private-demo-notice',
+      transformIndexHtml: (html: string) => html.replace(/<body[^>]*>/, '$&<aside style="padding:12px;background:#e8f2e1;color:#173d20;text-align:center" data-i18n-exempt>Закрытая демонстрация · DeepSeek + снимок реальных публичных объявлений PisoCompartido. Выберите долгосрочную аренду. Фразы по порядку: «до 600 евро в месяц» → «теперь до 400 евро в месяц» → «убери ограничение бюджета». Лимит: 3 обращения к модели. Карта — координатная сетка без внешних тайлов.</aside>'),
+    }] : []), ...(syntheticLab ? [{
       name: 'synthetic-lab-notice',
       transformIndexHtml: (html: string) => html.replace(/<body[^>]*>/, `$&<aside style="padding:12px;background:#fff3cd;color:#332600;text-align:center" data-i18n-exempt>${labNotice}</aside>`),
       transform: (code: string, id: string) => /\/src\/(pages\/HomePage|data\/listings)\.tsx?$/.test(id.replaceAll('\\', '/'))
@@ -91,7 +95,7 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: {
-        ...(syntheticLab ? { '@/components/ai-result-map': path.resolve(import.meta.dirname, './src/lab/ai-synthetic-map.tsx') } : {}),
+        ...(syntheticLab || privateDemo ? { '@/components/ai-result-map': path.resolve(import.meta.dirname, './src/lab/ai-synthetic-map.tsx') } : {}),
         'shadcn/tailwind.css': path.resolve(import.meta.dirname, './src/styles/shadcn-tailwind.css'),
         '@/components/marketplace': path.resolve(import.meta.dirname, './src/components/marketplace-localized.tsx'),
         '@/contexts/mock-app-provider': path.resolve(import.meta.dirname, mockProviderModule),

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { aiResultMap } from '@/api/ai-search'
 import type { ListingMapMarker } from '@/api/listings'
 
-// Only aliased in the explicit ai-synthetic-lab Vite mode. No fixture markers.
+// Explicit synthetic lab or private real-data demo only. No fixture markers.
 export function AIResultMap({ resultRef, intentHash, refreshVersion, center, total }: {
   resultRef: string; intentHash: string; refreshVersion: number; center?: { lat: number; lng: number }; total: number
 }) {
