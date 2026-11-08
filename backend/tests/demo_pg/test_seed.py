@@ -306,7 +306,7 @@ async def test_export_selects_consistent_source_even_when_newer_price_differs(se
 
 async def test_minimal_pilot_asgi_real_pg_mock_provider_replay_refine_and_expiry(seed_database, monkeypatch):
     import httpx
-    import pilot.entry as entry
+
     from app.api.v1.ai_search import AISearchRuntime
     from app.repositories.ai_search_quota import QuotaLedger
     from app.repositories.ai_search_sessions import IntentVocabulary, SearchSessions, SessionPolicy
@@ -316,7 +316,9 @@ async def test_minimal_pilot_asgi_real_pg_mock_provider_replay_refine_and_expiry
     from app.services.ai_http_policy import AIHTTPPolicy
     from app.services.ai_search_execution import TextSearchExecution
     from demo.entry import pipeline
-    from pilot.budget import BINDING as PILOT_BINDING, PilotBudget
+    from pilot import entry
+    from pilot.budget import BINDING as PILOT_BINDING
+    from pilot.budget import PilotBudget
     from pilot.readiness import CatalogReadiness
     from pilot.surface import minimal_app
     dsn, name, file, state = seed_database

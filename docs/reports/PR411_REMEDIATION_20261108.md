@@ -36,7 +36,7 @@ No exploit or paid reproduction against the live service was attempted.
 | PR411-10 P2 | Recheck approval in transport and synchronous SQLite reserve guard. Operator `revoke.py` verifies exact container ownership, renames approval, then stops egress and always restarts backend, preserving journals. | Spawned external process removes approval between preflight/dispatch: no reserve/IO; mocked operator stop failure still restarts backend, counter bytes unchanged. | Fixed guard and procedure. File removal alone is not atomic network cancellation; already-dispatched usage cannot be refunded. Two-step revocation is mandatory. |
 | PR411-11 P2 | Deterministic source selection constrained to card URL/text/amount, EUR/month/long, non-from price and current healthy source timestamp. LEFT JOIN exposes no-consistent-source explicitly; exporter refuses rather than overwriting card price. | Real PG two-source reversed-recency/different-price fixture selects matching source; changing attribution to inconsistent pair gives explicit null/refusal. | Fixed. A cohort with no consistent source fails closed, which can reduce availability until data is corrected. |
 | PR411-12 P2 | Timestamp/source-of-truth labels in README and this report. Historical four-call run retained separately from later seven-call owner test. | Authenticated read-only status 2026-11-08T18:45:10Z:7/50, approved=true/halted=false, zero calls by observation. | Fixed documentation; counters are observations, not a live promise. Never infer/reset journal. |
-| PR411-13 P2 | Exact-head CI must complete before requesting approval. Older evidence is indexed as historical, not new certification; no retention evidence deleted or branch history rewritten. | Current-source CI/provenance snapshot to be appended after checks. | CI pending at initial source commit. Remains open until mandatory workflows pass. |
+| PR411-13 P2 | Exact-head CI must complete before requesting approval. Older evidence is indexed as historical, not new certification; no retention evidence deleted or branch history rewritten. | Exact-head outcome is published in the PR description and [current PR checks](https://github.com/antony502189-max/Ttest/pull/411/checks); immutable source snapshots are retained below. | Gate enforced: no handoff as ready until all mandatory workflows pass. Conditional skips remain explicitly separate. |
 
 ## Validation and failures
 
@@ -46,7 +46,11 @@ i18n guard PASS. Oxlint has only six existing unrelated warnings. New dedicated
 build contract accepts clean safe defaults and rejects four contradictory envs.
 Real PostGIS: expiry/zero-debit and reversed-source selection2 PASS; complete
 minimal-ASGI/real-PG/mock-DeepSeek/replay/refinement/map/expired-history1 PASS.
-Full seed/recovery suite and exact-head CI results are recorded after completion.
+Full seed/recovery suite:23 PASS in368.43s, including these three cases;
+see `pr411-remediation-20261108-evidence/pg-full.xml`. Source427bbf1d clean
+production pilot build passed with exact-SHA manifest and emitted-prefix scan;
+manifest and1007-input provenance JSON are retained in the same evidence folder.
+Exact-head CI is a separate gate; final outcome is published in the PR description.
 Counts overlap broader CI; do not add them as unique total cases.
 
 Initial harness failures were retained outside the live service and corrected:
@@ -58,6 +62,13 @@ These are not failed paid requests or edits of real data. An incorrectly escaped
 test-run shell command stopped before starting infrastructure; it was replaced
 with a structured script argument. Full raw temporary harness logs remain in
 `/srv/112233-ai-review-411-20261108` and ignored `output/pr411-review`.
+
+The first source427bbf1d CI exposed two additional harness issues: root
+`.dockerignore` omitted the proxy client's test files, and Ruff rejected imports
+in the new ASGI test. A dedicated Dockerfile context allowlist and sorted imports
+fix them. The full production and combined jobs stopped at lint, not a runtime
+failure; their remaining suites must pass on the corrected exact head. No checks,
+test cases or security gates were removed to obtain green CI.
 
 ## Provenance and archived evidence scope
 

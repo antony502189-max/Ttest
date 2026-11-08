@@ -1,8 +1,14 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.17**, 8 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.18**, 8 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+
+**Сессия3.18 / S2.1,S3,S6 / A3,A5,A9,A11 — исправления review PR411:** по прямому поручению владельца обработаны PR411-01–13: минимальные API/frontend, точная proxy trust/IP quota, fail-closed build/manifest, проверка source readiness до расходов, ограниченная input grammar, revocation procedure и согласованный source/price export. [Матрица и доказательства](reports/PR411_REMEDIATION_20261108.md). Local77focused backend/11pilot browser/93ordinary browser PASS, mypy175/Ruff/types/build PASS; disposable real PG seed/recovery23PASS и настоящий sealed Traefik→Nginx→Redis с двумя клиентами PASS. Model только mock; новых paid calls0, deploy/migration/export/journal reset0. Исходный running pilot остаётся на прежнем выпуске; remediation ему ещё не приписывается. Последний read-only status7/50 датирован18:45:10UTC, это наблюдение, не текущая гарантия остатка.
+
+**Следующее действие3.18:** завершить все обязательные exact-head CI проверки исправлений и передать тот же draft PR411 владельцу на повторное review; окончательный SHA/статус — в [PR checks](https://github.com/antony502189-max/Ttest/pull/411/checks) и описании PR. Первый CI427bbf1d выявил отсутствующие в Docker context test files и Ruff imports; исправлены без исключения tests. Не выполнять automatic merge/deploy/new paid tests. После owner review продолжить прежний S2.1 quality/standing freshness; source TTL не продлевать, утверждённый50/$1 scope и durable journals сохранить. S2/S3/S6 partial, provider/account/data/performance/voice/saved/delivery/full release и A1–A12 остаются открытыми.
+
+**Историческая передача3.17 до получения review:**
 
 **Передача3.17 / S3/S6 — owner review PR411:** владелец сообщил «вроде работает» после исправления кнопки и поручил закоммитить все обновления перед собственным review. Весь task scope уже committed/pushed в `codex/ai-search-site-pilot`, включая button fix `671a666f2677610b8a3c50d7a94a6fc534e405b3`; worktree чистый до этого handoff-doc commit. Чужие root dirty changes/secrets/temporary private state не включались. Read-only pilot status после ручного теста: approved=true,halted=false,attempts7/50,43осталось; новых agent paid calls в этой сессии0. CI671a666f:7SUCCESS/2conditionalSKIP/4in_progress/failure0 на момент сверки; финальный новый CI ещё не заявлен. [PR411](https://github.com/antony502189-max/Ttest/pull/411) draft/open, merge не выполнялся.
 
@@ -280,6 +286,7 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 
 | Дата | Версия/этап | Выполнено и доказательство | Следующий шаг |
 | --- | --- | --- | --- |
+| 2026-11-08 | 3.18/S2.1,S3,S6 review411 | PR411-01–13 source fixes и regression proof;77focused/11pilot/93ordinary/23PG PASS, sealed proxy2clients PASS. Initial427 CI context/lint failures исправлены; безpaid/deploy/reset. Полная матрица в PR411_REMEDIATION_20261108.md | Обязательный exact-head CI, повторное owner review411; затем прежнийS2.1 |
 | 2026-11-08 | 3.17/S3,S6 review handoff | Владелец вручную проверил работу и запросил все commits передreview. Code/button671a666f наorigin, taskworktree чистый; pilot status7/50active,43осталось, новыхagentcalls0. CI671:7SUCCESS/2SKIP/4running/failure0 | Owner reviewPR411, конкретные fixes поreview; затем прежнийS2.1 |
 | 2026-11-08 | 3.16/S3,S6,A9 button fix | Screenshot выявил пустой обязательный mode select. Pilot default long + new-conversation seed исправлены, frontend deployed.8pilot/1ordinary browser PASS, actualHTTPS1440/390 submit enabled безselect; query intercepted, paid0/budget4unchanged | Обновить вкладку и продолжить ручной тест в том же50/$1 scope; далее прежний3.15/S2.1 |
 | 2026-11-08 | 3.15/S2.1,S3,S6 active pilot | Owner approval50/$1/nonpersonal получен. HTTPS UI→DeepSeek→SQL600→12/400→3/remove→13; карта/reload/mobile restoration/negativeinput PASS.4calls/usage4/reserve44240microUSD,46осталось. Key/control оставлены только для закрытого scope, старые journals/production не менялись. [Live evidence](reports/AI_SEARCH_SITE_PILOT_20261108.md) | Ручная проверка/обратная связь в approved scope; далее S2.1 standing freshness/quality без обходаTTL, PR411 exact-head CI отдельно |
@@ -358,3 +365,5 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 - **3.15→3.16:** конкретная обратная связь владельца «кнопка не работает» обработана какA9 blocker. Исправлен defaultmode только pilot, без расширения approved outbound или новыхpaid calls. Основной маршрут сохранён.
 
 - **3.16→3.17:** прямое поручение владельца сохранить все updates и передатьPR411 наегоreview. Новый increment отложен до конкретной обратной связи; основной маршрут и gates сохранены.
+
+- **3.17→3.18:** прямое поручение исправить внешний review411 поставлено перед следующим S2.1 increment. Минимальный pilot surface и regression evidence подготовлены без paid/deploy/state reset; exact-head CI и повторное owner review обязательны. Маршрут S0–S7/A1–A12 и полные product gates сохранены.
