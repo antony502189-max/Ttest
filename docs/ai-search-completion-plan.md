@@ -1,8 +1,18 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.18**, 8 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.19**, 9 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+
+**Сессия3.19 / S4.1 — голосовой ввод по прямому приоритету владельца:** владелец слил411; GitHub иfetch подтвердили main `1a91d8fe6025ef49fc17765ed97b7638116870b8`, merge08.11 20:37:48UTC. Pre-merge headad0365e2:12SUCCESS/2conditionalSKIP workflows,20SUCCESS/2conditionalSKIP jobs; post-merge CI/deployment этим не подменяются. Existing clean worktree продолжает от этого main в `codex/ai-search-voice-input`, root чужие changes сохранены. Прямое поручение сделать голос меняет ближайший приоритет наS4.1, не закрывает прежнийS2.1 standing freshness.
+
+Реализация: microphone→bounded15s PCM→server local multilingual ASR→existing positive grammar/DeepSeek parser→verified SQL, одна durable voice operation/один debit. Аудио иtranscript не уходят к новомуASR vendor и не сохраняются; внешний intent payload остаётся прежними reconstructed constants/amount. Новый provider spending scope не вводится. Первые real local synthetic EN/RU transcriptions прошли вnetwork-none контейнере за5.3/4.8s; это не human voice quality/p95 приёмка. Source/tests иlive activation различаются.
+
+**Следующее действие3.19:** закончить PG/HTTP/microphone cancellation/replay regressions и reproducible offline-network local-ASR CI, собрать reviewable voice increment в той же pilot архитектуре. Затем exact-head CI/review и только подтверждённая проверка выпущенного голосового сценария. Не продлеватьTTL snapshot/не сбрасыватьprovider journals, не выдаватьmerge411 заdeployment. S2/S3/S4/S6 partial; saved/delivery/provider-account/data/performance/full-release gates остаются открытыми.
+
+**Source verification3.19:**1843unit/16SKIP,110PG/1optional UI bridge SKIP,15pilot browser (11existing+4voice),2real local synthetic ASR PASS; Ruff/mypy177/types/i18n/1024runtime inputs PASS. [Отчёт и пределы](reports/AI_SEARCH_VOICE_INPUT_20261109.md). Новый следующий шаг — exact-head CI в новомPR, затем обновление того же закрытого пилота и проверка HTTPS microphone→ASR→поиск; source не выдан заdeployed acceptance. Model/provider paid calls0 на этом подготовительном этапе; журналы/исходные timestamps сохранены.
+
+**Историческая сессия3.18 до merge411:**
 
 **Сессия3.18 / S2.1,S3,S6 / A3,A5,A9,A11 — исправления review PR411:** по прямому поручению владельца обработаны PR411-01–13: минимальные API/frontend, точная proxy trust/IP quota, fail-closed build/manifest, проверка source readiness до расходов, ограниченная input grammar, revocation procedure и согласованный source/price export. [Матрица и доказательства](reports/PR411_REMEDIATION_20261108.md). Local77focused backend/11pilot browser/93ordinary browser PASS, mypy175/Ruff/types/build PASS; disposable real PG seed/recovery23PASS и настоящий sealed Traefik→Nginx→Redis с двумя клиентами PASS. Model только mock; новых paid calls0, deploy/migration/export/journal reset0. Исходный running pilot остаётся на прежнем выпуске; remediation ему ещё не приписывается. Последний read-only status7/50 датирован18:45:10UTC, это наблюдение, не текущая гарантия остатка.
 
@@ -286,6 +296,7 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 
 | Дата | Версия/этап | Выполнено и доказательство | Следующий шаг |
 | --- | --- | --- | --- |
+| 2026-11-09 | 3.19/S4.1 | Merge411/main1a91d8fe подтверждён. Прямой приоритет владельца: голосовой ввод. Existing VoiceSearchExecution расширяется microphone/HTTP/localASR, без нового external audio provider иpaid calls | PG/media/replay/browser иrealASR CI, reviewable voice increment |
 | 2026-11-08 | 3.18/S2.1,S3,S6 review411 | PR411-01–13 source fixes и regression proof;77focused/11pilot/93ordinary/23PG PASS, sealed proxy2clients PASS. Initial427 CI context/lint failures исправлены; безpaid/deploy/reset. Полная матрица в PR411_REMEDIATION_20261108.md | Обязательный exact-head CI, повторное owner review411; затем прежнийS2.1 |
 | 2026-11-08 | 3.17/S3,S6 review handoff | Владелец вручную проверил работу и запросил все commits передreview. Code/button671a666f наorigin, taskworktree чистый; pilot status7/50active,43осталось, новыхagentcalls0. CI671:7SUCCESS/2SKIP/4running/failure0 | Owner reviewPR411, конкретные fixes поreview; затем прежнийS2.1 |
 | 2026-11-08 | 3.16/S3,S6,A9 button fix | Screenshot выявил пустой обязательный mode select. Pilot default long + new-conversation seed исправлены, frontend deployed.8pilot/1ordinary browser PASS, actualHTTPS1440/390 submit enabled безselect; query intercepted, paid0/budget4unchanged | Обновить вкладку и продолжить ручной тест в том же50/$1 scope; далее прежний3.15/S2.1 |
@@ -367,3 +378,5 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 - **3.16→3.17:** прямое поручение владельца сохранить все updates и передатьPR411 наегоreview. Новый increment отложен до конкретной обратной связи; основной маршрут и gates сохранены.
 
 - **3.17→3.18:** прямое поручение исправить внешний review411 поставлено перед следующим S2.1 increment. Минимальный pilot surface и regression evidence подготовлены без paid/deploy/state reset; exact-head CI и повторное owner review обязательны. Маршрут S0–S7/A1–A12 и полные product gates сохранены.
+
+- **3.18→3.19:** пользователь подтвердил merge411 и прямо попросил голосовой ввод. Ближайший increment перенесён наS4.1 поверх существующей voice operation; S2.1 остаётся обязательным, standing freshness/ASR human quality/performance/public release не объявлены закрытыми. Выбран local ASR с сетью, закрытой на inference, чтобы не вводить нового внешнего получателя аудио.

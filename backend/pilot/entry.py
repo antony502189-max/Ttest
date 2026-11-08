@@ -4,6 +4,7 @@ import json
 import os
 import re
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from pathlib import Path
 
 import httpx
@@ -128,6 +129,24 @@ def create_app():
         guests=GuestTokens(key=bytes.fromhex(keys["guest"]), policy=GuestPolicy(ttl_seconds=604800)),
         cursor_key=bytes.fromhex(keys["cursor"]), http_policy=AIHTTPPolicy(20, 3, ("172.30.41.2/32",), ORIGIN),
         origins=frozenset({ORIGIN}), max_body_bytes=32768, execution_seconds=15)
+    if os.environ.get("AI_SITE_PILOT_VOICE") == "local-pcm-v1":
+        from app.services.ai_local_asr import LocalPCMTranscriber
+        from app.services.ai_voice_execution import VoicePolicy, VoiceSearchExecution
+
+        local_asr = LocalPCMTranscriber(python=Path("/opt/voice/bin/python"), model=Path("/opt/voice-model"))
+
+        class ApprovedLocalASR:
+            async def transcribe(self, audio, media_type):
+                await require_catalog(readiness)
+                require_approval()
+                return await local_asr.transcribe(audio, media_type)
+
+        runtime = replace(runtime, voice=VoiceSearchExecution(runtime.sessions, ApprovedLocalASR(),
+            runtime.execution.parser, runtime.execution.attempts, runtime.cards,
+            VoicePolicy(media_types=("audio/wav",), max_audio_bytes=480044, max_transcript_bytes=640,
+                asr_budget_seconds=8.0, intent_budget_seconds=10.0, total_budget_seconds=19.0)))
+    elif os.environ.get("AI_SITE_PILOT_VOICE"):
+        raise ValueError("LOCAL_VOICE_CONFIGURATION_INVALID")
     install_text_runtime(app, runtime)
     original = app.router.lifespan_context
 

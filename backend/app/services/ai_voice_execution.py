@@ -1,19 +1,29 @@
-"""Injected offline ASR+intent under one durable quota operation. No HTTP wiring."""
+"""Injected ASR+intent under one durable quota operation; opt-in HTTP composition."""
 import asyncio
 import hashlib
 from collections.abc import Awaitable, Callable
-from contextlib import suppress
+from contextlib import nullcontext, suppress
+from functools import partial
 from typing import Literal, Protocol
 from uuid import UUID, uuid4
 
 from pydantic import Field, model_validator
 
 from ..repositories.ai_search_sessions import SearchSessions, SessionError, intent_hash
+from ..repositories.ai_verified_cards import SourceCoverageUnavailable
 from ..schemas.ai_clarification import IntentClarification
 from ..schemas.ai_listing_facts import digest
 from ..schemas.ai_search_intent import IntentPatch, apply_patch
-from ..schemas.ai_search_quota import FailureCode, QuotaOperation, QuotaSubject, ResultReceipt, StrictContract
+from ..schemas.ai_search_quota import (
+    FailureCode,
+    OperationState,
+    QuotaOperation,
+    QuotaSubject,
+    ResultReceipt,
+    StrictContract,
+)
 from ..schemas.listings import ListingCardSearchRequest
+from .ai_deepseek_intent import ProviderFailure
 from .ai_http_policy import HTTP_DEADLINE
 from .ai_search_attempts import AIAttemptRejected
 from .ai_search_execution import (
@@ -98,7 +108,9 @@ class VoiceSearchExecution:
         operation = QuotaOperation(idempotency_key=key, channel="voice", session_id=session_id,
             expected_session_version=version, payload_sha256=hashlib.sha256(audio).hexdigest(),
             filters_sha256=digest({"media_type": media_type, "search": payload.model_dump(mode="json")}))
-        reservation = await self.ledger.reserve(subject, operation)
+        reservation = await self.ledger.reserve(subject, operation,
+            admit=partial(self.sessions.admit_operation, subject=subject, operation=operation),
+            serialize=partial(self.sessions.lock_subject, subject=subject))
         if reservation.action != "created":
             state = reservation.operation
             cards = None
@@ -106,6 +118,18 @@ class VoiceSearchExecution:
                 return await terminal_search_result(self.query, subject, state, payload, replay=reservation.action == "replay")
             return SearchExecution(state, cards, replay=reservation.action == "replay")
         state = await self.ledger.claim(subject, operation)
+        slots = getattr(self.attempts, "inference", None)
+        try:
+            async with slots(subject, deadline=deadline) if slots else nullcontext():
+                return await self._claimed(subject, operation, session_id, version, audio, media_type, payload, deadline, state)
+        except AIAttemptRejected as error:
+            if asyncio.get_running_loop().time() >= deadline:
+                raise TimeoutError from None
+            return SearchExecution(await self.ledger.release(subject, operation, state.fence, FailureCode(error.code)))
+
+    async def _claimed(self, subject: QuotaSubject, operation: QuotaOperation, session_id: UUID, version: int,
+                       audio: bytes, media_type: AudioMedia, payload: ListingCardSearchRequest,
+                       deadline: float, state: OperationState) -> SearchExecution:
         phase = FailureCode.BACKEND_FAILURE
         try:
             async with asyncio.timeout_at(deadline):
@@ -141,6 +165,11 @@ class VoiceSearchExecution:
                         await self.ledger.release(subject, operation, state.fence, FailureCode.BACKEND_FAILURE)
             raise
         except Exception as error:  # noqa: BLE001 - no raw audio/transcript/provider/SQL export
+            if isinstance(error, ProviderFailure) and str(error) in {
+                "INTENT_CLARIFICATION_REQUIRED", "INTENT_NO_CHANGE", "INTENT_UNSUPPORTED"}:
+                phase = FailureCode(str(error))
+            if isinstance(error, SourceCoverageUnavailable):
+                phase = FailureCode.SOURCE_COVERAGE_UNAVAILABLE
             if isinstance(error, (SessionError, AIAttemptRejected)) and error.code in {code.value for code in FailureCode}:
                 phase = FailureCode(error.code)
             if asyncio.get_running_loop().time() >= deadline:

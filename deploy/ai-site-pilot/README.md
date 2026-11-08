@@ -6,7 +6,46 @@ PostGIS0079, Redis, maintenance и state; основной сайт/DB0066 и se
 HTTP Basic применяется ко всей странице, assets и API. Секрет доступа лежит в
 локальном ignored `output/ai-site-pilot-20261108/private/access.txt`, не в Git.
 
-## Remediation PR411 — подготовлено, НЕ выложено
+## S4.1: local voice overlay
+
+Voice source adds microphone capture with explicit start/stop/cancel, maximum15s,
+canonical16kHz mono16-bit PCM WAV only. Stop automatically starts one owned voice
+operation: local ASR → existing positive rental grammar/parser → verified SQL.
+It reserves/debits once; ambiguous replies retain the same key and audio in RAM
+for up to15minutes, then keep only the durable operation locator. Reload never
+stores or uploads the recording again. Denial/unavailable microphone keeps text
+available. Capture stops on cancel/dialog close, including late permission grants.
+
+ASR uses pinned faster-whisper1.2.1, multilingual base revision
+`ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66`, checked SHA256 for all four assets.
+`voice-requirements.txt` is an independent exact-version environment; ordinary
+backend dependencies are unchanged. Model assets are fetched only during build.
+Inference uses local_files_only/HF_HUB_OFFLINE, CPU int8/two threads, no external
+ASR endpoint. A disposable process receives bounded PCM on stdin, returns at
+most2048 bytes and is killed/joined on its8s deadline or cancellation. Runtime
+audio/transcripts are not files/logs/session fields; Nginx request buffering is
+off, JSON stays bounded in ASGI RAM, worker environment omits application keys.
+Intent outbound remains reconstructed constants/amount under the existing50/$1
+binding; unsupported speech is rejected locally before DeepSeek dispatch.
+
+The ordinary runtime defaults to voice=false. Opt-in pilot build/config:
+
+```sh
+node scripts/build-ai-site-pilot.mjs VERIFIED_TRAEFIK_IPV4
+docker compose --env-file deploy/ai-site-pilot/.env --env-file output/site-pilot-build.env -f deploy/ai-site-pilot/compose.yml -f deploy/ai-site-pilot/voice.yml build backend frontend
+```
+
+`voice.yml` selects the local-ASR image/env and bounds the backend to2CPUs/1536MiB,
+read-only root plus bounded temporary RAM. Never mix this overlay with an older
+backend/frontend. Existing retained volumes, approval, signatures and reservation
+journals must remain in place; no migrations or reseeding are required. Build and
+real synthetic ASR are tested by `python3 scripts/test-ai-local-voice.py`; its
+inference container has network=none, no capabilities, nobody uid, read-only root.
+Synthetic speech is not human-accent/noise quality or end-to-end p95 acceptance.
+Fresh-source checks continue to age the original catalog. Full S4/S5/S6 gates
+remain open until real released acceptance; source readiness is separate.
+
+## Remediation PR411 — предыдущая подготовка, deployment проверяется отдельно
 
 Новая версия кода отделена от действующего пилота до review/отдельного допуска
 deployment. Она использует минимальный FastAPI только сAI routers иstatus,

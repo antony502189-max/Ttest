@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 
 UUID = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 GET = (r"capabilities", r"quota", rf"sessions/{UUID}", rf"operations/{UUID}", rf"results/{UUID}")
-POST = (r"identity", r"sessions", r"query", rf"sessions/{UUID}/(?:reset|close|cards|map)", rf"results/{UUID}/(?:cards|map)")
+POST = (r"identity", r"sessions", r"query", r"voice", rf"sessions/{UUID}/(?:reset|close|cards|map)", rf"results/{UUID}/(?:cards|map)")
 
 
 def allowed(method, path):

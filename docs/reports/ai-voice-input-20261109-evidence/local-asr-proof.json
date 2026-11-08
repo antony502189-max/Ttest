@@ -1,0 +1,17 @@
+{
+  "image": "sha256:d2c90dba13ee6d30f832010cf9b98964068bfc453046b1b77aad31c4f66b4a4a",
+  "proof": [
+    {
+      "sample": "english.wav",
+      "seconds": 5.81,
+      "matched": true,
+      "external_provider_calls": 0
+    },
+    {
+      "sample": "russian.wav",
+      "seconds": 5.132,
+      "matched": true,
+      "external_provider_calls": 0
+    }
+  ]
+}

@@ -16,6 +16,7 @@ from app.models.ai_search_quota import AISearchRequest, AIUsageDay
 from app.models.ai_search_session import AISearchSession
 from app.repositories.ai_search_quota import QuotaError
 from app.repositories.ai_search_sessions import SessionError
+from app.repositories.ai_verified_cards import SourceCoverageUnavailable
 from app.schemas.ai_search_quota import QuotaOperation, QuotaSubject
 from app.schemas.listings import ListingCardSearchRequest
 from app.services.ai_http_policy import HTTP_DEADLINE
@@ -164,6 +165,14 @@ async def test_invalid_audio_media_and_cursor_before_reservation(store, pg):
         assert await conn.scalar(select(func.count()).select_from(AIUsageDay)) == 0
 
 
+async def test_voice_catalog_preflight_failure_preserves_distinct_zero_debit_code(store, pg):
+    subject, snapshot, asr, parser, _, _, service = await configured(store)
+    asr.error = SourceCoverageUnavailable("PILOT_CATALOG_STALE")
+    result = await execute(service, subject, snapshot, uuid4())
+    assert result.operation.failure_code == "SOURCE_COVERAGE_UNAVAILABLE"
+    assert parser.calls == 0 and await usage(pg, subject) == (0, 0)
+
+
 @pytest.mark.parametrize("phase", ["asr", "intent"])
 async def test_cancel_releases_and_sync_late_provider_result_is_rejected(store, pg, monkeypatch, phase):
     subject, snapshot, asr, parser, _, _, service = await configured(store)
@@ -293,9 +302,18 @@ async def test_identity_version_and_technical_gate_fail_before_asr(store, pg, fa
         changes["version"] = 1
     else:
         gate.error = AIAttemptRejected(code)
-    result = await execute(service, subject, snapshot, uuid4(), **changes)
-    assert result.operation.failure_code == code and asr.calls == parser.calls == 0
-    assert await usage(pg, subject) == (0, 0)
+    if failure in {"owner", "version"}:
+        # HTTP voice shares text admission: reject invalid ownership/version
+        # before creating even a zero-debit request under a foreign session ID.
+        with pytest.raises(SessionError, match=code):
+            await execute(service, subject, snapshot, uuid4(), **changes)
+        async with pg[1]() as conn:
+            assert await conn.scalar(select(func.count()).select_from(AISearchRequest)) == 0
+    else:
+        result = await execute(service, subject, snapshot, uuid4(), **changes)
+        assert result.operation.failure_code == code
+    assert asr.calls == parser.calls == 0
+    assert await usage(pg, subject) == ((None, None) if failure in {"owner", "version"} else (0, 0))
 
 
 @pytest.mark.parametrize("changed", [False, True])

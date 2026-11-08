@@ -1,0 +1,17 @@
+**
+!backend/
+!backend/app/
+!backend/app/**
+!backend/alembic/
+!backend/alembic/**
+!backend/demo/
+!backend/demo/**
+!backend/pilot/
+!backend/pilot/**
+!backend/alembic.ini
+!deploy/
+!deploy/ai-site-pilot/
+!deploy/ai-site-pilot/voice-requirements.txt
+!deploy/ai-site-pilot/prepare_voice_model.py
+!deploy/ai-site-pilot/voice-backend.Dockerfile
+**/__pycache__/**
