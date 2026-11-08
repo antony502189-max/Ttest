@@ -1,0 +1,8 @@
+{
+  "pr_head": "be366887652123b1fc83a8a7de9c34a1910124e5",
+  "tested_pr_merge_commit": "e87ff1ac8a9545852b555d4be709b7606f4bd995",
+  "base": "afdf180c922da65de8f0fbdf3e89005e30faf481",
+  "equal_tree": "d5c3a9d0695c800f184e1a085ddff7496e547f1e",
+  "runtime_inputs": 972,
+  "note": "GitHub PR checkout is test merge, not a deployed/main merge"
+}

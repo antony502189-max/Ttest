@@ -1,0 +1,13 @@
+{
+  "heads": [
+    "38e6de44481cf7e248e43ac165eece396ca50498",
+    "be366887652123b1fc83a8a7de9c34a1910124e5"
+  ],
+  "both_order_tree": "d5c3a9d0695c800f184e1a085ddff7496e547f1e",
+  "exit_codes": [
+    0,
+    0
+  ],
+  "initial_independent_orders": "merge-orders.json",
+  "note": "410 already includes409 dependency"
+}

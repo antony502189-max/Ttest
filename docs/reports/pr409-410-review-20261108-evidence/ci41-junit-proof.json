@@ -1,0 +1,218 @@
+{
+  "head": "41c71425162f0f213ec423f14a3e782e40200084",
+  "run": 42479192874,
+  "artifacts": [
+    {
+      "id": 13617425030,
+      "name": "ai-search-facts-results",
+      "sha256": "sha256:537446906c2734c2779afc2503e3cd37af481f2de4eebbf3da7d9bee1c46d438"
+    },
+    {
+      "id": 13616797853,
+      "name": "ai-demo-seed-recovery",
+      "sha256": "sha256:9e83d73243c8db21a777b3de71ae1c111d841429902a10ba450db8284ae214df"
+    }
+  ],
+  "suites": {
+    "ai-facts-pg.xml": {
+      "passed": 1006,
+      "skipped": 1,
+      "failed": 0,
+      "sha256": "d13816660acff505204e0d2a521812193eecbca4dd977d4f3208373ce2c72553",
+      "regressions": [
+        {
+          "name": "test_deadline_kills_work_and_restart_recovers_without_duplicate_publication[builder]",
+          "passed": true
+        },
+        {
+          "name": "test_deadline_kills_work_and_restart_recovers_without_duplicate_publication[published]",
+          "passed": true
+        },
+        {
+          "name": "test_deadline_kills_work_and_restart_recovers_without_duplicate_publication[receipt]",
+          "passed": true
+        },
+        {
+          "name": "test_process_fixture_journal_cannot_cross_schemas",
+          "passed": true
+        },
+        {
+          "name": "test_other_receipt_cannot_claim_the_same_live_source",
+          "passed": true
+        },
+        {
+          "name": "test_two_sources_and_callers_share_one_durable_request_cap",
+          "passed": true
+        },
+        {
+          "name": "test_failed_get_spends_durable_budget_and_reopen_does_not_reset_it[refresh_setup0]",
+          "passed": true
+        },
+        {
+          "name": "test_unknown_claim_ack_is_charged_before_dispatch_and_recovers_after_lease",
+          "passed": true
+        },
+        {
+          "name": "test_expired_claim_cannot_dispatch_a_get",
+          "passed": true
+        },
+        {
+          "name": "test_one_reservation_cannot_dispatch_twice",
+          "passed": true
+        },
+        {
+          "name": "test_new_owner_fences_a_late_old_http_response[refresh_setup0]",
+          "passed": true
+        },
+        {
+          "name": "test_final_fence_failure_rolls_back_source_projection_and_receipt",
+          "passed": true
+        },
+        {
+          "name": "test_claim_waiter_rechecks_effect_committed_while_waiting",
+          "passed": true
+        },
+        {
+          "name": "test_terminal_write_finishes_claim_and_unblocks_retry_without_refund[refresh_setup0-False-stale]",
+          "passed": true
+        },
+        {
+          "name": "test_terminal_write_finishes_claim_and_unblocks_retry_without_refund[refresh_setup0-False-capacity]",
+          "passed": true
+        },
+        {
+          "name": "test_terminal_write_finishes_claim_and_unblocks_retry_without_refund[refresh_setup0-True-stale]",
+          "passed": true
+        },
+        {
+          "name": "test_terminal_write_finishes_claim_and_unblocks_retry_without_refund[refresh_setup0-True-capacity]",
+          "passed": true
+        },
+        {
+          "name": "test_hard_kill_consumer_preserves_budget_fence_and_exact_effect[reserved-refresh_setup0]",
+          "passed": true
+        },
+        {
+          "name": "test_hard_kill_consumer_preserves_budget_fence_and_exact_effect[http-refresh_setup0]",
+          "passed": true
+        },
+        {
+          "name": "test_hard_kill_consumer_preserves_budget_fence_and_exact_effect[committed-refresh_setup0]",
+          "passed": true
+        }
+      ]
+    },
+    "ai-facts-unit.xml": {
+      "passed": 1799,
+      "skipped": 7,
+      "failed": 0,
+      "sha256": "fc5a39f345e80a07afd8ba805ef1e33d8b899076dae4f6c4c86d18255f095a35",
+      "regressions": []
+    },
+    "ai-http-browser.xml": {
+      "passed": 1,
+      "skipped": 0,
+      "failed": 0,
+      "sha256": "e33cb04197ad486972be55cb1c4031db7e9255c2fbf4dbd712cc54b3a9f4e626",
+      "regressions": []
+    },
+    "ai-real-http-recovery.xml": {
+      "passed": 4,
+      "skipped": 0,
+      "failed": 0,
+      "sha256": "7dde89b8a0a7e8a2063c4d014c06b322376ead7368f266c795f18f1031bf17c4",
+      "regressions": []
+    },
+    "ai-verified-cards.xml": {
+      "passed": 77,
+      "skipped": 1,
+      "failed": 0,
+      "sha256": "042c091459ba6507d4d8f583fed308b052e130d59b8d0aa6337cce96fbfa17be",
+      "regressions": []
+    },
+    "ai-demo-seed.xml": {
+      "passed": 19,
+      "skipped": 0,
+      "failed": 0,
+      "sha256": "985cd3b5ca5d04cf9b5eef3ceea5dd635620d2c4619c4f6ae5ac36e9c97efee6",
+      "regressions": [
+        {
+          "name": "test_hard_kill_resumes_same_snapshot_keys_journals_and_twelve_proofs[starting]",
+          "passed": true
+        },
+        {
+          "name": "test_hard_kill_resumes_same_snapshot_keys_journals_and_twelve_proofs[keys_ready]",
+          "passed": true
+        },
+        {
+          "name": "test_hard_kill_resumes_same_snapshot_keys_journals_and_twelve_proofs[budget_ready]",
+          "passed": true
+        },
+        {
+          "name": "test_hard_kill_resumes_same_snapshot_keys_journals_and_twelve_proofs[journal_bound]",
+          "passed": true
+        },
+        {
+          "name": "test_hard_kill_resumes_same_snapshot_keys_journals_and_twelve_proofs[importing]",
+          "passed": true
+        },
+        {
+          "name": "test_hard_kill_resumes_same_snapshot_keys_journals_and_twelve_proofs[imported]",
+          "passed": true
+        },
+        {
+          "name": "test_hard_kill_resumes_same_snapshot_keys_journals_and_twelve_proofs[observed]",
+          "passed": true
+        },
+        {
+          "name": "test_hard_kill_resumes_same_snapshot_keys_journals_and_twelve_proofs[claimed]",
+          "passed": true
+        },
+        {
+          "name": "test_hard_kill_resumes_same_snapshot_keys_journals_and_twelve_proofs[facts_ready]",
+          "passed": true
+        },
+        {
+          "name": "test_hard_kill_resumes_same_snapshot_keys_journals_and_twelve_proofs[proof_ready]",
+          "passed": true
+        },
+        {
+          "name": "test_hard_kill_resumes_same_snapshot_keys_journals_and_twelve_proofs[proofs_ready]",
+          "passed": true
+        },
+        {
+          "name": "test_hard_kill_resumes_same_snapshot_keys_journals_and_twelve_proofs[completed]",
+          "passed": true
+        },
+        {
+          "name": "test_resume_refuses_changed_snapshot_catalog_or_missing_bound_files",
+          "passed": true
+        },
+        {
+          "name": "test_malformed_snapshot_rejected_before_state_creation[duplicate_listing]",
+          "passed": true
+        },
+        {
+          "name": "test_malformed_snapshot_rejected_before_state_creation[duplicate_source]",
+          "passed": true
+        },
+        {
+          "name": "test_malformed_snapshot_rejected_before_state_creation[bad_price]",
+          "passed": true
+        },
+        {
+          "name": "test_malformed_snapshot_rejected_before_state_creation[private_field]",
+          "passed": true
+        },
+        {
+          "name": "test_malformed_snapshot_rejected_before_state_creation[bad_position]",
+          "passed": true
+        },
+        {
+          "name": "test_malformed_snapshot_rejected_before_state_creation[naive_time]",
+          "passed": true
+        }
+      ]
+    }
+  }
+}

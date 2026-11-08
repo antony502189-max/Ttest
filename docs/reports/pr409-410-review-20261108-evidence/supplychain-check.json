@@ -1,0 +1,7 @@
+{
+  "source": "41c71425162f0f213ec423f14a3e782e40200084",
+  "files": 51,
+  "exit_code": 0,
+  "stdout": "Supply-chain pins are valid\n",
+  "note": "tracked Dockerfiles/shell/workflows snapshot excludes ignored historical output Dockerfile"
+}
