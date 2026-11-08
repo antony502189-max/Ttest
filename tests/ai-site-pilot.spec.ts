@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test'
 for (const width of [390, 1440]) for (const state of ['pending', 'approved', 'unavailable', 'malformed']) {
   test(`site pilot ${width}px ${state} preserves protected-path UI boundary`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
+    await page.addInitScript(() => localStorage.setItem('112233:favorites:v2', 'ordinary-site-storage-sentinel'))
     const paid: string[] = [], external: string[] = [], apiPaths: string[] = []
     await page.route('**/*', route => {
       const url = new URL(route.request().url())
@@ -34,5 +35,6 @@ for (const width of [390, 1440]) for (const state of ['pending', 'approved', 'un
     expect(paid).toEqual([])
     expect(external).toEqual([])
     expect(apiPaths).toContain('/ai-pilot/api/v1/private-demo/status')
+    expect(await page.evaluate(() => localStorage.getItem('112233:favorites:v2'))).toBe('ordinary-site-storage-sentinel')
   })
 }
