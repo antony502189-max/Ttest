@@ -43,6 +43,8 @@ jobs:
         run: npx playwright test --config playwright.ai-lab.config.ts
       - name: Private demo exhausted budget and lost tunnel (no provider)
         run: npx playwright test --config playwright.ai-demo.config.ts
+      - name: Site pilot desktop/mobile access and pending spending gate (no provider)
+        run: npx playwright test --config playwright.ai-site-pilot.config.ts
       - name: Lab build-mode matrix (no provider)
         run: node scripts/check-ai-lab-builds.mjs output/ai-lab-build-matrix
       - name: Exact runtime code and evidence provenance
@@ -59,6 +61,7 @@ jobs:
             output/ai-home-*.png
             test-results/**
             output/ai-lab-contract-test-results/**
+            output/site-pilot-browser-results/**
             output/ai-lab-build-matrix/result.json
             output/ai-lab-ci-provenance.json
             docs/reports/pr404-remediation-20261103-evidence/**

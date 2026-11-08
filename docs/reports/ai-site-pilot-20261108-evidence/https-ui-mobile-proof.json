@@ -1,0 +1,20 @@
+{
+  "unauthorized": 401,
+  "capabilities": {
+    "text": true,
+    "map": true,
+    "voice": false,
+    "saved_searches": false
+  },
+  "provider": {
+    "attempts": 0,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": true,
+    "approved": false
+  },
+  "status": "Страница подготовлена. Обращения к модели ждут согласования тестового лимита.",
+  "failures": [],
+  "errors": [],
+  "paid_calls": 0
+}

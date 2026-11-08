@@ -1,0 +1,20 @@
+{
+  "cookie_path_correct": true,
+  "session_created": true,
+  "page_keys": [
+    "cards",
+    "intent_hash",
+    "reason_codes",
+    "budget_prices",
+    "map_center"
+  ],
+  "map_keys": [
+    "map",
+    "intent_hash"
+  ],
+  "total": 13,
+  "card_count": 13,
+  "map_count": 1,
+  "remaining": 3,
+  "model_calls": 0
+}

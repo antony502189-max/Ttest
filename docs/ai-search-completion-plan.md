@@ -1,8 +1,14 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.13**, 8 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.14**, 8 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+
+**Сессия3.14 / S2.1, S3, S6:** подготовлен защищённый site-domain pilot `https://app.112233.es/ai-pilot/#/` на existing Traefik/TLS. Настоящие isolated DB0079/Redis/maintenance, snapshot13unique public PisoCompartido от08.11 16:27MSK и13proofs; HTTPS guest/session/cards13/map PASS без LLM, desktop1440/mobile390 PASS. Новый parser допускает только неперсональную positive rental grammar50–1000EUR/month + removal наRU/ES/EN и отправляет реконструированные constants/amount + safe typed criteria. Internal-only backend и отдельный provider-only CONNECT egress проверены. **Модель пока выключена: approval отсутствует, ключ не загружен, новые generation attempts0/reserve0.** Запрошено одно конкретное разрешение50attempts/$1 через существующий тестовый DeepSeek account только owner/team nonpersonal scope; ответа ещё нет. Это не completed real-model pilot.62targeted backend/1disposablePG/8browser PASS, actual HTTPS UI/API/network PASS, lint/types/build PASS; новый CI отдельно. [Отчёт/evidence](reports/AI_SEARCH_SITE_PILOT_20261108.md).
+
+**Следующее действие3.14:** дождаться уже запрошенного конкретного spending/test-input approval; не повторять общий вопрос о разрешении пилота. После явного подтверждения включить approved key/control в **этой же** готовой composition/journal, пройти real HTTPS UI→DeepSeek→SQL→уточнение→карта/reload и сохранить receipts/cost evidence. Без ответа paid IO не выполнять. Source/freshness guards продолжают старить snapshot; при истечении сохранять state и разбирать freshness, не править timestamps. Старые synthetic и sealed3/3journals не менять. Основной production1292c680/DB0066 не менялся; новые full account/data/performance/voice/saved/delivery/release gates открыты.
+
+**Историческая передача3.13:**
 
 **Прямой приоритет владельца / передача3.13:** пользователь подтвердил закрытый текстовый pilot на домене сайта и попросил новый чат GPT‑6.1 Sol / medium, автономную работу до фактического лимита сессии. Ближайший результат в пару обращений — рабочий AI Search, который заказчик может открыть по защищённому URL и вручную испытать; мелкие улучшения затем. Сначала действующий вертикальный текстовый сценарий на существующих runtime/UI/pipeline, без нового synthetic стенда или повторного общего аудита. Проект112233.es подтверждён. Не начинать заново review409/410: они merged, main345b7ca8/tree d5c3a9d0.
 
@@ -214,7 +220,7 @@
 
 ### S6 — выпуск и эксплуатация
 
-**Публичный выпуск не выполнен.**
+**Публичный выпуск не выполнен. Закрытая HTTPS-страница site-domain pilot подготовлена в3.14; новый paid model test ещё ожидает конкретного допуска.**
 
 - [ ] S6.1 Production-like rehearsal миграций0077–0079 и последующих: locks/WAL/disk/write impact, backup и независимый erasure journal/restore barrier.
 - [ ] S6.2 Проверить production provider/data/runtime config, supervisor, alerts и aggregate telemetry без приватного текста.
@@ -260,6 +266,7 @@
 
 | Дата | Версия/этап | Выполнено и доказательство | Следующий шаг |
 | --- | --- | --- | --- |
+| 2026-11-08 | 3.14/S2.1,S3,S6 site pilot | Protected app.112233.es/ai-pilot открыт, isolated0079/Redis/maintenance,13real public unique/proofs, HTTPS cards13/map/session иdesktop/mobile PASS.62backend/1PG/8browser PASS, network allowlist/hash attestation PASS. Provider0/key absent/approval pending; старые journals иproduction1292c680/0066 неизменны. [Отчёт](reports/AI_SEARCH_SITE_PILOT_20261108.md) | После ответа на один конкретный запрос50attempts/$1/nonpersonal owner-team scope включить эту composition и проверить real HTTPS model flow, без reset journal |
 | 2026-11-08 | 3.10/S2.1,S3,S6 private LIVE | Получено точное разрешение владельца; UI→DeepSeek→SQL3/3:600→11,400→3,no user budget→12. Real snapshot/proofs12, provider attempts3/usage3,1775unit/16skip,23focused. Ключ/egress сняты, production не менялась. Evidence/скриншоты в AI_SEARCH_TEXT_RUNTIME_20261108.md | Показать оставленную local вкладку/артефакты. Новых calls не делать; дальше source quality/standing freshness и отдельный public scope |
 | 2026-11-08 | 3.8/S2.1,S3,S6 user priority | Прямое поручение: новый чат Sol/medium, работать до лимита; ближайший результат — видимый заказчику текстовый AI Search. Меняется очередность на вертикальную интеграцию, gates полного выпуска не объявляются закрытыми | Новый чат: изучить existing runtime/approvals/data, собрать и показать настоящий текстовый сценарий; не создавать очередной synthetic harness |
 | 2026-11-08 | 3.8/S2.2 final CI409 | Head ddec1011:11/11 workflows SUCCESS; frontend без skips,3conditional Full audit steps skipped. PR draft/open/not merged; CI snapshot/PR description обновлены, нового review нет | Финальное review/merge409 владельцем; затем подтвердить main и S2.1 source/cohort/authorization/measurement package |
@@ -326,3 +333,5 @@
 - **3.11→3.12:** владелец слил410;409 отмечен merged по включённой истории. Review gate снят, следующий результат уточнён прямым запросом: закрытый ручной текстовый pilot по URL сайта. Существующие S2.1/S3/S6 и A1–A12 сохранены; CI/source, deployed release и полномочия новых provider calls разделены. Read-only проверка выявила старую production1292c680/DB0066; ничего не выкатывалось.
 
 - **3.12→3.13:** прямое поручение владельца перенести продолжение в GPT‑6.1 Sol / medium и приоритизировать customer-visible manual pilot по URL сайта. Разрешённая подготовка/закрытый пилот продолжаются автономно; фактический session limit не подменяется provider spending approval. S0–S7 и обязательные полнофункциональные gates сохранены.
+
+- **3.13→3.14:** прежний localhost показ не повторялся: подготовлен защищённый маршрут реального домена с fresh bounded public data и provider-only network control. Модель оставлена закрытой до одного нового конкретного spending/input допуска; UI/API/данные готовы к этому финальному шагу. Внешний paid blocker не заменён новым synthetic deliverable. S2/S3/S6 partial, A1–A12/account/performance/voice/saved/delivery/full release остаются открытыми.
