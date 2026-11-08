@@ -1,8 +1,12 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.16**, 8 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.17**, 8 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+
+**Передача3.17 / S3/S6 — owner review PR411:** владелец сообщил «вроде работает» после исправления кнопки и поручил закоммитить все обновления перед собственным review. Весь task scope уже committed/pushed в `codex/ai-search-site-pilot`, включая button fix `671a666f2677610b8a3c50d7a94a6fc534e405b3`; worktree чистый до этого handoff-doc commit. Чужие root dirty changes/secrets/temporary private state не включались. Read-only pilot status после ручного теста: approved=true,halted=false,attempts7/50,43осталось; новых agent paid calls в этой сессии0. CI671a666f:7SUCCESS/2conditionalSKIP/4in_progress/failure0 на момент сверки; финальный новый CI ещё не заявлен. [PR411](https://github.com/antony502189-max/Ttest/pull/411) draft/open, merge не выполнялся.
+
+**Следующее действие3.17:** дождаться review владельцаPR411, обработать конкретные findings, затем продолжить прежний S2.1 quality/standing freshness и остальные S0–S7 gates. До review не начинать новый implementation increment. Активный pilot/journal/50-$1 approval сохранить, текущий43-call остаток не сбрасывать; статический snapshot продолжает стареть по исходным timestamps. Public/voice/saved/delivery/account/performance/full release не объявлены готовыми.
 
 **Сессия3.16 / S3/S6/A9 — исправлена заблокированная кнопка по screenshot владельца:** в пилоте modeChoice был пустым, обязательный select незаметно блокировал submit. Теперь только site pilot явно задаёт initialRentalMode=long; новые conversation также seeded long и продолжаются сkeep. Обычный UI сохраняет прежний выбор режима. Frontend перевыпущен в той же composition. Actual HTTPS1440/390: mode long выбран сразу, пустой текст не отправляется, после текста submit enabled; desktop click дошёл до query (перехвачен до backend), session seeded long. Provider attempts до/после4, новыхpaid0.8pilot browser +1ordinary browser regression +tsc/build PASS. [Proof](reports/ai-site-pilot-20261108-evidence/button-fix-proof.json). Owner должен обновить открытую вкладку для новой сборки. Дальнейший шаг3.15 и все gates сохранены.
 
@@ -276,6 +280,7 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 
 | Дата | Версия/этап | Выполнено и доказательство | Следующий шаг |
 | --- | --- | --- | --- |
+| 2026-11-08 | 3.17/S3,S6 review handoff | Владелец вручную проверил работу и запросил все commits передreview. Code/button671a666f наorigin, taskworktree чистый; pilot status7/50active,43осталось, новыхagentcalls0. CI671:7SUCCESS/2SKIP/4running/failure0 | Owner reviewPR411, конкретные fixes поreview; затем прежнийS2.1 |
 | 2026-11-08 | 3.16/S3,S6,A9 button fix | Screenshot выявил пустой обязательный mode select. Pilot default long + new-conversation seed исправлены, frontend deployed.8pilot/1ordinary browser PASS, actualHTTPS1440/390 submit enabled безselect; query intercepted, paid0/budget4unchanged | Обновить вкладку и продолжить ручной тест в том же50/$1 scope; далее прежний3.15/S2.1 |
 | 2026-11-08 | 3.15/S2.1,S3,S6 active pilot | Owner approval50/$1/nonpersonal получен. HTTPS UI→DeepSeek→SQL600→12/400→3/remove→13; карта/reload/mobile restoration/negativeinput PASS.4calls/usage4/reserve44240microUSD,46осталось. Key/control оставлены только для закрытого scope, старые journals/production не менялись. [Live evidence](reports/AI_SEARCH_SITE_PILOT_20261108.md) | Ручная проверка/обратная связь в approved scope; далее S2.1 standing freshness/quality без обходаTTL, PR411 exact-head CI отдельно |
 | 2026-11-08 | 3.14/S2.1,S3,S6 site pilot | Protected app.112233.es/ai-pilot открыт, isolated0079/Redis/maintenance,13real public unique/proofs, HTTPS cards13/map/session иdesktop/mobile PASS.62backend/1PG/8browser PASS, network allowlist/hash attestation PASS. Provider0/key absent/approval pending; старые journals иproduction1292c680/0066 неизменны. [Отчёт](reports/AI_SEARCH_SITE_PILOT_20261108.md) | После ответа на один конкретный запрос50attempts/$1/nonpersonal owner-team scope включить эту composition и проверить real HTTPS model flow, без reset journal |
@@ -351,3 +356,5 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 - **3.14→3.15:** получен точный ответ владельца на запрошенные50/$1/nonpersonal tests. Выполнен live допуск подготовленного site-domain pilot, без новых стендов/reset старого budget. Ближайший customer-visible текстовый результат достигнут в узком budget-only scope; это не завершение всегоAI Search. S0–S7/A1–A12 и все полнофункциональные gates сохранены.
 
 - **3.15→3.16:** конкретная обратная связь владельца «кнопка не работает» обработана какA9 blocker. Исправлен defaultmode только pilot, без расширения approved outbound или новыхpaid calls. Основной маршрут сохранён.
+
+- **3.16→3.17:** прямое поручение владельца сохранить все updates и передатьPR411 наегоreview. Новый increment отложен до конкретной обратной связи; основной маршрут и gates сохранены.
