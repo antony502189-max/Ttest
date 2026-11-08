@@ -7,7 +7,7 @@
 запрошены50attempts/$1 на неперсональные rental tests через существующий тестовый
 аккаунт. Ответ пока не получен. Новых generation calls0.**
 
-Ветка `codex/ai-search-site-pilot` продолжает merged main345b7ca8. Прежние
+Ветка `codex/ai-search-site-pilot`, application source `2eeb48b4404de5945697dea24fed5f0a2191e266`, [draft PR411](https://github.com/antony502189-max/Ttest/pull/411), продолжает merged main345b7ca8. Прежние
 review409/410 не повторялись. Owned final docs сохранены отдельным commit перед
 созданием ветки, чужие dirty changes старого root checkout не менялись.
 
@@ -60,13 +60,13 @@ dialog. Homepage выделена под проверку AI, continuation stora
 за15.41s; dedicated site-pilot browser8PASS (390/1440 × pending/approved/unavailable/
 malformed status), actual HTTPS desktop/mobile/API PASS. Approved-state browser
 case имеет intercepted API и не считается реальным model acceptance. Ruff,
-oxlint (6pre-existing warnings), i18n guard и tsc-b PASS, pilot Vite build PASS
+oxlint (6pre-existing warnings), i18n guard и tsc-b PASS, pilot Vite build и5case build-mode matrix PASS,990runtime input provenance PASS
 (existing chunk-size warning). Новый точный CI ещё не подтверждён.
 
 Raw proof/screenshot/XML/hash attestation:
 [evidence](ai-site-pilot-20261108-evidence/https-ui-proof.json),
 [API](ai-site-pilot-20261108-evidence/https-api-proof.json),
-[network](ai-site-pilot-20261108-evidence/network-proof.log),
+[network](ai-site-pilot-20261108-evidence/network-proof.json),
 [PostGIS](ai-site-pilot-20261108-evidence/pilot-null-pg.xml).
 Секреты и snapshot в evidence/Git не входят. Access credentials только в локальном
 ignored `output/ai-site-pilot-20261108/private/access.txt`.
