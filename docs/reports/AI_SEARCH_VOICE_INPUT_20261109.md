@@ -30,6 +30,10 @@ release all tracks, including streams resolving after close. In-memory ambiguous
 audio is dropped after15minutes; only the existing nonprivate locator survives.
 The emitted worklet must be a same-origin asset (`no-inline`) to satisfy CSP.
 Proxy buffering is off to avoid audio request bodies being spooled to disk.
+The pilot document explicitly uses `camera=(), microphone=(self)`, covered by
+preview and actual proxy assertions. The earlier running API had microphone=()
+from app.main, while its HTML document had no such header; API headers are not
+the document's permission policy. Ordinary-site headers are unchanged.
 
 Source/runtime changes are opt-in: ordinary voice capability remains false;
 pilot voice requires `voice.yml`, local assets and explicit `local-pcm-v1` config.

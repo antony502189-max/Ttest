@@ -25,6 +25,9 @@ ASR endpoint. A disposable process receives bounded PCM on stdin, returns at
 most2048 bytes and is killed/joined on its8s deadline or cancellation. Runtime
 audio/transcripts are not files/logs/session fields; Nginx request buffering is
 off, JSON stays bounded in ASGI RAM, worker environment omits application keys.
+The pilot document explicitly advertises `camera=(), microphone=(self)`;
+ordinary-site permission headers are unchanged. Do not infer document permissions
+from the former full backend's API response headers.
 Intent outbound remains reconstructed constants/amount under the existing50/$1
 binding; unsupported speech is rejected locally before DeepSeek dispatch.
 
