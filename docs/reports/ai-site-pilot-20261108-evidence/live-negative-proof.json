@@ -1,0 +1,23 @@
+{
+  "input": "nonpersonal rental request with unsupported pet condition",
+  "status": "failed",
+  "failure_code": "INTENT_UNSUPPORTED",
+  "clarification": null,
+  "remaining": 3,
+  "session_version": 0,
+  "before": {
+    "attempts": 4,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true
+  },
+  "after": {
+    "attempts": 4,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true
+  },
+  "model_calls": 0
+}

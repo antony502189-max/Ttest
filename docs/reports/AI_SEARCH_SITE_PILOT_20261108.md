@@ -2,16 +2,57 @@
 
 08.11.2026 подготовлена реально доступная HTTPS-страница
 `https://app.112233.es/ai-pilot/#/`, закрытая HTTP Basic для страницы/assets/API.
-Это не прежний localhost tunnel и не synthetic каталог. **Новая модель пока
-не активирована: требуется конкретный новый spending/test-input допуск владельца;
-запрошены50attempts/$1 на неперсональные rental tests через существующий тестовый
-аккаунт. Ответ пока не получен. Новых generation calls0.**
+Это не прежний localhost tunnel и не synthetic каталог. **Владелец08.11 явно
+подтвердил50новыхattempts/$1 в предложенном owner/team nonpersonal rental scope.
+Модель включена, реальный HTTPS UI→DeepSeek→SQL→уточнение→карта→reload пройден.
+Пилот оставлен активным:4/50attempts,46осталось; local reserve44240microUSD.**
+
+## Реальный допущенный показ · 08.11,16:58–17:03MSK
+
+Первая проверка: budget600→12cards икарта. Затем test-script остановился после
+успешного запроса, потому что искал старую подпись textarea: после результата
+existing UI меняет её на «¿Qué quieres cambiar?». Это ошибка локатора скрипта,
+не failure модели/сервера. Receipt/первыйdispatch сохранены, budget не сбрасывался.
+В новом guest test session с тем же global journal выполнена полная цепочка:
+**600→12,400→3,remove budget→13**, quota2→1→0. Итого4успешных model calls,
+а не3; все4usage подтверждены. Новые вызовы внутри scope50, без refund/reset.
+Второй scripted run сохранял private browser cookie state после каждого receipt.
+
+Настоящие cards и карта отрисованы в1440px. Reload восстановил13карточек
+без нового dispatch (до/после4). Дополнительно390px: тот же owned result
+rehydrated по locator с cookie той же тестовой сессии,13cards/map PASS,
+дополнительных model calls0. Это не создание новой сессии от чужого identity.
+Неподдерживаемый неперсональный запрос с pet condition отвергнут локально:
+INTENT_UNSUPPORTED, sessionversion0, quota3, provider attempts остались4.
+
+Стоимость: reserved44240microUSD ($0.044240),14715prompt/132completion tokens;
+observed peak estimate4573microUSD ($0.004573), не invoice. Budget journal тот
+же новый pilot, historical synthetic/sealed3/3 не изменялись. Перед активацией
+сохранены DB dump/state backup, approval/key установлены через SSH stdin,
+key mode400/owner999, только backend readonly control mount. Provider-only
+proxy/network и browser CSP сохранены. Ключ/approval оставлены для разрешённого
+ручного теста, а не сняты после этих4calls. Глобальный лимит50 иper-guest3/день
+Europe/Madrid независимы; собственный новый browser гостя получает обычные3.
+
+После проверки сохранён согласованный SQLite backup текущего provider journal4/
+44240microUSD и отдельный dump pilot DB в root-private `audit-20261108-after-live`;
+[hash checkpoint](ai-site-pilot-20261108-evidence/live-checkpoint.json).
+Это checkpoint текущего счётчика, не разрешение восстанавливать старую копию
+ради нового расхода и не полный production restore certification.
+
+Live evidence:
+[UI receipts/reload](ai-site-pilot-20261108-evidence/live-ui-proof.json),
+[mobile restoration](ai-site-pilot-20261108-evidence/live-mobile-proof.json),
+[negative input](ai-site-pilot-20261108-evidence/live-negative-proof.json),
+[budget/SQL receipts](ai-site-pilot-20261108-evidence/live-receipt.json).
+
+![Настоящая карта после уточнения](ai-site-pilot-20261108-evidence/live-map-2.png)
 
 Ветка `codex/ai-search-site-pilot`, application source `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411](https://github.com/antony502189-max/Ttest/pull/411), продолжает merged main345b7ca8. Прежние
 review409/410 не повторялись. Owned final docs сохранены отдельным commit перед
 созданием ветки, чужие dirty changes старого root checkout не менялись.
 
-## Что реально работает без новой оплаты
+## Подготовка до нового допуска · исторический срез3.14
 
 - DNS `app.112233.es` →169.58.147.65, existing Traefik/HTTPS. Только route
   `Host(app.112233.es) && PathPrefix(/ai-pilot)`, отдельный frontend8443.
@@ -83,8 +124,9 @@ VPS `/srv/112233-ai-site-pilot-20261108`, Compose
 Основной frontend1292c680/production DB0066 и sealed demo3/3 не менялись. Существующий
 runtime backend сверяется SHA256 с локальными файлами отдельно от Git/CI.
 
-Следующий конкретный шаг — после нового owner spending/input approval установить
-scoped approval/key в уже подготовленную composition, затем пройти настоящие
-HTTPS UI→DeepSeek→SQL→уточнение→карта/reload с тем же новым pilot journal.
-Без ответа paid IO не выполнять. Public real-user rollout, полные S2/S3/S6,
+Шаг активации после owner approval выполнен, новые инструкции доступа и результаты
+сохранены. Далее — ручная проверка владельцем/командой в оставшихся46attempts,
+обработка конкретной обратной связи и продолжение S2.1 standing freshness/quality
+на существующем pipeline. Snapshot expiry не обходить правкой timestamps.
+Public real-user rollout, полные S2/S3/S6,
 account/data/performance/release и voice/saved/delivery/A1–A12 остаются открытыми.

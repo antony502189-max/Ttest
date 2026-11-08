@@ -578,7 +578,7 @@
     "components.json": "5c23ec49120d22a89a3907b1338c372f9a710894",
     "deploy/Dockerfile.minio-server": "893a20107d2ca15c7686a1820b5a2b193db34e1a",
     "deploy/Dockerfile.minio-tools": "9ff8b07de69afdbe3eeebb90582546e99d3e54b2",
-    "deploy/ai-site-pilot/README.md": "3a6be4fae5246a47f78c09501327300cd1154ce8",
+    "deploy/ai-site-pilot/README.md": "15c9afa5efd019b37322842b2e1bfb05e9d2c311",
     "deploy/ai-site-pilot/backend.Dockerfile": "1d045a9dbcc421dc7cda64af58016d0f2dcb4c03",
     "deploy/ai-site-pilot/backend.Dockerfile.dockerignore": "61a493703b865bd784f54b995589e07904e337aa",
     "deploy/ai-site-pilot/compose.yml": "9533259710b45542b8441fb41d39989a6fc0f83b",

@@ -1,0 +1,41 @@
+{
+  "baselineAttempts": 1,
+  "results": [
+    {
+      "status": "succeeded",
+      "count": 12,
+      "remaining": 2,
+      "result_ref": "e97a9648-0de8-464e-940e-839710acd472",
+      "criteria": 6
+    },
+    {
+      "status": "succeeded",
+      "count": 3,
+      "remaining": 1,
+      "result_ref": "af24f7d2-e3a5-499c-80ad-1e5ab224e81c",
+      "criteria": 3
+    },
+    {
+      "status": "succeeded",
+      "count": 13,
+      "remaining": 0,
+      "result_ref": "765f9214-111c-402d-bab2-b58bee4e6722",
+      "criteria": 0
+    }
+  ],
+  "before": {
+    "attempts": 4,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true
+  },
+  "after": {
+    "attempts": 4,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true
+  },
+  "reload_without_extra_call": true
+}

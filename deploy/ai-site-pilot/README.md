@@ -6,7 +6,18 @@ PostGIS0079, Redis, maintenance и state; основной сайт/DB0066 и se
 HTTP Basic применяется ко всей странице, assets и API. Секрет доступа лежит в
 локальном ignored `output/ai-site-pilot-20261108/private/access.txt`, не в Git.
 
-## Состояние перед допуском
+## Активный допуск08.11
+
+Владелец явно разрешил50новыхобращений/$1 именно в предложенном scope.
+Approval/key установлены; real HTTPS flow600→12/400→3/remove→13, карта/reload
+иmobile owned-result restoration PASS.4/50attempts,44240microUSD reserve,
+46attempts остаются на ручную проверку. Provider usage4/4, raw input не отправляется.
+Пилот оставлен активным в той же composition/journal; не удалять/не сбрасывать
+journal ради нового лимита. На каждого гостя сохраняется3успешныхоперации/день,
+независимо от общего provider budget. Фото закрыты CSP, snapshot стареет по
+исходным timestamps. Полный public/account/standing-data/release gate не закрыт.
+
+## Состояние перед допуском · историческое
 
 Страница и API доступны, модель заблокирована отсутствием `/pilot-control/approval.json`.
 Ключ в pilot не установлен, attempts0. Не называть это выполненным real-model

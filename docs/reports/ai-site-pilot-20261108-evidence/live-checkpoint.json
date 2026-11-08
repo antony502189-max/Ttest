@@ -1,0 +1,10 @@
+{
+  "provider_checkpoint_attempts": 4,
+  "provider_checkpoint_reserved_micro_usd": 44240,
+  "files": {
+    "provider.sqlite3": "35ba05c73f6c84c3a2f07aaae50d09bc2bfdcea1aafdf89c58397789d0ffd75e",
+    "pilot.dump": "3a5c02b9db25aa8b6f924c55bf86c3d0b314da271c9dac8980b43450c5d9e716"
+  },
+  "old_journals_changed": false,
+  "provider_generation_calls_by_checkpoint": 0
+}
