@@ -1,0 +1,26 @@
+name: AI pilot sealed proxy boundary
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: ai-pilot-proxy-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  sealed-proxy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Actual Traefik and Nginx boundary, no live keys or provider
+        run: python3 scripts/test-ai-pilot-proxy.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ai-pilot-sealed-proxy
+          path: output/pilot-proxy-review-*/
+          if-no-files-found: error

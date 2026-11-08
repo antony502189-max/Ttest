@@ -6,12 +6,76 @@ PostGIS0079, Redis, maintenance и state; основной сайт/DB0066 и se
 HTTP Basic применяется ко всей странице, assets и API. Секрет доступа лежит в
 локальном ignored `output/ai-site-pilot-20261108/private/access.txt`, не в Git.
 
-## Активный допуск08.11
+## Remediation PR411 — подготовлено, НЕ выложено
+
+Новая версия кода отделена от действующего пилота до review/отдельного допуска
+deployment. Она использует минимальный FastAPI только сAI routers иstatus,
+закрывает всё остальное наNginx иASGI поmethod/path allowlist, не создаёт auth
+refresh cookies. Frontend имеет отдельный entry/router/guest context/card,
+безaccount hydration/publish/pay/admin/marketplace effects. Любой другойhash
+перенаправляется наAI page; прямые API обходы получают403/404.
+
+Свежесть проверяется read-only по existing verified predicates до parser и
+непосредственно перед transport/reserve. Полностью неeligible каталог даёт
+catalog_ready=false/PILOT_CATALOG_STALE, UI закрываетsubmit; SQL/business quota
+не списываются. Это не standing refresh: исходные timestamps не продлеваются.
+
+Доверенные hops: существующий Traefik проверен read-only08.11 как172.18.0.2;
+builder требует явный проверенныйIPv4 peer, который рендерится вNginx какодин
+address. Nginx принимаетreal-IP только отэтогоpeer, берёт rightmostXFF,
+переписывает X-Real-IP иудаляет XFF/Authorization перед backend. Прямой вход
+вNginx дляpilot denied. Backend доверяет только fixed frontend172.30.41.2/32.
+Новый internal subnet172.30.41.0/28 иdynamic range172.30.41.8/29 исключают
+столкновение сfrontend. При изменении сети не расширять trust на весьsubnet.
+Сначала проверить отсутствие конфликта subnets иистинныйTraefikpeer.
+
+Единая сборка из clean checkout:
+
+```sh
+node scripts/build-ai-site-pilot.mjs 172.18.0.2
+docker compose --env-file deploy/ai-site-pilot/.env --env-file output/site-pilot-build.env -f deploy/ai-site-pilot/compose.yml build
+```
+
+Builder проверяетcleanGit, base/API prefix/mock=off, создаёт manifest сточнымSHA
+иSHA256JS/HTML, рендеритpeer ипубликует build.env. Dockerfile сверяет SHA/mode
+manifest сbuildarg; безbuilder/envfile сборка останавливается. Противоречивые
+Viteenv отвергаются внутриconfig, отсутствиеenv даёт безопасныеpilot defaults.
+Самостоятельный dockerbuild изстарыхdist не является release-процедурой.
+
+Перевыпуск network topology требует отдельно разрешённого stop/recreate только
+pilot services/network ссохранением тех жеpg/redis/state volumes, journals,
+keys иapproval. Не применятьdown-v ине копироватьsnapshot поверхboundstate.
+Полные инструкции/матрица: `docs/reports/PR411_REMEDIATION_20261108.md`.
+
+Revocation: удаление/rename approval блокирует последующие проверки, но не
+отзывает уже отправленный запрос. Обязательные два шага выполняетoperator-only
+`python deploy/ai-site-pilot/revoke.py`: сохраняетrevokedartifact, останавливает
+egress иперезапускает backend дляоборванныхin-flight. Budget reservations не
+возвращаются; pendingusage требует сверки. Передreserve есть повторный approval
+guard, но файл+сеть не объявляются атомарной транзакцией. ScriptвCI не запускает
+production; test покрываетегопорядок сmock subprocess. Rollbackкстаройсетисначала
+отключаетegress/approval, сохраняеттекущийbudget ивосстанавливаеттолькоimages/
+config/network предыдущейверсии. Старыеbudget backups радирасхода не восстанавливать.
+
+Storage prefix — **логическое namespacing**, не browser security boundary.
+Origin общий ссайтом: произвольныйscript этогоorigin технически может читать
+другиеключи. Вновойкомпозиции storagewrites ограниченыpilot language/AI locators;
+проверяютсяfavorites/drafts/saved/language/media/continuation иcomputedthirdparty
+sentinels. Длясильнойorigin isolation нуженотдельныйorigin, здесьоннеобещается.
+
+## Наблюдения счётчиков действующего прежнего пилота
+
+Источник истины — persistent provider SQLite; наружная read-only проекция:
+authenticated GET `/ai-pilot/api/v1/private-demo/status`. На08.11.2026
+18:45:10UTC (21:45:10MSK):7/50,43осталось,approved=true/halted=false.
+Это наблюдение, не обещание неизменного остатка. Credentials redacted,
+raw receipt — reports/pr411-remediation-20261108-evidence/current-status.json.
+Следующий текст4/50 относится ТОЛЬКО краннему завершённому показу около14:01UTC:
 
 Владелец явно разрешил50новыхобращений/$1 именно в предложенном scope.
 Approval/key установлены; real HTTPS flow600→12/400→3/remove→13, карта/reload
-иmobile owned-result restoration PASS.4/50attempts,44240microUSD reserve,
-46attempts остаются на ручную проверку. Provider usage4/4, raw input не отправляется.
+иmobile owned-result restoration PASS.Исторически4/50attempts,44240microUSD reserve,
+тогдаоставалось46attempts. Provider usage4/4, raw input не отправляется.
 Пилот оставлен активным в той же composition/journal; не удалять/не сбрасывать
 journal ради нового лимита. На каждого гостя сохраняется3успешныхоперации/день,
 независимо от общего provider budget. Фото закрыты CSP, snapshot стареет по

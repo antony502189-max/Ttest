@@ -16,6 +16,21 @@ from app.services.ai_pisocompartido_price import prepare_price
 from sqlalchemy.dialects import postgresql
 
 
+def consistent_source_join():
+    return ("LEFT JOIN LATERAL (SELECT * FROM external_listing_sources x "
+        "WHERE x.canonical_listing_id=l.id AND x.source_name='PisoCompartido' AND x.current_status='active' "
+        "AND x.source_url=l.primary_source_url AND x.source_price_text=l.source_price_text "
+        "AND x.normalized_payload->'price_amount'=to_jsonb(l.monthly_price) "
+        "AND x.normalized_payload->'price_currency'='\"EUR\"'::jsonb "
+        "AND x.normalized_payload->'price_period'='\"month\"'::jsonb "
+        "AND x.normalized_payload->'rental_mode'='\"long\"'::jsonb "
+        "AND x.normalized_payload->'price_is_from'='false'::jsonb "
+        "AND x.last_success_at BETWEEN statement_timestamp()-interval '86400 seconds' AND statement_timestamp() "
+        "AND (x.last_checked_at IS NULL OR x.last_checked_at<=x.last_success_at OR "
+        "(x.last_state_check_result='active' AND x.last_state_check_at=x.last_checked_at AND x.last_checked_at<=statement_timestamp())) "
+        "ORDER BY x.last_success_at DESC NULLS LAST,x.id LIMIT 1) s ON true")
+
+
 def main():
     options = argparse.ArgumentParser()
     options.add_argument("--output", type=Path, default=Path("output/ai-text-runtime-20261108/private/catalog.json"))
@@ -37,9 +52,7 @@ def main():
         f"WITH eligible AS ({eligible}) SELECT json_build_object('snapshot_at',statement_timestamp(),"
         f"'records',json_agg(json_build_object('listing',json_build_object({card}),"
         f"'source',json_build_object({source},'normalized_payload',jsonb_build_object({normalized}))))) "
-        "FROM eligible e JOIN listings l ON l.id=e.id JOIN LATERAL (SELECT * FROM external_listing_sources x "
-        "WHERE x.canonical_listing_id=l.id AND x.source_name='PisoCompartido' AND x.current_status='active' "
-        "ORDER BY x.last_success_at DESC NULLS LAST,x.id LIMIT 1) s ON true; COMMIT;")
+        f"FROM eligible e JOIN listings l ON l.id=e.id {consistent_source_join()}; COMMIT;")
     remote = """docker exec -i ttest-production-postgres-1 sh -c 'psql -X -qAt -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' """
     result = subprocess.run(["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes",
         "-o", "ConnectTimeout=10", "root@169.58.147.65", remote], input=sql, text=True,
@@ -51,6 +64,8 @@ def main():
         raise ValueError("REAL_COHORT_BOUND_EXCEEDED_OR_EMPTY")
     for row in data["records"]:
         value = row["source"]
+        if value["id"] is None:
+            raise ValueError("PUBLIC_SNAPSHOT_NO_CONSISTENT_SOURCE")
         sid = UUID(value["id"])
         prepare_price(CapturedParserSnapshot(BridgeReference(source_record_id=sid,
             canonical_listing_id=UUID(row["listing"]["id"]), source_identifier="PisoCompartido:" + sid.hex,

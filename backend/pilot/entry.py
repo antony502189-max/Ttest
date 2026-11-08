@@ -10,15 +10,19 @@ import httpx
 from pydantic import SecretStr
 from sqlalchemy.engine import make_url
 
+from app.repositories.ai_verified_cards import SourceCoverageUnavailable
 from app.services.ai_closed_deepseek import _BudgetTransport
 from app.services.ai_decision_intent import DecisionDeepSeekIntent
 from app.services.ai_deepseek_intent import DeepSeekPolicy, ProviderFailure
 from demo.entry import pipeline
 from pilot.budget import ATTEMPT, BINDING, PilotBudget
 from pilot.input import PilotGate, minimize, safe_criteria, validate_result
+from pilot.readiness import CatalogReadiness
+from pilot.surface import minimal_app
 
 ORIGIN = "https://app.112233.es"
 STATE = Path("/demo-state")
+CONTROL = Path("/pilot-control")
 
 
 def require_pilot():
@@ -34,7 +38,7 @@ def require_pilot():
 
 
 def approved():
-    path = Path("/pilot-control/approval.json")
+    path = CONTROL / "approval.json"
     if not path.exists():
         return False
     value = json.loads(path.read_bytes())
@@ -45,8 +49,9 @@ def approved():
 
 
 class PilotParser(DecisionDeepSeekIntent):
-    def __init__(self, budget):
+    def __init__(self, budget, readiness):
         self.budget, self.gate = budget, PilotGate()
+        self.readiness = readiness
         self.policy = DeepSeekPolicy(model="deepseek-flash", timeout_seconds=8,
             total_budget_seconds=10, max_tokens=1024, max_attempts=1,
             retry_delay_seconds=0, max_response_bytes=65536)
@@ -54,9 +59,10 @@ class PilotParser(DecisionDeepSeekIntent):
     async def parse(self, text, current):
         canonical = minimize(text)
         safe_criteria(current.criteria)
+        await require_catalog(self.readiness)
         if not approved():
             raise ProviderFailure("PILOT_SPENDING_APPROVAL_REQUIRED")
-        key = Path("/pilot-control/deepseek.env").read_text().strip()
+        key = (CONTROL / "deepseek.env").read_text().strip()
         prefix = "AI_INTENT_EVAL_DEEPSEEK_KEY="
         if not key.startswith(prefix) or "\n" in key or not key[len(prefix):]:
             raise ProviderFailure("DEDICATED_PILOT_KEY_REQUIRED")
@@ -64,8 +70,8 @@ class PilotParser(DecisionDeepSeekIntent):
         # operation's transport while its gate is awaiting.
         adapter = object.__new__(DecisionDeepSeekIntent)
         adapter.key, adapter.gate, adapter.policy = SecretStr(key[len(prefix):]), self.gate, self.policy
-        adapter.transport = _BudgetTransport(httpx.AsyncHTTPTransport(retries=0, trust_env=False,
-            proxy="http://egress:3128", limits=httpx.Limits(max_connections=1, max_keepalive_connections=0)), self.budget)
+        adapter.transport = PilotTransport(httpx.AsyncHTTPTransport(retries=0, trust_env=False,
+            proxy="http://egress:3128", limits=httpx.Limits(max_connections=1, max_keepalive_connections=0)), self.budget, self.readiness)
         identity = hashlib.sha256(f"{current.session_id}|{current.version}|{canonical}".encode()).hexdigest()
         token = ATTEMPT.set(identity)
         try:
@@ -78,10 +84,31 @@ class PilotParser(DecisionDeepSeekIntent):
             ATTEMPT.reset(token)
 
 
+async def require_catalog(readiness):
+    if not (await readiness())["catalog_ready"]:
+        raise SourceCoverageUnavailable("PILOT_CATALOG_STALE")
+
+
+def require_approval():
+    if not approved():
+        raise ProviderFailure("PILOT_SPENDING_APPROVAL_REQUIRED")
+
+
+class PilotTransport(_BudgetTransport):
+    def __init__(self, inner, budget, readiness):
+        super().__init__(inner, budget)
+        self.readiness = readiness
+
+    async def handle_async_request(self, request):
+        await require_catalog(self.readiness)
+        require_approval()
+        return await super().handle_async_request(request)
+
+
 def create_app():
     require_pilot()
     from app.db.session import SessionLocal
-    from app.main import app
+    app = minimal_app()
     from app.repositories.ai_search_sessions import SessionPolicy
     from app.schemas.ai_search_quota import LeasePolicy
     from app.services.ai_guest_tokens import GuestPolicy, GuestTokens
@@ -91,12 +118,15 @@ def create_app():
     from demo.seed_state import verify_completed
     keys = json.loads((STATE / "signing.json").read_bytes())
     budget = PilotBudget(STATE / "provider.sqlite3")
-    runtime = assemble_text_runtime(pipeline=pipeline(SessionLocal), parser=PilotParser(budget),
+    budget.dispatch_guard = require_approval
+    facts = pipeline(SessionLocal)
+    readiness = CatalogReadiness(facts)
+    runtime = assemble_text_runtime(pipeline=facts, parser=PilotParser(budget, readiness),
         limiter=RedisRateLimiter("redis://redis:6379/0"),
         lease_policy=LeasePolicy(reservation_seconds=60, running_seconds=60, recovery_grace_seconds=30),
         session_policy=SessionPolicy(inactivity_seconds=86400),
         guests=GuestTokens(key=bytes.fromhex(keys["guest"]), policy=GuestPolicy(ttl_seconds=604800)),
-        cursor_key=bytes.fromhex(keys["cursor"]), http_policy=AIHTTPPolicy(20, 3, (), ORIGIN),
+        cursor_key=bytes.fromhex(keys["cursor"]), http_policy=AIHTTPPolicy(20, 3, ("172.30.41.2/32",), ORIGIN),
         origins=frozenset({ORIGIN}), max_body_bytes=32768, execution_seconds=15)
     install_text_runtime(app, runtime)
     original = app.router.lifespan_context
@@ -115,6 +145,10 @@ def create_app():
         from fastapi.responses import JSONResponse
         value = await asyncio.to_thread(budget.status)
         value["approved"] = approved()
-        value["halted"] = value["halted"] or not value["approved"]
+        try:
+            value.update(await readiness())
+        except Exception:  # noqa: BLE001 - fixed private fail-closed status
+            value.update(catalog_ready=False, catalog_reason="PILOT_CATALOG_UNAVAILABLE")
+        value["halted"] = value["halted"] or not value["approved"] or not value["catalog_ready"]
         return JSONResponse(value, headers={"Cache-Control": "no-store"})
     return app

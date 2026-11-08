@@ -18,6 +18,7 @@ ATTEMPT = ContextVar("pilot_attempt", default=None)
 
 class PilotBudget(EvaluationBudget):
     _connect = DemoBudget._connect
+    dispatch_guard = None  # Explicit composition may add a synchronous approval fence.
 
     def __init__(self, path: Path, *, initialize=False, **_kwargs):
         self.path = Path(path).absolute()
@@ -48,6 +49,8 @@ class PilotBudget(EvaluationBudget):
             raise ProviderFailure("PILOT_DISPATCH_CONTEXT_REQUIRED")
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
+            if self.dispatch_guard is not None:
+                self.dispatch_guard()
             count, spent, missing = db.execute("SELECT count(*),coalesce(sum(reserved),0),count(*)-count(prompt_tokens) FROM attempts").fetchone()
             if count >= 50 or spent + RESERVE_MICRO_USD > 1_000_000:
                 raise ProviderFailure("PROVIDER_COST_BUDGET_EXHAUSTED")

@@ -1,0 +1,14 @@
+[
+  {
+    "phase": "a",
+    "source_ip": "172.30.41.10",
+    "checks": "PASS",
+    "external_provider_calls": 0
+  },
+  {
+    "phase": "b",
+    "source_ip": "172.30.41.11",
+    "checks": "PASS",
+    "external_provider_calls": 0
+  }
+]

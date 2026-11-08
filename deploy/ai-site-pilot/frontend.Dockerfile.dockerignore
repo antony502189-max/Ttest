@@ -2,6 +2,7 @@
 !output/
 !output/site-pilot-dist/
 !output/site-pilot-dist/**
+!output/site-pilot-nginx.conf
 !deploy/
 !deploy/ai-site-pilot/
 !deploy/ai-site-pilot/nginx.conf

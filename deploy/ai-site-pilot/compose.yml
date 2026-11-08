@@ -62,10 +62,12 @@ services:
     mem_limit: 96m
   frontend:
     <<: *common
-    build: { context: ../.., dockerfile: deploy/ai-site-pilot/frontend.Dockerfile, args: { BASE_IMAGE: 'ttest-private-demo-base-frontend:322fbc51b56f' } }
+    build: { context: ../.., dockerfile: deploy/ai-site-pilot/frontend.Dockerfile, args: { BASE_IMAGE: 'ttest-private-demo-base-frontend:322fbc51b56f', PILOT_SOURCE_SHA: '${PILOT_SOURCE_SHA:?run clean pilot builder first}' } }
     image: ttest-ai-site-pilot-frontend:20261108
     volumes: ['./private/htpasswd:/pilot-auth/htpasswd:ro']
-    networks: [internal, traefik-public]
+    networks:
+      internal: {ipv4_address: 172.30.41.2}
+      traefik-public: {}
     ports: ['127.0.0.1:19445:8443']
     mem_limit: 128m
     labels:
@@ -83,6 +85,8 @@ volumes:
   redis: {labels: {es.ttest.purpose: ai-site-pilot-20261108}}
   state: {labels: {es.ttest.purpose: ai-site-pilot-20261108}}
 networks:
-  internal: {internal: true}
+  internal:
+    internal: true
+    ipam: {config: [{subnet: 172.30.41.0/28, ip_range: 172.30.41.8/29}]}
   outbound: {}
   traefik-public: {external: true}

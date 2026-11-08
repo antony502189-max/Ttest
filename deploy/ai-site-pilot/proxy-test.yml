@@ -1,0 +1,35 @@
+# Sealed contract fixture. No host ports, live keys, state volumes or Docker socket.
+services:
+  backend:
+    build: {context: ../.., dockerfile: deploy/ai-site-pilot/proxy-test.Dockerfile}
+    image: ${PILOT_TEST_BACKEND_IMAGE:-ai-pilot-proxy-test:local}
+    environment: {APP_ENV: test, REDIS_URL: 'redis://redis:6379/0'}
+    networks: {test: {ipv4_address: 172.30.41.3}}
+  frontend:
+    image: ${PILOT_TEST_NGINX_IMAGE:-mirror.gcr.io/nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0}
+    volumes:
+      - ${PILOT_TEST_DIR:?explicit fixture dir}:/fixture:ro
+      - ${PILOT_TEST_DIR}/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${PILOT_TEST_DIR}/htpasswd:/pilot-auth/htpasswd:ro
+      - ${PILOT_TEST_DIR}/index.html:/usr/share/nginx/html/ai-pilot/index.html:ro
+    networks: {test: {ipv4_address: 172.30.41.2}}
+  traefik:
+    image: traefik@sha256:652929a140a32d7cafafb13c6cdfab5376cfeff800f51397b87b524501ed02a8
+    command: [--api.dashboard=false, --entrypoints.web.address=:8080, --providers.file.filename=/fixture/traefik.yml]
+    volumes: ['${PILOT_TEST_DIR}:/fixture:ro']
+    networks: {test: {ipv4_address: 172.30.41.9}}
+  redis:
+    image: redis@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
+    networks: {test: {ipv4_address: 172.30.41.4}}
+  clienta:
+    image: ${PILOT_TEST_BACKEND_IMAGE:-ai-pilot-proxy-test:local}
+    command: [python, -c, 'import time; time.sleep(600)']
+    networks: {test: {ipv4_address: 172.30.41.10}}
+  clientb:
+    image: ${PILOT_TEST_BACKEND_IMAGE:-ai-pilot-proxy-test:local}
+    command: [python, -c, 'import time; time.sleep(600)']
+    networks: {test: {ipv4_address: 172.30.41.11}}
+networks:
+  test:
+    internal: true
+    ipam: {config: [{subnet: 172.30.41.0/28}]}

@@ -45,6 +45,10 @@ jobs:
         run: npx playwright test --config playwright.ai-demo.config.ts
       - name: Site pilot desktop/mobile access and pending spending gate (no provider)
         run: npx playwright test --config playwright.ai-site-pilot.config.ts
+      - name: Site pilot fail-closed release build
+        run: |
+          node scripts/test-ai-site-pilot-build.mjs
+          node scripts/build-ai-site-pilot.mjs 172.18.0.2
       - name: Lab build-mode matrix (no provider)
         run: node scripts/check-ai-lab-builds.mjs output/ai-lab-build-matrix
       - name: Exact runtime code and evidence provenance
