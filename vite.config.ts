@@ -55,6 +55,7 @@ function isolateMockDataFromProduction(mockMode: boolean): Plugin {
 export default defineConfig(({ mode }) => {
   const syntheticLab = mode === 'ai-synthetic-lab'
   const privateDemo = mode === 'ai-private-demo'
+  const sitePilot = mode === 'ai-site-pilot'
   const labMode = syntheticLab ? (process.env.VITE_AI_CLOSED_LAB
     || loadEnv(mode, process.cwd(), 'VITE_').VITE_AI_CLOSED_LAB || 'finite') : ''
   const labSource = syntheticLab ? (process.env.VITE_AI_LAB_SOURCE_SHA
@@ -76,7 +77,12 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_AI_LAB_SOURCE_SHA': JSON.stringify(labSource),
     },
     base: process.env.VITE_BASE_PATH || '/',
-    plugins: [isolateMockDataFromProduction(mockMode), react(), tailwindcss(), ...(privateDemo ? [{
+    plugins: [isolateMockDataFromProduction(mockMode), react(), tailwindcss(), ...(sitePilot ? [{
+      name: 'site-pilot-notice',
+      transformIndexHtml: (html: string) => html.replace(/<body[^>]*>/, '$&<aside style="padding:12px;background:#e8f2e1;color:#173d20;text-align:center" data-i18n-exempt>Закрытый AI-пилот · Реальные публичные объявления PisoCompartido. Выберите долгосрочную аренду. Попробуйте: «до 600 евро в месяц», затем «теперь до 400 евро в месяц», «убери ограничение бюджета». Также: “rooms under 500 euros per month”, “habitaciones hasta 500 euros al mes”. Бюджет €50–1000. Другие условия пока не поддерживаются. Не вводите личные данные. Карта — координатная сетка.</aside>'),
+      transform: (code: string, id: string) => id.replaceAll('\\', '/').endsWith('/src/api/ai-continuation.ts')
+        ? code.replace('112233:ai-continuation:v1:', '112233:site-pilot:ai-continuation:v1:') : null,
+    }] : []), ...(privateDemo ? [{
       name: 'private-demo-notice',
       transformIndexHtml: (html: string) => html.replace(/<body[^>]*>/, '$&<aside style="padding:12px;background:#e8f2e1;color:#173d20;text-align:center" data-i18n-exempt>Закрытая демонстрация · DeepSeek + снимок реальных публичных объявлений PisoCompartido. Выберите долгосрочную аренду. Фразы по порядку: «до 600 евро в месяц» → «теперь до 400 евро в месяц» → «убери ограничение бюджета». Лимит: 3 обращения к модели. Карта — координатная сетка без внешних тайлов.</aside>'),
     }] : []), ...(syntheticLab ? [{
@@ -95,8 +101,9 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: {
-        '@/components/private-demo-status': path.resolve(import.meta.dirname, privateDemo ? './src/lab/private-demo-status.tsx' : './src/components/private-demo-status.tsx'),
-        ...(syntheticLab || privateDemo ? { '@/components/ai-result-map': path.resolve(import.meta.dirname, './src/lab/ai-synthetic-map.tsx') } : {}),
+        ...(sitePilot ? { '@/pages/HomePage': path.resolve(import.meta.dirname, './src/lab/site-pilot-home.tsx') } : {}),
+        '@/components/private-demo-status': path.resolve(import.meta.dirname, sitePilot ? './src/lab/site-pilot-status.tsx' : privateDemo ? './src/lab/private-demo-status.tsx' : './src/components/private-demo-status.tsx'),
+        ...(syntheticLab || privateDemo || sitePilot ? { '@/components/ai-result-map': path.resolve(import.meta.dirname, './src/lab/ai-synthetic-map.tsx') } : {}),
         'shadcn/tailwind.css': path.resolve(import.meta.dirname, './src/styles/shadcn-tailwind.css'),
         '@/components/marketplace': path.resolve(import.meta.dirname, './src/components/marketplace-localized.tsx'),
         '@/contexts/mock-app-provider': path.resolve(import.meta.dirname, mockProviderModule),

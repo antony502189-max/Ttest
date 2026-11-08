@@ -190,3 +190,29 @@ def test_malformed_snapshot_rejected_before_state_creation(fault):
     if fault == "bad_position":first["listing"]["latitude"] = 999
     if fault == "naive_time":value["snapshot_at"] = "2026-11-08T01:00:00"
     with pytest.raises(ValueError):validated_snapshot(value)
+
+
+async def test_explicit_unknown_fields_remain_null_and_resume_with_pilot_budget(seed_database):
+    from pilot.budget import PilotBudget
+    dsn, name, file, state = seed_database
+    engine = create_async_engine(dsn, pool_size=2, max_overflow=0)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    value = json.loads(file.read_text())
+    fields = ("furnished", "room_capacity", "room_size_m2", "bills_included", "bathroom", "kitchen", "pets_allowed", "smoking_allowed", "children_allowed")
+    for record in value["records"]:
+        record["listing"].update({key: None for key in fields})
+    try:
+        async def seed():
+            return await seed_catalog(engine, factory, value, state,
+                lambda *, initialize: ErasureJournal(state/"erasure.sqlite3", b"s"*32, initialize=initialize),
+                database_name=name, budget_factory=PilotBudget)
+        assert (await seed())["prepared"] == 12
+        async with factory() as session:
+            rows = (await session.execute(text("SELECT " + ",".join(fields) + " FROM listings"))).all()
+            assert len(rows) == 12 and all(all(v is None for v in row) for row in rows)
+        before = {p.name:p.read_bytes() for p in state.iterdir()}
+        assert (await seed())["prepared"] == 12
+        assert before == {p.name:p.read_bytes() for p in state.iterdir()}
+        assert PilotBudget(state/"provider.sqlite3").summary()["attempts"] == 0
+    finally:
+        await engine.dispose()

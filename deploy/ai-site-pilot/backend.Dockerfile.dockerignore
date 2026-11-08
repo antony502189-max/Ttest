@@ -1,0 +1,14 @@
+**
+!backend/
+!backend/app/
+!backend/app/**
+!backend/alembic/
+!backend/alembic/**
+!backend/demo/
+!backend/demo/**
+!backend/pilot/
+!backend/pilot/**
+!backend/alembic.ini
+!deploy/
+!deploy/ai-site-pilot/
+!deploy/ai-site-pilot/backend.Dockerfile
