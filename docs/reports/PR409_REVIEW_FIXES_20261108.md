@@ -24,3 +24,7 @@ R-409-B: terminal status assertions и waiter cases теперь явные.
 Это synthetic/mock бюджет, не provider USD journal. Нет real source/LLM calls,
 ACK, merge или production deployment. Совместимость с410 проверяется отдельным
 фактическим combined tree, исходные зелёные CI её не доказывают.
+
+## Final source validation
+
+Source `f799dbbc`: actual Linux PostGIS **16 PASS/0skip** (13claims,3hard process), в том числе4 новых terminal/waiter cases. 55 focused unit PASS. Наборы не суммировать как полный backend suite. Первый ошибочный test argument-order run не принят. Raw JUnit/hash рядом в pr409-review-20261108-evidence. Exact-head CI после push отдельный.
