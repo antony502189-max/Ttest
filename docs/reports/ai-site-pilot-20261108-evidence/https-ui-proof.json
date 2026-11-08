@@ -16,5 +16,6 @@
   "status": "Страница подготовлена. Обращения к модели ждут согласования тестового лимита.",
   "failures": [],
   "errors": [],
-  "paid_calls": 0
+  "paid_calls": 0,
+  "ordinary_site_storage_preserved": true
 }

@@ -10,7 +10,7 @@
 
 **Историческая передача3.13:**
 
-Source3.14: application `2eeb48b4404de5945697dea24fed5f0a2191e266`, [draft PR411](https://github.com/antony502189-max/Ttest/pull/411). Backend deployed-file SHA256 match подтверждён отдельно;990runtime inputs и5build-mode cases PASS. CI PR411 запущен, итог ещё не подтверждён. Credentials — только ignored local access.txt; в Git/evidence не помещены.
+Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411](https://github.com/antony502189-max/Ttest/pull/411). Backend deployed-file SHA256 match подтверждён отдельно;990runtime inputs и5build-mode cases PASS. Final pilot browser namespace isolation/8cases иactualHTTPS desktop/mobile PASS. Предыдущийb2a51e75 CI9SUCCESS/2conditionalSKIP/2in_progress/failure0, включая frontend/combined иseed20PASS; это не новый current-head CI. Credentials — только ignored local access.txt; в Git/evidence не помещены.
 
 **Прямой приоритет владельца / передача3.13:** пользователь подтвердил закрытый текстовый pilot на домене сайта и попросил новый чат GPT‑6.1 Sol / medium, автономную работу до фактического лимита сессии. Ближайший результат в пару обращений — рабочий AI Search, который заказчик может открыть по защищённому URL и вручную испытать; мелкие улучшения затем. Сначала действующий вертикальный текстовый сценарий на существующих runtime/UI/pipeline, без нового synthetic стенда или повторного общего аудита. Проект112233.es подтверждён. Не начинать заново review409/410: они merged, main345b7ca8/tree d5c3a9d0.
 

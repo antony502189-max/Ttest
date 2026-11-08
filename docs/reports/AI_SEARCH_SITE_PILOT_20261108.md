@@ -7,7 +7,7 @@
 запрошены50attempts/$1 на неперсональные rental tests через существующий тестовый
 аккаунт. Ответ пока не получен. Новых generation calls0.**
 
-Ветка `codex/ai-search-site-pilot`, application source `2eeb48b4404de5945697dea24fed5f0a2191e266`, [draft PR411](https://github.com/antony502189-max/Ttest/pull/411), продолжает merged main345b7ca8. Прежние
+Ветка `codex/ai-search-site-pilot`, application source `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411](https://github.com/antony502189-max/Ttest/pull/411), продолжает merged main345b7ca8. Прежние
 review409/410 не повторялись. Owned final docs сохранены отдельным commit перед
 созданием ветки, чужие dirty changes старого root checkout не менялись.
 
@@ -52,7 +52,7 @@ disposable PG regression с repeated seed и неизменными state bytes.
 После пересоздания backend nginx держал прежний DNS IP; добавлены Docker
 resolver/variable upstream. Mobile onboarding обычного сайта скрывал pilot page;
 только pilot build выключает этот shell и использует responsive existing AI
-dialog. Homepage выделена под проверку AI, continuation storage namespace отдельный.
+dialog. Homepage выделена под проверку AI, все112233 browser storage/event namespaces вpilot build отдельные, включая favorites/drafts/language/continuation. Новый sentinel test и actual HTTPS desktop/mobile подтвердили сохранность ordinary-site localStorage.
 
 ## Проверки и пределы
 
@@ -62,6 +62,13 @@ malformed status), actual HTTPS desktop/mobile/API PASS. Approved-state browser
 case имеет intercepted API и не считается реальным model acceptance. Ruff,
 oxlint (6pre-existing warnings), i18n guard и tsc-b PASS, pilot Vite build и5case build-mode matrix PASS,990runtime input provenance PASS
 (existing chunk-size warning). Новый точный CI ещё не подтверждён.
+
+Предыдущий pre-storage-fix headb2a51e75:9workflows SUCCESS,2conditional SKIPPED,
+Mobile/Production ещё in_progress при последней сверке, failure0. В том числе
+AI frontend/combined и private seed20/20 PASS (98.72s). Это не CI текущего54d3a28d;
+его новый exact-head run нужен после push. Ожидание нового spending approval
+этим не отменяется. Скрипты финальной активации/real UI smoke подготовлены в
+ignored `output/ai-site-pilot-20261108/activate.py` и `live-smoke.mjs`; не запущены.
 
 Raw proof/screenshot/XML/hash attestation:
 [evidence](ai-site-pilot-20261108-evidence/https-ui-proof.json),
