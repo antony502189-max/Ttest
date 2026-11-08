@@ -5,8 +5,9 @@ x-demo: &demo
 x-env: &env
   APP_ENV: test
   AI_PRIVATE_TEXT_DEMO_APPROVAL: owner-approved-private-text-demo-20261108-v1
-  DATABASE_URL: postgresql+asyncpg://ai_demo:private-demo-only@postgres:5432/ai_text_demo_20261108
-  AI_MAINTENANCE_DATABASE_URL: postgresql+asyncpg://ai_demo:private-demo-only@postgres:5432/ai_text_demo_20261108
+  DATABASE_URL: postgresql+asyncpg://ai_demo:${AI_DEMO_DATABASE_PASSWORD:?random demo password required}@postgres:5432/ai_text_demo_20261108
+  AI_MAINTENANCE_DATABASE_URL: postgresql+asyncpg://ai_demo:${AI_DEMO_DATABASE_PASSWORD:?random demo password required}@postgres:5432/ai_text_demo_20261108
+  AI_DEMO_DATABASE_PASSWORD: ${AI_DEMO_DATABASE_PASSWORD:?random demo password required}
   REDIS_URL: redis://redis:6379/0
   FRONTEND_APP_URL: http://localhost:9444
   FRONTEND_ORIGINS: http://localhost:9444
@@ -23,7 +24,7 @@ services:
   postgres:
     <<: *demo
     image: ${DEMO_POSTGRES_IMAGE:?existing immutable PostGIS image required}
-    environment: { POSTGRES_USER: ai_demo, POSTGRES_PASSWORD: private-demo-only, POSTGRES_DB: ai_text_demo_20261108 }
+    environment: { POSTGRES_USER: ai_demo, POSTGRES_PASSWORD: '${AI_DEMO_DATABASE_PASSWORD:?random demo password required}', POSTGRES_DB: ai_text_demo_20261108 }
     volumes: [ 'pg:/var/lib/postgresql/data' ]
     networks: [ internal ]
     mem_limit: 512m

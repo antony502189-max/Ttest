@@ -95,6 +95,7 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: {
+        '@/components/private-demo-status': path.resolve(import.meta.dirname, privateDemo ? './src/lab/private-demo-status.tsx' : './src/components/private-demo-status.tsx'),
         ...(syntheticLab || privateDemo ? { '@/components/ai-result-map': path.resolve(import.meta.dirname, './src/lab/ai-synthetic-map.tsx') } : {}),
         'shadcn/tailwind.css': path.resolve(import.meta.dirname, './src/styles/shadcn-tailwind.css'),
         '@/components/marketplace': path.resolve(import.meta.dirname, './src/components/marketplace-localized.tsx'),

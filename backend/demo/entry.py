@@ -7,18 +7,24 @@ import hashlib
 import json
 import logging
 import os
+import re
+from contextlib import asynccontextmanager, suppress
 from decimal import Decimal
+from hmac import compare_digest
 from pathlib import Path
 
 import httpx
 from pydantic import SecretStr
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 
-from app.services.ai_closed_deepseek import RESERVE_MICRO_USD, EvaluationBudget, _BudgetTransport
+from app.schemas.ai_search_intent import apply_patch
+from app.services.ai_closed_deepseek import _BudgetTransport
 from app.services.ai_decision_intent import DecisionDeepSeekIntent
 from app.services.ai_deepseek_intent import DeepSeekPolicy, OutboundIntentInput, ProviderFailure
+from demo.budget import ATTEMPT, TICKET, DemoBudget
 
 ORIGIN = "http://localhost:9444"  # Loopback only, reached through an encrypted SSH tunnel.
-DATABASE = "postgresql+asyncpg://ai_demo:private-demo-only@postgres:5432/ai_text_demo_20261108"
 APPROVAL = "owner-approved-private-text-demo-20261108-v1"
 PHRASES = ("до 600 евро в месяц", "теперь до 400 евро в месяц", "убери ограничение бюджета")
 BINDING = hashlib.sha256(json.dumps({"approval": APPROVAL, "phrases": PHRASES,
@@ -27,38 +33,45 @@ BINDING = hashlib.sha256(json.dumps({"approval": APPROVAL, "phrases": PHRASES,
 
 def require_demo():
     expected = {"APP_ENV": "test", "AI_PRIVATE_TEXT_DEMO_APPROVAL": APPROVAL,
-        "DATABASE_URL": DATABASE, "REDIS_URL": "redis://redis:6379/0",
+        "REDIS_URL": "redis://redis:6379/0",
         "FRONTEND_APP_URL": ORIGIN, "FRONTEND_ORIGINS": ORIGIN,
         "EXTERNAL_IMPORT_ENABLED": "false", "EXTERNAL_REMOVAL_CHECK_ENABLED": "false"}
     if any(os.environ.get(k) != v for k, v in expected.items()):
         raise ValueError("PRIVATE_DEMO_CONFIGURATION_REQUIRED")
+    try:
+        url = make_url(os.environ.get("DATABASE_URL", ""))
+        password = os.environ.get("AI_DEMO_DATABASE_PASSWORD", "")
+        if (not re.fullmatch(r"[0-9a-f]{64}", password) or url.drivername != "postgresql+asyncpg"
+                or url.username != "ai_demo" or url.host not in {"postgres", "127.0.0.1", "localhost"}
+                or url.port not in {None, 5432} or url.database != "ai_text_demo_20261108"
+                or not compare_digest(url.password or "", password) or url.query):
+            raise ValueError
+    except (ValueError, ArgumentError, UnicodeError):
+        raise ValueError("PRIVATE_DEMO_DATABASE_CONFIGURATION_REQUIRED") from None
+
+
+def approved_states():
+    mode = {"rental_mode": {"strength": "hard", "value": "long"}}
+    return [mode, *[mode | {"budget": {"strength": "hard", "value": {
+        "amount": amount, "currency": "EUR", "period": "monthly"}}} for amount in ("600", "400")], mode]
+
+
+def normalized_criteria(criteria):
+    value = criteria.model_dump(mode="json", exclude_none=True)
+    if "budget" in value:
+        value["budget"]["value"]["amount"] = format(Decimal(value["budget"]["value"]["amount"]).normalize(), "f")
+    return value
 
 
 class DemoGate:
     async def prepare(self, text, current):
-        criteria = current.criteria.model_dump(mode="json", exclude_none=True)
-        if "budget" in criteria:
-            criteria["budget"]["value"]["amount"] = format(Decimal(criteria["budget"]["value"]["amount"]).normalize(), "f")
-        mode = {"rental_mode": {"strength": "hard", "value": "long"}}
         # Check the exact sequential state; IDs/history/catalogue never enter IO.
-        states = [mode, mode | {"budget": {"strength": "hard", "value": {
-            "amount": "600", "currency": "EUR", "period": "monthly"}}},
-            mode | {"budget": {"strength": "hard", "value": {
-                "amount": "400", "currency": "EUR", "period": "monthly"}}}]
-        if text not in PHRASES or criteria != states[PHRASES.index(text)]:
+        if text not in PHRASES or normalized_criteria(current.criteria) != approved_states()[PHRASES.index(text)]:
             raise ProviderFailure("PRIVATE_DEMO_INPUT_NOT_APPROVED")
+        step = PHRASES.index(text)
+        ATTEMPT.set((str(current.session_id), current.version, step))
         return OutboundIntentInput(schema_version="ai-intent-input.v1", provider="deepseek",
                                     purpose="intent_patch", text=text, criteria=current.criteria)
-
-
-class DemoBudget(EvaluationBudget):
-    def reserve(self):
-        with self._connect() as db:
-            db.execute("BEGIN IMMEDIATE")
-            calls, spent = db.execute("SELECT count(*),coalesce(sum(reserved),0) FROM attempts").fetchone()
-            if calls >= 3 or spent + RESERVE_MICRO_USD > 100000:
-                raise ProviderFailure("PROVIDER_COST_BUDGET_EXHAUSTED")
-            return db.execute("INSERT INTO attempts(reserved) VALUES (?)", (RESERVE_MICRO_USD,)).lastrowid
 
 
 class DemoParser(DecisionDeepSeekIntent):
@@ -81,6 +94,27 @@ class DemoParser(DecisionDeepSeekIntent):
             retry_delay_seconds=0, max_response_bytes=65536)
         self.transport = DemoTransport(httpx.AsyncHTTPTransport(retries=0, trust_env=False,
             limits=httpx.Limits(max_connections=1, max_keepalive_connections=0)), self.budget)
+
+    async def parse(self, text, current):
+        attempt_context, ticket_context = ATTEMPT.set(None), TICKET.set(None)
+        try:
+            patch = await super().parse(text, current)
+            attempt, ticket = ATTEMPT.get(), TICKET.get()
+            if (attempt is None or ticket is None or normalized_criteria(apply_patch(current, patch).criteria)
+                    != approved_states()[attempt[2] + 1]):
+                raise ProviderFailure("PRIVATE_DEMO_SEMANTIC_SEQUENCE_REJECTED")
+            self.budget.accept(ticket)
+            return patch
+        except BaseException:
+            if TICKET.get() is not None:
+                # An uncertain model/SQL continuation is never another paid
+                # retry of step zero. Pending reservations also block restart.
+                with suppress(Exception):
+                    self.budget.uncertain(TICKET.get())
+            raise
+        finally:
+            ATTEMPT.reset(attempt_context)
+            TICKET.reset(ticket_context)
 
 
 class DemoTransport(_BudgetTransport):
@@ -114,7 +148,8 @@ def create_app():
     from app.services.rate_limit import RedisRateLimiter
     state = Path("/demo-state/signing.json")
     keys = json.loads(state.read_text())
-    runtime = assemble_text_runtime(pipeline=pipeline(SessionLocal), parser=DemoParser(),
+    parser = DemoParser()
+    runtime = assemble_text_runtime(pipeline=pipeline(SessionLocal), parser=parser,
         limiter=RedisRateLimiter("redis://redis:6379/0"),
         lease_policy=LeasePolicy(reservation_seconds=60, running_seconds=60, recovery_grace_seconds=30),
         session_policy=SessionPolicy(inactivity_seconds=86400),
@@ -122,4 +157,23 @@ def create_app():
         cursor_key=bytes.fromhex(keys["cursor"]), http_policy=AIHTTPPolicy(20, 3, (), ORIGIN),
         origins=frozenset({ORIGIN}), max_body_bytes=32768, execution_seconds=15)
     install_text_runtime(app, runtime)
+    original_lifespan = app.router.lifespan_context
+
+    @asynccontextmanager
+    async def lifespan(application):
+        if parser.budget.summary()["attempts"] < 3:
+            from demo.seed import verify_completed
+            await verify_completed(SessionLocal, keys)
+        async with original_lifespan(application):
+            yield
+
+    app.router.lifespan_context = lifespan
+
+    @app.get("/api/v1/private-demo/status", include_in_schema=False)
+    async def demo_status():
+        import asyncio
+
+        from fastapi.responses import JSONResponse
+        return JSONResponse(await asyncio.to_thread(parser.budget.status),
+                            headers={"Cache-Control": "no-store"})
     return app
