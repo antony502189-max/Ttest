@@ -1,0 +1,102 @@
+{
+  "artifact_id": 13615540649,
+  "zip_sha256": "6fa1fa917dcda60752ba18eb7d0291c4efefca182ecc36831afaf4e6ce4e0565",
+  "head": "38e6de44481cf7e248e43ac165eece396ca50498",
+  "suites": {
+    "ai-facts-unit.xml": {
+      "cases": 1774,
+      "failed": 0,
+      "skipped": 7,
+      "review_claims_process": []
+    },
+    "ai-http-browser.xml": {
+      "cases": 1,
+      "failed": 0,
+      "skipped": 0,
+      "review_claims_process": []
+    },
+    "ai-facts-pg.xml": {
+      "cases": 1007,
+      "failed": 0,
+      "skipped": 1,
+      "review_claims_process": [
+        {
+          "name": "test_other_receipt_cannot_claim_the_same_live_source",
+          "passed": true
+        },
+        {
+          "name": "test_two_sources_and_callers_share_one_durable_request_cap",
+          "passed": true
+        },
+        {
+          "name": "test_failed_get_spends_durable_budget_and_reopen_does_not_reset_it[refresh_setup0]",
+          "passed": true
+        },
+        {
+          "name": "test_unknown_claim_ack_is_charged_before_dispatch_and_recovers_after_lease",
+          "passed": true
+        },
+        {
+          "name": "test_expired_claim_cannot_dispatch_a_get",
+          "passed": true
+        },
+        {
+          "name": "test_one_reservation_cannot_dispatch_twice",
+          "passed": true
+        },
+        {
+          "name": "test_new_owner_fences_a_late_old_http_response[refresh_setup0]",
+          "passed": true
+        },
+        {
+          "name": "test_final_fence_failure_rolls_back_source_projection_and_receipt",
+          "passed": true
+        },
+        {
+          "name": "test_claim_waiter_rechecks_effect_committed_while_waiting",
+          "passed": true
+        },
+        {
+          "name": "test_terminal_write_finishes_claim_and_unblocks_retry_without_refund[refresh_setup0-False-stale]",
+          "passed": true
+        },
+        {
+          "name": "test_terminal_write_finishes_claim_and_unblocks_retry_without_refund[refresh_setup0-False-capacity]",
+          "passed": true
+        },
+        {
+          "name": "test_terminal_write_finishes_claim_and_unblocks_retry_without_refund[refresh_setup0-True-stale]",
+          "passed": true
+        },
+        {
+          "name": "test_terminal_write_finishes_claim_and_unblocks_retry_without_refund[refresh_setup0-True-capacity]",
+          "passed": true
+        },
+        {
+          "name": "test_hard_kill_consumer_preserves_budget_fence_and_exact_effect[reserved-refresh_setup0]",
+          "passed": true
+        },
+        {
+          "name": "test_hard_kill_consumer_preserves_budget_fence_and_exact_effect[http-refresh_setup0]",
+          "passed": true
+        },
+        {
+          "name": "test_hard_kill_consumer_preserves_budget_fence_and_exact_effect[committed-refresh_setup0]",
+          "passed": true
+        }
+      ]
+    },
+    "ai-real-http-recovery.xml": {
+      "cases": 4,
+      "failed": 0,
+      "skipped": 0,
+      "review_claims_process": []
+    },
+    "ai-verified-cards.xml": {
+      "cases": 78,
+      "failed": 0,
+      "skipped": 1,
+      "review_claims_process": []
+    }
+  }
+}

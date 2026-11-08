@@ -1,0 +1,26 @@
+{
+  "runtime_file_sha256": {
+    "backend/pilot/__init__.py": "6f5c8fbed7826fdce062ec72ded4ff6d4e13de94f1bb7b97ffc6cdd5b9c1d6e0",
+    "backend/pilot/input.py": "55b203cb31e46d5d9cfadf9c717f63af5f07fd79b6ef5eab2c6e46744dd155e9",
+    "backend/pilot/budget.py": "7dd8713caca9bc800ca8e4949185418bdcebe9fd38fc91041b72348085678fd2",
+    "backend/pilot/entry.py": "29cf5b781db831badaea965ea5ad9f5d419574f44c721bb7be326baba5402572",
+    "backend/pilot/egress.py": "fe3b13e860517d0690657a7b9ea70b921e9bb00040d6aebd08ad1f7f182d4c37",
+    "backend/pilot/seed.py": "9d451b3372bcb206c2694d162037b6f6949e1214411054c1b7e41eeac9b912ba",
+    "backend/demo/seed_state.py": "19e2ccf6490f8ab26cc884dede51c8b1cc748ede895f6cc06d2605e2101a0a9e"
+  },
+  "deployed_files_match": {
+    "backend/pilot/__init__.py": true,
+    "backend/pilot/input.py": true,
+    "backend/pilot/budget.py": true,
+    "backend/pilot/entry.py": true,
+    "backend/pilot/egress.py": true,
+    "backend/pilot/seed.py": true,
+    "backend/demo/seed_state.py": true
+  },
+  "backend_networks": [
+    "ttest-ai-site-pilot-20261108_internal"
+  ],
+  "production_frontend_revision": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+  "local_test_key_available_not_uploaded": true,
+  "provider_calls": 0
+}

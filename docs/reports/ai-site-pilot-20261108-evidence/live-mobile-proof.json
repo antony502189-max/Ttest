@@ -1,0 +1,21 @@
+{
+  "viewport": 390,
+  "owned_result_rehydrated": true,
+  "count": 13,
+  "map_loaded": true,
+  "before": {
+    "attempts": 4,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true
+  },
+  "after": {
+    "attempts": 4,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true
+  },
+  "extra_model_calls": 0
+}

@@ -17,12 +17,13 @@ import '@/home-ai-search.css'
 import { readAIContinuation, storeAIContinuation } from '@/api/ai-continuation'
 
 // Keying by identity discards private in-memory conversation on login/logout.
-export function HomeAISearch({ homeMode }: { homeMode: RentalMode }) {
+type AIInputPolicy = { maxLength: number; placeholder: string; hint: string; validate: (text: string) => boolean }
+export function HomeAISearch({ homeMode, initialRentalMode, inputPolicy }: { homeMode: RentalMode; initialRentalMode?: RentalMode; inputPolicy?: AIInputPolicy }) {
   const { currentUser } = useApp()
-  return <AISearchPanel key={currentUser?.id ?? 'guest'} identity={currentUser?.id ?? 'guest'} homeMode={homeMode} />
+  return <AISearchPanel key={currentUser?.id ?? 'guest'} identity={currentUser?.id ?? 'guest'} homeMode={homeMode} initialRentalMode={initialRentalMode} inputPolicy={inputPolicy} />
 }
 
-function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity: string }) {
+function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: { homeMode: RentalMode; identity: string; initialRentalMode?: RentalMode; inputPolicy?: AIInputPolicy }) {
   const { t } = useI18n()
   const [enabled, setEnabled] = useState(false)
   const [mapEnabled, setMapEnabled] = useState(false)
@@ -30,8 +31,9 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
   const [mapRefreshVersion, setMapRefreshVersion] = useState(0)
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
+  const invalidText = Boolean(inputPolicy && text && !inputPolicy.validate(text))
   const [session, setSession] = useState<AISession | null>(null)
-  const [modeChoice, setModeChoice] = useState<'' | 'keep' | 'none' | RentalMode>('')
+  const [modeChoice, setModeChoice] = useState<'' | 'keep' | 'none' | RentalMode>(initialRentalMode ?? '')
   const [needsConversation, setNeedsConversation] = useState(false)
   const [pending, setPending] = useState<AIMessage | null>(null)
   const [result, setResult] = useState<{ ref: string; hash: string; committed: AICommittedIntent; prices: AIBudgetPrice[]; center?: { lat: number; lng: number }; page: ListingCardPage } | null>(null)
@@ -169,14 +171,14 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
   // letting a previous response overwrite a later conversational result.
   const visibleItems = result?.page.items
   useEffect(() => {
-    if (!visibleItems) return
+    if (!visibleItems || inputPolicy) return
     const controller = new AbortController()
     void Promise.all(visibleItems.map(item => hydrateIncompleteInternalGallery(item, controller.signal))).then(items => {
       if (controller.signal.aborted || items.every((item, index) => item === visibleItems[index])) return
       setResult(current => current?.page.items === visibleItems ? { ...current, page: { ...current.page, items } } : current)
     }).catch(() => { /* Recovery keeps the already usable original cover. */ })
     return () => controller.abort()
-  }, [visibleItems])
+  }, [visibleItems, inputPolicy])
 
   function unavailable(error: unknown) {
     return error instanceof ApiError && (
@@ -250,11 +252,11 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
     const controller = new AbortController()
     flight.current = controller
     try {
-      const fresh = await changeSession(session && !needsConversation ? session : null, controller.signal)
+      const fresh = await changeSession(session && !needsConversation ? session : null, controller.signal, initialRentalMode)
       if (controller.signal.aborted) return
       setSession(fresh)
       setNeedsConversation(false)
-      setModeChoice('')
+      setModeChoice(initialRentalMode ? 'keep' : '')
       setPagingAvailable(false)
       setNotice(result ? 'Nueva conversación lista. Conservamos los resultados anteriores hasta tu próxima búsqueda.' : '')
       // Draft and cards stay in memory, including when server transition fails.
@@ -274,7 +276,7 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
   }
 
   async function submit() {
-    if (restoring || restoreFailed || lock.current || (!pending && ((changingSession && session !== null) || needsConversation || needsSync || syncingSession || !text.trim() || !modeChoice || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))) return
+    if (restoring || restoreFailed || lock.current || (!pending && invalidText) || (!pending && ((changingSession && session !== null) || needsConversation || needsSync || syncingSession || !text.trim() || !modeChoice || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))) return
     lock.current = true
     setBusy(true)
     setNotice('Buscando opciones con condiciones confirmadas…')
@@ -334,14 +336,14 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
           balcony_requirement: '¿Necesitas un balcón privado o también sirve una terraza compartida?',
           location: '¿En qué localidad o zona quieres buscar?',
           dates: '¿Qué fechas necesitas?',
-          unsupported: 'Reformula la petición con ubicación, presupuesto y requisitos de la vivienda.',
+          unsupported: inputPolicy?.hint ?? 'Reformula la petición con ubicación, presupuesto y requisitos de la vivienda.',
         }
         const code = answer.operation.failure_code
         setNotice(answer.clarification ? questions[answer.clarification]
           : code === 'INTENT_CLARIFICATION_REQUIRED' ? 'Aclara la ubicación, el presupuesto o los requisitos antes de continuar.'
           : code === 'INTENT_NO_CHANGE' ? 'La petición no cambia los criterios. Añade un requisito nuevo.'
           : code === 'INTENT_UNSUPPORTED' ? questions.unsupported
-          : code === 'SOURCE_COVERAGE_UNAVAILABLE' ? 'No hay fuentes verificadas recientes disponibles. Prueba la búsqueda con filtros.'
+          : code === 'SOURCE_COVERAGE_UNAVAILABLE' ? (inputPolicy ? 'Каталог устарел или недоступен. Новые обращения к модели остановлены до проверки данных.' : 'No hay fuentes verificadas recientes disponibles. Prueba la búsqueda con filtros.')
           : code === 'SESSION_VERSION_CONFLICT'
           ? 'La búsqueda cambió. Revisa tu texto antes de enviarlo de nuevo.'
           : 'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.')
@@ -413,10 +415,10 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
     <section className="home-ai-search" aria-label={t('Búsqueda con IA')}>
       <div className="home-ai-search__intro"><span className="home-ai-search__wave"><AudioLines aria-hidden="true" /></span><div>
         <h2>{t('¿No sabes por dónde empezar?')}</h2>
-        <p>{t('Dinos dónde buscas, qué zona y qué precio quieres pagar.')}</p>
+        <p>{inputPolicy ? inputPolicy.hint : t('Dinos dónde buscas, qué zona y qué precio quieres pagar.')}</p>
       </div></div>
       <DialogTrigger asChild><Button type="button" className="home-ai-search__action"><Search aria-hidden="true" />{t('Escribir mi búsqueda')}</Button></DialogTrigger>
-      <small>{t('Describe también quién vivirá y las condiciones que necesitas.')}</small>
+      {!inputPolicy ? <small>{t('Describe también quién vivirá y las condiciones que necesitas.')}</small> : null}
     </section>
     <DialogContent className="ai-search-dialog">
       <DialogHeader><DialogTitle>{t('Encuentra tu habitación')}</DialogTitle><DialogDescription>{t('Usamos condiciones confirmadas de los anuncios para buscar opciones.')}</DialogDescription></DialogHeader>
@@ -439,8 +441,9 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
       {session ? <AIConditions intent={session.intent} title="Condiciones para el próximo mensaje" /> : null}
       <label htmlFor="ai-search-text">{t(result ? '¿Qué quieres cambiar?' : 'Cuéntanos qué necesitas')}</label>
       <textarea id="ai-search-text" data-i18n-exempt value={text} onChange={event => setText(event.target.value)} disabled={busy || restoring || pending !== null}
-        maxLength={16000} rows={3} autoComplete="off" spellCheck={false} placeholder={t('Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
-      <Button type="button" className="home-ai-search__action" disabled={busy || restoring || restoreFailed || (!pending && (demoBlocked || (changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
+        maxLength={inputPolicy?.maxLength ?? 16000} rows={3} autoComplete="off" spellCheck={false} placeholder={inputPolicy?.placeholder ?? t('Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
+      {inputPolicy ? <p role={invalidText ? 'alert' : undefined} data-i18n-exempt>{inputPolicy.hint}</p> : null}
+      <Button type="button" className="home-ai-search__action" disabled={busy || restoring || restoreFailed || (!pending && (invalidText || demoBlocked || (changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
         onClick={() => void submit()}>{t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : result ? 'Actualizar búsqueda' : 'Buscar habitaciones')}</Button>
       {busy && pending ? <Button type="button" variant="outline" onClick={() => {
         flight.current?.abort(); setBusy(false)

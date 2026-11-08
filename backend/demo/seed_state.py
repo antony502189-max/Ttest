@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from sqlalchemy import select, text
+from sqlalchemy import null, select, text
 
 from app.models import ExternalListingSource, Listing, User
 from app.models.ai_fact_pipeline import AiFactJob
@@ -137,7 +137,7 @@ async def verify_catalog(factory, records, host_id):
 
 
 async def seed_catalog(engine, factory, snapshot, state_dir: Path, journal_factory, *,
-                       database_name="ai_text_demo_20261108", checkpoint=noop):
+                       database_name="ai_text_demo_20261108", checkpoint=noop, budget_factory=DemoBudget):
     from app.core.security import hash_password
     from demo.entry import BINDING, pipeline
     records, snapshot_hash = validated_snapshot(snapshot), digest(snapshot)
@@ -181,7 +181,7 @@ async def seed_catalog(engine, factory, snapshot, state_dir: Path, journal_facto
             if journal is None:
                 raise ValueError("AI_ERASURE_JOURNAL_REQUIRED")
             await bind_journal(factory, journal, initialize=bound is None and row.phase == "starting")
-            budget = DemoBudget(state_dir / "provider.sqlite3", corpus_sha256=BINDING, initialize=not row.budget_ready)
+            budget = budget_factory(state_dir / "provider.sqlite3", corpus_sha256=BINDING, initialize=not row.budget_ready)
             if row.phase != "completed" and budget.summary()["attempts"]:
                 raise ValueError("DEMO_INCOMPLETE_SEED_HAS_PROVIDER_ATTEMPTS")
             await checkpoint("budget_ready")
@@ -194,7 +194,10 @@ async def seed_catalog(engine, factory, snapshot, state_dir: Path, journal_facto
                         initials="PC", email_verified=True, password_hash=hash_password(secrets.token_urlsafe(40))))
                     await session.flush()
                     for record in records:
-                        session.add(Listing(id=record["lid"], owner_user_id=row.host_id, **record["listing"],
+                        # ORM defaults otherwise replace explicit source NULL
+                        # with e.g. furnished=true or room_size_m2=1.
+                        fields = {k: null() if v is None else v for k, v in record["listing"].items()}
+                        session.add(Listing(id=record["lid"], owner_user_id=row.host_id, **fields,
                             location=point(record["longitude"], record["latitude"]) if record["latitude"] is not None else None,
                             status="published", description="", approximate_address=""))
                         await session.flush()

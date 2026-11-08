@@ -1,0 +1,15 @@
+**
+!backend/
+!backend/app/
+!backend/app/**
+!backend/pilot/
+!backend/pilot/**
+!backend/pyproject.toml
+!backend/constraints.txt
+!backend/tests/
+!backend/tests/pilot_proxy/
+!backend/tests/pilot_proxy/**
+!deploy/
+!deploy/ai-site-pilot/
+!deploy/ai-site-pilot/proxy-test.Dockerfile
+**/__pycache__/**

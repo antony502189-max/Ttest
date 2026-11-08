@@ -1,0 +1,67 @@
+{
+  "schema": "ai-search-review-final.v1",
+  "pr409_head": "38e6de44481cf7e248e43ac165eece396ca50498",
+  "pr410_head": "be366887652123b1fc83a8a7de9c34a1910124e5",
+  "tested_merge": "e87ff1ac8a9545852b555d4be709b7606f4bd995",
+  "tree": "d5c3a9d0695c800f184e1a085ddff7496e547f1e",
+  "workflows": {
+    "409": {
+      "success": 11
+    },
+    "410": {
+      "success": 11,
+      "conditional_skipped": 2
+    }
+  },
+  "jobs410": {
+    "success": 19,
+    "conditional_skipped": 2
+  },
+  "production_integration": {
+    "passed": 1182,
+    "skipped": 10,
+    "seconds": 677.97
+  },
+  "deployment": false,
+  "paid_calls": 0,
+  "canonical_final_status": "local handoff; checked PR head preserved",
+  "artifacts": {
+    "acceptance.json": "b07dcb1dc6769f53aa737d9fcde6123422faef6a162ecb51246dce8a0cd1d754",
+    "browser-combined.xml": "146dae86d24cf97c78e1055c85c362b8dd8f3fba52f4400a20f24a657d951155",
+    "build-matrix.json": "1f0f405f2b0e5354eaca2564192dd594cd25ffdf8c6e5c0654e640b877ca2ff7",
+    "ci-checkout-tree.json": "e9baaee8cd877c17f935d4ead2dba06bb833fba7c8f70bcfc9d845dc2518f798",
+    "ci409-final.json": "f6926e01e8d00f8133d0881446ef65a5b4d5db1eebc7ff99b087eb9a8f0072c9",
+    "ci41-ai-demo-seed.xml": "985cd3b5ca5d04cf9b5eef3ceea5dd635620d2c4619c4f6ae5ac36e9c97efee6",
+    "ci41-ai-facts-pg.xml": "d13816660acff505204e0d2a521812193eecbca4dd977d4f3208373ce2c72553",
+    "ci41-ai-facts-unit.xml": "fc5a39f345e80a07afd8ba805ef1e33d8b899076dae4f6c4c86d18255f095a35",
+    "ci41-ai-http-browser.xml": "e33cb04197ad486972be55cb1c4031db7e9255c2fbf4dbd712cc54b3a9f4e626",
+    "ci41-ai-real-http-recovery.xml": "7dde89b8a0a7e8a2063c4d014c06b322376ead7368f266c795f18f1031bf17c4",
+    "ci41-ai-verified-cards.xml": "042c091459ba6507d4d8f583fed308b052e130d59b8d0aa6337cce96fbfa17be",
+    "ci41-junit-proof.json": "f64465a344a0c40cb42994738fee95ccfcf04280d39fcfc845e9f216c3e4455c",
+    "cleanup.json": "08525b44b6a385e314d6899c34e3c9510a3927c93b3631bf1c3215392933bc5c",
+    "combined-facts-vps.xml": "68b8bb6c6d33c2cbdd3a8f8ef8f8820a2c2e2356eabf2543e4db6f37937d9fbf",
+    "combined-followup.xml": "d286190d75328978612f695aba04b3b370587c148c8b83a7fb0005a413c472a8",
+    "combined-unit.xml": "340258b61e84f3e030b17f941b70de87b4dc96f8bc3216687887ef5979e3f3db",
+    "final-ai-demo-seed.xml": "82a6083e2b5f4defe03897ce0b43eabf2a7223596476ff640e905fe320ccbb1d",
+    "final-ai-facts-pg.xml": "1a13636f323d080b1d1696afa7890a926ed6d9ee0e984914d9d2b4d846e8c80a",
+    "final-ai-facts-unit.xml": "0ee13bd111c84277cf2131eeab0fb71bec0f5509c9e59689006b920ff452069a",
+    "final-ai-http-browser.xml": "a94321aac2097f1fc2ac60a02ea74ea1ea9cf80f851274d1be9169a52e6f13fd",
+    "final-ai-real-http-recovery.xml": "4499346a1e1f769b6db9ee55b487549a5fc617428f2cf35c63f2d386ee5a6c91",
+    "final-ai-verified-cards.xml": "58c415f4b6c9ad3a41edfe501cff79aa9cb6ef02a01679aca4d83f27ee3fc9d1",
+    "final-ci-workflows-jobs.json": "145c42b18e8ba765502a25dc9942ee42fc412a71903f663c54444396c74695f9",
+    "final-frontend-excerpt.log": "86884cbda00a7c021164dc75e98e3da55cdc5328c298bc3820de1c729073a991",
+    "final-junit-proof.json": "a9d5429adb47b782aa4a32bd76a85c45551d3a3b9550a74ec6a491d66b0d9cd4",
+    "final-merge-be.json": "e1ad1e34d78e16b3e6a9f7b6424b7ff19bcd11d481c1342e449327f755edd6b5",
+    "final-merge-refs.json": "2b2e0cae0a750dabe1288b7ca56892b5780726c56a26fe8796805c86b2e391f3",
+    "final-production-excerpt.log": "54700e75e425b1542a3094d7340c30e17922e258201beaf90bb0a07f984c2078",
+    "lab-combined.xml": "cd32b332ce3f44cb994656d2bee966e834f1994582d1f69d649c146cce4652f4",
+    "merge-orders.json": "f32e5cfe7f65924f9fdc47fe42cc12d1fc8ac8f27f52e6c7007249e921d85d15",
+    "pr409-ci-proof.json": "d8c3f4128e981fe68d183546dcb426ea94503b9c6db96dab94f08a576b9dcc83",
+    "pr410-seed-final.xml": "19d7fe3e8e809ce3d0fb258a4ccefa43039218c490d0878e4b989c818bb6a778",
+    "private-browser.xml": "624743e3f005a2baa7eb0e58986d051c341159117d3f7ed7b73e8fcf29d697bf",
+    "private-focused.xml": "f7be5c0fc14303b516d15df287e983f55e3475b15437293ce34cb2bb0007f9b5",
+    "provenance-3513531.json": "9aaf7af9c8800a70002ad1ee5fc4dd1e7840e7947b07f947864d545d039e8bfc",
+    "supplychain-check.json": "b4c0367ea205957873f14a76b05fb3fb2114850cff870221cfda409fbb320e01",
+    "validation.json": "59e242db9d548e966cba88909bab19b459619667e385efb3c9dcf31e62538a0f"
+  }
+}

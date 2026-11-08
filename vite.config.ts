@@ -22,7 +22,7 @@ const productionReplacements: ProductionReplacement[] = [
   },
 ]
 
-function isolateMockDataFromProduction(mockMode: boolean): Plugin {
+function isolateMockDataFromProduction(mockMode: boolean, requireAll = true): Plugin {
   const transformedSources = new Set<string>()
   return {
     name: 'isolate-mock-data-from-production',
@@ -42,7 +42,7 @@ function isolateMockDataFromProduction(mockMode: boolean): Plugin {
       }
     },
     buildEnd(error) {
-      if (!mockMode && !error && transformedSources.size !== productionReplacements.length) {
+      if (requireAll && !mockMode && !error && transformedSources.size !== productionReplacements.length) {
         this.error(
           `Expected ${productionReplacements.length} production mock-data transformations, got ${transformedSources.size}`,
         )
@@ -55,6 +55,14 @@ function isolateMockDataFromProduction(mockMode: boolean): Plugin {
 export default defineConfig(({ mode }) => {
   const syntheticLab = mode === 'ai-synthetic-lab'
   const privateDemo = mode === 'ai-private-demo'
+  const sitePilot = mode === 'ai-site-pilot'
+  if (sitePilot) {
+    const env = loadEnv(mode, process.cwd(), 'VITE_')
+    for (const [name, expected] of Object.entries({ VITE_BASE_PATH: '/ai-pilot/', VITE_API_BASE_URL: '/ai-pilot/api/v1', VITE_ENABLE_MOCK_MODE: '0' })) {
+      const supplied = process.env[name] ?? env[name]
+      if (supplied !== undefined && supplied !== expected) throw new Error(`PILOT_BUILD_CONFIGURATION_REJECTED: ${name}`)
+    }
+  }
   const labMode = syntheticLab ? (process.env.VITE_AI_CLOSED_LAB
     || loadEnv(mode, process.cwd(), 'VITE_').VITE_AI_CLOSED_LAB || 'finite') : ''
   const labSource = syntheticLab ? (process.env.VITE_AI_LAB_SOURCE_SHA
@@ -65,18 +73,29 @@ export default defineConfig(({ mode }) => {
   const labNotice = closedLiveSynthetic
     ? 'Закрытый LIVE synthetic smoke · Настоящая модель, синтетический каталог. Только три согласованные фразы corpus; личные данные запрещены. Карта локальная, без провайдера карт.'
     : 'Закрытый synthetic стенд · Тестовый parser, не LLM. Фразы: «все варианты», «с маленькой собакой», «до 600 евро в месяц», «до 400 евро в месяц», «без ограничения бюджета», «желательно с балконом», «обязательно с балконом». Карта локальная, без провайдера.'
-  const mockMode = loadEnv(mode, process.cwd(), 'VITE_').VITE_ENABLE_MOCK_MODE === '1'
+  const mockMode = !sitePilot && loadEnv(mode, process.cwd(), 'VITE_').VITE_ENABLE_MOCK_MODE === '1'
   const mockProviderModule = mockMode
     ? './src/contexts/mock-app-provider.tsx'
     : './src/contexts/mock-app-provider.production.tsx'
 
   return {
     define: {
+      ...(sitePilot ? { 'import.meta.env.VITE_API_BASE_URL': JSON.stringify('/ai-pilot/api/v1'), 'import.meta.env.VITE_ENABLE_MOCK_MODE': JSON.stringify('0') } : {}),
       'import.meta.env.VITE_AI_CLOSED_LAB': JSON.stringify(labMode),
       'import.meta.env.VITE_AI_LAB_SOURCE_SHA': JSON.stringify(labSource),
     },
-    base: process.env.VITE_BASE_PATH || '/',
-    plugins: [isolateMockDataFromProduction(mockMode), react(), tailwindcss(), ...(privateDemo ? [{
+    base: sitePilot ? '/ai-pilot/' : process.env.VITE_BASE_PATH || '/',
+    plugins: [isolateMockDataFromProduction(mockMode, !sitePilot), react(), tailwindcss(), ...(sitePilot ? [{
+      name: 'site-pilot-notice',
+      transformIndexHtml: { order: 'pre', handler: (html: string) => html.replace('/src/main.tsx', '/src/lab/site-pilot-main.tsx') },
+      transform: (code: string, id: string) => {
+        const source = id.replaceAll('\\', '/')
+        // Same-origin pilot tabs must not overwrite the ordinary site's guest
+        // favorites, publication drafts, language or continuation storage.
+        const output = source.includes('/src/') ? code.replaceAll('112233:', '112233:site-pilot:') : code
+        return output === code ? null : output
+      },
+    }] : []), ...(privateDemo ? [{
       name: 'private-demo-notice',
       transformIndexHtml: (html: string) => html.replace(/<body[^>]*>/, '$&<aside style="padding:12px;background:#e8f2e1;color:#173d20;text-align:center" data-i18n-exempt>Закрытая демонстрация · DeepSeek + снимок реальных публичных объявлений PisoCompartido. Выберите долгосрочную аренду. Фразы по порядку: «до 600 евро в месяц» → «теперь до 400 евро в месяц» → «убери ограничение бюджета». Лимит: 3 обращения к модели. Карта — координатная сетка без внешних тайлов.</aside>'),
     }] : []), ...(syntheticLab ? [{
@@ -95,10 +114,11 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: {
-        '@/components/private-demo-status': path.resolve(import.meta.dirname, privateDemo ? './src/lab/private-demo-status.tsx' : './src/components/private-demo-status.tsx'),
-        ...(syntheticLab || privateDemo ? { '@/components/ai-result-map': path.resolve(import.meta.dirname, './src/lab/ai-synthetic-map.tsx') } : {}),
+        ...(sitePilot ? { '@/contexts/app-context': path.resolve(import.meta.dirname, './src/lab/site-pilot-context.ts') } : {}),
+        '@/components/private-demo-status': path.resolve(import.meta.dirname, sitePilot ? './src/lab/site-pilot-status.tsx' : privateDemo ? './src/lab/private-demo-status.tsx' : './src/components/private-demo-status.tsx'),
+        ...(syntheticLab || privateDemo || sitePilot ? { '@/components/ai-result-map': path.resolve(import.meta.dirname, './src/lab/ai-synthetic-map.tsx') } : {}),
         'shadcn/tailwind.css': path.resolve(import.meta.dirname, './src/styles/shadcn-tailwind.css'),
-        '@/components/marketplace': path.resolve(import.meta.dirname, './src/components/marketplace-localized.tsx'),
+        '@/components/marketplace': path.resolve(import.meta.dirname, sitePilot ? './src/lab/site-pilot-card.tsx' : './src/components/marketplace-localized.tsx'),
         '@/contexts/mock-app-provider': path.resolve(import.meta.dirname, mockProviderModule),
         '@': path.resolve(import.meta.dirname, './src'),
       },

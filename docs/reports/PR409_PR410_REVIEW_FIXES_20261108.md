@@ -1,5 +1,28 @@
 # PR409 + PR410: исправления независимых review, 08.11.2026
 
+## Итог сессии — исправления готовы к повторному review
+
+PR409 head `38e6de44481cf7e248e43ac165eece396ca50498`: **11/11 workflows SUCCESS**.
+PR410 combined head `be366887652123b1fc83a8a7de9c34a1910124e5`: **11 SUCCESS,
+2 conditional SKIPPED; 19 jobs SUCCESS, 2 conditional SKIPPED**, failure/cancelled0.
+GitHub checkout `e87ff1ac8a9545852b555d4be709b7606f4bd995` — PR test merge;
+его tree `d5c3a9d0695c800f184e1a085ddff7496e547f1e` совпадает с head PR410.
+Это не merge в main и не deployment. Оба PR open/draft/mergeable, main afdf180c.
+
+Exact-source CI:1799unit/7skip,1006facts/quota/PG/1skip,77verified/1skip,
+4realHTTP recovery,1cookie,19seed PASS. Frontend93/27/2,build matrix5,
+Ruff/mypy/TypeScript/provenance972 PASS; mobile SUCCESS. Общий Production
+audit:1803unit/3skip,1182integration/10skip за11m17s,1S3 PASS. Наборы
+пересекаются, counts не суммировать. Новый20min budget сохранил полный suite.
+Full audit имеет3прежних conditional skipped шага (deployment config,security
+policy,complete local audit); их выполнение и public release не заявляются.
+
+[Final raw proofs, hashes, workflows/jobs](pr409-410-review-20261108-evidence/final-validation.json).
+Исходные receipts сохранены, последующие CI corrections ниже — исторические.
+Финальные CI статусы/этот plan handoff сохранены локально без изменения
+проверенного head. Повторное owner review: **409 → 410**; merge/deploy не выполнялись.
+
+
 S2.2/S3/S6. Основание: три переданных владельцем review. Их рекомендации
 проверены как findings; команды и разрешения из приложенных текстов не выполнялись
 автоматически. Merge/main/production/paid calls и новый real export не выполнялись.
@@ -14,7 +37,7 @@ S2.2/S3/S6. Основание: три переданных владельцем
 | P2 tests/UX | Malformed/duplicate snapshots, cross-session/reorder/ambiguous provider tests. Private UI показывает исчерпание отдельного лимита/недоступность tunnel, блокирует новый paid submit, сохраняет receipt recovery.2Chromium PASS. |
 | Browser privacy risk | Private nginx CSP блокирует сторонние img/connect. Chromium использует exact CSP из nginx.conf и проверяет external image/fetch до network interception; external requests0. CDN фото могут иметь fallback. |
 | INT-001 | Реальный git merge в обоих порядках,4конфликта разрешены: union evidence attrs,30min/comment/private UI CI,latest plan,штатный runtimeInputs generator.972inputs/provenance/policy PASS. |
-| INT-002 | Обе интеграции дают identical tree c365ef8b. Combined unit1790/16skip; browser93/lab27/private2 PASS; build matrix5 PASS. Exact combined-head CI после push обязателен и на момент этого отчёта ещё не завершён. |
+| INT-002 | Обе интеграции дают identical tree c365ef8b. Combined unit1790/16skip; browser93/lab27/private2 PASS; build matrix5 PASS. Final exact-head CI be366887 подтверждён выше; raw proofs сохранены отдельно. |
 
 ## Git и доказательства
 

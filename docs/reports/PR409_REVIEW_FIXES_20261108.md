@@ -28,3 +28,11 @@ ACK, merge или production deployment. Совместимость с410 про
 ## Final source validation
 
 Source `f799dbbc`: actual Linux PostGIS **16 PASS/0skip** (13claims,3hard process), в том числе4 новых terminal/waiter cases. 55 focused unit PASS. Наборы не суммировать как полный backend suite. Первый ошибочный test argument-order run не принят. Raw JUnit/hash рядом в pr409-review-20261108-evidence. Exact-head CI после push отдельный.
+
+## Итог CI08.11
+
+Exact head38e6de44481cf7e248e43ac165eece396ca50498:11/11workflows SUCCESS.
+Downloaded artifact13615540649 sha2566fa1fa917dcda60752ba18eb7d0291c4efefca182ecc36831afaf4e6ce4e0565
+подтвердил16claims/process PASS/0skip,включая4новыхcases. Общий combined CI
+исправленного410 тоже зелёный; см. PR409_PR410_REVIEW_FIXES_20261108.md.
+PR409 остаётся open/draft/not merged. Финальный статус локальный, без нового PR head.

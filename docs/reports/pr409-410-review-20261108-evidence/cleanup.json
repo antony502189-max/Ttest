@@ -1,0 +1,11 @@
+{
+  "purpose": "ai-review-20261108",
+  "removed_containers": [
+    "ttest-ai-review-20261108-pg",
+    "ttest-ai-review-20261108-redis"
+  ],
+  "anonymous_volumes_removed": true,
+  "removed_network": "ttest-ai-review-20261108",
+  "production_or_sealed_demo_changed": false,
+  "evidence": "successful label/mount/id-guarded docker rm and network rm observed in this session"
+}

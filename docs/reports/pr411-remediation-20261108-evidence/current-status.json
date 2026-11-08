@@ -1,0 +1,13 @@
+{
+  "observed_at_utc": "2026-11-08T18:45:10.015223+00:00",
+  "source": "authenticated read-only GET /ai-pilot/api/v1/private-demo/status",
+  "deployed_version": "pre-review d2985d8 lineage",
+  "status": {
+    "attempts": 7,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true
+  },
+  "generation_calls_by_this_check": 0
+}

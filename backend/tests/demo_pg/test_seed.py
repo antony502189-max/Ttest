@@ -190,3 +190,195 @@ def test_malformed_snapshot_rejected_before_state_creation(fault):
     if fault == "bad_position":first["listing"]["latitude"] = 999
     if fault == "naive_time":value["snapshot_at"] = "2026-11-08T01:00:00"
     with pytest.raises(ValueError):validated_snapshot(value)
+
+
+async def test_explicit_unknown_fields_remain_null_and_resume_with_pilot_budget(seed_database):
+    from pilot.budget import PilotBudget
+    dsn, name, file, state = seed_database
+    engine = create_async_engine(dsn, pool_size=2, max_overflow=0)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    value = json.loads(file.read_text())
+    fields = ("furnished", "room_capacity", "room_size_m2", "bills_included", "bathroom", "kitchen", "pets_allowed", "smoking_allowed", "children_allowed")
+    for record in value["records"]:
+        record["listing"].update({key: None for key in fields})
+    try:
+        async def seed():
+            return await seed_catalog(engine, factory, value, state,
+                lambda *, initialize: ErasureJournal(state/"erasure.sqlite3", b"s"*32, initialize=initialize),
+                database_name=name, budget_factory=PilotBudget)
+        assert (await seed())["prepared"] == 12
+        async with factory() as session:
+            rows = (await session.execute(text("SELECT " + ",".join(fields) + " FROM listings"))).all()
+            assert len(rows) == 12 and all(all(v is None for v in row) for row in rows)
+        before = {p.name:p.read_bytes() for p in state.iterdir()}
+        assert (await seed())["prepared"] == 12
+        assert before == {p.name:p.read_bytes() for p in state.iterdir()}
+        assert PilotBudget(state/"provider.sqlite3").summary()["attempts"] == 0
+    finally:
+        await engine.dispose()
+
+
+async def test_pilot_readiness_expires_without_provider_reserve_or_quota(seed_database, monkeypatch):
+    from app.repositories.ai_verified_cards import SourceCoverageUnavailable
+    from app.schemas.ai_search_intent import Criteria, SearchIntent
+    from demo.entry import pipeline
+    from pilot.budget import PilotBudget
+    from pilot.entry import PilotParser
+    from pilot.readiness import CatalogReadiness
+    dsn, name, file, state = seed_database
+    engine = create_async_engine(dsn, pool_size=2, max_overflow=0)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        await seed_catalog(engine, factory, json.loads(file.read_text()), state,
+            lambda *, initialize: ErasureJournal(state/"erasure.sqlite3", b"s"*32, initialize=initialize),
+            database_name=name, budget_factory=PilotBudget)
+        ready = CatalogReadiness(pipeline(factory))
+        assert (await ready())["catalog_ready"]
+        async with factory.begin() as session:
+            await session.execute(text("UPDATE external_listing_sources SET last_success_at=statement_timestamp()-interval '86401 seconds'"))
+        assert not (await ready())["catalog_ready"]
+        budget = PilotBudget(state/"provider.sqlite3")
+        current = SearchIntent(schema_version="ai-search.v1", taxonomy_version="rental.v1", session_id=uuid4(), version=0,
+            criteria=Criteria.model_validate({"rental_mode":{"strength":"hard","value":"long"}}))
+        with pytest.raises(SourceCoverageUnavailable):
+            await PilotParser(budget, ready).parse("до 600 евро в месяц", current)
+        assert budget.summary()["attempts"] == 0
+        from app.repositories.ai_search_quota import QuotaLedger
+        from app.repositories.ai_search_sessions import IntentVocabulary, SearchSessions, SessionPolicy
+        from app.repositories.ai_verified_cards import VerifiedCardSearch
+        from app.schemas.ai_search_intent import SessionCreate
+        from app.schemas.ai_search_quota import LeasePolicy, QuotaOperation, QuotaSubject
+        from app.schemas.listings import ListingCardSearchRequest
+        from app.services.ai_search_execution import TextSearchExecution
+        class Gate:
+            async def check(self, subject): pass
+        sessions = SearchSessions(QuotaLedger(factory, LeasePolicy(reservation_seconds=60,running_seconds=60,recovery_grace_seconds=30)),
+            SessionPolicy(inactivity_seconds=86400), IntentVocabulary(frozenset(),frozenset(),frozenset()))
+        owner = QuotaSubject(kind="guest",id=uuid4())
+        owned = await sessions.create(owner, SessionCreate(rental_mode="long"))
+        utterance = "до 600 евро в месяц"
+        op = QuotaOperation(idempotency_key=uuid4(),channel="text",payload_sha256=hashlib.sha256(utterance.encode()).hexdigest(),
+            session_id=owned.intent.session_id,expected_session_version=0)
+        execution = TextSearchExecution(sessions,PilotParser(budget,ready),Gate(),VerifiedCardSearch(pipeline(factory),sessions,signing_key=b"q"*32))
+        result = await execution.execute(owner,op,utterance,ListingCardSearchRequest())
+        assert result.operation.status == "failed" and result.operation.failure_code == "SOURCE_COVERAGE_UNAVAILABLE"
+        assert budget.summary()["attempts"] == 0
+        async with factory() as session:
+            assert await session.scalar(text("SELECT coalesce(sum(used+reserved),0) FROM ai_usage_days")) == 0
+    finally:
+        await engine.dispose()
+
+
+async def test_export_selects_consistent_source_even_when_newer_price_differs(seed_database):
+    import importlib.util
+
+    from app.models import ExternalListingSource
+    dsn, name, file, state = seed_database
+    engine = create_async_engine(dsn, pool_size=2, max_overflow=0)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    value = json.loads(file.read_text())
+    for record in value["records"]:
+        record["listing"].update(primary_source_url=record["source"]["source_url"], source_price_text=record["source"]["source_price_text"])
+    spec = importlib.util.spec_from_file_location("export_public", BACKEND.parent/"deploy/ai-text-demo/export_public.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    try:
+        await seed_catalog(engine, factory, value, state,
+            lambda *, initialize: ErasureJournal(state/"erasure.sqlite3", b"s"*32, initialize=initialize), database_name=name)
+        original = UUID(value["records"][0]["source"]["id"])
+        lid = UUID(value["records"][0]["listing"]["id"])
+        async with factory.begin() as session:
+            source = await session.get(ExternalListingSource, original)
+            fields = {c.name:getattr(source, c.name) for c in ExternalListingSource.__table__.columns if c.name not in {"id", "external_id", "last_success_at", "normalized_payload"}}
+            fields.update(source_url=source.source_url+"new/",source_price_text="999 €/mes")
+            changed = dict(source.normalized_payload, price_amount=999,source_price_text="999 €/mes")
+            session.add(ExternalListingSource(id=uuid4(), external_id="different-newer-price", last_success_at=datetime.now(UTC), normalized_payload=changed, **fields))
+        async with factory() as session:
+            query = "SELECT s.id FROM listings l " + module.consistent_source_join() + " WHERE l.id=:lid"
+            assert await session.scalar(text(query), {"lid":lid}) == original
+        async with factory.begin() as session:
+            await session.execute(text("UPDATE listings SET primary_source_url=primary_source_url || 'new/' WHERE id=:lid"),{"lid":lid})
+        async with factory() as session:
+            assert await session.scalar(text(query), {"lid":lid}) is None  # Explicit null -> exporter refuses, never overwrites price.
+    finally:
+        await engine.dispose()
+
+
+async def test_minimal_pilot_asgi_real_pg_mock_provider_replay_refine_and_expiry(seed_database, monkeypatch):
+    import httpx
+
+    from app.api.v1.ai_search import AISearchRuntime
+    from app.repositories.ai_search_quota import QuotaLedger
+    from app.repositories.ai_search_sessions import IntentVocabulary, SearchSessions, SessionPolicy
+    from app.repositories.ai_verified_cards import VerifiedCardSearch
+    from app.schemas.ai_search_quota import LeasePolicy
+    from app.services.ai_guest_tokens import GuestPolicy, GuestTokens
+    from app.services.ai_http_policy import AIHTTPPolicy
+    from app.services.ai_search_execution import TextSearchExecution
+    from demo.entry import pipeline
+    from pilot import entry
+    from pilot.budget import BINDING as PILOT_BINDING
+    from pilot.budget import PilotBudget
+    from pilot.readiness import CatalogReadiness
+    from pilot.surface import minimal_app
+    dsn, name, file, state = seed_database
+    engine = create_async_engine(dsn,pool_size=2,max_overflow=0)
+    factory = async_sessionmaker(engine,expire_on_commit=False)
+    try:
+        await seed_catalog(engine,factory,json.loads(file.read_text()),state,
+            lambda *,initialize:ErasureJournal(state/"erasure.sqlite3",b"s"*32,initialize=initialize),database_name=name,budget_factory=PilotBudget)
+        control=state/"control"
+        control.mkdir()
+        (control/"approval.json").write_text(json.dumps({"binding":PILOT_BINDING,"owner_approved":True,"max_calls":50,"max_micro_usd":1000000,"scope":"owner-team-nonpersonal-positive-rent-grammar.v1"}))
+        (control/"deepseek.env").write_text("AI_INTENT_EVAL_DEEPSEEK_KEY=fixture-not-a-real-key\n")
+        monkeypatch.setattr(entry,"CONTROL",control)
+        requests=[]
+        def completion(request):
+            requests.append(request)
+            message=json.loads(json.loads(request.content)["messages"][1]["content"])
+            amount=message["text"].split()[5]
+            decision={"status":"patch","patch":{"set":{"budget":{"strength":"hard","value":{"amount":amount,"currency":"EUR","period":"monthly"}}},"remove":[]}}
+            return httpx.Response(200,json={"usage":{"prompt_tokens":10,"completion_tokens":1,"total_tokens":11},"choices":[{"finish_reason":"stop","message":{"role":"assistant","content":json.dumps(decision)}}]})
+        monkeypatch.setattr(httpx,"AsyncHTTPTransport",lambda **_kwargs:httpx.MockTransport(completion))
+        budget=PilotBudget(state/"provider.sqlite3")
+        budget.dispatch_guard=entry.require_approval
+        facts=pipeline(factory)
+        sessions=SearchSessions(QuotaLedger(factory,LeasePolicy(reservation_seconds=60,running_seconds=60,recovery_grace_seconds=30)),SessionPolicy(inactivity_seconds=86400),IntentVocabulary(frozenset(),frozenset(),frozenset()))
+        cards=VerifiedCardSearch(facts,sessions,signing_key=b"q"*32)
+        class Gate:
+            async def check(self, _value): pass
+        execution=TextSearchExecution(sessions,entry.PilotParser(budget,CatalogReadiness(facts)),Gate(),cards)
+        app=minimal_app()
+        app.state.ai_search_runtime=AISearchRuntime(sessions,cards,execution,GuestTokens(key=b"g"*32,policy=GuestPolicy(ttl_seconds=3600)),Gate(),frozenset({entry.ORIGIN}),32768,AIHTTPPolicy(20,3,(),entry.ORIGIN))
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url=entry.ORIGIN,headers={"Origin":entry.ORIGIN,"X-AI-Request":"1"}) as client:
+            base="/api/v1/ai-search"
+            assert (await client.post("/api/v1/auth/register",json={})).status_code==404
+            cookie=await client.post(base+"/identity")
+            assert cookie.status_code==200 and "Secure" in cookie.headers["set-cookie"]
+            created=await client.post(base+"/sessions",json={"idempotency_key":str(uuid4()),"rental_mode":"long"})
+            assert created.status_code==200,created.text
+            sid=created.json()["intent"]["session_id"]
+            def message(version,amount):return {"idempotency_key":str(uuid4()),"session_id":sid,"expected_version":version,"text":f"до {amount} евро в месяц","search":{"limit":6}}
+            first=message(0,600)
+            response=await client.post(base+"/query",json=first)
+            assert response.status_code==200,response.text
+            answer=response.json()
+            assert answer["operation"]["status"]=="succeeded" and answer["operation"]["receipt"]["count"]==12,answer
+            replay=(await client.post(base+"/query",json=first)).json()
+            assert replay["operation"]["receipt"]==answer["operation"]["receipt"] and len(requests)==1
+            refined=(await client.post(base+"/query",json=message(1,400))).json()
+            assert refined["operation"]["receipt"]["count"]==3 and len(requests)==2
+            ref=refined["operation"]["receipt"]["result_ref"]
+            metadata=(await client.get(base+"/results/"+ref)).json()
+            assert metadata["intent"]["version"]==2 and metadata["count"]==3
+            mapped=await client.post(base+"/results/"+ref+"/map",json={"search":{"north":29,"south":27,"east":-16,"west":-18,"zoom":14}})
+            assert mapped.status_code==200 and mapped.json()["map"]["items"]
+            async with factory.begin() as connection:
+                await connection.execute(text("UPDATE external_listing_sources SET last_success_at=statement_timestamp()-interval '86401 seconds'"))
+            stale=(await client.post(base+"/query",json=message(2,500))).json()
+            assert stale["operation"]["failure_code"]=="SOURCE_COVERAGE_UNAVAILABLE",stale
+            assert len(requests)==2 and budget.summary()["attempts"]==2
+            assert (await client.get(base+"/quota")).json()["remaining"]==1
+            assert (await client.get(base+"/results/"+ref)).json()["count"]==3
+    finally:
+        await engine.dispose()

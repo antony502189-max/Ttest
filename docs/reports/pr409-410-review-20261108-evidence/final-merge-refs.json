@@ -1,0 +1,22 @@
+{
+  "final_refs": [
+    {
+      "parents": [
+        "38e6de44481cf7e248e43ac165eece396ca50498",
+        "41c71425162f0f213ec423f14a3e782e40200084"
+      ],
+      "exit": 0,
+      "tree": "a6a5aa753534af0222b9895f15397c234cd66b3f"
+    },
+    {
+      "parents": [
+        "41c71425162f0f213ec423f14a3e782e40200084",
+        "38e6de44481cf7e248e43ac165eece396ca50498"
+      ],
+      "exit": 0,
+      "tree": "a6a5aa753534af0222b9895f15397c234cd66b3f"
+    }
+  ],
+  "result_is_current_410_tree": true,
+  "note": "410 contains409 dependency; earlier independent full merges required4manual resolutions and matched c365ef8b"
+}

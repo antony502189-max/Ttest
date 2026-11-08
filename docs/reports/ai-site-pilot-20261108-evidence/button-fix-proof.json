@@ -1,0 +1,22 @@
+[
+  {
+    "width": 1440,
+    "mode_default": "long",
+    "submit_enabled_after_text_without_select": true,
+    "click_reached_query": true,
+    "query_intercepted_before_server": true,
+    "model_calls": 0,
+    "before_attempts": 4,
+    "after_attempts": 4
+  },
+  {
+    "width": 390,
+    "mode_default": "long",
+    "submit_enabled_after_text_without_select": true,
+    "click_reached_query": false,
+    "query_intercepted_before_server": false,
+    "model_calls": 0,
+    "before_attempts": 4,
+    "after_attempts": 4
+  }
+]
