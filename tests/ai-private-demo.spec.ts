@@ -19,6 +19,16 @@ for (const unavailable of [false, true]) test(`private demo ${unavailable ? 'una
   await page.getByLabel('Modo para esta búsqueda', { exact: true }).selectOption('long')
   await page.getByLabel('Cuéntanos qué necesitas', { exact: true }).fill('до 600 евро в месяц')
   await expect(page.getByRole('button', { name: 'Buscar habitaciones', exact: true })).toBeDisabled()
+  // Exercise the exact nginx policy in Chromium: a third-party image/connect
+  // must be rejected before even our network interception sees a request.
+  await page.evaluate(async () => {
+    await fetch('https://cdn.private-demo-csp.invalid/probe').catch(() => undefined)
+    await new Promise<void>(resolve => {
+      const image = new Image()
+      image.onload = image.onerror = () => resolve()
+      image.src = 'https://cdn.private-demo-csp.invalid/photo.jpg'
+    })
+  })
   expect(paid).toEqual([])
   expect(external).toEqual([])
 })

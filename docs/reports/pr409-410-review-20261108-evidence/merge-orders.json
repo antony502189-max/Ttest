@@ -1,0 +1,26 @@
+{
+  "schema": "ai-search-review-integration.v1",
+  "base": "afdf180c922da65de8f0fbdf3e89005e30faf481",
+  "fixed409": "38e6de44481cf7e248e43ac165eece396ca50498",
+  "fixed410": "178046f125c65ad1874f6206d4ada4153c19fcc4",
+  "order_a": {
+    "order": "409 then 410",
+    "commit": "3513531be66d68c6f7b36fe0fc2b700b90b233fa"
+  },
+  "order_b": {
+    "order": "410 then 409",
+    "commit": "88d22956de6ce9b2483807e4646c609928b67cba"
+  },
+  "equal_tree": "c365ef8b281a60c654e6e28df3301f3edf7a11a1",
+  "conflicts_in_both": [
+    ".gitattributes",
+    ".github/workflows/ai-search-frontend.yml",
+    "docs/ai-search-completion-plan.md",
+    "docs/reports/pr404-review-fixes/runtime-inputs.json"
+  ],
+  "resolution": "union evidence attributes; 30min plus comment and private browser step; latest canonical plan; canonical runtimeInputs generator",
+  "diff_exit": 0,
+  "runtime_inputs": 972,
+  "merge_main": false,
+  "deployment": false
+}

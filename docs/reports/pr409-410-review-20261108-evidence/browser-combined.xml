@@ -1,0 +1,196 @@
+<testsuites id="" name="" tests="93" failures="0" skipped="0" errors="0" time="257.58896799999997">
+<testsuite name="ai-home-search.spec.ts" timestamp="2026-11-08T11:41:06.957Z" hostname="chromium" tests="72" failures="0" skipped="0" time="181.831" errors="0">
+<testcase name="all normalized criteria preserve false, units, identity and strength; unsupported contracts fail closed" classname="ai-home-search.spec.ts" time="0.03">
+</testcase>
+<testcase name="disabled runtime hides AI entry and preserves manual filters" classname="ai-home-search.spec.ts" time="1.768">
+</testcase>
+<testcase name="mobile reference panel, private text, zero confirmed results and followup version" classname="ai-home-search.spec.ts" time="2.723">
+</testcase>
+<testcase name="lost response and running attempt reuse exact key/text even with zero remaining" classname="ai-home-search.spec.ts" time="2.94">
+</testcase>
+<testcase name="terminal conflict resyncs session and requires deliberate resubmission" classname="ai-home-search.spec.ts" time="2.094">
+</testcase>
+<testcase name="pages use original result reference and never submit another message" classname="ai-home-search.spec.ts" time="2.675">
+</testcase>
+<testcase name="confirmed cards preserve server TOP order, native gallery recovery and external destination" classname="ai-home-search.spec.ts" time="2.974">
+</testcase>
+<testcase name="body rejection allows editing without replaying an unreserved operation" classname="ai-home-search.spec.ts" time="2.025">
+</testcase>
+<testcase name="reopening reads current quota without creating a session or charging another message" classname="ai-home-search.spec.ts" time="2.983">
+</testcase>
+<testcase name="verified map uses original result and viewport only, preserving promotions without another debit" classname="ai-home-search.spec.ts" time="2.765">
+</testcase>
+<testcase name="catalog refresh updates the same result map without another search: visible-map" classname="ai-home-search.spec.ts" time="3.415">
+</testcase>
+<testcase name="catalog refresh updates the same result map without another search: pending-map" classname="ai-home-search.spec.ts" time="3.471">
+</testcase>
+<testcase name="catalog refresh updates the same result map without another search: failed-refresh" classname="ai-home-search.spec.ts" time="3.209">
+</testcase>
+<testcase name="synthetic text journey shows cards, refreshes catalog and keeps hard conditions on followup" classname="ai-home-search.spec.ts" time="5.909">
+</testcase>
+<testcase name="map rejects a different intent hash and never falls back to manual catalog" classname="ai-home-search.spec.ts" time="3.193">
+</testcase>
+<testcase name="late map response from an earlier result cannot replace a followup map" classname="ai-home-search.spec.ts" time="4.072">
+</testcase>
+<testcase name="explicit home mode seeds a typed create, followup conflict keeps original result conditions" classname="ai-home-search.spec.ts" time="2.359">
+</testcase>
+<testcase name="lost seeded reset acknowledgement preserves mode and command key until deliberate continuation" classname="ai-home-search.spec.ts" time="2.477">
+</testcase>
+<testcase name="normalized conditions in ru fit mobile and show both strengths" classname="ai-home-search.spec.ts" time="1.872">
+</testcase>
+<testcase name="normalized conditions in en fit mobile and show both strengths" classname="ai-home-search.spec.ts" time="1.963">
+</testcase>
+<testcase name="result metadata hash mismatch never labels or replaces previous cards" classname="ai-home-search.spec.ts" time="1.9">
+</testcase>
+<testcase name="terminal expired settles before expired session refresh and permits explicit new identity" classname="ai-home-search.spec.ts" time="2.694">
+</testcase>
+<testcase name="terminal not-found settles before expired session refresh and permits explicit new identity" classname="ai-home-search.spec.ts" time="2.391">
+</testcase>
+<testcase name="terminal guest-expired settles before expired session refresh and permits explicit new identity" classname="ai-home-search.spec.ts" time="2.453">
+</testcase>
+<testcase name="terminal replayed-success settles before expired session refresh and permits explicit new identity" classname="ai-home-search.spec.ts" time="2.694">
+</testcase>
+<testcase name="terminal result-expired settles before expired session refresh and permits explicit new identity" classname="ai-home-search.spec.ts" time="2.551">
+</testcase>
+<testcase name="transient refresh 503 retains draft, identity and resynchronizes version" classname="ai-home-search.spec.ts" time="2.441">
+</testcase>
+<testcase name="transient refresh 429 retains draft, identity and resynchronizes version" classname="ai-home-search.spec.ts" time="3.118">
+</testcase>
+<testcase name="transient refresh network retains draft, identity and resynchronizes version" classname="ai-home-search.spec.ts" time="2.996">
+</testcase>
+<testcase name="transient refresh timeout retains draft, identity and resynchronizes version" classname="ai-home-search.spec.ts" time="17.975">
+</testcase>
+<testcase name="slow refresh frees draft and card navigation while guarding version-sensitive actions" classname="ai-home-search.spec.ts" time="1.987">
+</testcase>
+<testcase name="expiry on refresh disables paging or settles receipt without cards" classname="ai-home-search.spec.ts" time="1.971">
+</testcase>
+<testcase name="expiry on page disables paging or settles receipt without cards" classname="ai-home-search.spec.ts" time="1.992">
+</testcase>
+<testcase name="expiry on receipt disables paging or settles receipt without cards" classname="ai-home-search.spec.ts" time="1.798">
+</testcase>
+<testcase name="explicit live resets use current version, preserve draft and cards, and survive server failure" classname="ai-home-search.spec.ts" time="2.326">
+</testcase>
+<testcase name="expired create failure keeps draft and zero quota refreshes on reopen without an owned session" classname="ai-home-search.spec.ts" time="2.308">
+</testcase>
+<testcase name="quota refresh works before a session exists after the day changes" classname="ai-home-search.spec.ts" time="1.847">
+</testcase>
+<testcase name="an ambiguous HTTP 409 preserves the exact pending operation" classname="ai-home-search.spec.ts" time="1.803">
+</testcase>
+<testcase name="query 401 AI_GUEST_IDENTITY_INVALID_OR_EXPIRED releases old-owner pending and keeps editable draft" classname="ai-home-search.spec.ts" time="1.769">
+</testcase>
+<testcase name="query 401 AI_GUEST_IDENTITY_REQUIRED releases old-owner pending and keeps editable draft" classname="ai-home-search.spec.ts" time="1.82">
+</testcase>
+<testcase name="hard quota rejection releases unreserved pending and recovers on authoritative rollover" classname="ai-home-search.spec.ts" time="2.061">
+</testcase>
+<testcase name="paging AI_REQUERY_REQUIRED invalidates only results and preserves live conversation" classname="ai-home-search.spec.ts" time="1.754">
+</testcase>
+<testcase name="paging RESULT_NOT_FOUND invalidates only results and preserves live conversation" classname="ai-home-search.spec.ts" time="1.782">
+</testcase>
+<testcase name="paging hash-mismatch invalidates only results and preserves live conversation" classname="ai-home-search.spec.ts" time="1.839">
+</testcase>
+<testcase name="missing cards on terminal receipt resyncs a live session instead of discarding it" classname="ai-home-search.spec.ts" time="1.675">
+</testcase>
+<testcase name="lost reset acknowledgement blocks old paging and preserves the lifecycle key" classname="ai-home-search.spec.ts" time="2.061">
+</testcase>
+<testcase name="unsettled query blocks stale paging but its exact replay remains available" classname="ai-home-search.spec.ts" time="2.035">
+</testcase>
+<testcase name="review recovery after hard reload: succeeded, no raw payload or second inference" classname="ai-home-search.spec.ts" time="2.899">
+</testcase>
+<testcase name="review recovery after hard reload: running, no raw payload or second inference" classname="ai-home-search.spec.ts" time="3.026">
+</testcase>
+<testcase name="review recovery after hard reload: failed, no raw payload or second inference" classname="ai-home-search.spec.ts" time="2.841">
+</testcase>
+<testcase name="review recovery after hard reload: expired-owner, no raw payload or second inference" classname="ai-home-search.spec.ts" time="2.744">
+</testcase>
+<testcase name="review recovery after hard reload: not-yet-admitted, no raw payload or second inference" classname="ai-home-search.spec.ts" time="2.8">
+</testcase>
+<testcase name="review metadata transient failure retains receipt and retries only read-only status/metadata" classname="ai-home-search.spec.ts" time="1.816">
+</testcase>
+<testcase name="review both rental modes and exclusive map/list at 390px" classname="ai-home-search.spec.ts" time="1.826">
+</testcase>
+<testcase name="review both rental modes and exclusive map/list at 1440px" classname="ai-home-search.spec.ts" time="2.086">
+</testcase>
+<testcase name="review operation locator rejects expired without status access" classname="ai-home-search.spec.ts" time="1.362">
+</testcase>
+<testcase name="review operation locator rejects future without status access" classname="ai-home-search.spec.ts" time="1.322">
+</testcase>
+<testcase name="review operation locator rejects foreign-identity without status access" classname="ai-home-search.spec.ts" time="1.379">
+</testcase>
+<testcase name="review operation locator rejects extra-payload without status access" classname="ai-home-search.spec.ts" time="1.421">
+</testcase>
+<testcase name="review expired recovery locator cannot bind a newly entered operation to its old key" classname="ai-home-search.spec.ts" time="3.172">
+</testcase>
+<testcase name="A9 text empty result and manual fallback es 320px" classname="ai-home-search.spec.ts" time="1.849">
+</testcase>
+<testcase name="A9 text empty result and manual fallback es 390px" classname="ai-home-search.spec.ts" time="1.971">
+</testcase>
+<testcase name="A9 text empty result and manual fallback es 768px" classname="ai-home-search.spec.ts" time="2.066">
+</testcase>
+<testcase name="A9 text empty result and manual fallback es 1440px" classname="ai-home-search.spec.ts" time="2.141">
+</testcase>
+<testcase name="A9 text empty result and manual fallback ru 320px" classname="ai-home-search.spec.ts" time="1.952">
+</testcase>
+<testcase name="A9 text empty result and manual fallback ru 390px" classname="ai-home-search.spec.ts" time="1.897">
+</testcase>
+<testcase name="A9 text empty result and manual fallback ru 768px" classname="ai-home-search.spec.ts" time="2.028">
+</testcase>
+<testcase name="A9 text empty result and manual fallback ru 1440px" classname="ai-home-search.spec.ts" time="2.17">
+</testcase>
+<testcase name="A9 text empty result and manual fallback en 320px" classname="ai-home-search.spec.ts" time="1.893">
+</testcase>
+<testcase name="A9 text empty result and manual fallback en 390px" classname="ai-home-search.spec.ts" time="2.009">
+</testcase>
+<testcase name="A9 text empty result and manual fallback en 768px" classname="ai-home-search.spec.ts" time="2.019">
+</testcase>
+<testcase name="A9 text empty result and manual fallback en 1440px" classname="ai-home-search.spec.ts" time="2.184">
+</testcase>
+</testsuite>
+<testsuite name="ai-map-refresh-review.spec.ts" timestamp="2026-11-08T11:41:06.957Z" hostname="chromium" tests="14" failures="0" skipped="0" time="44.494" errors="0">
+<testcase name="review viewport-sensitive refresh success" classname="ai-map-refresh-review.spec.ts" time="3.576">
+</testcase>
+<testcase name="review viewport-sensitive refresh cards-error" classname="ai-map-refresh-review.spec.ts" time="3.438">
+</testcase>
+<testcase name="review viewport-sensitive refresh late" classname="ai-map-refresh-review.spec.ts" time="3.635">
+</testcase>
+<testcase name="review viewport-sensitive refresh map-error" classname="ai-map-refresh-review.spec.ts" time="3.787">
+</testcase>
+<testcase name="review viewport-sensitive refresh mismatch" classname="ai-map-refresh-review.spec.ts" time="3.561">
+</testcase>
+<testcase name="review map is independent of optional detail: detail-slow" classname="ai-map-refresh-review.spec.ts" time="2.723">
+</testcase>
+<testcase name="review map is independent of optional detail: detail-404" classname="ai-map-refresh-review.spec.ts" time="2.637">
+</testcase>
+<testcase name="review map is independent of optional detail: detail-503" classname="ai-map-refresh-review.spec.ts" time="2.787">
+</testcase>
+<testcase name="review safe overview without usable camera metadata: missing-center" classname="ai-map-refresh-review.spec.ts" time="2.607">
+</testcase>
+<testcase name="review safe overview without usable camera metadata: foreign-center" classname="ai-map-refresh-review.spec.ts" time="2.67">
+</testcase>
+<testcase name="review live catalog camera and separate snapshots: cross-auto" classname="ai-map-refresh-review.spec.ts" time="2.914">
+</testcase>
+<testcase name="review live catalog camera and separate snapshots: cross-manual" classname="ai-map-refresh-review.spec.ts" time="3.716">
+</testcase>
+<testcase name="review live catalog camera and separate snapshots: zero" classname="ai-map-refresh-review.spec.ts" time="3.433">
+</testcase>
+<testcase name="review live catalog camera and separate snapshots: epoch-change" classname="ai-map-refresh-review.spec.ts" time="3.01">
+</testcase>
+</testsuite>
+<testsuite name="ai-saved-searches.spec.ts" timestamp="2026-11-08T11:41:06.957Z" hostname="chromium" tests="2" failures="0" skipped="0" time="4.445" errors="0">
+<testcase name="owned AI collection restores names, paginates and deletes after reload at 320px" classname="ai-saved-searches.spec.ts" time="2.237">
+</testcase>
+<testcase name="owned AI collection restores names, paginates and deletes after reload at 1280px" classname="ai-saved-searches.spec.ts" time="2.208">
+</testcase>
+</testsuite>
+<testsuite name="google-maps-final-acceptance.spec.ts" timestamp="2026-11-08T11:41:06.957Z" hostname="chromium" tests="5" failures="0" skipped="0" time="20.816" errors="0">
+<testcase name="selected Advanced Marker has priority, opens the sheet, and programmatic selection stays clean" classname="google-maps-final-acceptance.spec.ts" time="2.137">
+</testcase>
+<testcase name="manual pan exposes Search this area while a result refit does not" classname="google-maps-final-acceptance.spec.ts" time="2.999">
+</testcase>
+<testcase name="map/list, multiple canonical zones, and polygon restore from URL and reload" classname="google-maps-final-acceptance.spec.ts" time="7.616">
+</testcase>
+<testcase name="official district hierarchy selects a stable ID and restores it from URL" classname="google-maps-final-acceptance.spec.ts" time="5.523">
+</testcase>
+<testcase name="map auth errors keep a usable fallback" classname="google-maps-final-acceptance.spec.ts" time="2.541">
+</testcase>
+</testsuite>
+</testsuites>

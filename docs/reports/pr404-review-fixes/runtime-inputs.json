@@ -698,7 +698,7 @@
     "scripts/run-ai-intent-eval.ps1": "180a62e9cca335c449c8ee650830b29eeead0ebe",
     "scripts/run-ai-map-benchmark.ps1": "3ef1dcf664f257fa9c7ffd96e2511678366b27d6",
     "scripts/security-inventory.py": "aab4dfbfcd6693eaef797a63edc15fc99d97c17f",
-    "scripts/serve-ai-private-demo.mjs": "36973e4e62de2e6b95edf385a6168f53e301f188",
+    "scripts/serve-ai-private-demo.mjs": "53e57ef3bd45cc8f2bd8eb3b7708615792a877dc",
     "scripts/serve-build-for-measurement.mjs": "d04bd21607aa0fee9ffb26c4de0509991bab2cd4",
     "scripts/set-stripe-test-secrets.ps1": "060acf3ae7ebcb41cf5b137862f56f47efc05752",
     "scripts/smoke-ai-closed-live-ui.mjs": "03d06076700a66e3c51bb90a2d790fb6202791b3",
