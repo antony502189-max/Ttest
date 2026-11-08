@@ -61,3 +61,27 @@ SQLite reserve/observed usage — estimate, не invoice или backup посл�
 Отдельный readonly override обязателен для уже завершённого показа.
 S2/S3/S6 partial; standing data/provider/performance/voice/saved/delivery/release
 и полные A1–A12 остаются открытыми. Новые crawler/provider calls не разрешены.
+
+## CI follow-up: общий production audit
+
+Head05888c32 прошёл frontend/19seed recovery/прочие целевые checks, но общий
+production audit выявил13setup errors: новая seed fixture читала только
+AI_FACTS_TEST_DATABASE_URL, а этот workflow задаёт TEST_DATABASE_URL. Source
+01c2075a добавляет fallback по прежнему контракту остальных PG fixtures;
+loopback/disposable guards сохранены. Это исправление test harness, не пропуск
+tests. Новый exact-head CI обязателен. На VPS широкий прогон969PASS/37FAIL/1SKIP:
+31FileNotFoundError из-за неполного backend-only mount (нет scripts/benchmark-ai-map.py),
+5process deadlines и1deadline до parser IO. Не считается зелёным; source/test
+deadlines не ослаблялись.
+
+Head01c2075a: exact combined CI1006facts/quota/PG PASS/1skip,1799unit/7skip,
+77verified/1skip,4realHTTP recovery,1cookie,19seed PASS. Raw downloaded ZIP
+SHA256 проверены. VPS fixed harness116PASS/1skip/11deselected подтвердил
+TEST_DATABASE_URL fallback,31benchmark helper cases и77cards integrations;
+это не пересчёт в общий suite. Own PG/Redis anonymous volumes/network удалены.
+Mobile обнаружил2private-demo tests в ordinary Vite mode: dedicated tests
+теперь исключены из default config, но обязательны в AI frontend CI через
+playwright.ai-demo.config.ts. Три consecutive production-audit MinIO HTTP504
+на same pinned asset привели к bounded download retry3×40s+2sbackoff; URL,
+version,hash и fail-closed checksum не менялись. Это необходимая проверяемая
+CI correction, не новый продуктовый этап. Новыйexact-headCI обязателен.

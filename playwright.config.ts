@@ -4,9 +4,9 @@ const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH
 
 export default defineConfig({
   testDir: './tests',
-  // Lab contracts require the dedicated Vite mode, not this ordinary build.
-  // They remain mandatory in playwright.ai-lab.config.ts / AI frontend CI.
-  testIgnore: ['full-stack/**', 'phase1/**', '**/tests/admin-performance/**', '**/google-auth.spec.ts', '**/listing-publication-errors.spec.ts', '**/location-counts-api.spec.ts', '**/ai-lab-runtime.spec.ts'],
+  // Private/lab contracts require their dedicated Vite mode, not this ordinary
+  // build. Both remain mandatory in the AI frontend CI dedicated configs.
+  testIgnore: ['full-stack/**', 'phase1/**', '**/tests/admin-performance/**', '**/google-auth.spec.ts', '**/listing-publication-errors.spec.ts', '**/location-counts-api.spec.ts', '**/ai-lab-runtime.spec.ts', '**/ai-private-demo.spec.ts'],
   timeout: 60_000,
   expect: { timeout: 7_000 },
   snapshotPathTemplate: '{testDir}/visual-snapshots/{projectName}/{arg}{ext}',

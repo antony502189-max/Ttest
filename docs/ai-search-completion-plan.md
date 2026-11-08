@@ -6,6 +6,10 @@
 
 **Сессия3.11 / S2.2,S3,S6 review remediation:** PR409-001 и PR410-001/002/003 исправлены;4новых stale/capacity PG cases, durable snapshot-bound seed recovery, single-session0→1→2 provider journal без refund, обязательный random DB secret. Actual Linux19seed cases PASS (12kill checkpoints+tamper/loss+6malformed);1790combined unit PASS/16skip,32focused входят в1790;93browser/27lab/2private browser и5build-mode PASS. INT-001: реальные git merge409→410 и410→409 после4resolved conflicts дали одинаковое treec365ef8b;972inputs canonical provenance PASS. INT-002: exact combined-head CI ещё ожидается, широкий VPS PG прогон пока не зелёный (3timeout прежних5second recovery cases). [Findings, raw proof и границы](reports/PR409_PR410_REVIEW_FIXES_20261108.md). Никаких новых paid calls, export, production/deployment, изменений sealed3/3journal.
 
+**CI correction3.11:** первый combined head05888c32: frontend и19seed cases SUCCESS; Production audit дал13setup errors новойfixture без fallback TEST_DATABASE_URL. Source01c2075a исправляет fallback, disposable/loopback guards сохранены; новыйexact-headCI обязателен. VPS broad969PASS/37FAIL/1SKIP —31missing benchmark script вbackend-onlymount,5process deadlines,1pre-parserdeadline; это не release acceptance.
+
+**CI follow-up3.11:** source01c2075a подтвердил1006combinedPG/1799Linuxunit/77verified/4HTTP/1cookie/19seed PASS (skip1/7/1); VPS corrected harness116PASS/1skip. Mobile2fail — private tests попали в ordinary mode, перенесены из default discovery в обязательный dedicated CI.3consecutive upstream504 исправляются bounded retries при неизменных pin/hash. Новый exact-headCI обязателен. Own test containers/volumes/network удалены; sealed/production не менялись.
+
 **Следующее действие3.11:** закончить combined source/PG/browser/provenance проверки, опубликовать исправленные draft PR и дождаться exact-head CI. Потом повторное review владельца и порядок409→410; merge/deploy в этой сессии не выполнять. S2/S3/S6 partial, полные provider/data/performance/voice/saved/delivery/release gates остаются открытыми.
 
 
