@@ -9,14 +9,16 @@ import pytest
 
 from lab.ai_fact_refresh import SyntheticDetailRefresh, SyntheticRefreshPolicy
 
-POLICY = SyntheticRefreshPolicy("synthetic", "example.invalid", 10, 131_072, 1, 10)
+POLICY = SyntheticRefreshPolicy("synthetic", "example.invalid", 10, 131_072, 1, 10, 20, 30)
 
 
 @pytest.mark.parametrize("field,value", [("source_name", "idealista"), ("source_name", "synthetic.bad"),
     ("host", "example.com"), ("host", "localhost"), ("host", "https://example.invalid"),
     ("max_requests", 0), ("max_requests", 101), ("max_requests", True),
     ("max_payload_bytes", 0), ("max_payload_bytes", 131_073), ("timeout_seconds", 0),
-    ("timeout_seconds", 31), ("max_operations", 0), ("max_operations", 1001)])
+    ("timeout_seconds", 31), ("max_operations", 0), ("max_operations", 1001),
+    ("max_total_requests", 0), ("max_total_requests", 1001), ("max_total_requests", True),
+    ("request_lease_seconds", 0), ("request_lease_seconds", 1), ("request_lease_seconds", 3601)])
 def test_invalid_or_unbounded_detail_policy_is_refused(field, value):
     with pytest.raises(ValueError):
         replace(POLICY, **{field: value})

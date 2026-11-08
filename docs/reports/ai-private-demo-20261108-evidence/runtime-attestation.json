@@ -1,0 +1,13 @@
+{
+  "canonical_lf_sha256": {
+    "backend/app/services/ai_text_runtime.py": "b1b4a24c44e71b250bb8388b269799a23a5ed6623b78459dd5654c04f969d7e1",
+    "backend/app/services/ai_pisocompartido_price.py": "5bb6370a49dc432bf9bf642394826faa571cfaced94a8fef4eabbf8dad6e294b",
+    "backend/demo/entry.py": "5066c3dae712b37816d932e2da6847306f5d4cdfc343b0e67ff9dd9d9f026d58",
+    "backend/demo/seed.py": "f2e9f8eb3a4c3e62f38659b0bbc675a53bc8817b14eb60395a4910900854528c"
+  },
+  "running_container_source_matches_worktree": true,
+  "server_directory": "/srv/112233-ai-private-demo-20261108",
+  "frontend_mode": "ai-private-demo",
+  "frontend_build_api_mock": false,
+  "provider_calls_after_readonly_transition": 0
+}

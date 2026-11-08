@@ -1,0 +1,18 @@
+{
+  "application_source": "f799dbbc",
+  "actual_linux_claims_process_passed": 16,
+  "new_terminal_waiter_cases": 4,
+  "unit_passed": 55,
+  "provider_calls": 0,
+  "production_mutations": 0,
+  "artifacts": [
+    {
+      "file": "claims-process.xml",
+      "sha256": "0bb1dc1dcd3799ab8071329df2b0b3c1c94420beafe88bf4680854d4b71475d4"
+    },
+    {
+      "file": "unit.xml",
+      "sha256": "22d53e0d25df0b535bf0fd8bcd6d96442150fd5061af3534bc0be17d0709b7fc"
+    }
+  ]
+}

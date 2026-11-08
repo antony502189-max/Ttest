@@ -9,7 +9,11 @@ RUN set -eu; \
       arm64) mc_sha256="61bb88e7435919834478ddd4d405a6de6d2c227079da5e8ee9655147398819a0" ;; \
       *) echo "unsupported TARGETARCH: $TARGETARCH" >&2; exit 64 ;; \
     esac; \
-    wget -q -O /mc "https://github.com/minio/mc/releases/download/$MC_RELEASE/mc.linux-$TARGETARCH.$MC_RELEASE"; \
+    for attempt in 1 2 3; do \
+      if wget -T 40 -q -O /mc "https://github.com/minio/mc/releases/download/$MC_RELEASE/mc.linux-$TARGETARCH.$MC_RELEASE"; then break; fi; \
+      [ "$attempt" -lt 3 ] || exit 1; \
+      sleep 2; \
+    done; \
     echo "$mc_sha256  /mc" | sha256sum -c -; \
     chmod 0755 /mc
 

@@ -1,0 +1,48 @@
+{
+  "schema": "ai-search-review-fixes.v1",
+  "date": "2026-11-08",
+  "integration_core_source": "3513531be66d68c6f7b36fe0fc2b700b90b233fa",
+  "unit": {
+    "passed": 1790,
+    "skipped": 16,
+    "deselected": 1193
+  },
+  "focused": {
+    "passed": 32,
+    "subset_of_unit": true
+  },
+  "seed_postgis": {
+    "passed": 19,
+    "skipped": 0,
+    "provider_calls": 0
+  },
+  "browser": {
+    "passed": 93
+  },
+  "lab_browser": {
+    "passed": 27
+  },
+  "private_browser": {
+    "passed": 2,
+    "external_requests": 0
+  },
+  "build_matrix": 5,
+  "migrations": "0079 + alembic check PASS",
+  "broad_pg": "running; three old 5second process-recovery deadline failures, not accepted as PASS",
+  "exact_head_ci": "pending after push",
+  "paid_calls": 0,
+  "production_deployment": false,
+  "sealed_demo_modified": false,
+  "artifacts": {
+    "acceptance.json": "b07dcb1dc6769f53aa737d9fcde6123422faef6a162ecb51246dce8a0cd1d754",
+    "browser-combined.xml": "146dae86d24cf97c78e1055c85c362b8dd8f3fba52f4400a20f24a657d951155",
+    "build-matrix.json": "1f0f405f2b0e5354eaca2564192dd594cd25ffdf8c6e5c0654e640b877ca2ff7",
+    "combined-unit.xml": "340258b61e84f3e030b17f941b70de87b4dc96f8bc3216687887ef5979e3f3db",
+    "lab-combined.xml": "cd32b332ce3f44cb994656d2bee966e834f1994582d1f69d649c146cce4652f4",
+    "merge-orders.json": "f32e5cfe7f65924f9fdc47fe42cc12d1fc8ac8f27f52e6c7007249e921d85d15",
+    "pr410-seed-final.xml": "19d7fe3e8e809ce3d0fb258a4ccefa43039218c490d0878e4b989c818bb6a778",
+    "private-browser.xml": "624743e3f005a2baa7eb0e58986d051c341159117d3f7ed7b73e8fcf29d697bf",
+    "private-focused.xml": "f7be5c0fc14303b516d15df287e983f55e3475b15437293ce34cb2bb0007f9b5",
+    "provenance-3513531.json": "9aaf7af9c8800a70002ad1ee5fc4dd1e7840e7947b07f947864d545d039e8bfc"
+  }
+}

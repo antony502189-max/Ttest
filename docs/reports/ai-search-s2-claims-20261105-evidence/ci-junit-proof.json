@@ -1,0 +1,24 @@
+{
+  "head": "2859b4444edc209888a2b932eff8e5870e803e5a",
+  "run": 42049048343,
+  "job": 127319847731,
+  "artifact": 13426512749,
+  "artifactSha256": "09c0b614b6909d8cc8a17ee3baf4fdc8b71de4b9406db0931ce8f7d748f8b0d9",
+  "newCasesPassed": 12,
+  "newCaseNames": [
+    "test_other_receipt_cannot_claim_the_same_live_source",
+    "test_two_sources_and_callers_share_one_durable_request_cap",
+    "test_failed_get_spends_durable_budget_and_reopen_does_not_reset_it[refresh_setup0]",
+    "test_unknown_claim_ack_is_charged_before_dispatch_and_recovers_after_lease",
+    "test_expired_claim_cannot_dispatch_a_get",
+    "test_one_reservation_cannot_dispatch_twice",
+    "test_new_owner_fences_a_late_old_http_response[refresh_setup0]",
+    "test_final_fence_failure_rolls_back_source_projection_and_receipt",
+    "test_claim_waiter_rechecks_effect_committed_while_waiting",
+    "test_hard_kill_consumer_preserves_budget_fence_and_exact_effect[reserved-refresh_setup0]",
+    "test_hard_kill_consumer_preserves_budget_fence_and_exact_effect[http-refresh_setup0]",
+    "test_hard_kill_consumer_preserves_budget_fence_and_exact_effect[committed-refresh_setup0]"
+  ],
+  "localPostgreSQLRun": false,
+  "source": "downloaded GitHub CI JUnit, not local execution"
+}

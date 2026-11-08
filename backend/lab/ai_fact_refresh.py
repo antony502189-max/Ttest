@@ -2,8 +2,9 @@
 
 No legacy importer, discovery, images, notifications, scheduler or automatic ACK.
 Successful source CAS, projection barrier and operation receipt commit together.
-GETs can repeat after interruption before commit: durable HTTP budgets/leases and
-real source/canonical import policy remain prerequisites for any live consumer.
+Each dispatch is durably charged before mock I/O and fenced before mutation.
+Interrupted dispatch may repeat after its lease, spending a new reservation.
+This synthetic budget is not a provider journal or permission for real sources.
 """
 
 import asyncio
@@ -11,14 +12,17 @@ import hashlib
 import json
 import re
 from dataclasses import asdict, dataclass, field
+from datetime import timedelta
 from time import monotonic
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
 import httpx
 from sqlalchemy import (
+    CheckConstraint,
     Column,
     DateTime,
+    Integer,
     MetaData,
     String,
     Table,
@@ -49,6 +53,21 @@ OPERATIONS = Table("synthetic_ai_detail_refresh_receipts", MetaData(),
     Column("source_id", PGUUID(as_uuid=True), nullable=False),
     Column("committed_at", DateTime(timezone=True), nullable=False))
 
+REQUEST_BUDGETS = Table("synthetic_ai_detail_request_budgets", OPERATIONS.metadata,
+    Column("namespace", String(32), primary_key=True), Column("binding", String(64), nullable=False),
+    Column("used", Integer, nullable=False), Column("maximum", Integer, nullable=False),
+    CheckConstraint("used >= 0 AND used <= maximum AND maximum > 0"))
+REQUEST_CLAIMS = Table("synthetic_ai_detail_request_claims", OPERATIONS.metadata,
+    Column("operation", String(64), primary_key=True), Column("namespace", String(32), nullable=False),
+    Column("source_id", PGUUID(as_uuid=True), nullable=False), Column("token", PGUUID(as_uuid=True), nullable=False),
+    Column("attempt", Integer, nullable=False), Column("lease_until", DateTime(timezone=True), nullable=False),
+    Column("status", String(16), nullable=False), CheckConstraint("attempt > 0"),
+    CheckConstraint("status IN ('reserved','dispatched','finished')"))
+
+
+class _LostRequestLease(RuntimeError):
+    pass
+
 
 class SyntheticRefreshUnavailable(RuntimeError):
     pass
@@ -72,6 +91,8 @@ class SyntheticRefreshPolicy:
     max_payload_bytes: int
     timeout_seconds: int
     max_operations: int
+    max_total_requests: int
+    request_lease_seconds: int
 
     def __post_init__(self) -> None:
         checked_source_name(self.source_name)
@@ -81,6 +102,10 @@ class SyntheticRefreshPolicy:
         bounded(self.max_payload_bytes, 131_072)
         bounded(self.timeout_seconds, 30)
         bounded(self.max_operations, 1000)
+        bounded(self.max_total_requests, 1000)
+        bounded(self.request_lease_seconds, 3600)
+        if self.request_lease_seconds <= self.timeout_seconds:
+            raise ValueError("request lease must exceed the bounded HTTP timeout")
 
 
 @dataclass(frozen=True)
@@ -150,7 +175,76 @@ class SyntheticDetailRefresh:
             if db.execute("SELECT binding FROM synthetic_refresh_binding").fetchone()[0] != self.binding:
                 raise ValueError("synthetic refresh configuration binding mismatch")
         async with self.sessions() as session, session.begin():
-            await (await session.connection()).run_sync(lambda connection: OPERATIONS.create(connection, checkfirst=True))
+            await (await session.connection()).run_sync(lambda connection: OPERATIONS.metadata.create_all(connection))
+        namespace = self._namespace()
+        async with self.sessions() as session, session.begin():
+            await self._request_lock(session, namespace)
+            budget = (await session.execute(select(REQUEST_BUDGETS).where(REQUEST_BUDGETS.c.namespace == namespace))).first()
+            if budget is None:
+                await session.execute(insert(REQUEST_BUDGETS).values(namespace=namespace, binding=self.binding,
+                    used=0, maximum=self.policy.max_total_requests))
+            elif budget.binding != self.binding or budget.maximum != self.policy.max_total_requests:
+                raise ValueError("synthetic request budget binding mismatch")
+
+    async def _request_lock(self, session, namespace: str) -> None:
+        await session.execute(text("SELECT pg_advisory_xact_lock(hashtextextended("
+            "current_schema() || '/synthetic_detail_requests/' || :namespace,0))"), {"namespace": namespace})
+
+    async def _claim(self, operation: str, namespace: str, source_id: UUID) -> tuple[UUID | None, str]:
+        if (namespace != self._namespace() or source_id not in self.cohort
+                or type(operation) is not str or not re.fullmatch(r"[0-9a-f]{64}", operation)):
+            raise ValueError("synthetic request identity mismatch")
+        async with self.sessions() as session, session.begin():
+            await session.execute(text("SET TRANSACTION ISOLATION LEVEL READ COMMITTED"))
+            await self._request_lock(session, namespace)
+            if await session.scalar(select(OPERATIONS.c.operation).where(OPERATIONS.c.operation == operation)):
+                return None, "already_applied"
+            row = (await session.execute(select(REQUEST_CLAIMS).where(
+                REQUEST_CLAIMS.c.operation == operation).with_for_update())).first()
+            # A writer may have committed its effect while this caller waited
+            # for the request row. Recheck using the fresh READ COMMITTED view.
+            if await session.scalar(select(OPERATIONS.c.operation).where(OPERATIONS.c.operation == operation)):
+                return None, "already_applied"
+            now = (await session.execute(select(func.clock_timestamp()))).scalar_one()
+            if row is not None:
+                if row.namespace != namespace or row.source_id != source_id:
+                    raise ValueError("synthetic request identity mismatch")
+                if row.status in {"reserved", "dispatched"} and row.lease_until > now:
+                    return None, "in_progress"
+            other = await session.scalar(select(REQUEST_CLAIMS.c.operation).where(
+                REQUEST_CLAIMS.c.namespace == namespace, REQUEST_CLAIMS.c.source_id == source_id,
+                REQUEST_CLAIMS.c.operation != operation, REQUEST_CLAIMS.c.status.in_(("reserved", "dispatched")),
+                REQUEST_CLAIMS.c.lease_until > now).limit(1).with_for_update())
+            if other is not None:
+                return None, "in_progress"
+            budget = (await session.execute(select(REQUEST_BUDGETS).where(
+                REQUEST_BUDGETS.c.namespace == namespace).with_for_update())).one()
+            if budget.binding != self.binding or budget.maximum != self.policy.max_total_requests:
+                raise ValueError("synthetic request budget binding mismatch")
+            if budget.used >= budget.maximum:
+                return None, "request_capacity"
+            token = uuid4()
+            values = {"namespace": namespace, "source_id": source_id, "token": token,
+                "attempt": 1 if row is None else row.attempt + 1,
+                "lease_until": now + timedelta(seconds=self.policy.request_lease_seconds), "status": "reserved"}
+            if row is None:
+                await session.execute(insert(REQUEST_CLAIMS).values(operation=operation, **values))
+            else:
+                await session.execute(update(REQUEST_CLAIMS).where(REQUEST_CLAIMS.c.operation == operation).values(**values))
+            # Charge before I/O. Unknown dispatch/commit outcomes are never refunded.
+            await session.execute(update(REQUEST_BUDGETS).where(REQUEST_BUDGETS.c.namespace == namespace).values(used=budget.used + 1))
+            self._namespace()
+            return token, "claimed"
+
+    async def _lease(self, session, operation: str, namespace: str, token: UUID, *,
+                     lock: bool = False, source_id: UUID | None = None, dispatch: bool = False) -> None:
+        query = select(REQUEST_CLAIMS).where(REQUEST_CLAIMS.c.operation == operation)
+        row = (await session.execute(query.with_for_update() if lock else query)).first()
+        now = await session.scalar(select(func.clock_timestamp()))
+        if (row is None or row.namespace != namespace or row.token != token
+                or (source_id is not None and row.source_id != source_id)
+                or row.status != ("reserved" if dispatch else "dispatched") or row.lease_until <= now):
+            raise _LostRequestLease()
 
     def _namespace(self) -> str:
         self.supervisor._binding()
@@ -185,10 +279,19 @@ class SyntheticDetailRefresh:
             raise ValueError("synthetic refresh URL refused")
         return _Target(captured, row)
 
-    async def _fetch(self, target: _Target) -> tuple[_Detail | None, str]:
+    async def _fetch(self, target: _Target, operation: str, namespace: str, token: UUID) -> tuple[_Detail | None, str]:
         started = monotonic()
         try:
-            self._namespace()  # Recheck after prior async work, before constructing any client.
+            if namespace != self._namespace():
+                raise _LostRequestLease()
+            async with self.sessions() as session, session.begin():
+                await self._lease(session, operation, namespace, token, source_id=target.row.id, lock=True, dispatch=True)
+                await session.execute(update(REQUEST_CLAIMS).where(REQUEST_CLAIMS.c.operation == operation,
+                    REQUEST_CLAIMS.c.token == token).values(status="dispatched"))
+            # The DB await above must not open a configuration/transport race.
+            # Client construction below binds an exact MockTransport without
+            # yielding between this validation and reading self.transport.
+            self._namespace()
             async with asyncio.timeout(self.policy.timeout_seconds), httpx.AsyncClient(
                 transport=self.transport, trust_env=False, follow_redirects=False,
                 timeout=self.policy.timeout_seconds) as client, client.stream("GET", target.row.source_url) as response:
@@ -218,17 +321,22 @@ class SyntheticDetailRefresh:
             return detail, "active"
         except asyncio.CancelledError:
             raise
+        except _LostRequestLease:
+            return None, "lease_lost"
         except Exception:  # noqa: BLE001 -- source/builder/HTTP payload must not escape.
             return None, "unknown"
 
     async def _write(self, target: _Target, operation: str, namespace: str,
-                     detail: _Detail | None, state: str) -> str:
+                     detail: _Detail | None, state: str, token: UUID) -> str:
         pipeline = self.supervisor.coordinator.pipeline
         self._namespace()
         async with self.sessions() as session, session.begin():
             # Capacity must see commits made while waiting for the shared lock,
             # even if the caller's engine default is REPEATABLE READ.
             await session.execute(text("SET TRANSACTION ISOLATION LEVEL READ COMMITTED"))
+            if await session.scalar(select(OPERATIONS.c.operation).where(OPERATIONS.c.operation == operation)):
+                return "already_applied"
+            await self._lease(session, operation, namespace, token, lock=True, source_id=target.row.id)
             # Match existing mutation order. Never hold these locks during HTTP/builder work.
             anchor = await pipeline._anchor(session, target.row.canonical_listing_id)
             visible, authority = await pipeline._authority(session, target.row.canonical_listing_id)
@@ -244,11 +352,14 @@ class SyntheticDetailRefresh:
                     or current.content_updated_at != target.row.content_updated_at or checks is None
                     or tuple(checks) != (target.row.last_checked_at, target.row.last_state_check_at,
                                         target.row.last_state_check_result, target.row.source_name)):
+                await self._finish_request(session, operation, namespace, token)
+                self._namespace()
                 return "stale"
             now = await session.scalar(select(func.clock_timestamp()))
             values: dict[str, Any] = {"last_checked_at": now, "last_state_check_at": now, "last_state_check_result": state}
             if detail is None:
                 await session.execute(update(ExternalListingSource).where(ExternalListingSource.id == target.row.id).values(**values))
+                await self._finish_request(session, operation, namespace, token)
                 self._namespace()
                 return "failed"
             # JSONB::text adds whitespace; a small HTTP document can still
@@ -260,11 +371,14 @@ class SyntheticDetailRefresh:
                     self.supervisor.coordinator.reader.max_payload_bytes):
                 values["last_state_check_result"] = "unknown"
                 await session.execute(update(ExternalListingSource).where(ExternalListingSource.id == target.row.id).values(**values))
+                await self._finish_request(session, operation, namespace, token)
                 self._namespace()
                 return "failed"
             await session.execute(text("SELECT pg_advisory_xact_lock(hashtextextended("
                                        "current_schema() || '/synthetic_ai_detail_refresh',0))"))
             if int(await session.scalar(select(func.count()).select_from(OPERATIONS)) or 0) >= self.policy.max_operations:
+                await self._finish_request(session, operation, namespace, token)
+                self._namespace()
                 return "capacity"
             # Python dict equality treats True==1/False==0. Compare locked
             # values with PostgreSQL JSONB semantics so type changes advance
@@ -286,8 +400,14 @@ class SyntheticDetailRefresh:
             await pipeline._publish(session, anchor, visible, updated)
             await session.execute(insert(OPERATIONS).values(operation=operation, namespace=namespace,
                                                           source_id=target.row.id, committed_at=now))
+            await self._finish_request(session, operation, namespace, token)
             self._namespace()
             return "refreshed"
+
+    async def _finish_request(self, session, operation: str, namespace: str, token: UUID) -> None:
+        await self._lease(session, operation, namespace, token)
+        await session.execute(update(REQUEST_CLAIMS).where(REQUEST_CLAIMS.c.operation == operation,
+            REQUEST_CLAIMS.c.token == token).values(status="finished"))
 
     async def run_receipt(self, revision: int, *, expected_digest: str) -> RefreshReceiptResult:
         """One exact retained receipt. Never ACK or delete any supervisor evidence."""
@@ -323,8 +443,18 @@ class SyntheticDetailRefresh:
                 elif count >= self.policy.max_operations:
                     outcomes.append("capacity")
                 else:
-                    detail, state = await self._fetch(target)
-                    outcome = await self._write(target, key, namespace, detail, state)
+                    token, outcome = await self._claim(key, namespace, target.row.id)
+                    if token is None:
+                        outcomes.append(outcome)
+                        continue
+                    detail, state = await self._fetch(target, key, namespace, token)
+                    if state == "lease_lost":
+                        outcomes.append(state)
+                        continue
+                    try:
+                        outcome = await self._write(target, key, namespace, detail, state, token)
+                    except _LostRequestLease:
+                        outcome = "lease_lost"
                     outcomes.append(outcome)
                     count += int(outcome == "refreshed")
             return RefreshReceiptResult(tuple(outcomes))
@@ -332,3 +462,22 @@ class SyntheticDetailRefresh:
             raise
         except Exception:  # noqa: BLE001 -- unknown commit outcome must be recovered via PG receipt, not blind retry here.
             raise SyntheticRefreshUnavailable("SYNTHETIC_DETAIL_REFRESH_UNAVAILABLE") from None
+
+
+class SyntheticDetailRefreshTick:
+    """Finite exact-receipt adapter for the existing external spawn/kill boundary.
+
+    No scheduling/ACK. The parent must inspect durable PG effects and retained
+    supervisor signals after exit, including a successful protocol reply.
+    """
+
+    def __init__(self, refresh: SyntheticDetailRefresh, *, revision: int, expected_digest: str):
+        bounded(revision, 10_000)
+        if type(expected_digest) is not str or not re.fullmatch(r"[0-9a-f]{64}", expected_digest):
+            raise ValueError("exact synthetic receipt digest required")
+        self.refresh, self.revision, self.expected_digest = refresh, revision, expected_digest
+
+    async def run_once(self) -> str:
+        result = await self.refresh.run_receipt(self.revision, expected_digest=self.expected_digest)
+        return "committed" if result.outcomes and all(
+            value in {"refreshed", "already_applied"} for value in result.outcomes) else "deferred"

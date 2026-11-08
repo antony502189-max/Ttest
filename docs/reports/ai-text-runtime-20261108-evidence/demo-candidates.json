@@ -1,0 +1,35 @@
+{
+  "database_time": "2026-11-07T22:35:11.259151+00:00",
+  "rows": [
+    {
+      "source": "AlquilerDocenteCanarias",
+      "fresh_public": 9,
+      "monthly_at_most_600": 9,
+      "monthly_at_most_400": 4,
+      "with_approximate_location": 9
+    },
+    {
+      "source": "Habitaclia",
+      "fresh_public": 94,
+      "monthly_at_most_600": 6,
+      "monthly_at_most_400": 1,
+      "with_approximate_location": 0
+    },
+    {
+      "source": "PisoCompartido",
+      "fresh_public": 12,
+      "monthly_at_most_600": 11,
+      "monthly_at_most_400": 3,
+      "with_approximate_location": 12
+    },
+    {
+      "source": "Pisos",
+      "fresh_public": 17,
+      "monthly_at_most_600": 16,
+      "monthly_at_most_400": 6,
+      "with_approximate_location": 17
+    }
+  ],
+  "query_sha256": "fc5b251d12764b23e78ff67bd23f01bcee0561b453cfe1cc02c7797bfb56b08e",
+  "meaning": "Current stored card prices/source health, not AI proof coverage or model acceptance."
+}

@@ -15,8 +15,13 @@ from multiprocessing.connection import Connection
 from multiprocessing.process import BaseProcess
 from time import monotonic
 from types import FunctionType, ModuleType
+from typing import Protocol
 
-from lab.ai_fact_supervisor import SyntheticFactSupervisor, bounded
+from lab.ai_fact_supervisor import bounded
+
+
+class FiniteSyntheticTick(Protocol):
+    async def run_once(self) -> str: ...
 
 
 @dataclass(frozen=True)
@@ -26,7 +31,7 @@ class ProcessTickResult:
     exitcode: int
 
 
-def _launch_input(factory: Callable[..., SyntheticFactSupervisor], args: tuple) -> None:
+def _launch_input(factory: Callable[..., FiniteSyntheticTick], args: tuple) -> None:
     # Arbitrary pickle reducers run in Process.start(), in the controlling
     # parent, outside the child kill boundary. Do not accept objects/callables
     # with custom serialization, live engines or unbounded configuration trees.
@@ -59,7 +64,7 @@ def _launch_input(factory: Callable[..., SyntheticFactSupervisor], args: tuple) 
         raise ValueError("SYNTHETIC_PROCESS_INPUT")
 
 
-def _tick(factory: Callable[..., SyntheticFactSupervisor], args: tuple, reply: Connection) -> None:
+def _tick(factory: Callable[..., FiniteSyntheticTick], args: tuple, reply: Connection) -> None:
     try:
         outcome = asyncio.run(factory(*args).run_once())
         # A clean process exit alone proves nothing: SystemExit(0), os._exit(0)
@@ -83,7 +88,7 @@ def _reap(process: BaseProcess, seconds: int) -> None:
         raise RuntimeError("SYNTHETIC_CHILD_REAP_FAILED") from None
 
 
-def run_isolated_tick(factory: Callable[..., SyntheticFactSupervisor], args: tuple, *,
+def run_isolated_tick(factory: Callable[..., FiniteSyntheticTick], args: tuple, *,
                       deadline_seconds: int, reap_seconds: int = 5) -> ProcessTickResult:
     """Run one trusted synthetic supervisor; return only after confirmed child exit.
 

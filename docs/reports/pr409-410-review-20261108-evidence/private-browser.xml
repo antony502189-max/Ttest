@@ -1,0 +1,8 @@
+<testsuites id="" name="" tests="2" failures="0" skipped="0" errors="0" time="4.789928">
+<testsuite name="ai-private-demo.spec.ts" timestamp="2026-11-08T11:46:55.542Z" hostname="chromium" tests="2" failures="0" skipped="0" time="1.659" errors="0">
+<testcase name="private demo exhausted blocks new calls and isolates browser CDN" classname="ai-private-demo.spec.ts" time="0.913">
+</testcase>
+<testcase name="private demo unavailable blocks new calls and isolates browser CDN" classname="ai-private-demo.spec.ts" time="0.746">
+</testcase>
+</testsuite>
+</testsuites>

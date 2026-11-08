@@ -10,6 +10,7 @@ import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
 import { PropertyCard } from '@/components/marketplace'
 import { AIResultMap } from '@/components/ai-result-map'
+import { PRIVATE_DEMO, PrivateDemoStatus } from '@/components/private-demo-status'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import '@/home-ai-search.css'
@@ -37,6 +38,7 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
   const [resultInvalid, setResultInvalid] = useState(false)
   const [remaining, setRemaining] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
+  const [demoBlocked, setDemoBlocked] = useState(PRIVATE_DEMO)
   const [syncingSession, setSyncingSession] = useState(false)
   const [needsSync, setNeedsSync] = useState(false)
   const [pagingAvailable, setPagingAvailable] = useState(true)
@@ -418,6 +420,7 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
     </section>
     <DialogContent className="ai-search-dialog">
       <DialogHeader><DialogTitle>{t('Encuentra tu habitación')}</DialogTitle><DialogDescription>{t('Usamos condiciones confirmadas de los anuncios para buscar opciones.')}</DialogDescription></DialogHeader>
+      <PrivateDemoStatus refreshKey={`${session?.intent.version ?? 0}:${busy}`} onBlocked={setDemoBlocked} />
       {import.meta.env.VITE_AI_CLOSED_LAB ? <p data-ai-lab-mode={import.meta.env.VITE_AI_CLOSED_LAB}>
         {t(import.meta.env.VITE_AI_CLOSED_LAB === 'closed-live-synthetic'
           ? 'Prueba cerrada con modelo real y catálogo simulado. Usa solo las frases sintéticas autorizadas. No envíes datos personales.'
@@ -437,7 +440,7 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
       <label htmlFor="ai-search-text">{t(result ? '¿Qué quieres cambiar?' : 'Cuéntanos qué necesitas')}</label>
       <textarea id="ai-search-text" data-i18n-exempt value={text} onChange={event => setText(event.target.value)} disabled={busy || restoring || pending !== null}
         maxLength={16000} rows={3} autoComplete="off" spellCheck={false} placeholder={t('Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
-      <Button type="button" className="home-ai-search__action" disabled={busy || restoring || restoreFailed || (!pending && ((changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
+      <Button type="button" className="home-ai-search__action" disabled={busy || restoring || restoreFailed || (!pending && (demoBlocked || (changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
         onClick={() => void submit()}>{t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : result ? 'Actualizar búsqueda' : 'Buscar habitaciones')}</Button>
       {busy && pending ? <Button type="button" variant="outline" onClick={() => {
         flight.current?.abort(); setBusy(false)

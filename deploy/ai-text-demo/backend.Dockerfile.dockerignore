@@ -1,0 +1,12 @@
+**
+!backend/
+!backend/app/
+!backend/app/**
+!backend/alembic/
+!backend/alembic/**
+!backend/demo/
+!backend/demo/**
+!backend/alembic.ini
+!deploy/
+!deploy/ai-text-demo/
+!deploy/ai-text-demo/backend.Dockerfile

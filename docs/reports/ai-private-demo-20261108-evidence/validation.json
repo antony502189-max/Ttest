@@ -1,0 +1,52 @@
+{
+  "schema": "ai-private-demo-validation.v1",
+  "application_source": "baf8f5ae4f0cb0d92d84257097abb25c6d8102c7",
+  "base_main": "afdf180c922da65de8f0fbdf3e89005e30faf481",
+  "unit": {
+    "passed": 1775,
+    "skipped": 16,
+    "deselected": 404,
+    "failures": 0,
+    "errors": 0,
+    "focused": 23,
+    "focused_included_in_total": true
+  },
+  "ruff": "PASS",
+  "mypy": "PASS runtime + price adapter",
+  "typescript": "PASS",
+  "private_frontend_build": "PASS mock API disabled",
+  "provenance_inputs": 963,
+  "real_live_browser_cases": 3,
+  "real_pg_proofs": 12,
+  "real_model_attempts": 3,
+  "backend_key_mounted_after_demo": false,
+  "backend_egress_after_demo": false,
+  "production_changed": false,
+  "ci_at_publication": "pending exact final head",
+  "artifacts": [
+    {
+      "file": "backend-demo-final.xml",
+      "sha256": "6582d13bc23067b4c115df4fa85ae3d7ec93f664a6cf488cd256b5cf2e4c38b0"
+    },
+    {
+      "file": "live-result.json",
+      "sha256": "49d2bddaf9d782292d101a736c8a6f99fe36e4458ad7ffa77845b044795427b2"
+    },
+    {
+      "file": "private-unit-final.xml",
+      "sha256": "7e56e502729f26d4786df517eb9355da9fcda1c31791141bf829dd2b27987b86"
+    },
+    {
+      "file": "real-cards-final.png",
+      "sha256": "4a251f84438cf68fcb561fa11b259eaa9d41b8e6bb842318e7a965345cb88caf"
+    },
+    {
+      "file": "real-map-600.png",
+      "sha256": "ffa825b2b3b8284b769fcdcf9987d32fc996fd32d74a6849a492a9b6b9436215"
+    },
+    {
+      "file": "runtime-attestation.json",
+      "sha256": "e6fef70e793089edf48abfc903ed8bf5a2b7034b0b9b0d6d48411a6a63fa30de"
+    }
+  ]
+}

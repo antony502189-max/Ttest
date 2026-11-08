@@ -22,16 +22,22 @@ from app.models import ExternalListingSource
 from app.models.ai_fact_pipeline import AiFactRematchEvent
 from app.repositories.ai_fact_quality import source_check_health_predicate
 from app.services.ai_fact_coordinator import FactCoordinatorCursor
-from lab.ai_fact_refresh import OPERATIONS, SyntheticDetailRefresh, SyntheticRefreshPolicy, SyntheticRefreshUnavailable
+from lab.ai_fact_refresh import (
+    OPERATIONS,
+    REQUEST_CLAIMS,
+    SyntheticDetailRefresh,
+    SyntheticRefreshPolicy,
+    SyntheticRefreshUnavailable,
+)
 
 pytestmark = pytest.mark.integration
 coordinator, proofs = coordinator_fixture, proof_fixture
 BUNDLE = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
-POLICY = SyntheticRefreshPolicy("synthetic", "example.invalid", 10, 131_072, 1, 10)
+POLICY = SyntheticRefreshPolicy("synthetic", "example.invalid", 10, 131_072, 1, 10, 20, 30)
 
 
 @pytest_asyncio.fixture
-async def refresh_setup(pipeline, coordinator, tmp_path):
+async def refresh_setup(pipeline, coordinator, tmp_path, request):
     await queue(pipeline)
     supervisor = await make_supervisor(tmp_path, coordinator)
     assert await supervisor.run_once() == "committed"
@@ -49,7 +55,7 @@ async def refresh_setup(pipeline, coordinator, tmp_path):
         calls.append(request)
         return httpx.Response(200, json=document)
 
-    runner = SyntheticDetailRefresh(supervisor, policy=POLICY, cohort=((source_id, listing_id),),
+    runner = SyntheticDetailRefresh(supervisor, policy=getattr(request, "param", POLICY), cohort=((source_id, listing_id),),
                                     transport=httpx.MockTransport(handler), mock_bundle_sha256=BUNDLE)
     await runner.initialize()
     return runner, source_id, listing_id, calls, document, handler
@@ -197,6 +203,7 @@ async def test_receipt_insert_failure_rolls_back_source_and_projection(pipeline,
     assert await state(pipeline) == before
     async with pipeline[1]() as session, session.begin():
         await session.execute(text("DROP TRIGGER fail_receipt ON synthetic_ai_detail_refresh_receipts"))
+        await session.execute(update(REQUEST_CLAIMS).values(lease_until=func.clock_timestamp()))
     assert (await run(runner)).outcomes == ("refreshed",) and len(calls) == 2
     assert (await state(pipeline))[1] == 1
 
@@ -326,21 +333,23 @@ async def test_stored_jsonb_expansion_cannot_exceed_snapshot_capture_bound(pipel
     assert after[0].last_success_at is None and after[0].raw_payload == before[0].raw_payload and after[1] == 0
 
 
-async def test_concurrent_calls_have_one_durable_write_even_if_gets_overlap(pipeline, refresh_setup):
+async def test_concurrent_calls_have_one_pre_http_owner_and_one_durable_write(pipeline, refresh_setup):
     runner, _, _, calls, document, _ = refresh_setup
-    both = asyncio.Event()
+    entered, release = asyncio.Event(), asyncio.Event()
 
     async def fetch(request):
         calls.append(request)
-        if len(calls) == 2:
-            both.set()
-        await both.wait()
+        entered.set()
+        await release.wait()
         return httpx.Response(200, json=document)
 
     runner.transport = httpx.MockTransport(fetch)
-    results = await asyncio.gather(run(runner), run(runner))
-    assert sorted(result.outcomes[0] for result in results) == ["already_applied", "refreshed"]
-    assert len(calls) == 2 and (await state(pipeline))[1] == 1
+    first = asyncio.create_task(run(runner))
+    await asyncio.wait_for(entered.wait(), 1)
+    assert (await run(runner)).outcomes == ("in_progress",)
+    release.set()
+    assert (await first).outcomes == ("refreshed",)
+    assert len(calls) == 1 and (await state(pipeline))[1] == 1
     after = await state(pipeline)
     assert (await run(runner)).outcomes == ("already_applied",) and await state(pipeline) == after
 
@@ -435,17 +444,21 @@ async def test_concurrent_distinct_sources_cannot_overrun_global_receipt_cap(
     runner = SyntheticDetailRefresh(supervisor, policy=replace(POLICY, max_operations=1), cohort=cohort,
         transport=httpx.MockTransport(lambda request: None), mock_bundle_sha256=BUNDLE)
     await runner.initialize()
-    targets, documents = [], []
-    for source, listing in cohort:
+    targets, documents, tokens = [], [], []
+    namespace = runner._namespace()
+    for i, (source, listing) in enumerate(cohort):
         body = {"schema_version": "synthetic-detail.v1", "source_id": str(source),
             "canonical_listing_id": str(listing), "source_name": "synthetic", "raw": {"capacity": True},
             "normalized": {"packet": next(c["packet"] for c in CASES["cases"] if c["name"] == "pets_allow")}, "price": None}
         runner.transport = httpx.MockTransport(lambda request, body=body: httpx.Response(200, json=body))
         target = await runner._target(source)
-        document, result = await runner._fetch(target)
+        token, _ = await runner._claim(str(i) * 64, namespace, source)
+        assert token is not None
+        document, result = await runner._fetch(target, str(i) * 64, namespace, token)
         assert document is not None and result == "active"
         targets.append(target)
         documents.append(document)
+        tokens.append(token)
     pipeline[1].kw["bind"].update_execution_options(isolation_level=isolation)
     authority = pipeline[0]._authority
     both = asyncio.Event()
@@ -461,8 +474,7 @@ async def test_concurrent_distinct_sources_cannot_overrun_global_receipt_cap(
         return result
 
     monkeypatch.setattr(pipeline[0], "_authority", synchronize)
-    namespace = runner._namespace()
-    results = await asyncio.gather(*(runner._write(target, str(i) * 64, namespace, document, "active")
+    results = await asyncio.gather(*(runner._write(target, str(i) * 64, namespace, document, "active", tokens[i])
         for i, (target, document) in enumerate(zip(targets, documents, strict=True))))
     assert sorted(results) == ["capacity", "refreshed"] and await state_for_count(pipeline) == 1
     async with pipeline[1]() as session:
@@ -589,6 +601,7 @@ async def test_public_multi_source_partial_commit_reopen_and_recovery(
     if failure == "database":
         async with pipeline[1]() as session, session.begin():
             await session.execute(text("DROP TRIGGER fail_second ON synthetic_ai_detail_refresh_receipts"))
+            await session.execute(update(REQUEST_CLAIMS).values(lease_until=func.clock_timestamp()))
     recovering[0] = True
     reopened_supervisor = await make_supervisor(tmp_path, coordinator)
     reopened = SyntheticDetailRefresh(reopened_supervisor, policy=POLICY, cohort=cohort,

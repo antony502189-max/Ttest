@@ -1,0 +1,60 @@
+<testsuites id="" name="" tests="27" failures="0" skipped="0" errors="0" time="64.261539">
+<testsuite name="ai-lab-runtime.spec.ts" timestamp="2026-11-08T11:45:23.973Z" hostname="chromium" tests="13" failures="0" skipped="0" time="35.004" errors="0">
+<testcase name="lab frontend refuses mismatched backend before sessions or query: live-backend" classname="ai-lab-runtime.spec.ts" time="2.287">
+</testcase>
+<testcase name="lab frontend refuses mismatched backend before sessions or query: stale-source" classname="ai-lab-runtime.spec.ts" time="1.446">
+</testcase>
+<testcase name="lab frontend refuses mismatched backend before sessions or query: unavailable" classname="ai-lab-runtime.spec.ts" time="1.505">
+</testcase>
+<testcase name="lab frontend refuses mismatched backend before sessions or query: paired" classname="ai-lab-runtime.spec.ts" time="1.48">
+</testcase>
+<testcase name="backend changes after dialog opens: re-attest before identity and session POST" classname="ai-lab-runtime.spec.ts" time="1.686">
+</testcase>
+<testcase name="release mismatch must preserve uncertain operation locator: attestation" classname="ai-lab-runtime.spec.ts" time="1.437">
+</testcase>
+<testcase name="release mismatch must preserve uncertain operation locator: request-race" classname="ai-lab-runtime.spec.ts" time="1.438">
+</testcase>
+<testcase name="release mismatch must preserve uncertain operation locator: disconnect" classname="ai-lab-runtime.spec.ts" time="1.455">
+</testcase>
+<testcase name="release mismatch must preserve uncertain operation locator: invalid-json" classname="ai-lab-runtime.spec.ts" time="1.438">
+</testcase>
+<testcase name="release mismatch must preserve uncertain operation locator: http-500" classname="ai-lab-runtime.spec.ts" time="1.462">
+</testcase>
+<testcase name="release mismatch must preserve uncertain operation locator: aborted" classname="ai-lab-runtime.spec.ts" time="1.461">
+</testcase>
+<testcase name="release mismatch must preserve uncertain operation locator: timeout" classname="ai-lab-runtime.spec.ts" time="16.378">
+</testcase>
+<testcase name="release mismatch must preserve uncertain operation locator: restart" classname="ai-lab-runtime.spec.ts" time="1.531">
+</testcase>
+</testsuite>
+<testsuite name="ai-map-refresh-review.spec.ts" timestamp="2026-11-08T11:45:23.973Z" hostname="chromium" tests="14" failures="0" skipped="0" time="26.413" errors="0">
+<testcase name="review viewport-sensitive refresh success" classname="ai-map-refresh-review.spec.ts" time="2.048">
+</testcase>
+<testcase name="review viewport-sensitive refresh cards-error" classname="ai-map-refresh-review.spec.ts" time="1.947">
+</testcase>
+<testcase name="review viewport-sensitive refresh late" classname="ai-map-refresh-review.spec.ts" time="2.556">
+</testcase>
+<testcase name="review viewport-sensitive refresh map-error" classname="ai-map-refresh-review.spec.ts" time="2.118">
+</testcase>
+<testcase name="review viewport-sensitive refresh mismatch" classname="ai-map-refresh-review.spec.ts" time="2.01">
+</testcase>
+<testcase name="review map is independent of optional detail: detail-slow" classname="ai-map-refresh-review.spec.ts" time="1.559">
+</testcase>
+<testcase name="review map is independent of optional detail: detail-404" classname="ai-map-refresh-review.spec.ts" time="1.559">
+</testcase>
+<testcase name="review map is independent of optional detail: detail-503" classname="ai-map-refresh-review.spec.ts" time="1.581">
+</testcase>
+<testcase name="review safe overview without usable camera metadata: missing-center" classname="ai-map-refresh-review.spec.ts" time="1.536">
+</testcase>
+<testcase name="review safe overview without usable camera metadata: foreign-center" classname="ai-map-refresh-review.spec.ts" time="1.581">
+</testcase>
+<testcase name="review live catalog camera and separate snapshots: cross-auto" classname="ai-map-refresh-review.spec.ts" time="2.168">
+</testcase>
+<testcase name="review live catalog camera and separate snapshots: cross-manual" classname="ai-map-refresh-review.spec.ts" time="2.415">
+</testcase>
+<testcase name="review live catalog camera and separate snapshots: zero" classname="ai-map-refresh-review.spec.ts" time="1.629">
+</testcase>
+<testcase name="review live catalog camera and separate snapshots: epoch-change" classname="ai-map-refresh-review.spec.ts" time="1.706">
+</testcase>
+</testsuite>
+</testsuites>
