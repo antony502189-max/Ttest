@@ -26,7 +26,7 @@ for (const width of [390, 1440]) for (const state of ['pending', 'approved', 'un
     await page.getByRole('button', { name: 'Escribir mi búsqueda', exact: true }).click()
     await expect(page.locator('[data-private-demo-status]')).toContainText(state === 'approved' ? '0/50'
       : state === 'pending' ? 'Страница подготовлена' : 'временно недоступна')
-    await page.getByLabel('Modo para esta búsqueda', { exact: true }).selectOption('long')
+    await expect(page.getByLabel('Modo para esta búsqueda', { exact: true })).toHaveValue('long')
     await page.getByLabel('Cuéntanos qué necesitas', { exact: true }).fill('до 600 евро в месяц')
     const submit = page.getByRole('button', { name: 'Buscar habitaciones', exact: true })
     if (state === 'approved') await expect(submit).toBeEnabled()

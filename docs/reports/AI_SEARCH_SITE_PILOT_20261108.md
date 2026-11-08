@@ -52,6 +52,19 @@ Live evidence:
 review409/410 не повторялись. Owned final docs сохранены отдельным commit перед
 созданием ветки, чужие dirty changes старого root checkout не менялись.
 
+## Follow-up3.16: кнопка после ввода текста
+
+Screenshot владельца выявил пустой обязательный mode select: это блокировало
+submit без пояснения. Pilot HomeAISearch теперь получает initialRentalMode=long,
+new conversation seeded long исохраняетkeep. Обычная HomeAISearch без prop
+сохраняет прежний explicit mode choice. Frontend перевыпущен на том же URL.
+8pilot browser cases +1ordinary regression иtsc/build PASS. Actual HTTPS1440/
+390 подтвердил default long/empty text disabled/filled text enabled безselect.
+Desktop click создал настоящую long session идошёл доquery; query перехвачен
+до backend, calls до/после4. [Proof](ai-site-pilot-20261108-evidence/button-fix-proof.json).
+Новых model calls0, state/keys/approval/catalog не пересоздавались. Для старой
+вкладки требуется reload. Это проверка кнопки, не повторная real-model приёмка.
+
 ## Подготовка до нового допуска · исторический срез3.14
 
 - DNS `app.112233.es` →169.58.147.65, existing Traefik/HTTPS. Только route

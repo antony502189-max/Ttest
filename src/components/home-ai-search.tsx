@@ -17,12 +17,12 @@ import '@/home-ai-search.css'
 import { readAIContinuation, storeAIContinuation } from '@/api/ai-continuation'
 
 // Keying by identity discards private in-memory conversation on login/logout.
-export function HomeAISearch({ homeMode }: { homeMode: RentalMode }) {
+export function HomeAISearch({ homeMode, initialRentalMode }: { homeMode: RentalMode; initialRentalMode?: RentalMode }) {
   const { currentUser } = useApp()
-  return <AISearchPanel key={currentUser?.id ?? 'guest'} identity={currentUser?.id ?? 'guest'} homeMode={homeMode} />
+  return <AISearchPanel key={currentUser?.id ?? 'guest'} identity={currentUser?.id ?? 'guest'} homeMode={homeMode} initialRentalMode={initialRentalMode} />
 }
 
-function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity: string }) {
+function AISearchPanel({ homeMode, identity, initialRentalMode }: { homeMode: RentalMode; identity: string; initialRentalMode?: RentalMode }) {
   const { t } = useI18n()
   const [enabled, setEnabled] = useState(false)
   const [mapEnabled, setMapEnabled] = useState(false)
@@ -31,7 +31,7 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const [session, setSession] = useState<AISession | null>(null)
-  const [modeChoice, setModeChoice] = useState<'' | 'keep' | 'none' | RentalMode>('')
+  const [modeChoice, setModeChoice] = useState<'' | 'keep' | 'none' | RentalMode>(initialRentalMode ?? '')
   const [needsConversation, setNeedsConversation] = useState(false)
   const [pending, setPending] = useState<AIMessage | null>(null)
   const [result, setResult] = useState<{ ref: string; hash: string; committed: AICommittedIntent; prices: AIBudgetPrice[]; center?: { lat: number; lng: number }; page: ListingCardPage } | null>(null)
@@ -250,11 +250,11 @@ function AISearchPanel({ homeMode, identity }: { homeMode: RentalMode; identity:
     const controller = new AbortController()
     flight.current = controller
     try {
-      const fresh = await changeSession(session && !needsConversation ? session : null, controller.signal)
+      const fresh = await changeSession(session && !needsConversation ? session : null, controller.signal, initialRentalMode)
       if (controller.signal.aborted) return
       setSession(fresh)
       setNeedsConversation(false)
-      setModeChoice('')
+      setModeChoice(initialRentalMode ? 'keep' : '')
       setPagingAvailable(false)
       setNotice(result ? 'Nueva conversación lista. Conservamos los resultados anteriores hasta tu próxima búsqueda.' : '')
       // Draft and cards stay in memory, including when server transition fails.

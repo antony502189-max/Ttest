@@ -11,7 +11,7 @@ export function HomePage() {
       <p>Также можно: “rooms under 500 euros per month” или “habitaciones hasta 500 euros al mes”.</p>
       <p>Диапазон €50–1000. Другие условия пока не поддерживаются. Не вводите имена, контакты или личные сведения.</p>
     </div>
-    <HomeAISearch homeMode="long" />
+    <HomeAISearch homeMode="long" initialRentalMode="long" />
     <p style={{ margin: '24px 0', color: '#596454', fontSize: 14 }}>Данные: ограниченный снимок публичных объявлений PisoCompartido, а не весь каталог Испании. Карта показывает координатную сетку. Фото из внешних источников в пилоте закрыты. Голос, сохранение и уведомления ещё не включены.</p>
   </main>
 }
