@@ -45,7 +45,9 @@ def snapshot():
 
 @pytest.fixture
 def seed_database(tmp_path):
-    raw = os.environ.get("AI_FACTS_TEST_DATABASE_URL", "")
+    raw = os.environ.get("AI_FACTS_TEST_DATABASE_URL") or os.environ.get("TEST_DATABASE_URL")
+    if not raw:
+        pytest.fail("explicit disposable loopback test database required")
     url = make_url(raw)
     if url.host not in {"127.0.0.1","localhost","::1"} or not (url.database == "ttest_test" or (url.database or "").startswith("ai_facts_test_")):
         pytest.fail("explicit disposable loopback facts database required")

@@ -372,7 +372,7 @@
     "backend/tests/ai_search_pg/test_session_commands.py": "8d46998e11e3d73af481edf38f6fae1cfbeacac9",
     "backend/tests/ai_search_pg/test_sessions.py": "b1a5b83eb997928595f122f6d7734b0abe2f7d4c",
     "backend/tests/ai_search_pg/test_voice_execution.py": "dc7bb0489da027601164b5b0ea65657b1f63ff4a",
-    "backend/tests/demo_pg/test_seed.py": "f2a65779df197c54af97586eac1bff64e7e84e19",
+    "backend/tests/demo_pg/test_seed.py": "d33bc7feb2500e774e54bc2485827707890dfb97",
     "backend/tests/fixtures/ai-map-fake-docker.ps1": "8be96c9772cf07014536804cdaf9bcd76f479a44",
     "backend/tests/fixtures/ai_fact_bridge/parser-373-synthetic.json": "acab4152924c75249e31fa0fa0795134a0332ea2",
     "backend/tests/fixtures/ai_hard_match/synthetic.json": "b92e3304d20b4ff8f75efee22613a67f57b16169",
