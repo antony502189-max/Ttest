@@ -10,6 +10,8 @@
 
 **CI follow-up3.11:** source01c2075a подтвердил1006combinedPG/1799Linuxunit/77verified/4HTTP/1cookie/19seed PASS (skip1/7/1); VPS corrected harness116PASS/1skip. Mobile2fail — private tests попали в ordinary mode, перенесены из default discovery в обязательный dedicated CI.3consecutive upstream504 исправляются bounded retries при неизменных pin/hash. Новый exact-headCI обязателен. Own test containers/volumes/network удалены; sealed/production не менялись.
 
+**CI budget correction3.11:** head41c71425 подтвердил целевые backend/frontend/mobile/19seed cases; общий Production PG step достиг88%/10min, все19новыхcases PASS. Увеличен только budget этого CIшага10→20min (job45min), полный состав tests и runtime/testcase deadlines сохранены. Причина — новые disposable migrations и kill/resume; итог нового exact-headCI ещё обязателен.
+
 **Следующее действие3.11:** закончить combined source/PG/browser/provenance проверки, опубликовать исправленные draft PR и дождаться exact-head CI. Потом повторное review владельца и порядок409→410; merge/deploy в этой сессии не выполнять. S2/S3/S6 partial, полные provider/data/performance/voice/saved/delivery/release gates остаются открытыми.
 
 

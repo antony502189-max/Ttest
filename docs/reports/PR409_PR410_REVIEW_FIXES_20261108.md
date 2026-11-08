@@ -82,6 +82,14 @@ TEST_DATABASE_URL fallback,31benchmark helper cases и77cards integrations;
 Mobile обнаружил2private-demo tests в ordinary Vite mode: dedicated tests
 теперь исключены из default config, но обязательны в AI frontend CI через
 playwright.ai-demo.config.ts. Три consecutive production-audit MinIO HTTP504
-на same pinned asset привели к bounded download retry3×40s+2sbackoff; URL,
+на same pinned asset привели к bounded download retryдо3попыток с network timeout40s и паузой2s; URL,
 version,hash и fail-closed checksum не менялись. Это необходимая проверяемая
 CI correction, не новый продуктовый этап. Новыйexact-headCI обязателен.
+
+Head41c71425: все целевые AI/backend/frontend/mobile checks SUCCESS; production
+audit после восстановления upstream download подтвердил19seed cases PASS,
+но общий PG step был прерван на88% по собственному10min deadline (без test
+failure). Новые isolated-db migrations/kill-resume добавили время к suite.
+Увеличен только CI step budget10→20min внутри прежнего45min job; состав
+tests, testcase/process/parser timeouts и runtime SLO не ослаблены. Новыйexact
+head CI проверяется отдельно. Full audit SUCCESS после network retry.

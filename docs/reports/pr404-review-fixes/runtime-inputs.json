@@ -20,7 +20,7 @@
     ".github/workflows/pages-preview.yml": "072dd67fdbaf8345cc9c0d39bba7d9e40e333fae",
     ".github/workflows/payment-audit.yml": "f03166639a19905ced8bdbe55e94fa4362254093",
     ".github/workflows/phase2-release-visual-parity.yml": "bd5978fe75c1cb825d6fe41b8705263426fe5208",
-    ".github/workflows/production-audit.yml": "9d969de879e6c78b8371bb222560f6a135551794",
+    ".github/workflows/production-audit.yml": "bfb34d296afab9aee3bb04eef695ff8f310ce97c",
     ".github/workflows/rental-cap-pr298-visual-parity.yml": "daf3680a0d41782d83c6a0e65a4fc5d9a61bd143",
     ".github/workflows/security-audit.yml": "d1f6e8d3ad53c75776e2df0fd6886752b7960d3e",
     ".github/workflows/update-visual-baselines.yml": "7c076b3fe8fd089b9d16a61d9d44751e5b519ef0",
