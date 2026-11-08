@@ -352,6 +352,8 @@ class SyntheticDetailRefresh:
                     or current.content_updated_at != target.row.content_updated_at or checks is None
                     or tuple(checks) != (target.row.last_checked_at, target.row.last_state_check_at,
                                         target.row.last_state_check_result, target.row.source_name)):
+                await self._finish_request(session, operation, namespace, token)
+                self._namespace()
                 return "stale"
             now = await session.scalar(select(func.clock_timestamp()))
             values: dict[str, Any] = {"last_checked_at": now, "last_state_check_at": now, "last_state_check_result": state}
@@ -375,6 +377,8 @@ class SyntheticDetailRefresh:
             await session.execute(text("SELECT pg_advisory_xact_lock(hashtextextended("
                                        "current_schema() || '/synthetic_ai_detail_refresh',0))"))
             if int(await session.scalar(select(func.count()).select_from(OPERATIONS)) or 0) >= self.policy.max_operations:
+                await self._finish_request(session, operation, namespace, token)
+                self._namespace()
                 return "capacity"
             # Python dict equality treats True==1/False==0. Compare locked
             # values with PostgreSQL JSONB semantics so type changes advance

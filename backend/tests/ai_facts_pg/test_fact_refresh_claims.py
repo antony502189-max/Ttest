@@ -4,7 +4,7 @@ from dataclasses import replace
 
 import httpx
 import pytest
-from sqlalchemy import func, select, text, update
+from sqlalchemy import func, insert, select, text, update
 from test_fact_refresh import BUNDLE, POLICY, run, state
 from test_fact_refresh import coordinator as coordinator_fixture
 from test_fact_refresh import proofs as proof_fixture
@@ -13,7 +13,13 @@ from test_fact_supervision import supervisor as make_supervisor
 from test_offline_fact_worker import queue
 
 from app.models import ExternalListingSource
-from lab.ai_fact_refresh import REQUEST_BUDGETS, REQUEST_CLAIMS, SyntheticDetailRefresh, SyntheticRefreshUnavailable
+from lab.ai_fact_refresh import (
+    OPERATIONS,
+    REQUEST_BUDGETS,
+    REQUEST_CLAIMS,
+    SyntheticDetailRefresh,
+    SyntheticRefreshUnavailable,
+)
 
 pytestmark = pytest.mark.integration
 refresh_setup = refresh_fixture
@@ -199,3 +205,68 @@ async def test_claim_waiter_rechecks_effect_committed_while_waiting(refresh_setu
     finally:
         release.set()
         await asyncio.gather(first, *([second] if second else []), return_exceptions=True)
+
+
+@pytest.mark.parametrize("outcome", ["stale", "capacity"])
+@pytest.mark.parametrize("waiter", [False, True])
+@pytest.mark.parametrize("refresh_setup", [replace(POLICY, max_operations=1, max_total_requests=2)], indirect=True)
+async def test_terminal_write_finishes_claim_and_unblocks_retry_without_refund(
+        refresh_setup, pipeline, monkeypatch, outcome, waiter):
+    runner, source, _, calls, _, _ = refresh_setup
+    operation, namespace = "a" * 64, runner._namespace()
+    token, result = await runner._claim(operation, namespace, source)
+    assert result == "claimed"
+    target = await runner._target(source)
+    detail, health = await runner._fetch(target, operation, namespace, token)
+    async with runner.sessions() as session, session.begin():
+        if outcome == "stale":
+            await session.execute(update(ExternalListingSource).where(ExternalListingSource.id == source)
+                                  .values(raw_payload={"concurrent_change": True}))
+        else:
+            await session.execute(insert(OPERATIONS).values(operation="f" * 64, namespace=namespace,
+                source_id=source, committed_at=func.clock_timestamp()))
+    before = await state(pipeline)
+    entered, release = asyncio.Event(), asyncio.Event()
+    finish = runner._finish_request
+
+    async def pause_commit(*args):
+        await finish(*args)
+        entered.set()
+        await release.wait()
+
+    if waiter:
+        monkeypatch.setattr(runner, "_finish_request", pause_commit)
+    write = asyncio.create_task(runner._write(target, operation, namespace, detail, health, token))
+    retry = None
+    try:
+        if waiter:
+            await asyncio.wait_for(entered.wait(), 2)
+            retry = asyncio.create_task(runner._claim(operation, namespace, source))
+            for _ in range(100):
+                async with runner.sessions() as session:
+                    waiting = await session.scalar(text("SELECT count(*) FROM pg_stat_activity WHERE wait_event_type='Lock' "
+                        "AND position('synthetic_ai_detail_request_claims' in query)>0"))
+                if waiting:
+                    break
+                await asyncio.sleep(.01)
+            assert waiting
+            release.set()
+        assert await write == outcome
+        assert await state(pipeline) == before  # no new source/projection/success receipt
+        if not waiter:
+            async with runner.sessions() as session:
+                assert await session.scalar(select(REQUEST_CLAIMS.c.status)) == "finished"
+            retry = asyncio.create_task(runner._claim(operation, namespace, source))
+        next_token, status = await retry
+        assert status == "claimed" and next_token != token
+        assert len(calls) == 1 and await spent(runner) == 2
+        monkeypatch.setattr(runner, "_finish_request", finish)
+        target = await runner._target(source)
+        detail, health = await runner._fetch(target, operation, namespace, next_token)
+        assert await runner._write(target, operation, namespace, detail, health, next_token) == (
+            "refreshed" if outcome == "stale" else "capacity")
+        assert len(calls) == await spent(runner) == 2
+        assert await runner._claim("b" * 64, namespace, source) == (None, "request_capacity")
+    finally:
+        release.set()
+        await asyncio.gather(write, *([retry] if retry else []), return_exceptions=True)
