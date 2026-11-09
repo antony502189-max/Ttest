@@ -1,0 +1,8 @@
+{
+  "/app/app/api/v1/ai_search.py": "907f5451b74872335aed98747352e3568b67240f7fb23556fef2644bf33596d0",
+  "/app/app/services/ai_local_asr.py": "7d01af81f2f3be9e6e52a31cdcaa6d0b56e729889d765a3236f949f4f0f83db6",
+  "/app/app/services/ai_local_asr_worker.py": "6363debd71306d2e1952a2d1dbbd5e3271b4e33ac7928305d0306f852766e213",
+  "/app/app/services/ai_voice_execution.py": "ccb0101f74efacf22bcd543697ce38f687e91eb516692b3d20bca7d677d3b41a",
+  "/app/pilot/entry.py": "f87d67bb594351aaf1da59d10b082632b704ae57e9c7d8f13c43871c0b821afb",
+  "/app/pilot/surface.py": "3acf8c00a8639350a33faaf7e23ec66d0c976f9bef8d117601f54ee3664b201a"
+}

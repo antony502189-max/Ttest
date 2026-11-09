@@ -1,8 +1,14 @@
 # S4.1: local voice input
 
+Current released application source is255b65ef3efffcfb2606000204a8dfb47163b307;
+the owner has confirmed the voice scenario works. See the
+[Russian700 final report](AI_SEARCH_RUSSIAN_700_20261109.md) and
+[PR412 completeness audit](PR412_COMPLETENESS_20261109.md). The following a8506724
+release record is historical and remains bound to its original evidence.
+
 ## Final closed-pilot release,09 November
 
-Source `a8506724b46ad5746167a54a3f03d84bedd98440` is running at the existing
+Source `a8506724b46ad5746167a54a3f03d84bedd98440` was deployed at the existing
 Basic-protected site pilot. Actual HTTPS browser fake-microphone speech →local
 ASR→DeepSeek→verified SQL succeeded: budget600/month,12results,8277ms from Stop
 to painted conditions. Reload at390px restored the same committed result without

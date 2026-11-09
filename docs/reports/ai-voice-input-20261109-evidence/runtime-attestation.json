@@ -1,0 +1,19 @@
+{
+  "runtime_archive_bytes_match": true,
+  "runtime_git_matches_after_crlf_normalization": true,
+  "tiny_model_hash_match": true,
+  "signing_hash_preserved": true,
+  "owned_voice_dispatch": {
+    "ticket": 8,
+    "reserved_micro_usd": 11060,
+    "usage_observed": true
+  },
+  "provider_counts": [
+    8,
+    8,
+    88480
+  ],
+  "backend_readonly_2cpu_1536m": true,
+  "fixed_frontend_ip_and_internal_backend": true,
+  "source": "a8506724b46ad5746167a54a3f03d84bedd98440"
+}

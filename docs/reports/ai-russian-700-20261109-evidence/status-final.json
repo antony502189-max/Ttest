@@ -1,0 +1,21 @@
+{
+  "observedAt": "2026-11-09T19:08:22.412Z",
+  "statusCode": 200,
+  "status": {
+    "attempts": 9,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "capabilities": {
+    "text": true,
+    "map": true,
+    "voice": true,
+    "saved_searches": false
+  },
+  "microphonePolicy": "camera=(), microphone=(self)",
+  "csp": "default-src 'self'; img-src 'self' data:; connect-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+}

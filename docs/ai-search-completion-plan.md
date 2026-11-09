@@ -1,14 +1,24 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.23**, 9 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.24**, 9 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
 
+**Сессия3.24 / S4.1,S6 — подтверждение владельца и полнота PR412:** владелец подтвердил, что голос работает, и поручил проверить наличие всех изменений в PR. GitHub PR412 draft/open/not merged, base1a91d8fe, head255b65ef совпал с локальным HEAD и origin; все5 application commits, включая mic policy, ASR bounds, catalog refresh и Russian700, уже отправлены. Рабочий checkout был чистым. Найден пробел только в review evidence: финальный Russian700 report, canonical plan и часть CI/runtime/live доказательств оставались локально. Они добавлены документационным изменением; runtime inputs остаются точно1031 от255b65ef, выпущенный код не меняется. [Проверка полноты](reports/PR412_COMPLETENESS_20261109.md).
+
+Подтверждение владельца относится к его наблюдённому русскому голосовому сценарию на выпущенном255b65ef. Старый failed synthetic proof сохранён. Широкая human/accent/cross-browser quality, p95/capacity, S2.1 standing quality, saved/delivery и full-release gates не объявляются пройденными.
+
+**Следующее действие3.24:** отправить проверенное документационное дополнение в тот же PR412 и сверить новый remote head, затем owner review. Проверены24JSON/2XML/9report links и credential-pattern scan26text evidence files; runtime projection1031 точно совпал с255b65ef. Новый CI документационного head учитывать отдельно от13SUCCESS/2conditionalSKIP application255b65ef; merge/deploy/new paid calls в этом аудите не выполнять. После review продолжить прежние обязательные S2.1/S4.1/S6 gates; новых feature increments в этом запросе нет.
+
+**Исторический выпуск3.23:**
+
 **Сессия3.23 / S4.1,S6 — исправление русского700:** владелец подтвердил точную русскую фразу «до700евро вмесяц». На локальномsynthetic Irina воспроизведён неверный transcript приbeam1; Pavel распознал700. Новыйbeam5 безamount/language prompt распознаётоба700и прежниеEN/RU600при прежних8s/2CPU/1536MiB,4offline actual-adapter samples PASS/3.835–4.979s. Это не запись владельца и неhuman quality PASS. Exact finite Russian cardinal grammar добавляет «семисот» безguessing/extraction/расширения50–1000EUR scope. Busy/pending hint иterminal rejection UI разделены.74focused unit/19pilot browser, Ruff/types/lint/i18n PASS. [Разбор](reports/AI_SEARCH_RUSSIAN_700_20261109.md).
 
-**Следующее действие3.23:** exact-head CI ивыпуск этого жеclosed-pilot source ссохранениемstate/keys/initial seed/cohort/standing freshness. Проверить настоящий HTTPS русский700PCM→ASR→provider→SQL впрежнем50/$1 scope, затем дать владельцу повторить human microphone acceptance. Не выдаватьисправлениезаhuman/p95/public/full-release приёмку; S2.1/S4.1/S6 partial иостальныеS0–S7/saved/delivery gates сохраняются.
+**Следующее действие3.23:** владелец повторяет русскую фразу на своёммикрофоне иreviewPR412. Source255b65ef выпущен, HTTPS700→12/8.394s PASS, reload390безповторногоIO; one authorized paid call8→9/50. Exact-headCI13SUCCESS/2conditionalSKIP и19browser/4ASR PASS, runtime1031inputs/core hashes match. Первыйbrowser synthetic наэтойжеверсии былINTENT_UNSUPPORTED/paid0; причинаегоакустикинеустановлена, failed proofсохранён. Поэтомуhuman/cross-browser quality gate остаётсяоткрытым, приповторномотказе продолжатьS4.1 microphone/ASR диагностику. Standing freshness/timer иstate/seed/keys/journals сохранены, migrations/reset0. S2.1/S4.1/S6 partial, остальныеS0–S7/saved/delivery gates не закрыты. [Final report/evidence](reports/AI_SEARCH_RUSSIAN_700_20261109.md).
 
 **Историческая диагностика3.22:**
+
+**Дополнительная проверка3.23:** ещё3отдельныеChrome microphone captures тойжесинтетическойрусскойфразы распознаны700/700/700 вdeployed-image offline worker,5.441/5.141/4.842sсcontainer startup,provider0. Первыйlive reject не повторился вэтойсерии, ноегоакустическаяпричина не доказана. Human gate не закрыт; [evidence](reports/ai-russian-700-20261109-evidence/extra-browser-captures.json).
 
 **Сессия3.22 / S4.1 — диагностика owner voice acceptance:** владелец спрашивает о сообщении «Сначала проверьте результат предыдущей попытки». Read-only проверка кода857d8c41 показала: pending устанавливается доHTTP ответа, аdisabledReason не отличает busy от ожидания ручного replay. Поэтому подсказка появляется даже при нормальной обработке, а после потери ответа может сохраняться до проверки того жеattempt. Read-only private PG: последние3voice операции за2h завершены failed/INTENT_UNSUPPORTED; последняя создана18:36:59UTC, завершена18:37:04UTC, зависших операций в этом окне нет. Это не подтверждает принадлежность каждой операции конкретному владельцу и не раскрывает transcript. На18:38:43UTC catalog_ready=true,halted=false,approved=true,attempts8/50; новыхagent paid calls/записей/изменений runtime0. Диагностический вывод не выдан за новый fix или human voice PASS.
 
@@ -326,6 +336,9 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 
 | Дата | Версия/этап | Выполнено и доказательство | Следующий шаг |
 | --- | --- | --- | --- |
+| 2026-11-09 | 3.24/S4.1,S6 | Владелец подтвердил работающий голос. Все5 application commits PR412/255b65ef сверены с локальным/origin; недостающие финальные отчёты и safe evidence добавлены отдельно, runtime1031 без изменений | Owner review412; новый documentation CI отдельно от verified application CI |
+| 2026-11-09 | 3.23/S4.1,S6 | Source255b65ef: beam5/Russian numerals,74units/19browser/4ASR, CI13SUCCESS/2SKIP; live RU700→12/8.394s,8→9/50. First browser reject retained; original state protected | Owner human700/review412; приотказепродолжитьS4.1 ASR/browser quality |
+| 2026-11-09 | 3.22/S4.1 diagnosis | Busy/pending hint flaw confirmed, private aggregate3terminal unsupported/no pending; catalog fresh/provider8. No runtime changes or paid calls | Owner phrase thenS4.1 diagnosis |
 | 2026-11-09 | 3.21/S2.1,S4.1,S6 | Исправлена disabled voice button: fresh bounded13IDs sync безseed/reset/TTL extension;30min timer; frontend857d8c41, HTTPS1440/390 start/cancel иstale hint PASS;24PG/18browser, CI13SUCCESS/2SKIP, provider8→8 | Owner human mic/review412; далееS2.1 quality/freshness measurements |
 | 2026-11-09 | 3.20/S4.1 closed voice LIVE | a8506724:13SUCCESS/2SKIP workflows,21SUCCESS/2SKIP jobs; HTTPS synthetic microphone→local tiny→DeepSeek→SQL12,8.277s;7→8/50, reload390безIO, backups/keys/state сохранены, migrations/seed/reset0 | Human mic acceptance/review412, затем прежнийS2.1 freshness |
 | 2026-11-09 | 3.19/S4.1 | Merge411/main1a91d8fe подтверждён. Прямой приоритет владельца: голосовой ввод. Existing VoiceSearchExecution расширяется microphone/HTTP/localASR, без нового external audio provider иpaid calls | PG/media/replay/browser иrealASR CI, reviewable voice increment |
@@ -360,6 +373,11 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 | 2026-11-03 | 2.2/S1.0 | Получен пользовательский внешний review PR404 на7f8bbabc. F1–F8 исправлены в изолированной копии ветки: closed access/mTLS, manifest coverage, attestation recovery, namespace/WS, private journal/process fencing, signed operational evidence, единый spec и log severity. Локально1755 backend/73 Linux/13 lab browser/63 main browser PASS; отдельно настоящий nginx mTLS и build matrix. [Отчёт и ограничения](reports/PR404_REVIEW_FIXES_20261103.md). Реальные provider/journal/production не менялись | Exact-head CI и итоговый diff; merge по следующему поручению пользователя |
 
 ## Изменения маршрута и отложенное
+
+- **3.23→3.24:** владелец подтвердил работающий голос и прямо поручил проверить полноту PR. Ближайшее действие ограничено review completeness: финальные документы/evidence добавлены без новых runtime изменений. Подтверждение одного сценария не заменяет широкую ASR/performance/data/saved/delivery приёмку; S0–S7 маршрут сохранён.
+
+- **3.22→3.23:** прямое подтверждение владельца орусском700 переносит ближайшийS4.1 шаг сдиагностикинеизвестнойфразы наacoustic/finite numeral grammar fix. Beam5 иновые2synthetic fixtures сохраняют8s/2CPU/1536MiB ипрежний50/$1 scope. Успешныйlive sample не отменяет сохранённыйfailed sample ине закрываетhuman gate.
+
 
 - **3.20→3.21:** прямой bug report владельца выявил незавершённый S2.1 standing refresh после expiry статического каталога. Подключён bounded sync существующих13IDs из уже импортированных данных иvisible disabled reason вS4.1; TTL,scope иjournals сохранены. ПолнаяS2.1 quality/coverage/monitoring иостальныеS0–S7 gates не закрыты.
 

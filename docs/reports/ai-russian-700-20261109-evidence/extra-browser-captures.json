@@ -1,0 +1,23 @@
+{
+  "source": "255b65ef3efffcfb2606000204a8dfb47163b307",
+  "syntheticOnly": true,
+  "providerCalls": 0,
+  "method": "Three separate Chrome microphone captures, then network-none deployed-image ASR",
+  "samples": [
+    {
+      "file": "capture-01-pcm.wav",
+      "seconds": 5.441,
+      "transcript": "до 700 евро в месяц."
+    },
+    {
+      "file": "capture-02-pcm.wav",
+      "seconds": 5.141,
+      "transcript": "до 700 евро в месяц."
+    },
+    {
+      "file": "capture-03-pcm.wav",
+      "seconds": 4.842,
+      "transcript": "до 700 евро в месяц."
+    }
+  ]
+}

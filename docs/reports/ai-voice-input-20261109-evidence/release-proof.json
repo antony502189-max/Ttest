@@ -1,0 +1,24 @@
+{
+  "source": "a8506724b46ad5746167a54a3f03d84bedd98440",
+  "provider_before": {
+    "attempts": 7,
+    "reserved_micro_usd": 77420,
+    "observed_usage": 7,
+    "binding": "0c069e269e4dc9bf64a6e6d8f6542e675690d55d2162058580d2afaee8b8ba50"
+  },
+  "provider_after_start": {
+    "attempts": 7,
+    "reserved_micro_usd": 77420,
+    "observed_usage": 7,
+    "binding": "0c069e269e4dc9bf64a6e6d8f6542e675690d55d2162058580d2afaee8b8ba50"
+  },
+  "signing_env_catalog_preserved": true,
+  "backup": "/srv/112233-ai-site-pilot-20261108/backups/voice-a8506724-20261109T100003Z",
+  "volumes_retained": true,
+  "migrations": 0,
+  "seed": 0,
+  "journal_replacements": 0,
+  "provider_calls": 0,
+  "backend_image": "sha256:3f4080531ddd8b650e6742d135aba4fdeab023a9a28cfb82a6f78365073d9f5f",
+  "frontend_image": "sha256:5a83a81465c04dc415ca4a50a8eb7bd9e0dcfadd64b73ff8cfeb0a2bc6edba8c"
+}

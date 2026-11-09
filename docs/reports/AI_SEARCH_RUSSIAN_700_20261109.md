@@ -1,5 +1,14 @@
 # S4.1: Russian “до семисот евро в месяц”
 
+## Owner confirmation and PR completeness
+
+After the255b65ef release the owner confirmed in this chat that voice input
+actually works. This is one owner-observed scenario, not a human/accent/browser
+benchmark or p95 certification. The retained failed synthetic attempt below is
+not deleted or relabelled. The owner next requested verification that every
+change is included in PR412; [the completeness audit](PR412_COMPLETENESS_20261109.md)
+records the source and final evidence synchronization.
+
 Owner explicitly reported saying “до700евро вмесяц” in Russian. The stored
 operation aggregate had terminal INTENT_UNSUPPORTED failures; no owner audio or
 transcript was retained or inspected. The previous microphone availability fix
@@ -41,3 +50,58 @@ sample must be recorded separately. Up to this source-preparation point, new
 agent paid calls0; original approval, provider journals, signing and cohort/TTL
 remain unchanged. Existing full release/human/performance/saved/delivery gates
 remain open.
+
+
+## Final closed-pilot release and limits
+
+Released source255b65ef3efffcfb2606000204a8dfb47163b307 to the same protected
+pilot, with backend/maintenance/egress image
+sha256:45baf80a5d28e311a642e669f6a4d31c8cede77faf775bf4d8d2cf3feda6ee12
+and frontend sha256:72bc677b1f89dfd7ac76bcd85c87c24577e3f215fcf0bdfcd619d912bd66c6b3.
+Actual image async-adapter4fixtures PASS,3.607–4.302seconds, no inference network.
+Changed runtime files match Git source after explicit CRLF→LF normalization;
+source provenance1031inputs PASS. Model assets/dependencies and8s deadline unchanged.
+
+One real HTTPS synthetic Russian microphone sample completed700EUR/month→12
+verified listings,8394ms Stop→conditions. Reload at390px restored the same result
+without another upload/paid call. One business debit, one authorized provider
+call8→9/50. Current status: catalog_ready=true,approved=true,halted=false. The
+30min catalog timer is active with service Result=success/ExecMainStatus=0.
+Approval, signing, original snapshot, environment/provider journal were unchanged
+at cutover; PG/Redis containers retained, migrations/seed/reset0. Backup:
+`/srv/112233-ai-site-pilot-20261108/backups/ru700-255b65ef-20261109T190126Z`.
+
+Important remaining quality limit: the first actual-browser synthetic attempt
+on this same release still returned INTENT_UNSUPPORTED, with no paid call/debit.
+The second passed; this is not a claim of perfect recognition. A separately
+captured synthetic browser waveform also transcribed700 correctly offline.
+The first rejected waveform was not retained, so its exact acoustic cause is
+not proven. Human acceptance and browser/microphone quality remain open. No
+owner's audio/transcript was stored or inspected. Keep the failed live proof
+alongside the successful proof; do not relabel it as a successful paid test.
+
+Three further separate Chrome microphone captures of the synthetic Irina700
+phrase all decoded correctly as700 in the deployed-image network-none worker,
+5.441/5.141/4.842seconds including container startup. No provider calls. These
+additional captures did not reproduce the first browser rejection; they do not
+erase it or prove its cause. [Additional capture evidence](ai-russian-700-20261109-evidence/extra-browser-captures.json).
+
+Initial staging build missed Dockerfile-specific ignore files and failed before
+deployment; packaging was corrected without runtime-source changes. The first
+cutover automatically rolled back because the operator script incorrectly
+expected Docker Health on the minimal pilot (which has none). The corrected
+probe checks the real private status endpoint before frontend activation.
+No DB/journal restore/reset occurred; the rollback and eventual successful
+cutover are distinct from ASR acceptance. Unchanged original-model/8s bounds
+are not p95 or full15s speech-quality certification.
+
+Exact-head CI13workflows SUCCESS/2conditional SKIPPED. Test merge
+9fa3e6ecdee488d6d15ec28c461ca3b9281be5dd has the identical
+tree3d7d9e3a7b088645884fe7a1f616a4f352df5f9f. CI local-ASR4 and pilot-browser19
+PASS;74focused local units PASS. See [evidence](ai-russian-700-20261109-evidence/ci-final.json),
+[successful HTTPS proof](ai-russian-700-20261109-evidence/live-voice-second-proof.json)
+and [retained failed proof](ai-russian-700-20261109-evidence/live-voice-proof.json).
+Next: owner repeats the Russian phrase on their own microphone. If rejection
+persists, continue S4.1 acoustic/browser diagnosis; do not substitute more source
+freshness work or call human quality complete. S2.1/S5/saved/delivery/full-release
+gates remain open. PR412 remains for owner review; no merge was performed.

@@ -1,0 +1,17 @@
+{
+  "source": "255b65ef3efffcfb2606000204a8dfb47163b307",
+  "backup": "/srv/112233-ai-site-pilot-20261108/backups/ru700-255b65ef-20261109T190126Z",
+  "provider_before": 8,
+  "provider_after": 8,
+  "provider_journal_unchanged": true,
+  "protected_files_unchanged": true,
+  "postgres_redis_containers_unchanged": true,
+  "migrations": 0,
+  "seed": 0,
+  "images": {
+    "backend": "sha256:45baf80a5d28e311a642e669f6a4d31c8cede77faf775bf4d8d2cf3feda6ee12",
+    "maintenance": "sha256:45baf80a5d28e311a642e669f6a4d31c8cede77faf775bf4d8d2cf3feda6ee12",
+    "egress": "sha256:45baf80a5d28e311a642e669f6a4d31c8cede77faf775bf4d8d2cf3feda6ee12",
+    "frontend": "sha256:72bc677b1f89dfd7ac76bcd85c87c24577e3f215fcf0bdfcd619d912bd66c6b3"
+  }
+}

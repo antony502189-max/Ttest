@@ -1,0 +1,63 @@
+{
+  "source": "255b65ef3efffcfb2606000204a8dfb47163b307",
+  "observedAt": "2026-11-09T19:06:04.294Z",
+  "requests": [
+    {
+      "key": "97476c7b-9d09-4cdf-bea5-ce66bf549333",
+      "session": "375e225a-3cf2-4619-a531-f778cc08b6ec",
+      "version": 0,
+      "media": "audio/wav",
+      "audioBytes": 149804
+    }
+  ],
+  "errors": [],
+  "before": {
+    "attempts": 8,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "httpStatus": 200,
+  "operation": {
+    "status": "succeeded",
+    "failure": null,
+    "remaining": 2,
+    "receipt": {
+      "result_ref": "04dd585d-4f89-4e5f-85a0-28b9f704459b",
+      "count": 12
+    }
+  },
+  "sendToConditionsMs": 8394,
+  "result": {
+    "reference": "04dd585d-4f89-4e5f-85a0-28b9f704459b",
+    "count": 12,
+    "budget": {
+      "amount": "700",
+      "currency": "EUR",
+      "period": "monthly"
+    },
+    "version": 1
+  },
+  "after": {
+    "attempts": 9,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "afterReload": {
+    "attempts": 9,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "checks": "PASS"
+}
