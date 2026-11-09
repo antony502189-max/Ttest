@@ -44,6 +44,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
   const [remaining, setRemaining] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [demoBlocked, setDemoBlocked] = useState(PRIVATE_DEMO)
+  const [demoReason, setDemoReason] = useState('Проверяем доступ к голосовому поиску…')
   const [syncingSession, setSyncingSession] = useState(false)
   const [needsSync, setNeedsSync] = useState(false)
   const [pagingAvailable, setPagingAvailable] = useState(true)
@@ -438,7 +439,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
     </section>
     <DialogContent className="ai-search-dialog">
       <DialogHeader><DialogTitle>{t('Encuentra tu habitación')}</DialogTitle><DialogDescription>{t('Usamos condiciones confirmadas de los anuncios para buscar opciones.')}</DialogDescription></DialogHeader>
-      <PrivateDemoStatus refreshKey={`${session?.intent.version ?? 0}:${busy}`} onBlocked={setDemoBlocked} />
+      <PrivateDemoStatus refreshKey={`${session?.intent.version ?? 0}:${busy}`} onBlocked={setDemoBlocked} onReason={setDemoReason} />
       {import.meta.env.VITE_AI_CLOSED_LAB ? <p data-ai-lab-mode={import.meta.env.VITE_AI_CLOSED_LAB}>
         {t(import.meta.env.VITE_AI_CLOSED_LAB === 'closed-live-synthetic'
           ? 'Prueba cerrada con modelo real y catálogo simulado. Usa solo las frases sintéticas autorizadas. No envíes datos personales.'
@@ -459,7 +460,8 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
       <textarea id="ai-search-text" data-i18n-exempt value={text} onChange={event => setText(event.target.value)} disabled={recording || busy || restoring || pending !== null}
         maxLength={inputPolicy?.maxLength ?? 16000} rows={3} autoComplete="off" spellCheck={false} placeholder={inputPolicy?.placeholder ?? t('Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
       {inputPolicy ? <p role={invalidText ? 'alert' : undefined} data-i18n-exempt>{inputPolicy.hint}</p> : null}
-      {voiceEnabled ? <AIVoiceInput disabled={busy || restoring || restoreFailed || demoBlocked || pending !== null || changingSession || syncingSession || needsSync || needsConversation || !modeChoice || remaining === 0}
+      {voiceEnabled ? <AIVoiceInput disabled={busy || restoring || restoreFailed || demoBlocked || pending !== null || changingSession || syncingSession || needsSync || needsConversation || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)}
+        disabledReason={demoBlocked ? demoReason : remaining === 0 ? 'Лимит запросов исчерпан. Повторите после его обновления.' : !modeChoice ? 'Выберите режим аренды перед записью.' : restoreFailed ? 'Не удалось восстановить поиск. Повторите восстановление.' : pending ? 'Сначала проверьте результат предыдущей попытки.' : 'Дождитесь завершения текущей операции и синхронизации поиска.'}
         onAudio={audio => void submit(audio)} onRecording={setRecording} /> : null}
       <Button type="button" className="home-ai-search__action" disabled={recording || busy || restoring || restoreFailed || (!pending && (invalidText || demoBlocked || (changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
         onClick={() => void submit()}>{t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : result ? 'Actualizar búsqueda' : 'Buscar habitaciones')}</Button>

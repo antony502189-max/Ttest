@@ -1,0 +1,11 @@
+[Unit]
+Description=Keep the existing closed AI pilot cohort synchronized
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=30min
+Persistent=true
+Unit=ttest-pilot-catalog-refresh.service
+
+[Install]
+WantedBy=timers.target

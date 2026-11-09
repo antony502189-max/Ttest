@@ -1,5 +1,48 @@
 # S4.1: local voice input
 
+## Final closed-pilot release,09 November
+
+Source `a8506724b46ad5746167a54a3f03d84bedd98440` is running at the existing
+Basic-protected site pilot. Actual HTTPS browser fake-microphone speech →local
+ASR→DeepSeek→verified SQL succeeded: budget600/month,12results,8277ms from Stop
+to painted conditions. Reload at390px restored the same committed result without
+another upload or provider dispatch. This synthetic sample is not human-accent
+quality or p95 acceptance. Native device permission/cancel/late-grant cases are
+also covered by the mandatory Chromium pilot suite.
+
+Provider counter7→8/50, observed usage8, total reserved88480microUSD (not invoice).
+The unique owned dispatch identity matches ticket8/reserve11060 with observed
+usage. One business debit, test guest remaining2. No key/journal/signing changes,
+source timestamp edits, source exports, migrations or reseeding. DB/state backup
+was created before cutover; every existing volume was retained. Backend image
+`sha256:3f4080531ddd8b650e6742d135aba4fdeab023a9a28cfb82a6f78365073d9f5f`,
+frontend `sha256:5a83a81465c04dc415ca4a50a8eb7bd9e0dcfadd64b73ff8cfeb0a2bc6edba8c`.
+The optional backend is read-only/2CPU/1536MiB; frontend fixed172.30.41.2 and
+backend internal-only. Model SHA and signing-key hash match; code bytes match
+the released archive exactly. The Windows-created archive carries CRLF; after
+explicit LF normalization all six checked core files match their Git blobs.
+Both raw/archive and normalized/Git hashes are preserved in the evidence folder.
+
+Latest-per-workflow exact-head CI:13SUCCESS/2conditional SKIPPED,21jobsSUCCESS/
+2conditional SKIPPED. PR test merge52d93c4c has identical tree712c53a1. Earlier
+same-head runs superseded after a delayed-CI PR reopen are retained as cancelled;
+they are not counted as current successful gates. CI1853unit/7skip,1007factsPG/
+1skip,78verified/1skip,4HTTP/1cookie/23seed PASS;93ordinary/27lab/2private/15pilot
+browser PASS; production1857unit/3skip,1188integration/10skip and1S3 PASS.
+Counts overlap. The real async-ASR CI artifact13663945606 was downloaded and
+verified SHA256 `cd4a7893198409f97d475a11fc7817a15de08102406e7d80a36ff30647448aff`;
+both synthetic languages matched in1.451s on its runner, not an E2E SLO.
+
+Conditional workflow skips require special PR298/Phase2 branch names. Three
+Full audit steps require non-pull_request events; its PR fullstack audit passed.
+Dataset/source-discovery/native-tools/AI_UI_TEST_URL integration skips remain
+explicit in XML/job logs; no required test was removed. Main production and the
+sealed3/3demo were not updated. PR412 remains draft/open/not merged for owner
+review. The rest of this report is the historical implementation/preparation
+record. Final proof, runtime attestation, CI snapshot and HTTPS screenshots are
+under `ai-voice-input-20261109-evidence` in this canonical local report copy and
+the final PR description; this appendix does not change the checked source SHA.
+
 Base: merged PR411/main `1a91d8fe6025ef49fc17765ed97b7638116870b8`.
 Owner explicitly prioritized voice on09.11 after confirming merge. Existing
 worktree/branch `codex/ai-search-voice-input`; root dirty files preserved.

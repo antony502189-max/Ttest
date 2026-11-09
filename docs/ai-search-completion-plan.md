@@ -1,8 +1,24 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.19**, 9 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.21**, 9 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+
+**Сессия3.21 / S2.1,S4.1,S6 — восстановление кнопки голоса:** по новому screenshot владельца подтверждён PILOT_CATALOG_STALE: старый initial snapshot истёк, тогда как все13 исходных объявлений уже имели свежие production imports. Выполнен bounded read-only export ровно той же группы и incremental facts/proofs refresh без seed/reset/TTL extension. На17:51UTC catalog_ready=true,halted=false,approved=true; provider journal/seed/signing/env сохранены,8/50,новыхpaid0. Подключён30min host timer, повторный запускResult=success. Actual HTTPS1440/390 microphone start→recording→cancel PASS безvoice/query dispatch,8→8. [Разбор и пределы](reports/AI_SEARCH_VOICE_BUTTON_20261109.md).
+
+Source UI теперь показывает причину disabled рядом смикрофоном; stale/quota/ready browser regressions иprevious voice tests18PASS, disposable PG incremental refresh/replay/rejections PASS, Ruff/TypeScript/lint/i18n PASS. Полный seed-suite/new-head CI и выпуск нового UI отмечаются отдельно от уже выполненного live data repair. S2.1 остаётсяpartial: расширенная quality/coverage, instant upstream removal иmonitoring/performance acceptance не заявлены.
+
+**Следующее действие3.21:** закончить новый UI release сsource manifest иHTTPS проверкой, сверитьexact-head CI того жеPR412 ипередать владельцуreview. Затем продолжить обязательные S2.1 quality/standing freshness измерения иS4.1 human microphone acceptance; saved/delivery/full release иA1–A12 gates остаются открытыми. Первоначальныйcohort50/$1 owner/team scope иdurable journals не менять. Новый roadmap не вводится.
+
+**Исторический выпуск3.20 до истечения каталога:**
+
+**Сессия3.20 / S4.1,S3,S6 — голос работает в закрытом пилоте:** по поручению владельца выпущен source `a8506724b46ad5746167a54a3f03d84bedd98440` на прежний защищённый `https://app.112233.es/ai-pilot/#/`. Настоящий browser microphone path сsynthetic speech →local multilingual tiny ASR→DeepSeek→verified SQL:600EUR/month→12объявлений,8.277s Stop→conditions. Reload/390px восстановил committed result без нового ASR/provider IO. Это один end-to-end sample, неp95 и не human-accent quality certification. Новых paid calls1 в прежнем50/$1/nonpersonal scope:7→8/50, usage8observed, reserved88480microUSD, неinvoice. Dispatch ticket8 независимо найден поsession/version/canonical identity; бизнес-debit1, remaining2 уtest guest. Журналы/key/signing/каталог сохранены, timestamps не продлевались; migrations/seed/export/reset0.
+
+Exact-head latest CI:13workflows SUCCESS/2conditional SKIPPED,21jobs SUCCESS/2conditional SKIPPED. Test merge52d93c4c имеет идентичныйtree712c53a1. Более ранние запуски того жеhead, вытесненные PR-reopen/concurrency, остаются superseded/cancelled, не выданы за обязательные PASS. CI1853unit/7skip,1007factsPG/1skip,78verified/1skip,4HTTP/1cookie/23seed,93ordinary/27lab/2private/15pilot browser и2real local-ASR samples PASS. Production1857unit/3skip,1188integration/10skip и1S3 PASS. Counts пересекаются. [PR412](https://github.com/antony502189-max/Ttest/pull/412) draft/open/not merged; обычный сайт/production DB0066 иsealed3/3demo не обновлялись.
+
+**Следующее действие3.20:** владелец пробует свой микрофон и повторно reviewPR412; затем обязательный S2.1 standing quality/freshness по прежнему pipeline. Closed-pilot голосовой increment достигнут. Public/general voice, реальная human/cross-browser quality, performance p95/capacity, provider/account/data, saved/delivery/full release иA1–A12 остаются открытыми. Пилот ограничен прежней positive grammar бюджета50–1000EUR/month иего снятия; новый audio vendor не вводился. При старении snapshot сохранять state иразбирать freshness, без фиктивногоTTL/reset. [Отчёт/evidence](reports/AI_SEARCH_VOICE_INPUT_20261109.md).
+
+**Историческая подготовка3.19 до выпуска:**
 
 **Сессия3.19 / S4.1 — голосовой ввод по прямому приоритету владельца:** владелец слил411; GitHub иfetch подтвердили main `1a91d8fe6025ef49fc17765ed97b7638116870b8`, merge08.11 20:37:48UTC. Pre-merge headad0365e2:12SUCCESS/2conditionalSKIP workflows,20SUCCESS/2conditionalSKIP jobs; post-merge CI/deployment этим не подменяются. Existing clean worktree продолжает от этого main в `codex/ai-search-voice-input`, root чужие changes сохранены. Прямое поручение сделать голос меняет ближайший приоритет наS4.1, не закрывает прежнийS2.1 standing freshness.
 
@@ -145,7 +161,7 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 | Provider privacy | `services/ai_provider_privacy.py`: RealUserOutboundDenied отвергает real-user input | Account evidence, разрешённый payload и рабочая minimization/retention policy; ключ сам по себе ничего не включает |
 | Реальные данные | Flatio pilot: 73 записи, 8 eligible, pipeline/proof проверены; данные после проверки удалены | Постоянный ingestion и покрытие рабочего каталога этим не доказаны |
 | Нагрузка | Population/live-inputs оптимизации уже есть; последний описанный 100k прогон: 1161 ошибок/3600 попыток, 0/18 SLO-pass | ISSUE-004 OPEN; 500k/1m не приняты, browser/HTTP SLO не сертифицирован |
-| Голос | `services/ai_voice_execution.py`, `ai_offline_asr.py`: ASR+intent+search в одной durable operation; offline tests | Реальные ASR, microphone UI, HTTP/media validation и browser приёмка; voice=false |
+| Голос | `ai_voice_execution.py`, `ai_local_asr.py`, microphone/HTTP: closed-pilot LIVE9Nov,12results/one debit; ordinary/public voice=false | Human/accent/cross-browser quality, general/public activation иS5 performance gates остаются открытыми |
 | Saved/rematch | `repositories/ai_saved_searches.py`, migration0074, snapshot/CAS/idempotency/dry-run; UI читает/удаляет существующие записи | Публичное создание, rematch/delivery worker и уведомления; saved_searches=false |
 | Выпуск | Runbooks, metrics, retention/erasure journal, isolated migration/restore/kill-switch evidence | Production runtime/config, provider/data/performance gates, инфраструктурная проверка, выпуск и наблюдение |
 
@@ -230,7 +246,7 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 
 **Частично реализован. Обязателен для полного завершения.**
 
-- [ ] S4.1 Реальные ASR transport, microphone/UI/HTTP поверх VoiceSearchExecution, media validation и audio privacy; автоматический первый поиск и один debit.
+- [ ] S4.1 Closed pilot voice LIVE: local ASR/microphone/HTTP/media/privacy/one debit проверены наa8506724. Полное закрытие требует human/cross-browser acceptance иgeneral/public activation; synthetic speech иодин8.277s sample не заменяют эти gates.
 - [ ] S4.2 Public owned save endpoint/UI поверх RegisteredAISearches. Сохранять committed snapshot, не mutable session; создание, повтор, список, отключение и удаление.
 - [ ] S4.3 Rematch worker и delivery: fencing/retry/idempotency, live recheck перед отправкой, background quota/retention, disable/delete и дедупликация.
 - [ ] S4.4 Пройти A6–A9 и регрессии ручных saved searches/notifications; включать capabilities только после реальной готовности.
@@ -278,7 +294,7 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 | B2 | Real-user outbound BLOCKED в коде | S3.1: account/data owner, account reference без секретов, проверенные contract/DPA/region/training/retention/deletion/уведомление и minimization. Сначала подготовить reviewable пакет и negative tests, затем запросить только отсутствующие account-сведения |
 | B3 | Capacity ISSUE-004 OPEN; большие прогоны ранее отложены | Сохранить A10 обязательным. Подготовить bounded план S5; перед возобновлением явно отложенных больших benchmarks получить конкретное поручение, если его ещё нет в сессии |
 | B4 | Нет постоянного доказанного рабочего каталога/покрытия | S2: source-specific профиль, coverage/freshness measurements, update/retirement chain и разрешённый объём ingestion |
-| B5 | Voice/saved/delivery не активированы | S4.1–S4.4, реальные providers, background/delivery policies и end-to-end приёмка |
+| B5 | Voice активен вclosed pilot; public voice/saved/delivery OPEN | Human/cross-browser acceptance, S4.2–S4.4, background/delivery policies иполная end-to-end приёмка |
 | B6 | Production среда не сертифицирована | S6: инфраструктурные доказательства, exact SHA/CI, подготовленный release и требуемые полномочия. Merge#403 сам по себе блокер не снимает |
 
 Локальную разрешённую подготовку продолжать без повторных общих вопросов. План сам по себе не разрешает новые платные calls, произвольную передачу пользовательских данных, запрещённые ранее большие benchmarks или production activation. До необходимого решения сделать всю независимую работу и предъявить конкретный проверяемый результат.
@@ -296,6 +312,7 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 
 | Дата | Версия/этап | Выполнено и доказательство | Следующий шаг |
 | --- | --- | --- | --- |
+| 2026-11-09 | 3.20/S4.1 closed voice LIVE | a8506724:13SUCCESS/2SKIP workflows,21SUCCESS/2SKIP jobs; HTTPS synthetic microphone→local tiny→DeepSeek→SQL12,8.277s;7→8/50, reload390безIO, backups/keys/state сохранены, migrations/seed/reset0 | Human mic acceptance/review412, затем прежнийS2.1 freshness |
 | 2026-11-09 | 3.19/S4.1 | Merge411/main1a91d8fe подтверждён. Прямой приоритет владельца: голосовой ввод. Existing VoiceSearchExecution расширяется microphone/HTTP/localASR, без нового external audio provider иpaid calls | PG/media/replay/browser иrealASR CI, reviewable voice increment |
 | 2026-11-08 | 3.18/S2.1,S3,S6 review411 | PR411-01–13 source fixes и regression proof;77focused/11pilot/93ordinary/23PG PASS, sealed proxy2clients PASS. Initial427 CI context/lint failures исправлены; безpaid/deploy/reset. Полная матрица в PR411_REMEDIATION_20261108.md | Обязательный exact-head CI, повторное owner review411; затем прежнийS2.1 |
 | 2026-11-08 | 3.17/S3,S6 review handoff | Владелец вручную проверил работу и запросил все commits передreview. Code/button671a666f наorigin, taskworktree чистый; pilot status7/50active,43осталось, новыхagentcalls0. CI671:7SUCCESS/2SKIP/4running/failure0 | Owner reviewPR411, конкретные fixes поreview; затем прежнийS2.1 |
@@ -380,3 +397,5 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 - **3.17→3.18:** прямое поручение исправить внешний review411 поставлено перед следующим S2.1 increment. Минимальный pilot surface и regression evidence подготовлены без paid/deploy/state reset; exact-head CI и повторное owner review обязательны. Маршрут S0–S7/A1–A12 и полные product gates сохранены.
 
 - **3.18→3.19:** пользователь подтвердил merge411 и прямо попросил голосовой ввод. Ближайший increment перенесён наS4.1 поверх существующей voice operation; S2.1 остаётся обязательным, standing freshness/ASR human quality/performance/public release не объявлены закрытыми. Выбран local ASR с сетью, закрытой на inference, чтобы не вводить нового внешнего получателя аудио.
+
+- **3.19→3.20:** приоритет владельца на голос доведён до настоящего закрытого HTTPS сценария. Выбран local tiny ASR, чтобы удержать исходный8s budget на2CPU без внешней передачи аудио. Реальный синтетический E2E, точный CI/source/runtime иdurable provider state разделены. Следующий шаг — owner human-mic acceptance/review412, затем прежнийS2.1; полный public/quality/performance/saved/delivery route не ослаблен.

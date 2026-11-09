@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import workletUrl from './ai-pcm-worklet.js?url&no-inline'
 
@@ -32,7 +32,8 @@ export function pcmWav(chunks: Float32Array[], rate: number): string {
   return btoa(binary)
 }
 
-export function AIVoiceInput({ disabled, onAudio, onRecording }: { disabled: boolean; onAudio: (audio: string) => void; onRecording: (value: boolean) => void }) {
+export function AIVoiceInput({ disabled, disabledReason, onAudio, onRecording }: { disabled: boolean; disabledReason?: string; onAudio: (audio: string) => void; onRecording: (value: boolean) => void }) {
+  const reasonId = useId()
   const [state, setState] = useState<'idle' | 'permission' | 'recording'>('idle')
   const [notice, setNotice] = useState('')
   const owned = useRef<Recording | null>(null)
@@ -106,10 +107,11 @@ export function AIVoiceInput({ disabled, onAudio, onRecording }: { disabled: boo
   }
   return <div data-i18n-exempt>
     <p>Голос: до 15 секунд. Аудио обрабатывается на нашем сервере без сохранения. После остановки поиск начнётся автоматически.</p>
-    {state === 'idle' ? <Button type="button" variant="outline" disabled={disabled} onClick={() => void start()}>Надиктовать запрос</Button>
+    {state === 'idle' ? <Button type="button" variant="outline" disabled={disabled} aria-describedby={disabled && disabledReason ? reasonId : undefined} onClick={() => void start()}>Надиктовать запрос</Button>
       : <><p role="status">{state === 'permission' ? 'Ожидаем доступ к микрофону…' : 'Идёт запись…'}</p>
         <Button type="button" disabled={state !== 'recording'} onClick={() => stop(true)}>Остановить и искать</Button>
         <Button type="button" variant="outline" onClick={() => stop(false)}>Отменить запись</Button></>}
+    {disabled && disabledReason && state === 'idle' ? <p id={reasonId} role="status" data-voice-unavailable>{disabledReason}</p> : null}
     {notice ? <p role="alert">{notice}</p> : null}
   </div>
 }

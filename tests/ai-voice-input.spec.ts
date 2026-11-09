@@ -1,5 +1,33 @@
 import { expect, test } from '@playwright/test'
 
+for (const state of ['stale', 'quota', 'approved']) test(`voice explains ${state} availability beside the microphone`, async ({ page }) => {
+  let calls = 0
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = async () => { throw new Error('Microphone must not open') }
+  })
+  await page.route('**/*', route => {
+    const path = new URL(route.request().url()).pathname
+    if (!path.includes('/api/')) return route.continue()
+    if (path.endsWith('/private-demo/status')) return route.fulfill({json:{attempts:8,maximum:50,exhausted:false,halted:state === 'stale',approved:true,catalog_ready:state !== 'stale'}})
+    if (path.endsWith('/capabilities')) return route.fulfill({json:{text:true,map:true,voice:true,saved_searches:false}})
+    if (path.endsWith('/quota')) return route.fulfill({json:{remaining:state === 'quota' ? 0 : 3}})
+    if (path.endsWith('/voice') || path.endsWith('/query')) calls++
+    return route.fulfill({json:{}})
+  })
+  await page.goto('./#/')
+  await page.getByRole('button',{name:'Buscar con la voz',exact:true}).click()
+  const mic = page.getByRole('button',{name:'Надиктовать запрос',exact:true})
+  if (state === 'approved') {
+    await expect(mic).toBeEnabled()
+    await expect(page.locator('[data-voice-unavailable]')).toHaveCount(0)
+  } else {
+    await expect(mic).toBeDisabled()
+    await expect(page.locator('[data-voice-unavailable]')).toContainText(state === 'stale' ? 'Каталог устарел' : 'Лимит запросов исчерпан')
+    await expect(mic).toHaveAccessibleDescription(state === 'stale' ? /Каталог устарел/ : /Лимит запросов исчерпан/)
+  }
+  expect(calls).toBe(0)
+})
+
 for (const width of [390, 1440]) test(`voice ${width}px cancels, retries exact PCM and restores without audio`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 })
   const sid = '00000000-0000-4000-8000-000000000011', ref = '00000000-0000-4000-8000-000000000012'

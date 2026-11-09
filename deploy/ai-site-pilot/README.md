@@ -197,3 +197,31 @@ keys/DB и не создавать новые state ради нового лим
 ORM replacing explicit NULL, неверная encoding первоначального erasure env и
 nginx stale DNS после пересоздания backend. Это не потеря/reset budget journal.
 Основные S0–S7/A1–A12, voice/saved/delivery/capacity/release gates сохранены.
+
+## Обновление существующего каталога
+
+`ttest-pilot-catalog-refresh.timer` запускает `refresh_catalog.py` раз в30минут.
+Host runner использует immutable `/demo-input/catalog.json` только как список
+исходных listing/source ID (13 на09.11); seed marker/подписи не заменяются.
+Read-only repeatable-read SQL через primary postgres получает только уже
+импортированные eligible public records той же группы. Нового crawl/discovery,
+контактов, raw HTML и provider IO нет. Backend по-прежнему не подключён к primary DB.
+
+В `/srv/112233-ai-site-pilot-20261108/catalog-refresh` устанавливаются
+`refresh_catalog.py`, `backend/pilot/refresh.py` как `refresh.py` и
+`deploy/ai-text-demo/export_public.py`. Units устанавливаются в `/etc/systemd/system`;
+после `daemon-reload` сначала проверить one-shot service, затем включить timer.
+Исходные реальные `last_success_at` сохраняются; receipt старше10минут, чужой
+cohort/mapping, rollback и несовместимая цена отклоняются. Минимальный receipt
+наблюдения меняет generation фактов только при новом upstream observation;
+повторный sync идемпотентен. Existing fact pipeline и query proofs пересобираются.
+
+Проверка: `systemctl show ttest-pilot-catalog-refresh.service -p Result -p ExecMainStatus`,
+`systemctl list-timers ttest-pilot-catalog-refresh.timer --all` и authenticated
+`private-demo/status`: catalog_ready=true, halted=false. Провал sync не продлевает
+TTL последнего успешного snapshot; исходный24h gate остаётся. Это не моментальная
+доставка удаления upstream и не полная S2.1 quality/coverage приёмка. Обслуживание
+runner требует контроля systemd failures. При остановке/rollback сначала
+`systemctl disable --now ttest-pilot-catalog-refresh.timer`, затем остановить service;
+не возвращать старые timestamps, seed или journals. Сохранять отдельный DB/state
+backup до первого обновления. Новые IDs требуют отдельного согласования.

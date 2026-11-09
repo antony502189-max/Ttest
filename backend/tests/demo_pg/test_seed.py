@@ -43,6 +43,60 @@ def snapshot():
     return {"snapshot_at":now,"records":records}
 
 
+async def test_incremental_refresh_restores_freshness_without_reseed_or_spend(seed_database):
+    import copy
+
+    from demo.entry import pipeline
+    from pilot.budget import PilotBudget
+    from pilot.readiness import CatalogReadiness
+    from pilot.refresh import refresh
+
+    dsn, name, file, state = seed_database
+    engine = create_async_engine(dsn, pool_size=2, max_overflow=0)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    original = json.loads(file.read_text())
+    try:
+        await seed_catalog(engine, factory, original, state,
+            lambda *, initialize: ErasureJournal(state/'erasure.sqlite3', b's'*32, initialize=initialize),
+            database_name=name, budget_factory=PilotBudget)
+        protected = {p.name: p.read_bytes() for p in state.iterdir() if p.is_file()}
+        async with factory() as session:
+            marker = (await session.execute(text('SELECT * FROM private_ai_demo_seed_state'))).all()
+        async with factory.begin() as session:
+            await session.execute(text("UPDATE external_listing_sources SET last_success_at=statement_timestamp()-interval '86401 seconds'"))
+        ready = CatalogReadiness(pipeline(factory))
+        assert not (await ready())['catalog_ready']
+        incoming = copy.deepcopy(original)
+        now = datetime.now(UTC).isoformat()
+        incoming['snapshot_at'] = now
+        for record in incoming['records']:
+            record['source'].update(last_success_at=now, last_checked_at=now, last_state_check_at=now)
+        result = await refresh(factory, original, incoming)
+        assert result == {'refreshed':12, 'snapshot_at':now, 'provider_calls':0, 'reseed':False}
+        assert (await ready())['catalog_ready']
+        async with factory() as session:
+            generations = (await session.execute(text('SELECT source_record_id,generation FROM ai_fact_sources ORDER BY source_record_id'))).all()
+            assert (await session.execute(text('SELECT * FROM private_ai_demo_seed_state'))).all() == marker
+            assert await session.scalar(text('SELECT count(*) FROM ai_fact_jobs')) == 24
+        assert await refresh(factory, original, incoming) == result
+        async with factory() as session:
+            assert (await session.execute(text('SELECT source_record_id,generation FROM ai_fact_sources ORDER BY source_record_id'))).all() == generations
+            assert await session.scalar(text('SELECT count(*) FROM ai_fact_jobs')) == 24
+        assert {p.name: p.read_bytes() for p in state.iterdir() if p.is_file()} == protected
+        assert PilotBudget(state/'provider.sqlite3').summary()['attempts'] == 0
+        for mutation, error in [('cohort','COHORT_MISMATCH'),('stale','SOURCE_NOT_FRESH'),('future','RECEIPT_EXPIRED'),('price','CARD_DISAGREEMENT')]:
+            bad = copy.deepcopy(incoming)
+            if mutation == 'cohort': bad['records'][0]['listing']['id'] = str(uuid4())
+            if mutation == 'stale': bad['records'][0]['source']['last_success_at'] = '2020-01-01T00:00:00Z'
+            if mutation == 'future': bad['snapshot_at'] = '2099-01-01T00:00:00Z'
+            if mutation == 'price': bad['records'][0]['listing']['monthly_price'] += 1
+            with pytest.raises(ValueError, match=error):
+                await refresh(factory, original, bad)
+        assert (await ready())['catalog_ready']
+    finally:
+        await engine.dispose()
+
+
 @pytest.fixture
 def seed_database(tmp_path):
     raw = os.environ.get("AI_FACTS_TEST_DATABASE_URL") or os.environ.get("TEST_DATABASE_URL")
