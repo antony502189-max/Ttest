@@ -357,7 +357,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
         setNotice(answer.clarification ? questions[answer.clarification]
           : code === 'INTENT_CLARIFICATION_REQUIRED' ? 'Aclara la ubicación, el presupuesto o los requisitos antes de continuar.'
           : code === 'INTENT_NO_CHANGE' ? 'La petición no cambia los criterios. Añade un requisito nuevo.'
-          : code === 'INTENT_UNSUPPORTED' ? questions.unsupported
+          : code === 'INTENT_UNSUPPORTED' ? (message.audio_base64 ? 'Не удалось разобрать бюджет из записи. Повторите или введите его текстом. Поиск не списан.' : questions.unsupported)
           : code === 'SOURCE_COVERAGE_UNAVAILABLE' ? (inputPolicy ? 'Каталог устарел или недоступен. Новые обращения к модели остановлены до проверки данных.' : 'No hay fuentes verificadas recientes disponibles. Prueba la búsqueda con filtros.')
           : code === 'ASR_FAILURE' ? 'Не удалось распознать запись. Повторите или введите запрос текстом. Поиск не списан.'
           : code === 'SESSION_VERSION_CONFLICT'
@@ -461,10 +461,10 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
         maxLength={inputPolicy?.maxLength ?? 16000} rows={3} autoComplete="off" spellCheck={false} placeholder={inputPolicy?.placeholder ?? t('Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
       {inputPolicy ? <p role={invalidText ? 'alert' : undefined} data-i18n-exempt>{inputPolicy.hint}</p> : null}
       {voiceEnabled ? <AIVoiceInput disabled={busy || restoring || restoreFailed || demoBlocked || pending !== null || changingSession || syncingSession || needsSync || needsConversation || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)}
-        disabledReason={demoBlocked ? demoReason : remaining === 0 ? 'Лимит запросов исчерпан. Повторите после его обновления.' : !modeChoice ? 'Выберите режим аренды перед записью.' : restoreFailed ? 'Не удалось восстановить поиск. Повторите восстановление.' : pending ? 'Сначала проверьте результат предыдущей попытки.' : 'Дождитесь завершения текущей операции и синхронизации поиска.'}
+        disabledReason={busy ? 'Обрабатываем запрос и ищем варианты…' : demoBlocked ? demoReason : remaining === 0 ? 'Лимит запросов исчерпан. Повторите после его обновления.' : !modeChoice ? 'Выберите режим аренды перед записью.' : restoreFailed ? 'Не удалось восстановить поиск. Повторите восстановление.' : pending ? 'Ответ не подтверждён. Нажмите «Проверить результат попытки» ниже.' : 'Дождитесь завершения текущей операции и синхронизации поиска.'}
         onAudio={audio => void submit(audio)} onRecording={setRecording} /> : null}
       <Button type="button" className="home-ai-search__action" disabled={recording || busy || restoring || restoreFailed || (!pending && (invalidText || demoBlocked || (changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
-        onClick={() => void submit()}>{t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : result ? 'Actualizar búsqueda' : 'Buscar habitaciones')}</Button>
+        onClick={() => void submit()}>{PRIVATE_DEMO && pending && !busy ? <span data-i18n-exempt>Проверить результат попытки</span> : t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : result ? 'Actualizar búsqueda' : 'Buscar habitaciones')}</Button>
       {busy && pending ? <Button type="button" variant="outline" onClick={() => {
         flight.current?.abort(); setBusy(false)
         setNotice('No se pudo confirmar el resultado. Reintenta el mismo intento para comprobar su estado.')

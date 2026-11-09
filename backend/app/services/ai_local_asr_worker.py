@@ -21,7 +21,7 @@ def main():
         samples = np.frombuffer(wav.readframes(240000), dtype="<i2").astype(np.float32)/32768
     model = WhisperModel(sys.argv[1], device="cpu", compute_type="int8", cpu_threads=2,
                          num_workers=1, local_files_only=True)
-    segments, _ = model.transcribe(samples, beam_size=1, vad_filter=True, condition_on_previous_text=False,
+    segments, _ = model.transcribe(samples, beam_size=5, vad_filter=True, condition_on_previous_text=False,
                                    without_timestamps=True, max_new_tokens=96, temperature=0.0)
     transcript = " ".join(segment.text.strip() for segment in segments).strip()
     if not 1 <= len(transcript) <= 160:

@@ -1,5 +1,42 @@
 import { expect, test } from '@playwright/test'
 
+test('voice processing is distinct from replay and a terminal rejection unlocks the microphone', async ({page}) => {
+  const sid='00000000-0000-4000-8000-000000000031'
+  let release=()=>{}, uploads=0
+  const gate=new Promise<void>(resolve=>{release=resolve})
+  const session={intent:{schema_version:'ai-search.v1',taxonomy_version:'rental.v1',session_id:sid,version:0,criteria:{rental_mode:{strength:'hard',value:'long'}}},expires_at:'2099-01-01T00:00:00Z'}
+  await page.route('**/ai-pilot/api/**',async route=>{
+    const path=new URL(route.request().url()).pathname
+    let value:unknown
+    if(path.endsWith('/private-demo/status'))value={attempts:8,maximum:50,approved:true,halted:false,exhausted:false,catalog_ready:true}
+    else if(path.endsWith('/capabilities'))value={text:true,map:true,voice:true,saved_searches:false}
+    else if(path.endsWith('/quota'))value={remaining:3}
+    else if(path.endsWith('/identity'))value={ready:true}
+    else if(path.endsWith('/sessions')||path.endsWith('/sessions/'+sid))value=session
+    else if(path.endsWith('/voice')){
+      uploads++;await gate
+      value={operation:{status:'failed',remaining:3,failure_code:'INTENT_UNSUPPORTED',receipt:null},cards:null}
+    }else throw Error('Unexpected voice request '+path)
+    return route.fulfill({json:value})
+  })
+  await page.goto('./#/')
+  await page.getByRole('button',{name:'Buscar con la voz',exact:true}).click()
+  const mic=page.getByRole('button',{name:'Надиктовать запрос',exact:true})
+  await mic.click()
+  await expect(page.getByText('Идёт запись…',{exact:true})).toBeVisible()
+  await page.waitForTimeout(300)
+  await page.getByRole('button',{name:'Остановить и искать',exact:true}).click()
+  try {
+    await expect(page.locator('[data-voice-unavailable]')).toHaveText('Обрабатываем запрос и ищем варианты…')
+    await expect(page.getByRole('button',{name:'Проверить результат попытки',exact:true})).toHaveCount(0)
+    await expect(mic).toBeDisabled()
+  }finally{release()}
+  await expect(page.getByText('Не удалось разобрать бюджет из записи. Повторите или введите его текстом. Поиск не списан.',{exact:true})).toBeVisible()
+  await expect(mic).toBeEnabled()
+  await expect(page.locator('[data-voice-unavailable]')).toHaveCount(0)
+  expect(uploads).toBe(1)
+})
+
 for (const state of ['stale', 'quota', 'approved']) test(`voice explains ${state} availability beside the microphone`, async ({ page }) => {
   let calls = 0
   await page.addInitScript(() => {
@@ -81,7 +118,7 @@ for (const width of [390, 1440]) test(`voice ${width}px cancels, retries exact P
   await expect(page.getByText('Идёт запись…',{exact:true})).toBeVisible()
   await page.waitForTimeout(300) // At least 100ms of actual worklet PCM.
   await page.getByRole('button',{name:'Остановить и искать',exact:true}).click()
-  await page.getByRole('button',{name:'Comprobar el mismo intento',exact:true}).click()
+  await page.getByRole('button',{name:'Проверить результат попытки',exact:true}).click()
   await expect(page.getByText('Búsquedas disponibles hoy: 2')).toBeVisible()
   expect(uploads).toHaveLength(2); expect(uploads[0]).toEqual(uploads[1]); expect(executions).toBe(1)
   expect(await page.evaluate(() => (window as unknown as {voiceTracks: MediaStreamTrack[]}).voiceTracks.every(track => track.readyState === 'ended'))).toBe(true)

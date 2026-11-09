@@ -12,7 +12,9 @@ async def main():
     asr = LocalPCMTranscriber(python=Path("/opt/voice/bin/python"),model=Path("/opt/voice-model"))
     proof = []
     for name, expected in (("english.wav", "find rooms under 600 euros per month"),
-                           ("russian.wav", "до 600 евро в месяц")):
+                           ("russian.wav", "до 600 евро в месяц"),
+                           ("russian-700-irina.wav", "до 700 евро в месяц"),
+                           ("russian-700-pavel.wav", "до 700 евро в месяц")):
         started = time.monotonic()
         transcript = await asr.transcribe((Path("/fixtures")/name).read_bytes(), "audio/wav")
         assert transcript.casefold().strip().rstrip(".!?").strip() == expected, "SYNTHETIC_ASR_MISMATCH"

@@ -92,7 +92,7 @@ test('approved click, same-key lost ACK replay, refinement and reload use only A
   await page.getByRole('button',{name:'Escribir mi búsqueda',exact:true}).click()
   await page.locator('#ai-search-text').fill('до 600 евро в месяц')
   await page.getByRole('button',{name:'Buscar habitaciones',exact:true}).click()
-  await page.getByRole('button',{name:'Comprobar el mismo intento',exact:true}).click()
+  await page.getByRole('button',{name:'Проверить результат попытки',exact:true}).click()
   await expect(page.getByText('Búsquedas disponibles hoy: 2')).toBeVisible()
   await page.locator('#ai-search-text').fill('теперь до 400 евро в месяц')
   await page.getByRole('button',{name:'Actualizar búsqueda',exact:true}).click()

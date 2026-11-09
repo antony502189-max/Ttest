@@ -1,14 +1,28 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.21**, 9 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.23**, 9 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+
+**Сессия3.23 / S4.1,S6 — исправление русского700:** владелец подтвердил точную русскую фразу «до700евро вмесяц». На локальномsynthetic Irina воспроизведён неверный transcript приbeam1; Pavel распознал700. Новыйbeam5 безamount/language prompt распознаётоба700и прежниеEN/RU600при прежних8s/2CPU/1536MiB,4offline actual-adapter samples PASS/3.835–4.979s. Это не запись владельца и неhuman quality PASS. Exact finite Russian cardinal grammar добавляет «семисот» безguessing/extraction/расширения50–1000EUR scope. Busy/pending hint иterminal rejection UI разделены.74focused unit/19pilot browser, Ruff/types/lint/i18n PASS. [Разбор](reports/AI_SEARCH_RUSSIAN_700_20261109.md).
+
+**Следующее действие3.23:** exact-head CI ивыпуск этого жеclosed-pilot source ссохранениемstate/keys/initial seed/cohort/standing freshness. Проверить настоящий HTTPS русский700PCM→ASR→provider→SQL впрежнем50/$1 scope, затем дать владельцу повторить human microphone acceptance. Не выдаватьисправлениезаhuman/p95/public/full-release приёмку; S2.1/S4.1/S6 partial иостальныеS0–S7/saved/delivery gates сохраняются.
+
+**Историческая диагностика3.22:**
+
+**Сессия3.22 / S4.1 — диагностика owner voice acceptance:** владелец спрашивает о сообщении «Сначала проверьте результат предыдущей попытки». Read-only проверка кода857d8c41 показала: pending устанавливается доHTTP ответа, аdisabledReason не отличает busy от ожидания ручного replay. Поэтому подсказка появляется даже при нормальной обработке, а после потери ответа может сохраняться до проверки того жеattempt. Read-only private PG: последние3voice операции за2h завершены failed/INTENT_UNSUPPORTED; последняя создана18:36:59UTC, завершена18:37:04UTC, зависших операций в этом окне нет. Это не подтверждает принадлежность каждой операции конкретному владельцу и не раскрывает transcript. На18:38:43UTC catalog_ready=true,halted=false,approved=true,attempts8/50; новыхagent paid calls/записей/изменений runtime0. Диагностический вывод не выдан за новый fix или human voice PASS.
+
+**Следующее действие3.22:** уточнить продиктованную фразу владельца и воспроизвести S4.1 отказ без сохранения/внешней отправки raw audio/transcript; различить ASR распознавание и прежнюю positive grammar бюджета50–1000EUR/month. Исправить misleading busy/pending hint сregression в том жеPR412 при продолжении реализации. Бюджет/cohort/journals/TTL не расширять; source/ASR/provider hypotheses не объявлять доказанной причиной. S4.1 human acceptance остаётсяоткрытой; дальнейшие S2.1/S0–S7 gates сохранены.
+
+**Исторический выпуск3.21:**
 
 **Сессия3.21 / S2.1,S4.1,S6 — восстановление кнопки голоса:** по новому screenshot владельца подтверждён PILOT_CATALOG_STALE: старый initial snapshot истёк, тогда как все13 исходных объявлений уже имели свежие production imports. Выполнен bounded read-only export ровно той же группы и incremental facts/proofs refresh без seed/reset/TTL extension. На17:51UTC catalog_ready=true,halted=false,approved=true; provider journal/seed/signing/env сохранены,8/50,новыхpaid0. Подключён30min host timer, повторный запускResult=success. Actual HTTPS1440/390 microphone start→recording→cancel PASS безvoice/query dispatch,8→8. [Разбор и пределы](reports/AI_SEARCH_VOICE_BUTTON_20261109.md).
 
 Source UI теперь показывает причину disabled рядом смикрофоном; stale/quota/ready browser regressions иprevious voice tests18PASS, disposable PG incremental refresh/replay/rejections PASS, Ruff/TypeScript/lint/i18n PASS. Полный seed-suite/new-head CI и выпуск нового UI отмечаются отдельно от уже выполненного live data repair. S2.1 остаётсяpartial: расширенная quality/coverage, instant upstream removal иmonitoring/performance acceptance не заявлены.
 
-**Следующее действие3.21:** закончить новый UI release сsource manifest иHTTPS проверкой, сверитьexact-head CI того жеPR412 ипередать владельцуreview. Затем продолжить обязательные S2.1 quality/standing freshness измерения иS4.1 human microphone acceptance; saved/delivery/full release иA1–A12 gates остаются открытыми. Первоначальныйcohort50/$1 owner/team scope иdurable journals не менять. Новый roadmap не вводится.
+**Следующее действие3.21:** владелец проверяет свой микрофон иreviewPR412; выпущенныйUI source857d8c41 иexact-head CI13SUCCESS/2conditionalSKIP подтверждены. Затем продолжить обязательные S2.1 quality/standing freshness измерения иS4.1 human microphone acceptance; saved/delivery/full release иA1–A12 gates остаются открытыми. Первоначальныйcohort50/$1 owner/team scope иdurable journals не менять. Новый roadmap не вводится.
+
+**Выпуск3.21:** source `857d8c4118360c89a84b54eb4019baa7aa905522`, actual HTTPS1440/390 запись/отмена иadjacent stale explanation PASS; backend остаётсяa8506724, толькоfrontend image `sha256:a3f4f9df008588bf1ec776c14a079be61fffe85c7dd68ad7bdb75af03ac510cd` обновлён. Full seed/recovery24PASS/406.28s, browser18PASS, exact-head CI13SUCCESS/2conditionalSKIP, provenance1028PASS. Provider8→8,paid0,прочиеcontainers/DB/state/seed/signing/env неизменны. [Final report/evidence](reports/AI_SEARCH_VOICE_BUTTON_20261109.md).
 
 **Исторический выпуск3.20 до истечения каталога:**
 
@@ -312,6 +326,7 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 
 | Дата | Версия/этап | Выполнено и доказательство | Следующий шаг |
 | --- | --- | --- | --- |
+| 2026-11-09 | 3.21/S2.1,S4.1,S6 | Исправлена disabled voice button: fresh bounded13IDs sync безseed/reset/TTL extension;30min timer; frontend857d8c41, HTTPS1440/390 start/cancel иstale hint PASS;24PG/18browser, CI13SUCCESS/2SKIP, provider8→8 | Owner human mic/review412; далееS2.1 quality/freshness measurements |
 | 2026-11-09 | 3.20/S4.1 closed voice LIVE | a8506724:13SUCCESS/2SKIP workflows,21SUCCESS/2SKIP jobs; HTTPS synthetic microphone→local tiny→DeepSeek→SQL12,8.277s;7→8/50, reload390безIO, backups/keys/state сохранены, migrations/seed/reset0 | Human mic acceptance/review412, затем прежнийS2.1 freshness |
 | 2026-11-09 | 3.19/S4.1 | Merge411/main1a91d8fe подтверждён. Прямой приоритет владельца: голосовой ввод. Existing VoiceSearchExecution расширяется microphone/HTTP/localASR, без нового external audio provider иpaid calls | PG/media/replay/browser иrealASR CI, reviewable voice increment |
 | 2026-11-08 | 3.18/S2.1,S3,S6 review411 | PR411-01–13 source fixes и regression proof;77focused/11pilot/93ordinary/23PG PASS, sealed proxy2clients PASS. Initial427 CI context/lint failures исправлены; безpaid/deploy/reset. Полная матрица в PR411_REMEDIATION_20261108.md | Обязательный exact-head CI, повторное owner review411; затем прежнийS2.1 |
@@ -345,6 +360,9 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 | 2026-11-03 | 2.2/S1.0 | Получен пользовательский внешний review PR404 на7f8bbabc. F1–F8 исправлены в изолированной копии ветки: closed access/mTLS, manifest coverage, attestation recovery, namespace/WS, private journal/process fencing, signed operational evidence, единый spec и log severity. Локально1755 backend/73 Linux/13 lab browser/63 main browser PASS; отдельно настоящий nginx mTLS и build matrix. [Отчёт и ограничения](reports/PR404_REVIEW_FIXES_20261103.md). Реальные provider/journal/production не менялись | Exact-head CI и итоговый diff; merge по следующему поручению пользователя |
 
 ## Изменения маршрута и отложенное
+
+- **3.20→3.21:** прямой bug report владельца выявил незавершённый S2.1 standing refresh после expiry статического каталога. Подключён bounded sync существующих13IDs из уже импортированных данных иvisible disabled reason вS4.1; TTL,scope иjournals сохранены. ПолнаяS2.1 quality/coverage/monitoring иостальныеS0–S7 gates не закрыты.
+
 
 - **3.9→3.10:** по точному разрешению владельца выполнен ближайший настоящий текстовый показ на существующем UI и12реальных public records. Порядок менялся на ограниченный вертикальный результат, не ослабление A1–A12. Paid3calls завершены, ключ/egress сняты, production не активирован. S3.3 закрыт только в заданном pilot scope; standing data/privacy/performance/voice/saved/delivery/release gates сохранены.
 

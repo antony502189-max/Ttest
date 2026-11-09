@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from app.schemas.ai_search_intent import Criteria, apply_patch
 from app.services.ai_deepseek_intent import OutboundIntentInput, ProviderFailure
+from pilot.russian_budget import AMOUNTS
 
 REMOVE = {
     "убери ограничение бюджета", "без ограничения бюджета", "без бюджета",
@@ -16,7 +17,7 @@ REMOVE = {
 }
 ALL = {"все варианты", "покажи все варианты", "all options", "show all options", "todas las opciones"}
 PATTERNS = (
-    r"(?:ищу |нужна |покажи |теперь )?(?:комнат[ау] |варианты )?(?:до|бюджет до|не дороже) ([1-9][0-9]{1,3})(?: евро| €)?(?: в месяц|/мес)",
+    r"(?:ищу |нужна |покажи |теперь )?(?:комнат[ау] |варианты )?(?:до|бюджет до|не дороже) ([1-9][0-9]{1,3}|[а-яё]+(?: [а-яё]+){0,3}?)(?: евро| €)?(?: в месяц|/мес)",
     r"(?:find |show |now )?(?:a room |rooms )?(?:under|up to|budget up to) ([1-9][0-9]{1,3})(?: euros| eur| €)?(?: per month|/month)",
     r"(?:busco |ahora )?(?:una habitación |una habitacion |habitaciones )?(?:hasta|menos de) ([1-9][0-9]{1,3})(?: euros| eur| €)?(?: al mes|/mes)",
 )
@@ -25,15 +26,17 @@ PATTERNS = (
 def minimize(text: str) -> str:
     if type(text) is not str or not 1 <= len(text) <= 160 or any(ord(c) < 32 for c in text):
         raise ProviderFailure("INTENT_UNSUPPORTED")
-    value = text.casefold().strip().rstrip(".!?").strip()
+    value = text.casefold().strip().rstrip(".!?").strip().replace('ё', 'е')
     if value in REMOVE:
         return "Remove the budget criterion. Preserve all other criteria."
     if value in ALL:
         return "Remove the budget criterion. Preserve all other criteria."
     for pattern in PATTERNS:
         match = re.fullmatch(pattern, value)
-        if match and 50 <= int(match[1]) <= 1000:
-            return f"Set a hard budget of {int(match[1])} EUR monthly. Preserve all other criteria."
+        if match:
+            amount = int(match[1]) if match[1].isascii() and match[1].isdigit() else AMOUNTS.get(match[1])
+            if amount is not None and 50 <= amount <= 1000:
+                return f"Set a hard budget of {amount} EUR monthly. Preserve all other criteria."
     raise ProviderFailure("INTENT_UNSUPPORTED")
 
 
