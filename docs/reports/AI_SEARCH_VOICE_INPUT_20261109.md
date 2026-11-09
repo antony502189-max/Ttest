@@ -21,7 +21,7 @@ stdout is bounded and stderr discarded. ONNX telemetry is disabled; pilot's
 internal network has no direct external route. The CI ASR test additionally runs
 with Docker network=none/read-only/nobody/no capabilities/2CPUs/1536MiB, synthetic
 speech only. [Upstream implementation](https://github.com/SYSTRAN/faster-whisper)
-and [model source](https://huggingface.co/Systran/faster-whisper-base/tree/ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66).
+and [model source](https://huggingface.co/Systran/faster-whisper-tiny/tree/d90ca5fe260221311c53c58e660288d3deb8d356).
 
 Browser capture uses AudioWorklet and bounded Float32 chunks converted to PCM,
 not browser speech-recognition vendor services. Explicit start/stop/cancel;
@@ -49,8 +49,8 @@ remain zero-debit and terminal replay never reruns ASR or intent.
 - Browser11 existing pilot cases +4 new voice cases PASS across390/1440px,
   permission denial, cancellation, late grant after close, immutable-audio lost
   ACK replay and receipt reload. Chromium uses a fake device; no person's mic.
-- Real local synthetic EN/RU speech matched600/month in a sealed network-none
-  container:5.810s/5.132s cold processes. These are ASR-only observations, not
+- Real local synthetic EN/RU speech matched600/month through the actual bounded
+  transcriber with the tiny model:4.592s/5.140s cold processes. These are ASR-only observations, not
   end-to-end p95 or recognition quality for real speakers/accents.
 - Disposable PostGIS voice/HTTP110 PASS/1optional UI bridge SKIP, including the
   distinct stale-catalog zero-debit code. Exact-head CI is recorded separately
@@ -67,6 +67,16 @@ the disposable harness. New owner/version admission correctly created no usage
 row, so old tests now assert absence rather than a zero-valued row. No test/gate
 was removed. Initial raw logs and final proof are under ignored
 `output/ai-voice-20261108` and owned `/srv/112233-ai-voice-review-20261108`.
+
+Final-candidate corrections: the ordinary mobile runner initially discovered the
+four pilot-only voice tests. They remain mandatory in the dedicated15-case pilot
+suite and are excluded only from the incompatible ordinary build. The original
+base model was too close to the unchanged8s ASR deadline (a wrapper timed out;
+diagnostic cold runs7.5–9s). The compact multilingual tiny model preserves the
+8s/2CPU policy and passed both exact synthetic phrases through the actual wrapper
+in4.6/5.1s. Human/accents/noise quality remains an open gate. CI now calls the
+actual async adapter rather than only invoking its child script. A maximum-size
+PCM/EOF regression also passes without deadlock.
 
 ## Release and continuation
 

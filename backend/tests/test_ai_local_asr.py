@@ -70,3 +70,14 @@ async def test_cancel_kills_real_child_and_overlapping_asr_fails_closed(tmp_path
     with pytest.raises(asyncio.CancelledError):
         await task
     assert children[0].returncode is not None and not asr.lock.locked()
+
+
+@pytest.mark.asyncio
+async def test_maximum_pcm_flushes_stdin_eof_without_pipe_deadlock(tmp_path, monkeypatch):
+    (tmp_path/"model.bin").write_bytes(b"synthetic-test-model-not-used")
+    asr = LocalPCMTranscriber(python=Path(sys.executable), model=tmp_path)
+    spawn = asyncio.create_subprocess_exec
+    async def reader(*_args, **kwargs):
+        return await spawn(sys.executable, "-c", "import sys,json; data=sys.stdin.buffer.read(); assert len(data)==480044; print(json.dumps('fixture transcript'))", **kwargs)
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", reader)
+    assert await asr.transcribe(pcm(frames=240000), "audio/wav") == "fixture transcript"

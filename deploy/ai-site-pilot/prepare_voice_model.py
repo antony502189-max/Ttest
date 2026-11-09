@@ -3,10 +3,10 @@ import hashlib
 from pathlib import Path
 from urllib.request import urlopen
 
-REVISION = "ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66"
+REVISION = "d90ca5fe260221311c53c58e660288d3deb8d356"
 FILES = {
-    "model.bin": "d01c3014881c9c6f3133c182f3d2887eb6ca1c789a7538c5c007196857a0a6a9",
-    "config.json": "56a6d8110d311f19c8f0471e562832c7527f146b567275bfca59fcf7c184da9a",
+    "model.bin": "dcb76c6586fc06cbdac6dd21f14cfd129cc4cdd9dce19bf4ffa62e59cbe6e6d1",
+    "config.json": "a73a28cdfe1c43ccc7202fa333d1f89c202477271407ae9a7f19afa52039cac8",
     "tokenizer.json": "fb7b63191e9bb045082c79fd742a3106a12c99513ab30df4a0d47fa6cb6fd0ab",
     "vocabulary.txt": "34ce3fe1c5041027b3f8d42912270993f986dbc4bb34cf27f951e34a1e453913",
 }
@@ -19,7 +19,7 @@ def main():
         path = root/name
         digest = hashlib.sha256()
         count = 0
-        with urlopen(f"https://huggingface.co/Systran/faster-whisper-base/resolve/{REVISION}/{name}", timeout=60) as source, path.open("xb") as target:
+        with urlopen(f"https://huggingface.co/Systran/faster-whisper-tiny/resolve/{REVISION}/{name}", timeout=60) as source, path.open("xb") as target:
             while chunk := source.read(1024*1024):
                 count += len(chunk)
                 if count > 150_000_000:

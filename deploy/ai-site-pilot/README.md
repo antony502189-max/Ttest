@@ -16,8 +16,8 @@ for up to15minutes, then keep only the durable operation locator. Reload never
 stores or uploads the recording again. Denial/unavailable microphone keeps text
 available. Capture stops on cancel/dialog close, including late permission grants.
 
-ASR uses pinned faster-whisper1.2.1, multilingual base revision
-`ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66`, checked SHA256 for all four assets.
+ASR uses pinned faster-whisper1.2.1, multilingual tiny revision
+`d90ca5fe260221311c53c58e660288d3deb8d356`, checked SHA256 for all four assets.
 `voice-requirements.txt` is an independent exact-version environment; ordinary
 backend dependencies are unchanged. Model assets are fetched only during build.
 Inference uses local_files_only/HF_HUB_OFFLINE, CPU int8/two threads, no external
