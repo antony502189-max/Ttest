@@ -48,6 +48,7 @@ async def test_incremental_refresh_restores_freshness_without_reseed_or_spend(se
 
     from demo.entry import pipeline
     from pilot.budget import PilotBudget
+    from pilot.catalog_health import CatalogHealth, cohort_hash
     from pilot.readiness import CatalogReadiness
     from pilot.refresh import refresh
 
@@ -55,6 +56,7 @@ async def test_incremental_refresh_restores_freshness_without_reseed_or_spend(se
     engine = create_async_engine(dsn, pool_size=2, max_overflow=0)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     original = json.loads(file.read_text())
+    health=CatalogHealth(state.parent/'catalog-health.json',cohort_hash(original))
     try:
         await seed_catalog(engine, factory, original, state,
             lambda *, initialize: ErasureJournal(state/'erasure.sqlite3', b's'*32, initialize=initialize),
@@ -64,21 +66,22 @@ async def test_incremental_refresh_restores_freshness_without_reseed_or_spend(se
             marker = (await session.execute(text('SELECT * FROM private_ai_demo_seed_state'))).all()
         async with factory.begin() as session:
             await session.execute(text("UPDATE external_listing_sources SET last_success_at=statement_timestamp()-interval '86401 seconds'"))
-        ready = CatalogReadiness(pipeline(factory))
+        ready = CatalogReadiness(pipeline(factory),health)
         assert not (await ready())['catalog_ready']
         incoming = copy.deepcopy(original)
         now = datetime.now(UTC).isoformat()
         incoming['snapshot_at'] = now
         for record in incoming['records']:
             record['source'].update(last_success_at=now, last_checked_at=now, last_state_check_at=now)
-        result = await refresh(factory, original, incoming)
-        assert result == {'refreshed':12, 'snapshot_at':now, 'provider_calls':0, 'reseed':False}
+        result = await refresh(factory, original, incoming,health=health)
+        assert result['refreshed']==12 and result['provider_calls']==0 and result['removed']==0 and not result['reseed']
         assert (await ready())['catalog_ready']
         async with factory() as session:
             generations = (await session.execute(text('SELECT source_record_id,generation FROM ai_fact_sources ORDER BY source_record_id'))).all()
             assert (await session.execute(text('SELECT * FROM private_ai_demo_seed_state'))).all() == marker
             assert await session.scalar(text('SELECT count(*) FROM ai_fact_jobs')) == 24
-        assert await refresh(factory, original, incoming) == result
+        replay=await refresh(factory, original, incoming,health=health)
+        assert replay['refreshed']==12 and replay['generation']>result['generation']
         async with factory() as session:
             assert (await session.execute(text('SELECT source_record_id,generation FROM ai_fact_sources ORDER BY source_record_id'))).all() == generations
             assert await session.scalar(text('SELECT count(*) FROM ai_fact_jobs')) == 24
@@ -91,7 +94,9 @@ async def test_incremental_refresh_restores_freshness_without_reseed_or_spend(se
             if mutation == 'future': bad['snapshot_at'] = '2099-01-01T00:00:00Z'
             if mutation == 'price': bad['records'][0]['listing']['monthly_price'] += 1
             with pytest.raises(ValueError, match=error):
-                await refresh(factory, original, bad)
+                await refresh(factory, original, bad,health=health)
+            assert not (await ready())['catalog_ready']
+            await refresh(factory,original,incoming,health=health)
         assert (await ready())['catalog_ready']
     finally:
         await engine.dispose()

@@ -1,9 +1,46 @@
 import { expect, test } from '@playwright/test'
 
-test('voice processing is distinct from replay and a terminal rejection unlocks the microphone', async ({page}) => {
+for(const width of [390,1440]) for(const detail of ['AI_REQUEST_INVALID','OTHER_BAD_REQUEST']) test(`voice ${width}px 400 ${detail} respects the exact pre-reservation contract`,async({page})=>{
+  await page.setViewportSize({width,height:1000})
+  const sid='00000000-0000-4000-8000-000000000041'
+  let uploads=0,operationReads=0
+  const session={intent:{schema_version:'ai-search.v1',taxonomy_version:'rental.v1',session_id:sid,version:0,criteria:{rental_mode:{strength:'hard',value:'long'}}},expires_at:'2099-01-01T00:00:00Z'}
+  await page.route('**/ai-pilot/api/**',async route=>{
+    const path=new URL(route.request().url()).pathname
+    if(path.endsWith('/voice')){uploads++;return route.fulfill({status:400,json:{detail}})}
+    if(path.includes('/operations/'))operationReads++
+    const value=path.endsWith('/private-demo/status')?{attempts:9,maximum:50,approved:true,halted:false,exhausted:false,catalog_ready:true}
+      :path.endsWith('/capabilities')?{text:true,map:true,voice:true,saved_searches:false}
+      :path.endsWith('/quota')?{remaining:3}
+      :path.endsWith('/identity')?{ready:true}:session
+    return route.fulfill({json:value})
+  })
+  await page.goto('./#/')
+  await page.getByRole('button',{name:'Buscar con la voz',exact:true}).click()
+  const mic=page.getByRole('button',{name:'Надиктовать запрос',exact:true})
+  await mic.click();await expect(page.getByText('Идёт запись…',{exact:true})).toBeVisible()
+  await page.waitForTimeout(300)
+  await page.getByRole('button',{name:'Остановить и искать',exact:true}).click()
+  if(detail==='AI_REQUEST_INVALID'){
+    await expect(mic).toBeEnabled()
+    await expect(page.getByRole('button',{name:'Проверить результат попытки',exact:true})).toHaveCount(0)
+    await page.reload()
+    await page.getByRole('button',{name:'Buscar con la voz',exact:true}).click()
+    await expect(mic).toBeEnabled()
+    expect(operationReads).toBe(0)
+  }else{
+    await expect(page.getByRole('button',{name:'Проверить результат попытки',exact:true})).toBeEnabled()
+    await expect(mic).toBeDisabled()
+  }
+  expect(uploads).toBe(1)
+})
+
+for(const width of [390,1440]) for(const failure of ['INTENT_UNSUPPORTED','VOICE_CAPACITY_LIMIT']) test(`voice ${width}px processing ${failure} is distinct from replay and unlocks the microphone`, async ({page}) => {
+  await page.setViewportSize({width,height:1000})
   const sid='00000000-0000-4000-8000-000000000031'
   let release=()=>{}, uploads=0
   const gate=new Promise<void>(resolve=>{release=resolve})
+  let settledKey=''
   const session={intent:{schema_version:'ai-search.v1',taxonomy_version:'rental.v1',session_id:sid,version:0,criteria:{rental_mode:{strength:'hard',value:'long'}}},expires_at:'2099-01-01T00:00:00Z'}
   await page.route('**/ai-pilot/api/**',async route=>{
     const path=new URL(route.request().url()).pathname
@@ -14,8 +51,8 @@ test('voice processing is distinct from replay and a terminal rejection unlocks 
     else if(path.endsWith('/identity'))value={ready:true}
     else if(path.endsWith('/sessions')||path.endsWith('/sessions/'+sid))value=session
     else if(path.endsWith('/voice')){
-      uploads++;await gate
-      value={operation:{status:'failed',remaining:3,failure_code:'INTENT_UNSUPPORTED',receipt:null},cards:null}
+      uploads++;settledKey=route.request().postDataJSON().idempotency_key;await gate
+      value={operation:{status:'failed',remaining:3,failure_code:failure,receipt:null},cards:null}
     }else throw Error('Unexpected voice request '+path)
     return route.fulfill({json:value})
   })
@@ -31,9 +68,10 @@ test('voice processing is distinct from replay and a terminal rejection unlocks 
     await expect(page.getByRole('button',{name:'Проверить результат попытки',exact:true})).toHaveCount(0)
     await expect(mic).toBeDisabled()
   }finally{release()}
-  await expect(page.getByText('Не удалось разобрать бюджет из записи. Повторите или введите его текстом. Поиск не списан.',{exact:true})).toBeVisible()
+  await expect(page.getByText(failure==='INTENT_UNSUPPORTED'?'Не удалось разобрать бюджет из записи. Повторите или введите его текстом. Поиск не списан.':'Сервер распознавания занят. Повторите запись позже. Поиск не списан.',{exact:true})).toBeVisible()
   await expect(mic).toBeEnabled()
   await expect(page.locator('[data-voice-unavailable]')).toHaveCount(0)
+  expect(await page.evaluate(()=>JSON.stringify(Object.values(sessionStorage)))).not.toContain(settledKey)
   expect(uploads).toBe(1)
 })
 

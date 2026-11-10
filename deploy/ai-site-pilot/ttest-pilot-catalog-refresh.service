@@ -2,6 +2,7 @@
 Description=Refresh the existing closed AI pilot cohort from imported public data
 After=docker.service
 Requires=docker.service
+OnFailure=ttest-pilot-catalog-refresh-alert.service
 
 [Service]
 Type=oneshot

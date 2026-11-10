@@ -1,0 +1,12 @@
+[Unit]
+Description=Block failed pilot refresh and emit a redacted operator alert
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/usr/bin/python3 /srv/112233-ai-site-pilot-20261108/catalog-refresh/refresh_catalog.py --failure
+StandardOutput=journal
+StandardError=journal
+SyslogLevel=err
+TimeoutStartSec=120

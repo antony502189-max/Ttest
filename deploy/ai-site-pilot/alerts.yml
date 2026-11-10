@@ -1,0 +1,38 @@
+groups:
+  - name: closed-ai-pilot
+    rules:
+      - alert: PilotCatalogMetricsMissing
+        expr: absent(ttest_pilot_catalog_ready)
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: 'Closed pilot catalog monitoring is missing' }
+      - alert: PilotCatalogRefreshFailed
+        expr: ttest_pilot_catalog_ready == 0 or ttest_pilot_catalog_consecutive_failures > 0
+        for: 1m
+        labels: { severity: critical }
+        annotations: { summary: 'Closed pilot catalog is blocked after refresh failure' }
+      - alert: PilotCatalogRefreshOverdue
+        expr: time() - ttest_pilot_catalog_last_success_seconds > 4500
+        for: 1m
+        labels: { severity: critical }
+        annotations: { summary: 'Closed pilot catalog refresh is overdue' }
+      - alert: PilotVoiceErrors
+        expr: sum(increase(ttest_ai_voice_execution_total{status="failed"}[15m])) / clamp_min(sum(increase(ttest_ai_voice_execution_total[15m])), 1) > 0.2
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: 'Closed pilot voice rejection ratio is high' }
+      - alert: PilotVoiceMetricsUnavailable
+        expr: ttest_pilot_voice_metrics_available == 0
+        for: 2m
+        labels: { severity: warning }
+        annotations: { summary: 'Closed pilot private voice metrics collection is unavailable' }
+      - alert: PilotVoiceUncertain
+        expr: sum(increase(ttest_ai_voice_execution_total{status="uncertain"}[15m])) > 0
+        for: 1m
+        labels: { severity: warning }
+        annotations: { summary: 'Closed pilot has uncertain voice operations requiring receipt recovery' }
+      - alert: PilotVoiceSaturation
+        expr: sum(increase(ttest_ai_voice_execution_total{failure="VOICE_CAPACITY_LIMIT"}[15m])) > 0
+        for: 1m
+        labels: { severity: warning }
+        annotations: { summary: 'Closed pilot local ASR is saturated' }

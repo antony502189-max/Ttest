@@ -1,0 +1,10 @@
+[Unit]
+Description=Collect private voice/catalog metrics every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=ttest-pilot-metrics.service
+
+[Install]
+WantedBy=timers.target

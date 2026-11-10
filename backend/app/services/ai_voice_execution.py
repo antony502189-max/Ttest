@@ -25,6 +25,14 @@ from ..schemas.ai_search_quota import (
 from ..schemas.listings import ListingCardSearchRequest
 from .ai_deepseek_intent import ProviderFailure
 from .ai_http_policy import HTTP_DEADLINE
+from .ai_local_asr import LocalASRBusy
+from .ai_observability import (
+    VOICE_ASR_SECONDS,
+    VOICE_EXECUTION_SECONDS,
+    VOICE_OPERATIONS,
+    VOICE_PARSER_SECONDS,
+    observe_result,
+)
 from .ai_search_attempts import AIAttemptRejected
 from .ai_search_execution import (
     AttemptGate,
@@ -88,8 +96,21 @@ class VoiceSearchExecution:
         http_deadline = HTTP_DEADLINE.get()
         if http_deadline is not None:
             deadline = min(deadline, http_deadline)
-        async with asyncio.timeout_at(deadline):
-            return await self._execute(subject, key, session_id, version, audio, media_type, payload, deadline)
+        with VOICE_EXECUTION_SECONDS.time():
+            try:
+                async with asyncio.timeout_at(deadline):
+                    result = await self._execute(subject, key, session_id, version, audio, media_type, payload, deadline)
+                observe_result(result, counter=VOICE_OPERATIONS)
+                return result
+            except asyncio.CancelledError:
+                VOICE_OPERATIONS.labels('uncertain','no','cancelled').inc()
+                raise
+            except TimeoutError:
+                VOICE_OPERATIONS.labels('uncertain','no','timeout').inc()
+                raise
+            except Exception:
+                VOICE_OPERATIONS.labels('uncertain','no','unavailable').inc()
+                raise
 
     async def _execute(self, subject: QuotaSubject, key: UUID, session_id: UUID, version: int,
                        audio: bytes, media_type: AudioMedia, payload: ListingCardSearchRequest,
@@ -140,12 +161,14 @@ class VoiceSearchExecution:
                 if asyncio.get_running_loop().time() >= deadline:
                     raise TimeoutError
                 phase = FailureCode.ASR_FAILURE
-                transcript = await _bounded(lambda: self.asr.transcribe(audio, media_type), self.policy.asr_budget_seconds)
+                with VOICE_ASR_SECONDS.time():
+                    transcript = await _bounded(lambda: self.asr.transcribe(audio, media_type), self.policy.asr_budget_seconds)
                 if (type(transcript) is not str or not transcript.strip() or len(transcript) > 16_384
                         or len(transcript.encode()) > self.policy.max_transcript_bytes):
                     raise ValueError("VOICE_TRANSCRIPT_INVALID")
                 phase = FailureCode.LLM_FAILURE
-                patch = await _bounded(lambda: self.parser.parse(transcript, current), self.policy.intent_budget_seconds)
+                with VOICE_PARSER_SECONDS.time():
+                    patch = await _bounded(lambda: self.parser.parse(transcript, current), self.policy.intent_budget_seconds)
                 if isinstance(patch, IntentClarification):
                     return SearchExecution(await self.ledger.release(subject, operation, state.fence, patch.failure_code))
                 patch = IntentPatch.model_validate_json(patch.model_dump_json(exclude_none=True))
@@ -165,6 +188,8 @@ class VoiceSearchExecution:
                         await self.ledger.release(subject, operation, state.fence, FailureCode.BACKEND_FAILURE)
             raise
         except Exception as error:  # noqa: BLE001 - no raw audio/transcript/provider/SQL export
+            if isinstance(error, LocalASRBusy):
+                phase = FailureCode.VOICE_CAPACITY_LIMIT
             if isinstance(error, ProviderFailure) and str(error) in {
                 "INTENT_CLARIFICATION_REQUIRED", "INTENT_NO_CHANGE", "INTENT_UNSUPPORTED"}:
                 phase = FailureCode(str(error))

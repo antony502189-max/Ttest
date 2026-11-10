@@ -6,6 +6,10 @@ import wave
 from pathlib import Path
 
 
+class LocalASRBusy(ValueError):
+    """A bounded capacity rejection, never an audio recognition failure."""
+
+
 def validate_pcm(audio: bytes) -> None:
     if type(audio) is not bytes or not 3244 <= len(audio) <= 480_044:
         raise ValueError("VOICE_AUDIO_INVALID")
@@ -39,7 +43,7 @@ class LocalPCMTranscriber:
             raise ValueError("VOICE_MEDIA_INVALID")
         validate_pcm(audio)
         if self.lock.locked():
-            raise ValueError("LOCAL_ASR_BUSY")
+            raise LocalASRBusy("LOCAL_ASR_BUSY")
         async with self.lock:
             process = await asyncio.create_subprocess_exec(str(self.python), str(Path(__file__).with_name("ai_local_asr_worker.py")),
                 str(self.model), stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,

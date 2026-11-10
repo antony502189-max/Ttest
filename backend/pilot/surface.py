@@ -23,8 +23,18 @@ def minimal_app():
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     app.include_router(router, prefix="/api/v1")
 
+    @app.get('/private-metrics',include_in_schema=False)
+    async def private_metrics():
+        from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+        from starlette.responses import Response
+        return Response(generate_latest(),headers={'Content-Type':CONTENT_TYPE_LATEST,'Cache-Control':'no-store'})
+
     @app.middleware("http")
     async def boundary(request: Request, call_next):
+        if request.url.path=='/private-metrics':
+            if request.method=='GET' and request.client and request.client.host in {'127.0.0.1','::1'}:
+                return await call_next(request)
+            return JSONResponse({'detail':'PILOT_ROUTE_DENIED'},404,headers={'Cache-Control':'no-store'})
         if not allowed(request.method, request.url.path) or "authorization" in request.headers:
             return JSONResponse({"detail": "PILOT_ROUTE_DENIED"}, status_code=404, headers={"Cache-Control": "no-store"})
         return await call_next(request)

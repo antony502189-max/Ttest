@@ -200,6 +200,30 @@ nginx stale DNS после пересоздания backend. Это не пот�
 
 ## Обновление существующего каталога
 
+Review412: новый `pilot-cohort.v2` покрывает каждый исходный ID карточкой или
+tombstone. Все CARD_FIELDS/публичные координаты синхронизируются. Durable
+catalog-health.json закрывает выдачу до полной подготовки facts/proofs; failed,
+refreshing, смена generation во время чтения и возраст sync>75min закрывают reads.
+Повтор запуска восстанавливает поколение, сохраняя историю failed jobs и реальные
+upstream timestamps. Это не instant-removal SLA между30min запусками.
+
+При следующем разрешённом выпуске после DB/state backup установить новый backend
+и четыре host helpers одного source: refresh_catalog.py, export_public.py,
+backend/pilot/refresh.py как refresh.py и backend/pilot/catalog_health.py как
+catalog_health.py. Установить refresh/alert/metrics services и оба timers. Сначала
+успешный one-shot reconcile, затем открыть frontend и включить timers. Отсутствие
+готового health receipt намеренно блокирует новый backend. В этом review выпуск
+не выполнялся. Не удалять health/seed/journals ради зелёного статуса.
+
+OnFailure блокирует каталог и пишет фиксированный journal alert. Минутный metrics
+timer пишет catalog-refresh/metrics/health.prom. Подключать к node-exporter только
+эту папку, не state/control. alerts.yml подключается к операторскому Prometheus
+с существующим notification routing. Фактическая установка/доставка алертов —
+отдельная проверка выпуска. /private-metrics доступен только backend loopback;
+nginx allowlist/CSP не расширяются. Labels не содержат audio/text/session/key.
+При rollback остановить оба timers/refresh; возобновлять выдачу только после
+успешного reconcile совместимой версией, без отката provider journal/PG volumes.
+
 `ttest-pilot-catalog-refresh.timer` запускает `refresh_catalog.py` раз в30минут.
 Host runner использует immutable `/demo-input/catalog.json` только как список
 исходных listing/source ID (13 на09.11); seed marker/подписи не заменяются.

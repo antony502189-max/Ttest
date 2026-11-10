@@ -5,6 +5,8 @@ import subprocess
 from pathlib import Path
 from uuid import UUID
 
+from sqlalchemy.dialects import postgresql
+
 from app.models import Listing
 from app.repositories.ai_fact_quality import source_freshness_predicate
 from app.repositories.ai_fact_snapshots import CapturedParserSnapshot
@@ -13,7 +15,6 @@ from app.schemas.ai_fact_bridge import BridgeReference
 from app.services.ai_fact_quality import FactQualityPolicy
 from app.services.ai_hard_matching import HardMatchPlan
 from app.services.ai_pisocompartido_price import prepare_price
-from sqlalchemy.dialects import postgresql
 
 
 def consistent_source_join(source_ids=()):
@@ -32,14 +33,7 @@ def consistent_source_join(source_ids=()):
         + cohort + "ORDER BY x.last_success_at DESC NULLS LAST,x.id LIMIT 1) s ON true")
 
 
-def main():
-    options = argparse.ArgumentParser()
-    options.add_argument("--output", type=Path, default=Path("output/ai-text-runtime-20261108/private/catalog.json"))
-    options.add_argument("--limit", type=int, choices=(20, 21), default=21)
-    options.add_argument("--cohort", type=Path, help="Existing immutable pilot snapshot; never expand its IDs")
-    options.add_argument("--sql-only", action="store_true", help="Print the read-only query for the local host runner")
-    args = options.parse_args()
-    cohort = json.loads(args.cohort.read_text()) if args.cohort else None
+def snapshot_statement(cohort=None,limit=21):
     listing_ids = tuple(UUID(r["listing"]["id"]) for r in cohort["records"]) if cohort else ()
     source_ids = tuple(UUID(r["source"]["id"]) for r in cohort["records"]) if cohort else ()
     if cohort and (not 1 <= len(listing_ids) <= 20 or len(set(listing_ids)) != len(listing_ids) or len(set(source_ids)) != len(source_ids)):
@@ -47,7 +41,7 @@ def main():
     fresh = source_freshness_predicate(Listing.id, HardMatchPlan(()), FactQualityPolicy(
         price_max_age_seconds=86400, policy_max_age_seconds=86400, evidence_retention_seconds=86400))
     query = visible_query().with_only_columns(Listing.id).where(
-        fresh, Listing.primary_source == "PisoCompartido").order_by(Listing.id).limit(args.limit)
+        fresh, Listing.primary_source == "PisoCompartido").order_by(Listing.id).limit(limit)
     if cohort:
         query = visible_query().with_only_columns(Listing.id).where(
             fresh, Listing.primary_source == "PisoCompartido", Listing.id.in_(listing_ids)).order_by(Listing.id).limit(20)
@@ -59,11 +53,34 @@ def main():
     card += ",'published_at',coalesce(l.published_at,l.created_at)"
     source = ",".join(f"'{k}',s.{k}" for k in source_fields)
     normalized = ",".join(f"'{k}',s.normalized_payload->'{k}'" for k in price_fields)
-    sql = ("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY; SET LOCAL statement_timeout='5000ms'; "
-        f"WITH eligible AS ({eligible}) SELECT json_build_object('snapshot_at',statement_timestamp(),"
-        f"'records',json_agg(json_build_object('listing',json_build_object({card}),"
-        f"'source',json_build_object({source},'normalized_payload',jsonb_build_object({normalized}))))) "
-        f"FROM eligible e JOIN listings l ON l.id=e.id {consistent_source_join(source_ids)}; COMMIT;")
+    statement = (f"WITH eligible AS ({eligible}) SELECT jsonb_build_object('snapshot_at',statement_timestamp(),"
+        f"'records',jsonb_agg(jsonb_build_object('listing',jsonb_build_object({card}),"
+        f"'source',jsonb_build_object({source},'normalized_payload',jsonb_build_object({normalized}))))) "
+        f"FROM eligible e JOIN listings l ON l.id=e.id {consistent_source_join(source_ids)}")
+    if not cohort:return statement
+    manifest=json.dumps([{'listing_id':str(lid),'source_id':str(sid)} for lid,sid in zip(listing_ids,source_ids,strict=True)])
+    return (f"WITH raw_snapshot(payload) AS ({statement}),manifest(items) AS (SELECT '{manifest}'::jsonb),"
+        "active_snapshot AS (SELECT payload->'snapshot_at' AS captured,coalesce((SELECT jsonb_agg(r) FROM "
+        "jsonb_array_elements(coalesce(nullif(payload->'records','null'::jsonb),'[]'::jsonb)) r "
+        "WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(items) m WHERE "
+        "r->'listing'->>'id'=m->>'listing_id' AND r->'source'->>'id'=m->>'source_id')),'[]'::jsonb) AS records "
+        "FROM raw_snapshot CROSS JOIN manifest) SELECT jsonb_build_object('schema','pilot-cohort.v2',"
+        "'snapshot_at',captured,'cohort',items,'records',records,'tombstones',coalesce((SELECT "
+        "jsonb_agg(jsonb_build_object('listing_id',m->>'listing_id','source_id',m->>'source_id','reason','ineligible')) "
+        "FROM jsonb_array_elements(items) m WHERE NOT EXISTS (SELECT 1 FROM jsonb_array_elements(records) r "
+        "WHERE r->'listing'->>'id'=m->>'listing_id' AND r->'source'->>'id'=m->>'source_id')),'[]'::jsonb)) "
+        "FROM active_snapshot CROSS JOIN manifest")
+
+
+def main():
+    options = argparse.ArgumentParser()
+    options.add_argument("--output", type=Path, default=Path("output/ai-text-runtime-20261108/private/catalog.json"))
+    options.add_argument("--limit", type=int, choices=(20, 21), default=21)
+    options.add_argument("--cohort", type=Path, help="Existing immutable pilot snapshot; never expand its IDs")
+    options.add_argument("--sql-only", action="store_true", help="Print the read-only query for the local host runner")
+    args = options.parse_args()
+    cohort = json.loads(args.cohort.read_text()) if args.cohort else None
+    sql="BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY; SET LOCAL statement_timeout='5000ms'; "+snapshot_statement(cohort,args.limit)+"; COMMIT;"
     if args.sql_only:
         if not cohort:
             raise ValueError("EXISTING_BOUNDED_COHORT_REQUIRED")
@@ -76,10 +93,10 @@ def main():
     if result.returncode:
         raise ValueError("READ_ONLY_PUBLIC_SNAPSHOT_FAILED")
     data = json.loads(result.stdout)
-    if cohort and ({r["listing"]["id"] for r in data["records"] or []} != {str(i) for i in listing_ids}
-                   or {r["source"]["id"] for r in data["records"] or []} != {str(i) for i in source_ids}):
-        raise ValueError("COHORT_NOT_FULLY_FRESH_AND_CONSISTENT")
-    if not data["records"] or len(data["records"]) > 20:
+    if cohort:
+        from pilot.refresh import receipt
+        receipt(cohort,data)
+    elif not data["records"] or len(data["records"]) > 20:
         raise ValueError("REAL_COHORT_BOUND_EXCEEDED_OR_EMPTY")
     for row in data["records"]:
         value = row["source"]

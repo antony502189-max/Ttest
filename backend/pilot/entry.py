@@ -121,7 +121,10 @@ def create_app():
     budget = PilotBudget(STATE / "provider.sqlite3")
     budget.dispatch_guard = require_approval
     facts = pipeline(SessionLocal)
-    readiness = CatalogReadiness(facts)
+    from pilot.catalog_health import CatalogHealth, cohort_hash
+    from pilot.guarded_cards import GuardedCards, install_catalog_guard
+    health = CatalogHealth(STATE/'catalog-health.json',cohort_hash(json.loads(Path('/demo-input/catalog.json').read_text())))
+    readiness = CatalogReadiness(facts,health)
     runtime = assemble_text_runtime(pipeline=facts, parser=PilotParser(budget, readiness),
         limiter=RedisRateLimiter("redis://redis:6379/0"),
         lease_policy=LeasePolicy(reservation_seconds=60, running_seconds=60, recovery_grace_seconds=30),
@@ -129,6 +132,10 @@ def create_app():
         guests=GuestTokens(key=bytes.fromhex(keys["guest"]), policy=GuestPolicy(ttl_seconds=604800)),
         cursor_key=bytes.fromhex(keys["cursor"]), http_policy=AIHTTPPolicy(20, 3, ("172.30.41.2/32",), ORIGIN),
         origins=frozenset({ORIGIN}), max_body_bytes=32768, execution_seconds=15)
+    guarded=GuardedCards(facts,runtime.sessions,signing_key=bytes.fromhex(keys['cursor']),health=health)
+    runtime.execution.query=guarded
+    runtime=replace(runtime,cards=guarded)
+    install_catalog_guard(app,health)
     if os.environ.get("AI_SITE_PILOT_VOICE") == "local-pcm-v1":
         from app.services.ai_local_asr import LocalPCMTranscriber
         from app.services.ai_voice_execution import VoicePolicy, VoiceSearchExecution

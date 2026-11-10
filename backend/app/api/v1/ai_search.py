@@ -160,6 +160,10 @@ class PrivateAIRoute(APIRoute):
                 except InvalidAICursor:
                     return JSONResponse({"detail": "AI_REQUERY_REQUIRED"}, 409, headers={"Cache-Control": "no-store"})
                 except ValueError:
+                    if request.url.path == '/api/v1/ai-search/voice':
+                        # After handing off to execution a ValueError does not
+                        # prove that reservation/finalize never happened.
+                        return JSONResponse({'detail':'AI_SERVICE_UNAVAILABLE'},503,headers={'Cache-Control':'no-store'})
                     return JSONResponse({"detail": "AI_REQUEST_INVALID"}, 400, headers={"Cache-Control": "no-store"})
                 except Exception:  # noqa: BLE001 - private fixed response, no transcript/SQL/secret logging
                     return JSONResponse({"detail": "AI_SERVICE_UNAVAILABLE"}, 503, headers={"Cache-Control": "no-store"})
@@ -348,8 +352,11 @@ class VoiceBody(APIBody):
 async def voice_message(payload: VoiceBody, active: AISearchRuntime = Depends(runtime), owner: QuotaSubject = Depends(subject)):
     if active.voice is None:
         raise HTTPException(503, "AI_VOICE_DISABLED")
-    audio = base64.b64decode(payload.audio_base64, validate=True)
-    validate_pcm(audio)
+    try:
+        audio = base64.b64decode(payload.audio_base64, validate=True)
+        validate_pcm(audio)
+    except ValueError:
+        raise HTTPException(400,'AI_REQUEST_INVALID') from None
     return jsonable_encoder(await active.voice.execute(owner, payload.idempotency_key, payload.session_id,
         payload.expected_version, audio, payload.media_type, payload.search.to_request()))
 

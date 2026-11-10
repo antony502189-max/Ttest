@@ -16,11 +16,18 @@ def readiness_query(pipeline):
 
 
 class CatalogReadiness:
-    def __init__(self, pipeline):
-        self.pipeline = pipeline
+    def __init__(self, pipeline, health=None):
+        self.pipeline, self.health = pipeline, health
 
     async def __call__(self):
+        try:
+            token=self.health.ticket() if self.health is not None else None
+        except (ValueError,TypeError,OSError):
+            return {'catalog_ready':False,'catalog_reason':'PILOT_CATALOG_REFRESH_UNAVAILABLE'}
         async with self.pipeline.sessions() as session, session.begin():
             await session.execute(text("SET TRANSACTION READ ONLY"))
             ready = bool(await session.scalar(readiness_query(self.pipeline)))
+        if self.health is not None:
+            try:self.health.unchanged(token)
+            except (ValueError,TypeError,OSError):ready=False
         return {"catalog_ready": ready, "catalog_reason": None if ready else "PILOT_CATALOG_STALE"}

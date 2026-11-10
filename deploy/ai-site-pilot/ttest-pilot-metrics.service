@@ -1,0 +1,10 @@
+[Unit]
+Description=Export bounded private voice/catalog metrics to the operator textfile collector
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/usr/bin/python3 /srv/112233-ai-site-pilot-20261108/catalog-refresh/refresh_catalog.py --metrics-only
+TimeoutStartSec=120

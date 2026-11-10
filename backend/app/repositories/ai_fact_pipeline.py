@@ -153,16 +153,43 @@ class FactPipeline:
             await self._publish(session, anchor, visible, authority)
             return job_id
 
-    @overload
-    async def claim(self, *, extractor_version: Version | None = None, source_name: str | None = None,
-                    report_skips: Literal[False] = False) -> FactJobClaim | None: ...
+    async def restart_failed_job(self, job_id: UUID) -> UUID:
+        """Explicit bounded operator reconcile; retain exhausted job/history.
+
+        A new work generation fences old workers without changing any upstream
+        observation, content or freshness timestamp. Never called by reads.
+        """
+        async with self.sessions() as session, session.begin():
+            job = await session.get(AiFactJob, job_id)
+            if job is None:raise ValueError("unknown failed fact job")
+            anchor = await self._anchor(session, job.canonical_listing_id)
+            visible, authority = await self._authority(session, job.canonical_listing_id)
+            source = await session.get(AiFactSource, job.source_record_id, with_for_update=True)
+            job = await session.get(AiFactJob, job_id, with_for_update=True)
+            current = authority.get(job.source_record_id) if job else None
+            if (job is None or source is None or current is None or not visible or job.status != "failed"
+                    or source.generation != job.generation or source.source_status != "active"
+                    or current.snapshot_hash != source.snapshot_hash or current.fingerprint != source.source_fingerprint
+                    or _status(current.current_status) != "active"):
+                raise ValueError("failed job is no longer authoritative")
+            source.generation += 1
+            source.batch_id = None
+            await session.flush()
+            new_id = await self._enqueue(session, source)
+            await self._publish(session, anchor, visible, authority)
+            assert new_id is not None
+            return new_id
 
     @overload
     async def claim(self, *, extractor_version: Version | None = None, source_name: str | None = None,
-                    report_skips: Literal[True]) -> FactJobClaim | FactJobReceipt | None: ...
+                    report_skips: Literal[False] = False, job_id: UUID | None = None) -> FactJobClaim | None: ...
+
+    @overload
+    async def claim(self, *, extractor_version: Version | None = None, source_name: str | None = None,
+                    report_skips: Literal[True], job_id: UUID | None = None) -> FactJobClaim | FactJobReceipt | None: ...
 
     async def claim(self, *, extractor_version: Version | None = None, source_name: str | None = None,
-                    report_skips: bool = False) -> FactJobClaim | FactJobReceipt | None:
+                    report_skips: bool = False, job_id: UUID | None = None) -> FactJobClaim | FactJobReceipt | None:
         if extractor_version is not None:
             extractor_version = TypeAdapter(Version).validate_python(extractor_version, strict=True)
         if source_name is not None:
@@ -173,6 +200,8 @@ class FactPipeline:
                 and_(AiFactJob.status == "pending", AiFactJob.available_at <= now),
                 and_(AiFactJob.status == "running", AiFactJob.lease_until <= now),
             ))
+            if job_id is not None:
+                query = query.where(AiFactJob.id == job_id)
             if extractor_version is not None:
                 query = query.where(AiFactJob.extractor_version == extractor_version)
             if source_name is not None:

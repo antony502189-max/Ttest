@@ -57,6 +57,89 @@ async def configured(store):
     return subject, snapshot, asr, parser, gate, query, service
 
 
+async def test_voice_metrics_count_success_and_replay_without_private_labels(store,pg):
+    from prometheus_client import REGISTRY, generate_latest
+    subject,snapshot,asr,parser,_,_,service=await configured(store)
+    def value(name,labels=None):return REGISTRY.get_sample_value(name,labels or {}) or 0
+    labels={'status':'succeeded','replay':'no','failure':'none'}
+    before=value('ttest_ai_voice_execution_total',labels)
+    asr_before=value('ttest_ai_voice_asr_seconds_count')
+    key=uuid4()
+    await execute(service,subject,snapshot,key)
+    assert value('ttest_ai_voice_execution_total',labels)==before+1
+    await execute(service,subject,snapshot,key)
+    assert value('ttest_ai_voice_asr_seconds_count')==asr_before+1
+    assert 'synthetic private transcript' not in generate_latest().decode()
+    assert str(subject.id) not in generate_latest().decode()
+    assert asr.calls==parser.calls==1 and await usage(pg,subject)==(1,0)
+
+
+@pytest.mark.parametrize('phase',['claim','finalize','timeout','cancel'])
+async def test_voice_uncertain_phase_metrics_never_claim_a_failed_debit(store,pg,monkeypatch,phase):
+    from prometheus_client import REGISTRY, generate_latest
+    subject,snapshot,asr,_,_,_,service=await configured(store)
+    failure='cancelled' if phase=='cancel' else 'timeout' if phase=='timeout' else 'unavailable'
+    labels={'status':'uncertain','replay':'no','failure':failure}
+    before=REGISTRY.get_sample_value('ttest_ai_voice_execution_total',labels) or 0
+    async def fail(*args,**kwargs):raise RuntimeError('PRIVATE_TRANSCRIPT_AND_ID')
+    if phase=='claim':monkeypatch.setattr(service.ledger,'claim',fail)
+    if phase=='finalize':monkeypatch.setattr(store,'finalize_patch',fail)
+    if phase in {'timeout','cancel'}:
+        asr.finish=asyncio.Event()
+        if phase=='timeout':service.policy=policy().model_copy(update={'total_budget_seconds':.1})
+    task=asyncio.create_task(execute(service,subject,snapshot,uuid4()))
+    if phase=='cancel':await provider_started(asr,task);task.cancel()
+    with pytest.raises(asyncio.CancelledError if phase=='cancel' else TimeoutError if phase=='timeout' else RuntimeError):await task
+    assert REGISTRY.get_sample_value('ttest_ai_voice_execution_total',labels)==before+1
+    assert 'PRIVATE_TRANSCRIPT_AND_ID' not in generate_latest().decode()
+    assert (await usage(pg,subject))[0]==0
+
+
+async def test_shared_local_asr_capacity_is_distinct_zero_debit_and_replayable(store,pg,tmp_path,monkeypatch):
+    import io
+    import sys
+    import wave
+    from pathlib import Path
+
+    from app.services.ai_local_asr import LocalPCMTranscriber
+    started,finish=asyncio.Event(),asyncio.Event()
+    children=[]
+    class Child:
+        returncode=None
+        def __init__(self):self.stdin=self;self.stdout=self
+        def write(self,_):pass
+        async def drain(self):pass
+        def close(self):pass
+        async def read(self,_):await finish.wait();return b'"synthetic private transcript"'
+        async def wait(self):self.returncode=0;return 0
+        def kill(self):self.returncode=-9;finish.set()
+    async def spawn(*args,**kwargs):
+        child=Child();children.append(child);started.set();return child
+    monkeypatch.setattr(asyncio,'create_subprocess_exec',spawn)
+    (tmp_path/'model.bin').write_bytes(b'synthetic-placeholder-not-loaded')
+    local=LocalPCMTranscriber(python=Path(sys.executable),model=tmp_path,seconds=2)
+    buffer=io.BytesIO()
+    with wave.open(buffer,'wb') as wav:
+        wav.setparams((1,2,16000,0,'NONE','not compressed'));wav.writeframes(b'\0'*6400)
+    audio=buffer.getvalue()
+    a,sa,_,pa,ga,qa,_=await configured(store)
+    b,sb,_,pb,gb,qb,_=await configured(store)
+    large=policy().model_copy(update={'max_audio_bytes':10000})
+    first=VoiceSearchExecution(store,local,pa,ga,qa,large)
+    second=VoiceSearchExecution(store,local,pb,gb,qb,large)
+    task=asyncio.create_task(execute(first,a,sa,uuid4(),audio=audio))
+    await started.wait()
+    key=uuid4()
+    try:
+        rejected=await execute(second,b,sb,key,audio=audio)
+        assert rejected.operation.failure_code=='VOICE_CAPACITY_LIMIT'
+        replay=await execute(second,b,sb,key,audio=audio)
+        assert replay.replay and replay.operation.failure_code=='VOICE_CAPACITY_LIMIT'
+        assert await usage(pg,b)==(0,0) and pb.calls==qb.calls==0 and len(children)==1
+    finally:finish.set();await task
+    assert await usage(pg,a)==(1,0)
+
+
 async def execute(service, subject, snapshot, key, payload=None, **changes):
     args = {"subject": subject, "key": key, "session_id": snapshot.intent.session_id, "version": snapshot.intent.version,
             "audio": AUDIO, "media_type": "audio/wav", "payload": payload or ListingCardSearchRequest()}

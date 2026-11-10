@@ -1,8 +1,14 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.24**, 9 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.25**, 10 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+
+**Сессия3.25 / S2.1,S4.1,S6 — review412:** исправляются PR412-01–07: tombstones, durable publication/recovery, все public fields, terminal400, typed capacity, voice metrics и OnFailure/alerts. QA-01–03 остаются отдельными blockers. Source-only: merge/deploy/crawl/paid calls0, schema migrations0, journals/approval сохранены. [Матрица и проверки](reports/PR412_REVIEW_REMEDIATION.md).
+
+**Следующее действие3.25:** завершить final-source PG/HTTP и exact-head CI, оставить PR412 на повторное owner review; новый код не выдан за deployed readiness.
+
+**Историческая сессия3.24:**
 
 **Сессия3.24 / S4.1,S6 — подтверждение владельца и полнота PR412:** владелец подтвердил, что голос работает, и поручил проверить наличие всех изменений в PR. GitHub PR412 draft/open/not merged, base1a91d8fe, head255b65ef совпал с локальным HEAD и origin; все5 application commits, включая mic policy, ASR bounds, catalog refresh и Russian700, уже отправлены. Рабочий checkout был чистым. Найден пробел только в review evidence: финальный Russian700 report, canonical plan и часть CI/runtime/live доказательств оставались локально. Они добавлены документационным изменением; runtime inputs остаются точно1031 от255b65ef, выпущенный код не меняется. [Проверка полноты](reports/PR412_COMPLETENESS_20261109.md).
 

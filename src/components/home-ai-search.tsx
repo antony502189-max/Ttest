@@ -162,7 +162,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
     if (!restoring && !restoreFailed) storeAIContinuation(identity, session && !needsConversation
       ? { sessionId: session.intent.session_id, ...(result && pagingAvailable ? { resultRef: result.ref } : {}),
         ...(operationLocator.current ? { operation: operationLocator.current } : {}) } : null)
-  }, [identity, restoring, restoreFailed, session, result, pagingAvailable, needsConversation])
+  }, [identity, restoring, restoreFailed, session, result, pagingAvailable, needsConversation, pending])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -320,6 +320,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
       // A durable terminal answer settles the operation even when its editable
       // session has expired. Only ambiguous responses retain the replay key.
       setPending(null)
+      if (answer.operation.status === 'failed') operationLocator.current = null
       if (answer.operation.status === 'succeeded' && answer.operation.receipt && answer.cards) {
         try {
           const committed = await getAIResult(answer.operation.receipt.result_ref, controller.signal)
@@ -360,6 +361,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
           : code === 'INTENT_UNSUPPORTED' ? (message.audio_base64 ? 'Не удалось разобрать бюджет из записи. Повторите или введите его текстом. Поиск не списан.' : questions.unsupported)
           : code === 'SOURCE_COVERAGE_UNAVAILABLE' ? (inputPolicy ? 'Каталог устарел или недоступен. Новые обращения к модели остановлены до проверки данных.' : 'No hay fuentes verificadas recientes disponibles. Prueba la búsqueda con filtros.')
           : code === 'ASR_FAILURE' ? 'Не удалось распознать запись. Повторите или введите запрос текстом. Поиск не списан.'
+          : code === 'VOICE_CAPACITY_LIMIT' ? 'Сервер распознавания занят. Повторите запись позже. Поиск не списан.'
           : code === 'SESSION_VERSION_CONFLICT'
           ? 'La búsqueda cambió. Revisa tu texto antes de enviarlo de nuevo.'
           : 'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.')
@@ -382,11 +384,13 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
         setPending(null)
         setRemaining(0)
         setNotice('Has alcanzado el límite diario. Puedes usar la búsqueda con filtros.')
-      } else if (error instanceof ApiError && [413, 422].includes(error.status)) {
+      } else if (error instanceof ApiError && ([413, 422].includes(error.status)
+        || (error.status === 400 && error.message === 'AI_REQUEST_INVALID' && Boolean(audio || pending?.audio_base64)))) {
         operationLocator.current = null
         // HTTP body/schema rejection happens before operation reservation.
         setPending(null)
-        setNotice('Acorta o revisa el texto antes de enviarlo de nuevo.')
+        setNotice(error.status === 400 ? 'Запись отклонена до начала поиска. Запишите запрос заново или введите текст. Поиск не списан.'
+          : 'Acorta o revisa el texto antes de enviarlo de nuevo.')
       } else if (command.current) {
         if (unavailable(error)) lostConversation()
         else setNotice('No se pudo iniciar una nueva conversación. Conservamos tu texto y resultados.')
