@@ -162,3 +162,51 @@ Final evidence/plan documentation is committed after this checked head; any new
 CI for that documentation head is separate. No application code changed after
 these checks, and no public/external approval was activated. The next action is
 the owner's explicit answer on the concrete external scope above.
+
+
+## S6 / S4.1 activation — session3.28, explicit owner authorization
+
+Owner explicitly approved the complete limited invitation/spending proposal in
+this chat on10November. Activation at20:44UTC installed the exact external
+artifact and ten separate BasicAuth additions, preserving the owner credentials.
+Same application5af4190c and retained volumes/journal/binding/ceiling; only frontend
+was recreated for its auth-file bind mount. Counter13→13 during activation;
+no reset/refund/migration/seed. Private access backup:
+`/srv/112233-ai-site-pilot-20261108/backups/external-access-20261110T204432Z`.
+
+All ten invitations returned page200/API200, catalog ready/approved. Requests
+without credentials still401; authenticated private-metrics path404. Owner/team
+credentials still work. In the actual deployed image, the external artifact
+passed its exact scope/binding/cap check. An isolated process-local clock at
+expiry rejected a reserve, kept the real journal unchanged and restored its
+local clock object; host/application clocks and durable config were not changed.
+Existing operations may finish after the cutoff; new dispatches stop at
+11November2026 23:59:59Moscow. BasicAuth/results do not automatically expire.
+
+A real Chrome HTTPS microphone run using invitation01 (not owner credentials)
+recognized synthetic Russian700, returned12cards, opened map200 and restored the
+same result on390px reload without a new upload/call. Stop→conditions9083ms is
+one sample, not p95/human acceptance. Exactly one newly authorized external-scope
+model call13→14/50; PGone success/used1/reserved0 and provider ticket14 independently
+reconciled. No missing usage. At20:47UTC catalog_ready/approved/voice=true,
+halted/exhausted=false,14/50. Potential remaining36 calls are shared, not guaranteed.
+
+[Activation/expiry](external-voice-beta-20261110-evidence/activation-proof.json),
+[all ten external entrances](external-voice-beta-20261110-evidence/external-access-proof.json),
+[external browser voice](external-voice-beta-20261110-evidence/external-live-voice-second-proof.json),
+[independent external ledger](external-voice-beta-20261110-evidence/external-ledger-proof.json),
+[post-activation status](external-voice-beta-20261110-evidence/status-after-external.json).
+External desktop/mobile screenshots are in the same evidence folder.
+
+The owner receives a local ignored ZIP containing10individual invitation text
+files and an owner-only distribution note. Give one file to one participant;
+do not distribute the complete archive. Credentials were not printed in tool
+output, committed, embedded in URLs, or sent to third parties. Invitation01 was
+used only in a disposable browser guest context; its authentication password
+was not changed. Guest quota is per guest identity, not per BasicAuth username.
+
+This activation closes only the explicitly authorized bounded demonstration
+access step. PR413 remains draft/open/unmerged. Broader provider/account/privacy,
+data quality/coverage, alert routing, human/cross-browser ASR, performance and
+saved searches/notifications remain mandatory and open under S2–S7. No new
+feature or audience/cost expansion was introduced by the authorization.

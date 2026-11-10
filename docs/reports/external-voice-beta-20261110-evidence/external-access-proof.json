@@ -1,0 +1,96 @@
+{
+  "observedAt": "2026-11-10T20:45:13.196Z",
+  "invites": [
+    {
+      "number": 1,
+      "page": 200,
+      "api": 200,
+      "privateMetrics": 404,
+      "attempts": 13,
+      "catalogReady": true
+    },
+    {
+      "number": 2,
+      "page": 200,
+      "api": 200,
+      "privateMetrics": 404,
+      "attempts": 13,
+      "catalogReady": true
+    },
+    {
+      "number": 3,
+      "page": 200,
+      "api": 200,
+      "privateMetrics": 404,
+      "attempts": 13,
+      "catalogReady": true
+    },
+    {
+      "number": 4,
+      "page": 200,
+      "api": 200,
+      "privateMetrics": 404,
+      "attempts": 13,
+      "catalogReady": true
+    },
+    {
+      "number": 5,
+      "page": 200,
+      "api": 200,
+      "privateMetrics": 404,
+      "attempts": 13,
+      "catalogReady": true
+    },
+    {
+      "number": 6,
+      "page": 200,
+      "api": 200,
+      "privateMetrics": 404,
+      "attempts": 13,
+      "catalogReady": true
+    },
+    {
+      "number": 7,
+      "page": 200,
+      "api": 200,
+      "privateMetrics": 404,
+      "attempts": 13,
+      "catalogReady": true
+    },
+    {
+      "number": 8,
+      "page": 200,
+      "api": 200,
+      "privateMetrics": 404,
+      "attempts": 13,
+      "catalogReady": true
+    },
+    {
+      "number": 9,
+      "page": 200,
+      "api": 200,
+      "privateMetrics": 404,
+      "attempts": 13,
+      "catalogReady": true
+    },
+    {
+      "number": 10,
+      "page": 200,
+      "api": 200,
+      "privateMetrics": 404,
+      "attempts": 13,
+      "catalogReady": true
+    }
+  ],
+  "unauthenticated": [
+    {
+      "path": "",
+      "status": 401
+    },
+    {
+      "path": "api/v1/private-demo/status",
+      "status": 401
+    }
+  ],
+  "checks": "PASS"
+}
