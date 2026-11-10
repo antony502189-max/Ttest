@@ -1,0 +1,78 @@
+{
+  "source": "5af4190cfdd58a11e20cf523684ea7c3fa90a299",
+  "observedAt": "2026-11-10T20:22:42.291Z",
+  "requests": [
+    {
+      "kind": "voice",
+      "key": "7c6badcb-6e66-4fe7-aba2-8368c8517f5b",
+      "session": "75405d3c-b911-46e6-8682-174485495f8b",
+      "version": 0
+    },
+    {
+      "kind": "text",
+      "key": "290d6943-4986-43b4-9f4c-f7cff5ae2c48",
+      "session": "75405d3c-b911-46e6-8682-174485495f8b",
+      "version": 1
+    },
+    {
+      "kind": "text",
+      "key": "d96881e2-8340-40d9-87a9-12809447d8b1",
+      "session": "75405d3c-b911-46e6-8682-174485495f8b",
+      "version": 2
+    }
+  ],
+  "results": [
+    {
+      "result_ref": "7996fc1a-099e-4e9b-9491-deb36491140a",
+      "budget": "700",
+      "count": 12,
+      "remaining": 2,
+      "version": 1
+    },
+    {
+      "result_ref": "d3014ec3-cb91-4c5b-b49c-a377006ceb6e",
+      "budget": "400",
+      "count": 3,
+      "remaining": 1,
+      "version": 2
+    },
+    {
+      "result_ref": "c00416e6-bb4a-4a95-b28e-cc31853b72ae",
+      "budget": null,
+      "count": 13,
+      "remaining": 0,
+      "version": 3
+    }
+  ],
+  "errors": [],
+  "before": {
+    "attempts": 10,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "stopToConditionsMs": 9271,
+  "mapStatus": 200,
+  "after": {
+    "attempts": 13,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "afterReload": {
+    "attempts": 13,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "checks": "PASS"
+}

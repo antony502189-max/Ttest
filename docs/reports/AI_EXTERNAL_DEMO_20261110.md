@@ -62,3 +62,103 @@ Seven new expiry/cap tests prove last-moment reservation denial and preserved
 prior spending. Browser contracts use mocked backend, not real-model acceptance.
 Merged-main workflow query returned no PR-filtered runs; it does not certify
 post-merge CI. Candidate build/private bootstrap/runtime evidence follows below.
+
+## Closed runtime release and rehearsal (external access still inactive)
+
+[PR413](https://github.com/antony502189-max/Ttest/pull/413) is draft/open/unmerged.
+Private application source is5af4190cfdd58a11e20cf523684ea7c3fa90a299.
+Head181609258b25b89a8df36cdcd0909cff03c4077f adds only the current input manifest;
+all1039runtime inputs are identical to5af. The initial provenance invocation
+correctly failed on the three changed inputs; the updated manifest passes.
+Historical container acceptance is not inherited by this release.
+
+Private cutover backed up state/PG and prior images/config before replacing only
+backend/maintenance/egress/frontend. Backup is
+`/srv/112233-ai-site-pilot-20261108/backups/beta-5af4190c-20261110T202130Z`.
+Same PG/Redis containers and all retained volumes, signing key, environment,
+provider key, owner approval, original catalog and BasicAuth file survived.
+No migrations, seed, refund or journal replacement. Spend10→10 at cutover.
+Backend image e10bb611ccb92d4437f64d86329af5e2b90bc2e573c7953b1d5319b1630fcf2f;
+frontend ce159f63ea0587b783690e002b3cd8f36b9d4fc868d9f4c7f8a2f048da890ae9.
+
+All four matching host helpers were installed from the candidate source.
+Actual systemd one-shot bootstrap completed at20:22UTC:13active/0removed,
+generation1/ready, original upstream timestamps retained, health and lock UID999.
+Refresh timer, OnFailure callback unit, minute metrics service/timer and alert-rule
+file are installed. Both timers active, services Result=success/ExecMainStatus0.
+Prometheus/node-exporter ingestion and routed notification delivery are NOT
+established; no remote notification test was sent. Private metrics remain loopback.
+
+Actual Chrome HTTPS microphone with synthetic Russian700 → local ASR → model →
+SQL/cards12, text refinement400→3, budget removal→13, map200,390px reload all PASS.
+Stop→visible700 conditions9271ms is one sample, not a p95 certificate. There were
+three authorized owner/team calls10→13/50 and three guest successful operations;
+PG ledger used3/reserved0, versions0/1/2 and provider tickets11/12/13 match.
+Reload made no new query/voice upload or paid call; browser errors0. This sequence
+uses one voice and two text operations; voice follow-up/human/accent/Safari/Firefox
+acceptance is not inferred. The owner's previous microphone acceptance is retained
+separately. Audio used here is synthetic; no user recording was retained.
+
+First candidate offline ASR run hit the existing8s deadline and printed no per-fixture
+summary. Its failing fixture and acoustic/performance cause are unknown. A separate
+four-fixture run passed in4.379–6.03s under the same2CPU/1536MiB/8s limits with
+network=none. Both observations are retained; no SLO or reliability gate is closed.
+194deployed Python files and the pinned model hash independently match the source.
+
+[Release](external-voice-beta-20261110-evidence/release-proof.json),
+[real browser flow](external-voice-beta-20261110-evidence/live-proof.json),
+[independent ledgers](external-voice-beta-20261110-evidence/ledger-proof.json),
+[access boundary](external-voice-beta-20261110-evidence/access-boundary.json),
+[retained failure](external-voice-beta-20261110-evidence/retained-failure.json),
+[repeat ASR](external-voice-beta-20261110-evidence/smoke-detail.jsonl),
+[current status](external-voice-beta-20261110-evidence/status-final.json).
+Desktop entry/map and mobile restored-result screenshots are in the same folder.
+
+## Final external activation package (not executed)
+
+Ten unique high-entropy BasicAuth credentials, additional password hashes and a
+separate external approval artifact are staged in root-only
+`/srv/112233-ai-external-beta-5af4190c/pending-external-access/`.
+No credential values are in this report, Git or ordinary owner/team messages.
+Actual unauthenticated page/API401 and a staged invitation401 prove no external
+access was activated at this checkpoint. No third-party invitations were sent.
+
+Operator helper `activate-after-approval.py` in that same staging root is prepared
+but not run. It checks purpose/source/expiry, at most ten distinct additions,
+exact existing binding/caps, reconciled provider usage and preserves owner access.
+It backs up only access config, installs the approved external artifact and
+recreates only frontend to pick up a single-file BasicAuth bind mount's new inode.
+Rollback closes external ingress before restoring owner-only approval. It never
+restores a spending backup. Helper syntax passed; actual activation verification
+must follow owner authorization rather than being represented as already tested.
+
+The final decision requested is limited external provider use: up to ten invited
+people, budget-only nonpersonal inputs and original13-ID public cohort, generated
+constants/amount only to DeepSeek, same lifetime50/$1 local reserve ceiling,
+expiry11November23:59:59Moscow. At20:27UTC13/50 had been used (usage13, reserved
+143780microUSD); remaining capacity is shared with owner/team, not a fresh quota
+or invoice guarantee. Existing approval does not cover this audience. Account,
+DPA/training/retention/transfer and general privacy gates remain unverified; the
+bounded minimization path does not certify arbitrary real-user text.
+
+Expiry blocks new model dispatch/reserve, including after earlier preflight; an
+already dispatched request may finish. It does not delete results or expire HTTP
+BasicAuth itself. After expiry keep external approval disabled until external
+authentication entries are removed; never restore owner/team approval while
+external credentials still open the page. Recheck health/counters after activation,
+and give only the separate invitation credentials to the owner for distribution.
+Saved searches, notifications, arbitrary criteria and broader coverage remain out
+of this demonstration and mandatory follow-up work in S2–S7.
+
+
+## Final source/CI evidence
+
+Checked head181609258b25b89a8df36cdcd0909cff03c4077f completed all15 workflows:
+13SUCCESS/2conditionalSKIP, including full/production/mobile and all AI workflows.
+[Exact-head workflow snapshot](external-voice-beta-20261110-evidence/ci-18160925.json).
+The deployed application5af4190c and checked18160925 have identical1039runtime
+inputs; only the manifest document differs. [Independent deployed-file proof](external-voice-beta-20261110-evidence/runtime-proof.json).
+Final evidence/plan documentation is committed after this checked head; any new
+CI for that documentation head is separate. No application code changed after
+these checks, and no public/external approval was activated. The next action is
+the owner's explicit answer on the concrete external scope above.
