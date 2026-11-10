@@ -5,6 +5,7 @@ import os
 import re
 from contextlib import asynccontextmanager
 from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -24,6 +25,9 @@ from pilot.surface import minimal_app
 ORIGIN = "https://app.112233.es"
 STATE = Path("/demo-state")
 CONTROL = Path("/pilot-control")
+# A separate, explicitly authorized one-day invitation beta. This does not
+# reinterpret the existing owner/team artifact or create a fresh spend journal.
+EXTERNAL_DEMO_END = datetime(2026, 11, 11, 20, 59, 59, tzinfo=UTC)
 
 
 def require_pilot():
@@ -43,10 +47,14 @@ def approved():
     if not path.exists():
         return False
     value = json.loads(path.read_bytes())
-    if value != {"binding": BINDING, "owner_approved": True, "max_calls": 50,
-                 "max_micro_usd": 1_000_000, "scope": "owner-team-nonpersonal-positive-rent-grammar.v1"}:
-        raise ValueError("PILOT_APPROVAL_MISMATCH")
-    return True
+    common = {"binding": BINDING, "owner_approved": True, "max_calls": 50,
+              "max_micro_usd": 1_000_000}
+    if value == {**common, "scope": "owner-team-nonpersonal-positive-rent-grammar.v1"}:
+        return True
+    if value == {**common, "scope": "invited-external-nonpersonal-positive-rent-grammar.v1",
+                 "max_invites": 10, "expires_at": "2026-11-11T20:59:59Z"}:
+        return datetime.now(UTC) < EXTERNAL_DEMO_END
+    raise ValueError("PILOT_APPROVAL_MISMATCH")
 
 
 class PilotParser(DecisionDeepSeekIntent):

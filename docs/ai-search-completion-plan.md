@@ -1,12 +1,17 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.25**, 10 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.26**, 10 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+**Сессия3.26 / S6,S4.1 — внешний demo по сроку владельца:** merge412 независимо подтверждён: main251d444f06ffcc9289097eb2fb1e0b0f9a03d2fc, tree619de9e1 идентичен проверенному7236ae04. Владелец назначил показ завтра и выбрал самостоятельный внешний доступ. Это меняет ближайший приоритет на ограниченную внешнюю бету, не закрывает общий AI Search. HTTPS на19:54UTC ещё255b65ef, catalog_ready/voice=true,10/50; review fixes412 не выданы за уже выпущенные. Existing worktree чисто продолжает от main в codex/external-voice-beta. [Конкретный demo scope](reports/AI_EXTERNAL_DEMO_20261110.md).
+
+**Следующее действие3.26:** подготовить merged release с health bootstrap и внешний вход/понятные примеры/ограничения, проверить целевой browser→ASR→budget→cards→refinement→map/reload. Затем предъявить конкретный внешний release/access/spending scope для допуска: прежние50/$1 разрешены только owner/team, не внешним пользователям. До допуска public/model exposure не включать; journals/seed/cohort/TTL/one-debit защиту сохранить. Saved/delivery/широкие criteria иобщиеquality/performance gates остаютсяпоследующими S2–S7 задачами, не условиями демонстрационной полноты.
+
+**Историческая сессия3.25:**
 
 **Сессия3.25 / S2.1,S4.1,S6 — review412:** исправляются PR412-01–07: tombstones, durable publication/recovery, все public fields, terminal400, typed capacity, voice metrics и OnFailure/alerts. QA-01–03 остаются отдельными blockers. Source-only: merge/deploy/crawl/paid calls0, schema migrations0, journals/approval сохранены. [Матрица и проверки](reports/PR412_REVIEW_REMEDIATION.md).
 
-**Следующее действие3.25:** завершить final-source PG/HTTP и exact-head CI, оставить PR412 на повторное owner review; новый код не выдан за deployed readiness.
+**Следующее действие3.25:** owner review/merge PR412. Head7236ae04432b41bbb642e91ced2df96d33541a3c: exact-head CI13SUCCESS/2conditionalSKIP, test mergefff7fe3b с идентичным tree619de9e1. Final PG27refresh и116voice/HTTP/1skip, browser26pilot/93ordinary, unit1873/16skip, actual isolated systemd/OnFailure иroot→backend UID PASS. PR mergeable=true/draft=true/not merged; runtime1039. Review01–07 source-fixed; QA01–03/release gates остаются открытыми. Deploy/migrations/paid/approval/journal reset0.
 
 **Историческая сессия3.24:**
 
@@ -441,3 +446,5 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 - **3.18→3.19:** пользователь подтвердил merge411 и прямо попросил голосовой ввод. Ближайший increment перенесён наS4.1 поверх существующей voice operation; S2.1 остаётся обязательным, standing freshness/ASR human quality/performance/public release не объявлены закрытыми. Выбран local ASR с сетью, закрытой на inference, чтобы не вводить нового внешнего получателя аудио.
 
 - **3.19→3.20:** приоритет владельца на голос доведён до настоящего закрытого HTTPS сценария. Выбран local tiny ASR, чтобы удержать исходный8s budget на2CPU без внешней передачи аудио. Реальный синтетический E2E, точный CI/source/runtime иdurable provider state разделены. Следующий шаг — owner human-mic acceptance/review412, затем прежнийS2.1; полный public/quality/performance/saved/delivery route не ослаблен.
+
+- **3.26→3.27 / S6,S4.1:** подготовлен invitation-only runtime допуск отдельно от owner/team: те же lifetime50/$1 и журнал, максимум10 приглашений, expiry11.11 23:59:59МСК. Он не установлен. UI объясняет голос/текст/ограничения/квоту;26browser и22focused backend PASS, types/i18n/Ruff PASS. Следующее действие — candidate build, закрытый bootstrap/rehearsal, затем конкретный внешний допуск. [Evidence/scope](reports/AI_EXTERNAL_DEMO_20261110.md). Общие gates не закрыты.
