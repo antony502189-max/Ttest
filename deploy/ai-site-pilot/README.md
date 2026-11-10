@@ -6,7 +6,49 @@ PostGIS0079, Redis, maintenance и state; основной сайт/DB0066 и se
 HTTP Basic применяется ко всей странице, assets и API. Секрет доступа лежит в
 локальном ignored `output/ai-site-pilot-20261108/private/access.txt`, не в Git.
 
-## Remediation PR411 — подготовлено, НЕ выложено
+## S4.1: local voice overlay
+
+Voice source adds microphone capture with explicit start/stop/cancel, maximum15s,
+canonical16kHz mono16-bit PCM WAV only. Stop automatically starts one owned voice
+operation: local ASR → existing positive rental grammar/parser → verified SQL.
+It reserves/debits once; ambiguous replies retain the same key and audio in RAM
+for up to15minutes, then keep only the durable operation locator. Reload never
+stores or uploads the recording again. Denial/unavailable microphone keeps text
+available. Capture stops on cancel/dialog close, including late permission grants.
+
+ASR uses pinned faster-whisper1.2.1, multilingual tiny revision
+`d90ca5fe260221311c53c58e660288d3deb8d356`, checked SHA256 for all four assets.
+`voice-requirements.txt` is an independent exact-version environment; ordinary
+backend dependencies are unchanged. Model assets are fetched only during build.
+Inference uses local_files_only/HF_HUB_OFFLINE, CPU int8/two threads, no external
+ASR endpoint. A disposable process receives bounded PCM on stdin, returns at
+most2048 bytes and is killed/joined on its8s deadline or cancellation. Runtime
+audio/transcripts are not files/logs/session fields; Nginx request buffering is
+off, JSON stays bounded in ASGI RAM, worker environment omits application keys.
+The pilot document explicitly advertises `camera=(), microphone=(self)`;
+ordinary-site permission headers are unchanged. Do not infer document permissions
+from the former full backend's API response headers.
+Intent outbound remains reconstructed constants/amount under the existing50/$1
+binding; unsupported speech is rejected locally before DeepSeek dispatch.
+
+The ordinary runtime defaults to voice=false. Opt-in pilot build/config:
+
+```sh
+node scripts/build-ai-site-pilot.mjs VERIFIED_TRAEFIK_IPV4
+docker compose --env-file deploy/ai-site-pilot/.env --env-file output/site-pilot-build.env -f deploy/ai-site-pilot/compose.yml -f deploy/ai-site-pilot/voice.yml build backend frontend
+```
+
+`voice.yml` selects the local-ASR image/env and bounds the backend to2CPUs/1536MiB,
+read-only root plus bounded temporary RAM. Never mix this overlay with an older
+backend/frontend. Existing retained volumes, approval, signatures and reservation
+journals must remain in place; no migrations or reseeding are required. Build and
+real synthetic ASR are tested by `python3 scripts/test-ai-local-voice.py`; its
+inference container has network=none, no capabilities, nobody uid, read-only root.
+Synthetic speech is not human-accent/noise quality or end-to-end p95 acceptance.
+Fresh-source checks continue to age the original catalog. Full S4/S5/S6 gates
+remain open until real released acceptance; source readiness is separate.
+
+## Remediation PR411 — предыдущая подготовка, deployment проверяется отдельно
 
 Новая версия кода отделена от действующего пилота до review/отдельного допуска
 deployment. Она использует минимальный FastAPI только сAI routers иstatus,
@@ -155,3 +197,55 @@ keys/DB и не создавать новые state ради нового лим
 ORM replacing explicit NULL, неверная encoding первоначального erasure env и
 nginx stale DNS после пересоздания backend. Это не потеря/reset budget journal.
 Основные S0–S7/A1–A12, voice/saved/delivery/capacity/release gates сохранены.
+
+## Обновление существующего каталога
+
+Review412: новый `pilot-cohort.v2` покрывает каждый исходный ID карточкой или
+tombstone. Все CARD_FIELDS/публичные координаты синхронизируются. Durable
+catalog-health.json закрывает выдачу до полной подготовки facts/proofs; failed,
+refreshing, смена generation во время чтения и возраст sync>75min закрывают reads.
+Повтор запуска восстанавливает поколение, сохраняя историю failed jobs и реальные
+upstream timestamps. Это не instant-removal SLA между30min запусками.
+
+При следующем разрешённом выпуске после DB/state backup установить новый backend
+и четыре host helpers одного source: refresh_catalog.py, export_public.py,
+backend/pilot/refresh.py как refresh.py и backend/pilot/catalog_health.py как
+catalog_health.py. Установить refresh/alert/metrics services и оба timers. Сначала
+успешный one-shot reconcile, затем открыть frontend и включить timers. Отсутствие
+готового health receipt намеренно блокирует новый backend. В этом review выпуск
+не выполнялся. Не удалять health/seed/journals ради зелёного статуса.
+
+OnFailure блокирует каталог и пишет фиксированный journal alert. Минутный metrics
+timer пишет catalog-refresh/metrics/health.prom. Подключать к node-exporter только
+эту папку, не state/control. alerts.yml подключается к операторскому Prometheus
+с существующим notification routing. Фактическая установка/доставка алертов —
+отдельная проверка выпуска. /private-metrics доступен только backend loopback;
+nginx allowlist/CSP не расширяются. Labels не содержат audio/text/session/key.
+При rollback остановить оба timers/refresh; возобновлять выдачу только после
+успешного reconcile совместимой версией, без отката provider journal/PG volumes.
+
+`ttest-pilot-catalog-refresh.timer` запускает `refresh_catalog.py` раз в30минут.
+Host runner использует immutable `/demo-input/catalog.json` только как список
+исходных listing/source ID (13 на09.11); seed marker/подписи не заменяются.
+Read-only repeatable-read SQL через primary postgres получает только уже
+импортированные eligible public records той же группы. Нового crawl/discovery,
+контактов, raw HTML и provider IO нет. Backend по-прежнему не подключён к primary DB.
+
+В `/srv/112233-ai-site-pilot-20261108/catalog-refresh` устанавливаются
+`refresh_catalog.py`, `backend/pilot/refresh.py` как `refresh.py` и
+`deploy/ai-text-demo/export_public.py`. Units устанавливаются в `/etc/systemd/system`;
+после `daemon-reload` сначала проверить one-shot service, затем включить timer.
+Исходные реальные `last_success_at` сохраняются; receipt старше10минут, чужой
+cohort/mapping, rollback и несовместимая цена отклоняются. Минимальный receipt
+наблюдения меняет generation фактов только при новом upstream observation;
+повторный sync идемпотентен. Existing fact pipeline и query proofs пересобираются.
+
+Проверка: `systemctl show ttest-pilot-catalog-refresh.service -p Result -p ExecMainStatus`,
+`systemctl list-timers ttest-pilot-catalog-refresh.timer --all` и authenticated
+`private-demo/status`: catalog_ready=true, halted=false. Провал sync не продлевает
+TTL последнего успешного snapshot; исходный24h gate остаётся. Это не моментальная
+доставка удаления upstream и не полная S2.1 quality/coverage приёмка. Обслуживание
+runner требует контроля systemd failures. При остановке/rollback сначала
+`systemctl disable --now ttest-pilot-catalog-refresh.timer`, затем остановить service;
+не возвращать старые timestamps, seed или journals. Сохранять отдельный DB/state
+backup до первого обновления. Новые IDs требуют отдельного согласования.

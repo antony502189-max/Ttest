@@ -1,0 +1,32 @@
+{
+  "source": "255b65ef3efffcfb2606000204a8dfb47163b307",
+  "observedAt": "2026-11-09T19:02:20.520Z",
+  "requests": [
+    {
+      "key": "38c8de4a-51ba-46e3-890d-417c320dad10",
+      "session": "419fe951-6165-4ed1-b0ff-4da88db377ed",
+      "version": 0,
+      "media": "audio/wav",
+      "audioBytes": 155264
+    }
+  ],
+  "errors": [],
+  "before": {
+    "attempts": 8,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "httpStatus": 200,
+  "operation": {
+    "status": "failed",
+    "failure": "INTENT_UNSUPPORTED",
+    "remaining": 3,
+    "receipt": null
+  },
+  "checks": "FAIL",
+  "failure": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'failed'\n- 'succeeded'\n"
+}

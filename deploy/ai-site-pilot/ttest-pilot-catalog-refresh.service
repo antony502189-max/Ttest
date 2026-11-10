@@ -1,0 +1,14 @@
+[Unit]
+Description=Refresh the existing closed AI pilot cohort from imported public data
+After=docker.service
+Requires=docker.service
+OnFailure=ttest-pilot-catalog-refresh-alert.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/usr/bin/python3 /srv/112233-ai-site-pilot-20261108/catalog-refresh/refresh_catalog.py
+TimeoutStartSec=180
+NoNewPrivileges=true
+PrivateTmp=true

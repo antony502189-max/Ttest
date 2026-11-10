@@ -1,8 +1,64 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.18**, 8 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.25**, 10 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+
+**Сессия3.25 / S2.1,S4.1,S6 — review412:** исправляются PR412-01–07: tombstones, durable publication/recovery, все public fields, terminal400, typed capacity, voice metrics и OnFailure/alerts. QA-01–03 остаются отдельными blockers. Source-only: merge/deploy/crawl/paid calls0, schema migrations0, journals/approval сохранены. [Матрица и проверки](reports/PR412_REVIEW_REMEDIATION.md).
+
+**Следующее действие3.25:** завершить final-source PG/HTTP и exact-head CI, оставить PR412 на повторное owner review; новый код не выдан за deployed readiness.
+
+**Историческая сессия3.24:**
+
+**Сессия3.24 / S4.1,S6 — подтверждение владельца и полнота PR412:** владелец подтвердил, что голос работает, и поручил проверить наличие всех изменений в PR. GitHub PR412 draft/open/not merged, base1a91d8fe, head255b65ef совпал с локальным HEAD и origin; все5 application commits, включая mic policy, ASR bounds, catalog refresh и Russian700, уже отправлены. Рабочий checkout был чистым. Найден пробел только в review evidence: финальный Russian700 report, canonical plan и часть CI/runtime/live доказательств оставались локально. Они добавлены документационным изменением; runtime inputs остаются точно1031 от255b65ef, выпущенный код не меняется. [Проверка полноты](reports/PR412_COMPLETENESS_20261109.md).
+
+Подтверждение владельца относится к его наблюдённому русскому голосовому сценарию на выпущенном255b65ef. Старый failed synthetic proof сохранён. Широкая human/accent/cross-browser quality, p95/capacity, S2.1 standing quality, saved/delivery и full-release gates не объявляются пройденными.
+
+**Следующее действие3.24:** отправить проверенное документационное дополнение в тот же PR412 и сверить новый remote head, затем owner review. Проверены24JSON/2XML/9report links и credential-pattern scan26text evidence files; runtime projection1031 точно совпал с255b65ef. Новый CI документационного head учитывать отдельно от13SUCCESS/2conditionalSKIP application255b65ef; merge/deploy/new paid calls в этом аудите не выполнять. После review продолжить прежние обязательные S2.1/S4.1/S6 gates; новых feature increments в этом запросе нет.
+
+**Исторический выпуск3.23:**
+
+**Сессия3.23 / S4.1,S6 — исправление русского700:** владелец подтвердил точную русскую фразу «до700евро вмесяц». На локальномsynthetic Irina воспроизведён неверный transcript приbeam1; Pavel распознал700. Новыйbeam5 безamount/language prompt распознаётоба700и прежниеEN/RU600при прежних8s/2CPU/1536MiB,4offline actual-adapter samples PASS/3.835–4.979s. Это не запись владельца и неhuman quality PASS. Exact finite Russian cardinal grammar добавляет «семисот» безguessing/extraction/расширения50–1000EUR scope. Busy/pending hint иterminal rejection UI разделены.74focused unit/19pilot browser, Ruff/types/lint/i18n PASS. [Разбор](reports/AI_SEARCH_RUSSIAN_700_20261109.md).
+
+**Следующее действие3.23:** владелец повторяет русскую фразу на своёммикрофоне иreviewPR412. Source255b65ef выпущен, HTTPS700→12/8.394s PASS, reload390безповторногоIO; one authorized paid call8→9/50. Exact-headCI13SUCCESS/2conditionalSKIP и19browser/4ASR PASS, runtime1031inputs/core hashes match. Первыйbrowser synthetic наэтойжеверсии былINTENT_UNSUPPORTED/paid0; причинаегоакустикинеустановлена, failed proofсохранён. Поэтомуhuman/cross-browser quality gate остаётсяоткрытым, приповторномотказе продолжатьS4.1 microphone/ASR диагностику. Standing freshness/timer иstate/seed/keys/journals сохранены, migrations/reset0. S2.1/S4.1/S6 partial, остальныеS0–S7/saved/delivery gates не закрыты. [Final report/evidence](reports/AI_SEARCH_RUSSIAN_700_20261109.md).
+
+**Историческая диагностика3.22:**
+
+**Дополнительная проверка3.23:** ещё3отдельныеChrome microphone captures тойжесинтетическойрусскойфразы распознаны700/700/700 вdeployed-image offline worker,5.441/5.141/4.842sсcontainer startup,provider0. Первыйlive reject не повторился вэтойсерии, ноегоакустическаяпричина не доказана. Human gate не закрыт; [evidence](reports/ai-russian-700-20261109-evidence/extra-browser-captures.json).
+
+**Сессия3.22 / S4.1 — диагностика owner voice acceptance:** владелец спрашивает о сообщении «Сначала проверьте результат предыдущей попытки». Read-only проверка кода857d8c41 показала: pending устанавливается доHTTP ответа, аdisabledReason не отличает busy от ожидания ручного replay. Поэтому подсказка появляется даже при нормальной обработке, а после потери ответа может сохраняться до проверки того жеattempt. Read-only private PG: последние3voice операции за2h завершены failed/INTENT_UNSUPPORTED; последняя создана18:36:59UTC, завершена18:37:04UTC, зависших операций в этом окне нет. Это не подтверждает принадлежность каждой операции конкретному владельцу и не раскрывает transcript. На18:38:43UTC catalog_ready=true,halted=false,approved=true,attempts8/50; новыхagent paid calls/записей/изменений runtime0. Диагностический вывод не выдан за новый fix или human voice PASS.
+
+**Следующее действие3.22:** уточнить продиктованную фразу владельца и воспроизвести S4.1 отказ без сохранения/внешней отправки raw audio/transcript; различить ASR распознавание и прежнюю positive grammar бюджета50–1000EUR/month. Исправить misleading busy/pending hint сregression в том жеPR412 при продолжении реализации. Бюджет/cohort/journals/TTL не расширять; source/ASR/provider hypotheses не объявлять доказанной причиной. S4.1 human acceptance остаётсяоткрытой; дальнейшие S2.1/S0–S7 gates сохранены.
+
+**Исторический выпуск3.21:**
+
+**Сессия3.21 / S2.1,S4.1,S6 — восстановление кнопки голоса:** по новому screenshot владельца подтверждён PILOT_CATALOG_STALE: старый initial snapshot истёк, тогда как все13 исходных объявлений уже имели свежие production imports. Выполнен bounded read-only export ровно той же группы и incremental facts/proofs refresh без seed/reset/TTL extension. На17:51UTC catalog_ready=true,halted=false,approved=true; provider journal/seed/signing/env сохранены,8/50,новыхpaid0. Подключён30min host timer, повторный запускResult=success. Actual HTTPS1440/390 microphone start→recording→cancel PASS безvoice/query dispatch,8→8. [Разбор и пределы](reports/AI_SEARCH_VOICE_BUTTON_20261109.md).
+
+Source UI теперь показывает причину disabled рядом смикрофоном; stale/quota/ready browser regressions иprevious voice tests18PASS, disposable PG incremental refresh/replay/rejections PASS, Ruff/TypeScript/lint/i18n PASS. Полный seed-suite/new-head CI и выпуск нового UI отмечаются отдельно от уже выполненного live data repair. S2.1 остаётсяpartial: расширенная quality/coverage, instant upstream removal иmonitoring/performance acceptance не заявлены.
+
+**Следующее действие3.21:** владелец проверяет свой микрофон иreviewPR412; выпущенныйUI source857d8c41 иexact-head CI13SUCCESS/2conditionalSKIP подтверждены. Затем продолжить обязательные S2.1 quality/standing freshness измерения иS4.1 human microphone acceptance; saved/delivery/full release иA1–A12 gates остаются открытыми. Первоначальныйcohort50/$1 owner/team scope иdurable journals не менять. Новый roadmap не вводится.
+
+**Выпуск3.21:** source `857d8c4118360c89a84b54eb4019baa7aa905522`, actual HTTPS1440/390 запись/отмена иadjacent stale explanation PASS; backend остаётсяa8506724, толькоfrontend image `sha256:a3f4f9df008588bf1ec776c14a079be61fffe85c7dd68ad7bdb75af03ac510cd` обновлён. Full seed/recovery24PASS/406.28s, browser18PASS, exact-head CI13SUCCESS/2conditionalSKIP, provenance1028PASS. Provider8→8,paid0,прочиеcontainers/DB/state/seed/signing/env неизменны. [Final report/evidence](reports/AI_SEARCH_VOICE_BUTTON_20261109.md).
+
+**Исторический выпуск3.20 до истечения каталога:**
+
+**Сессия3.20 / S4.1,S3,S6 — голос работает в закрытом пилоте:** по поручению владельца выпущен source `a8506724b46ad5746167a54a3f03d84bedd98440` на прежний защищённый `https://app.112233.es/ai-pilot/#/`. Настоящий browser microphone path сsynthetic speech →local multilingual tiny ASR→DeepSeek→verified SQL:600EUR/month→12объявлений,8.277s Stop→conditions. Reload/390px восстановил committed result без нового ASR/provider IO. Это один end-to-end sample, неp95 и не human-accent quality certification. Новых paid calls1 в прежнем50/$1/nonpersonal scope:7→8/50, usage8observed, reserved88480microUSD, неinvoice. Dispatch ticket8 независимо найден поsession/version/canonical identity; бизнес-debit1, remaining2 уtest guest. Журналы/key/signing/каталог сохранены, timestamps не продлевались; migrations/seed/export/reset0.
+
+Exact-head latest CI:13workflows SUCCESS/2conditional SKIPPED,21jobs SUCCESS/2conditional SKIPPED. Test merge52d93c4c имеет идентичныйtree712c53a1. Более ранние запуски того жеhead, вытесненные PR-reopen/concurrency, остаются superseded/cancelled, не выданы за обязательные PASS. CI1853unit/7skip,1007factsPG/1skip,78verified/1skip,4HTTP/1cookie/23seed,93ordinary/27lab/2private/15pilot browser и2real local-ASR samples PASS. Production1857unit/3skip,1188integration/10skip и1S3 PASS. Counts пересекаются. [PR412](https://github.com/antony502189-max/Ttest/pull/412) draft/open/not merged; обычный сайт/production DB0066 иsealed3/3demo не обновлялись.
+
+**Следующее действие3.20:** владелец пробует свой микрофон и повторно reviewPR412; затем обязательный S2.1 standing quality/freshness по прежнему pipeline. Closed-pilot голосовой increment достигнут. Public/general voice, реальная human/cross-browser quality, performance p95/capacity, provider/account/data, saved/delivery/full release иA1–A12 остаются открытыми. Пилот ограничен прежней positive grammar бюджета50–1000EUR/month иего снятия; новый audio vendor не вводился. При старении snapshot сохранять state иразбирать freshness, без фиктивногоTTL/reset. [Отчёт/evidence](reports/AI_SEARCH_VOICE_INPUT_20261109.md).
+
+**Историческая подготовка3.19 до выпуска:**
+
+**Сессия3.19 / S4.1 — голосовой ввод по прямому приоритету владельца:** владелец слил411; GitHub иfetch подтвердили main `1a91d8fe6025ef49fc17765ed97b7638116870b8`, merge08.11 20:37:48UTC. Pre-merge headad0365e2:12SUCCESS/2conditionalSKIP workflows,20SUCCESS/2conditionalSKIP jobs; post-merge CI/deployment этим не подменяются. Existing clean worktree продолжает от этого main в `codex/ai-search-voice-input`, root чужие changes сохранены. Прямое поручение сделать голос меняет ближайший приоритет наS4.1, не закрывает прежнийS2.1 standing freshness.
+
+Реализация: microphone→bounded15s PCM→server local multilingual ASR→existing positive grammar/DeepSeek parser→verified SQL, одна durable voice operation/один debit. Аудио иtranscript не уходят к новомуASR vendor и не сохраняются; внешний intent payload остаётся прежними reconstructed constants/amount. Новый provider spending scope не вводится. Первые real local synthetic EN/RU transcriptions прошли вnetwork-none контейнере за5.3/4.8s; это не human voice quality/p95 приёмка. Source/tests иlive activation различаются.
+
+**Следующее действие3.19:** закончить PG/HTTP/microphone cancellation/replay regressions и reproducible offline-network local-ASR CI, собрать reviewable voice increment в той же pilot архитектуре. Затем exact-head CI/review и только подтверждённая проверка выпущенного голосового сценария. Не продлеватьTTL snapshot/не сбрасыватьprovider journals, не выдаватьmerge411 заdeployment. S2/S3/S4/S6 partial; saved/delivery/provider-account/data/performance/full-release gates остаются открытыми.
+
+**Source verification3.19:**1843unit/16SKIP,110PG/1optional UI bridge SKIP,15pilot browser (11existing+4voice),2real local synthetic ASR PASS; Ruff/mypy177/types/i18n/1024runtime inputs PASS. [Отчёт и пределы](reports/AI_SEARCH_VOICE_INPUT_20261109.md). Новый следующий шаг — exact-head CI в новомPR, затем обновление того же закрытого пилота и проверка HTTPS microphone→ASR→поиск; source не выдан заdeployed acceptance. Model/provider paid calls0 на этом подготовительном этапе; журналы/исходные timestamps сохранены.
+
+**Историческая сессия3.18 до merge411:**
 
 **Сессия3.18 / S2.1,S3,S6 / A3,A5,A9,A11 — исправления review PR411:** по прямому поручению владельца обработаны PR411-01–13: минимальные API/frontend, точная proxy trust/IP quota, fail-closed build/manifest, проверка source readiness до расходов, ограниченная input grammar, revocation procedure и согласованный source/price export. [Матрица и доказательства](reports/PR411_REMEDIATION_20261108.md). Local77focused backend/11pilot browser/93ordinary browser PASS, mypy175/Ruff/types/build PASS; disposable real PG seed/recovery23PASS и настоящий sealed Traefik→Nginx→Redis с двумя клиентами PASS. Model только mock; новых paid calls0, deploy/migration/export/journal reset0. Исходный running pilot остаётся на прежнем выпуске; remediation ему ещё не приписывается. Последний read-only status7/50 датирован18:45:10UTC, это наблюдение, не текущая гарантия остатка.
 
@@ -135,7 +191,7 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 | Provider privacy | `services/ai_provider_privacy.py`: RealUserOutboundDenied отвергает real-user input | Account evidence, разрешённый payload и рабочая minimization/retention policy; ключ сам по себе ничего не включает |
 | Реальные данные | Flatio pilot: 73 записи, 8 eligible, pipeline/proof проверены; данные после проверки удалены | Постоянный ingestion и покрытие рабочего каталога этим не доказаны |
 | Нагрузка | Population/live-inputs оптимизации уже есть; последний описанный 100k прогон: 1161 ошибок/3600 попыток, 0/18 SLO-pass | ISSUE-004 OPEN; 500k/1m не приняты, browser/HTTP SLO не сертифицирован |
-| Голос | `services/ai_voice_execution.py`, `ai_offline_asr.py`: ASR+intent+search в одной durable operation; offline tests | Реальные ASR, microphone UI, HTTP/media validation и browser приёмка; voice=false |
+| Голос | `ai_voice_execution.py`, `ai_local_asr.py`, microphone/HTTP: closed-pilot LIVE9Nov,12results/one debit; ordinary/public voice=false | Human/accent/cross-browser quality, general/public activation иS5 performance gates остаются открытыми |
 | Saved/rematch | `repositories/ai_saved_searches.py`, migration0074, snapshot/CAS/idempotency/dry-run; UI читает/удаляет существующие записи | Публичное создание, rematch/delivery worker и уведомления; saved_searches=false |
 | Выпуск | Runbooks, metrics, retention/erasure journal, isolated migration/restore/kill-switch evidence | Production runtime/config, provider/data/performance gates, инфраструктурная проверка, выпуск и наблюдение |
 
@@ -220,7 +276,7 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 
 **Частично реализован. Обязателен для полного завершения.**
 
-- [ ] S4.1 Реальные ASR transport, microphone/UI/HTTP поверх VoiceSearchExecution, media validation и audio privacy; автоматический первый поиск и один debit.
+- [ ] S4.1 Closed pilot voice LIVE: local ASR/microphone/HTTP/media/privacy/one debit проверены наa8506724. Полное закрытие требует human/cross-browser acceptance иgeneral/public activation; synthetic speech иодин8.277s sample не заменяют эти gates.
 - [ ] S4.2 Public owned save endpoint/UI поверх RegisteredAISearches. Сохранять committed snapshot, не mutable session; создание, повтор, список, отключение и удаление.
 - [ ] S4.3 Rematch worker и delivery: fencing/retry/idempotency, live recheck перед отправкой, background quota/retention, disable/delete и дедупликация.
 - [ ] S4.4 Пройти A6–A9 и регрессии ручных saved searches/notifications; включать capabilities только после реальной готовности.
@@ -268,7 +324,7 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 | B2 | Real-user outbound BLOCKED в коде | S3.1: account/data owner, account reference без секретов, проверенные contract/DPA/region/training/retention/deletion/уведомление и minimization. Сначала подготовить reviewable пакет и negative tests, затем запросить только отсутствующие account-сведения |
 | B3 | Capacity ISSUE-004 OPEN; большие прогоны ранее отложены | Сохранить A10 обязательным. Подготовить bounded план S5; перед возобновлением явно отложенных больших benchmarks получить конкретное поручение, если его ещё нет в сессии |
 | B4 | Нет постоянного доказанного рабочего каталога/покрытия | S2: source-specific профиль, coverage/freshness measurements, update/retirement chain и разрешённый объём ingestion |
-| B5 | Voice/saved/delivery не активированы | S4.1–S4.4, реальные providers, background/delivery policies и end-to-end приёмка |
+| B5 | Voice активен вclosed pilot; public voice/saved/delivery OPEN | Human/cross-browser acceptance, S4.2–S4.4, background/delivery policies иполная end-to-end приёмка |
 | B6 | Production среда не сертифицирована | S6: инфраструктурные доказательства, exact SHA/CI, подготовленный release и требуемые полномочия. Merge#403 сам по себе блокер не снимает |
 
 Локальную разрешённую подготовку продолжать без повторных общих вопросов. План сам по себе не разрешает новые платные calls, произвольную передачу пользовательских данных, запрещённые ранее большие benchmarks или production activation. До необходимого решения сделать всю независимую работу и предъявить конкретный проверяемый результат.
@@ -286,6 +342,12 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 
 | Дата | Версия/этап | Выполнено и доказательство | Следующий шаг |
 | --- | --- | --- | --- |
+| 2026-11-09 | 3.24/S4.1,S6 | Владелец подтвердил работающий голос. Все5 application commits PR412/255b65ef сверены с локальным/origin; недостающие финальные отчёты и safe evidence добавлены отдельно, runtime1031 без изменений | Owner review412; новый documentation CI отдельно от verified application CI |
+| 2026-11-09 | 3.23/S4.1,S6 | Source255b65ef: beam5/Russian numerals,74units/19browser/4ASR, CI13SUCCESS/2SKIP; live RU700→12/8.394s,8→9/50. First browser reject retained; original state protected | Owner human700/review412; приотказепродолжитьS4.1 ASR/browser quality |
+| 2026-11-09 | 3.22/S4.1 diagnosis | Busy/pending hint flaw confirmed, private aggregate3terminal unsupported/no pending; catalog fresh/provider8. No runtime changes or paid calls | Owner phrase thenS4.1 diagnosis |
+| 2026-11-09 | 3.21/S2.1,S4.1,S6 | Исправлена disabled voice button: fresh bounded13IDs sync безseed/reset/TTL extension;30min timer; frontend857d8c41, HTTPS1440/390 start/cancel иstale hint PASS;24PG/18browser, CI13SUCCESS/2SKIP, provider8→8 | Owner human mic/review412; далееS2.1 quality/freshness measurements |
+| 2026-11-09 | 3.20/S4.1 closed voice LIVE | a8506724:13SUCCESS/2SKIP workflows,21SUCCESS/2SKIP jobs; HTTPS synthetic microphone→local tiny→DeepSeek→SQL12,8.277s;7→8/50, reload390безIO, backups/keys/state сохранены, migrations/seed/reset0 | Human mic acceptance/review412, затем прежнийS2.1 freshness |
+| 2026-11-09 | 3.19/S4.1 | Merge411/main1a91d8fe подтверждён. Прямой приоритет владельца: голосовой ввод. Existing VoiceSearchExecution расширяется microphone/HTTP/localASR, без нового external audio provider иpaid calls | PG/media/replay/browser иrealASR CI, reviewable voice increment |
 | 2026-11-08 | 3.18/S2.1,S3,S6 review411 | PR411-01–13 source fixes и regression proof;77focused/11pilot/93ordinary/23PG PASS, sealed proxy2clients PASS. Initial427 CI context/lint failures исправлены; безpaid/deploy/reset. Полная матрица в PR411_REMEDIATION_20261108.md | Обязательный exact-head CI, повторное owner review411; затем прежнийS2.1 |
 | 2026-11-08 | 3.17/S3,S6 review handoff | Владелец вручную проверил работу и запросил все commits передreview. Code/button671a666f наorigin, taskworktree чистый; pilot status7/50active,43осталось, новыхagentcalls0. CI671:7SUCCESS/2SKIP/4running/failure0 | Owner reviewPR411, конкретные fixes поreview; затем прежнийS2.1 |
 | 2026-11-08 | 3.16/S3,S6,A9 button fix | Screenshot выявил пустой обязательный mode select. Pilot default long + new-conversation seed исправлены, frontend deployed.8pilot/1ordinary browser PASS, actualHTTPS1440/390 submit enabled безselect; query intercepted, paid0/budget4unchanged | Обновить вкладку и продолжить ручной тест в том же50/$1 scope; далее прежний3.15/S2.1 |
@@ -317,6 +379,14 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 | 2026-11-03 | 2.2/S1.0 | Получен пользовательский внешний review PR404 на7f8bbabc. F1–F8 исправлены в изолированной копии ветки: closed access/mTLS, manifest coverage, attestation recovery, namespace/WS, private journal/process fencing, signed operational evidence, единый spec и log severity. Локально1755 backend/73 Linux/13 lab browser/63 main browser PASS; отдельно настоящий nginx mTLS и build matrix. [Отчёт и ограничения](reports/PR404_REVIEW_FIXES_20261103.md). Реальные provider/journal/production не менялись | Exact-head CI и итоговый diff; merge по следующему поручению пользователя |
 
 ## Изменения маршрута и отложенное
+
+- **3.23→3.24:** владелец подтвердил работающий голос и прямо поручил проверить полноту PR. Ближайшее действие ограничено review completeness: финальные документы/evidence добавлены без новых runtime изменений. Подтверждение одного сценария не заменяет широкую ASR/performance/data/saved/delivery приёмку; S0–S7 маршрут сохранён.
+
+- **3.22→3.23:** прямое подтверждение владельца орусском700 переносит ближайшийS4.1 шаг сдиагностикинеизвестнойфразы наacoustic/finite numeral grammar fix. Beam5 иновые2synthetic fixtures сохраняют8s/2CPU/1536MiB ипрежний50/$1 scope. Успешныйlive sample не отменяет сохранённыйfailed sample ине закрываетhuman gate.
+
+
+- **3.20→3.21:** прямой bug report владельца выявил незавершённый S2.1 standing refresh после expiry статического каталога. Подключён bounded sync существующих13IDs из уже импортированных данных иvisible disabled reason вS4.1; TTL,scope иjournals сохранены. ПолнаяS2.1 quality/coverage/monitoring иостальныеS0–S7 gates не закрыты.
+
 
 - **3.9→3.10:** по точному разрешению владельца выполнен ближайший настоящий текстовый показ на существующем UI и12реальных public records. Порядок менялся на ограниченный вертикальный результат, не ослабление A1–A12. Paid3calls завершены, ключ/egress сняты, production не активирован. S3.3 закрыт только в заданном pilot scope; standing data/privacy/performance/voice/saved/delivery/release gates сохранены.
 
@@ -367,3 +437,7 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 - **3.16→3.17:** прямое поручение владельца сохранить все updates и передатьPR411 наегоreview. Новый increment отложен до конкретной обратной связи; основной маршрут и gates сохранены.
 
 - **3.17→3.18:** прямое поручение исправить внешний review411 поставлено перед следующим S2.1 increment. Минимальный pilot surface и regression evidence подготовлены без paid/deploy/state reset; exact-head CI и повторное owner review обязательны. Маршрут S0–S7/A1–A12 и полные product gates сохранены.
+
+- **3.18→3.19:** пользователь подтвердил merge411 и прямо попросил голосовой ввод. Ближайший increment перенесён наS4.1 поверх существующей voice operation; S2.1 остаётся обязательным, standing freshness/ASR human quality/performance/public release не объявлены закрытыми. Выбран local ASR с сетью, закрытой на inference, чтобы не вводить нового внешнего получателя аудио.
+
+- **3.19→3.20:** приоритет владельца на голос доведён до настоящего закрытого HTTPS сценария. Выбран local tiny ASR, чтобы удержать исходный8s budget на2CPU без внешней передачи аудио. Реальный синтетический E2E, точный CI/source/runtime иdurable provider state разделены. Следующий шаг — owner human-mic acceptance/review412, затем прежнийS2.1; полный public/quality/performance/saved/delivery route не ослаблен.

@@ -13,6 +13,7 @@ if phase == "a":
     assert client.get("/ai-pilot/").status_code == 401
     page = client.get("/ai-pilot/",auth=basic)
     assert page.status_code == 200 and "frame-ancestors 'none'" in page.headers["content-security-policy"]
+    assert page.headers["permissions-policy"] == "camera=(), microphone=(self)"
     for path in ("auth/register","auth/login","payments","listings","admin","uploads","../docs","openapi.json","ai-search/unknown"):
         for method in ("GET","POST","PUT","DELETE"):
             response = client.request(method,base+path,auth=basic,json={"ignored":"never reach handler"})

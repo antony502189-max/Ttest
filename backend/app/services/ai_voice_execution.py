@@ -1,20 +1,38 @@
-"""Injected offline ASR+intent under one durable quota operation. No HTTP wiring."""
+"""Injected ASR+intent under one durable quota operation; opt-in HTTP composition."""
 import asyncio
 import hashlib
 from collections.abc import Awaitable, Callable
-from contextlib import suppress
+from contextlib import nullcontext, suppress
+from functools import partial
 from typing import Literal, Protocol
 from uuid import UUID, uuid4
 
 from pydantic import Field, model_validator
 
 from ..repositories.ai_search_sessions import SearchSessions, SessionError, intent_hash
+from ..repositories.ai_verified_cards import SourceCoverageUnavailable
 from ..schemas.ai_clarification import IntentClarification
 from ..schemas.ai_listing_facts import digest
 from ..schemas.ai_search_intent import IntentPatch, apply_patch
-from ..schemas.ai_search_quota import FailureCode, QuotaOperation, QuotaSubject, ResultReceipt, StrictContract
+from ..schemas.ai_search_quota import (
+    FailureCode,
+    OperationState,
+    QuotaOperation,
+    QuotaSubject,
+    ResultReceipt,
+    StrictContract,
+)
 from ..schemas.listings import ListingCardSearchRequest
+from .ai_deepseek_intent import ProviderFailure
 from .ai_http_policy import HTTP_DEADLINE
+from .ai_local_asr import LocalASRBusy
+from .ai_observability import (
+    VOICE_ASR_SECONDS,
+    VOICE_EXECUTION_SECONDS,
+    VOICE_OPERATIONS,
+    VOICE_PARSER_SECONDS,
+    observe_result,
+)
 from .ai_search_attempts import AIAttemptRejected
 from .ai_search_execution import (
     AttemptGate,
@@ -78,8 +96,21 @@ class VoiceSearchExecution:
         http_deadline = HTTP_DEADLINE.get()
         if http_deadline is not None:
             deadline = min(deadline, http_deadline)
-        async with asyncio.timeout_at(deadline):
-            return await self._execute(subject, key, session_id, version, audio, media_type, payload, deadline)
+        with VOICE_EXECUTION_SECONDS.time():
+            try:
+                async with asyncio.timeout_at(deadline):
+                    result = await self._execute(subject, key, session_id, version, audio, media_type, payload, deadline)
+                observe_result(result, counter=VOICE_OPERATIONS)
+                return result
+            except asyncio.CancelledError:
+                VOICE_OPERATIONS.labels('uncertain','no','cancelled').inc()
+                raise
+            except TimeoutError:
+                VOICE_OPERATIONS.labels('uncertain','no','timeout').inc()
+                raise
+            except Exception:
+                VOICE_OPERATIONS.labels('uncertain','no','unavailable').inc()
+                raise
 
     async def _execute(self, subject: QuotaSubject, key: UUID, session_id: UUID, version: int,
                        audio: bytes, media_type: AudioMedia, payload: ListingCardSearchRequest,
@@ -98,7 +129,9 @@ class VoiceSearchExecution:
         operation = QuotaOperation(idempotency_key=key, channel="voice", session_id=session_id,
             expected_session_version=version, payload_sha256=hashlib.sha256(audio).hexdigest(),
             filters_sha256=digest({"media_type": media_type, "search": payload.model_dump(mode="json")}))
-        reservation = await self.ledger.reserve(subject, operation)
+        reservation = await self.ledger.reserve(subject, operation,
+            admit=partial(self.sessions.admit_operation, subject=subject, operation=operation),
+            serialize=partial(self.sessions.lock_subject, subject=subject))
         if reservation.action != "created":
             state = reservation.operation
             cards = None
@@ -106,6 +139,18 @@ class VoiceSearchExecution:
                 return await terminal_search_result(self.query, subject, state, payload, replay=reservation.action == "replay")
             return SearchExecution(state, cards, replay=reservation.action == "replay")
         state = await self.ledger.claim(subject, operation)
+        slots = getattr(self.attempts, "inference", None)
+        try:
+            async with slots(subject, deadline=deadline) if slots else nullcontext():
+                return await self._claimed(subject, operation, session_id, version, audio, media_type, payload, deadline, state)
+        except AIAttemptRejected as error:
+            if asyncio.get_running_loop().time() >= deadline:
+                raise TimeoutError from None
+            return SearchExecution(await self.ledger.release(subject, operation, state.fence, FailureCode(error.code)))
+
+    async def _claimed(self, subject: QuotaSubject, operation: QuotaOperation, session_id: UUID, version: int,
+                       audio: bytes, media_type: AudioMedia, payload: ListingCardSearchRequest,
+                       deadline: float, state: OperationState) -> SearchExecution:
         phase = FailureCode.BACKEND_FAILURE
         try:
             async with asyncio.timeout_at(deadline):
@@ -116,12 +161,14 @@ class VoiceSearchExecution:
                 if asyncio.get_running_loop().time() >= deadline:
                     raise TimeoutError
                 phase = FailureCode.ASR_FAILURE
-                transcript = await _bounded(lambda: self.asr.transcribe(audio, media_type), self.policy.asr_budget_seconds)
+                with VOICE_ASR_SECONDS.time():
+                    transcript = await _bounded(lambda: self.asr.transcribe(audio, media_type), self.policy.asr_budget_seconds)
                 if (type(transcript) is not str or not transcript.strip() or len(transcript) > 16_384
                         or len(transcript.encode()) > self.policy.max_transcript_bytes):
                     raise ValueError("VOICE_TRANSCRIPT_INVALID")
                 phase = FailureCode.LLM_FAILURE
-                patch = await _bounded(lambda: self.parser.parse(transcript, current), self.policy.intent_budget_seconds)
+                with VOICE_PARSER_SECONDS.time():
+                    patch = await _bounded(lambda: self.parser.parse(transcript, current), self.policy.intent_budget_seconds)
                 if isinstance(patch, IntentClarification):
                     return SearchExecution(await self.ledger.release(subject, operation, state.fence, patch.failure_code))
                 patch = IntentPatch.model_validate_json(patch.model_dump_json(exclude_none=True))
@@ -141,6 +188,13 @@ class VoiceSearchExecution:
                         await self.ledger.release(subject, operation, state.fence, FailureCode.BACKEND_FAILURE)
             raise
         except Exception as error:  # noqa: BLE001 - no raw audio/transcript/provider/SQL export
+            if isinstance(error, LocalASRBusy):
+                phase = FailureCode.VOICE_CAPACITY_LIMIT
+            if isinstance(error, ProviderFailure) and str(error) in {
+                "INTENT_CLARIFICATION_REQUIRED", "INTENT_NO_CHANGE", "INTENT_UNSUPPORTED"}:
+                phase = FailureCode(str(error))
+            if isinstance(error, SourceCoverageUnavailable):
+                phase = FailureCode.SOURCE_COVERAGE_UNAVAILABLE
             if isinstance(error, (SessionError, AIAttemptRejected)) and error.code in {code.value for code in FailureCode}:
                 phase = FailureCode(error.code)
             if asyncio.get_running_loop().time() >= deadline:

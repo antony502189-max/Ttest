@@ -25,6 +25,35 @@ def test_signed_guest_identity_is_server_minted_bounded_and_policy_bound():
     assert "127.0.0.1" not in tokens.ip_key("127.0.0.1", purpose="ai-http")
 
 
+def test_voice_400_is_only_pre_execution_validation_and_execution_valueerror_stays_uncertain(monkeypatch):
+    import base64
+    import io
+    import wave
+    from uuid import uuid4
+    sessions=SimpleNamespace()
+    cards=SimpleNamespace(sessions=sessions)
+    execution=SimpleNamespace(sessions=sessions)
+    voice=SimpleNamespace(sessions=sessions,query=cards,execute=AsyncMock(side_effect=ValueError('PRIVATE_EXECUTION_ERROR')))
+    guests=GuestTokens(key=b'synthetic-guest-key-not-secret-32',policy=GuestPolicy(ttl_seconds=60))
+    active=AISearchRuntime(sessions,cards,execution,guests,SimpleNamespace(check=AsyncMock()),
+        frozenset({'https://testserver'}),4096,AIHTTPPolicy(10,5,(),'https://testserver'),voice=voice)
+    monkeypatch.setattr(app.state,'ai_search_runtime',active,raising=False)
+    token,_=guests.issue()
+    headers={'Origin':'https://testserver','X-AI-Request':'1','Cookie':'ai_search_guest='+token}
+    payload={'idempotency_key':str(uuid4()),'session_id':str(uuid4()),'expected_version':0,'media_type':'audio/wav','audio_base64':'!'*100}
+    with TestClient(app,base_url='https://testserver') as client:
+        invalid=client.post('/api/v1/ai-search/voice',json=payload,headers=headers)
+        assert invalid.status_code==400 and invalid.json()=={'detail':'AI_REQUEST_INVALID'}
+        voice.execute.assert_not_awaited()
+        data=io.BytesIO()
+        with wave.open(data,'wb') as wav:
+            wav.setparams((1,2,16000,0,'NONE','not compressed'));wav.writeframes(b'\0'*6400)
+        payload['audio_base64']=base64.b64encode(data.getvalue()).decode()
+        uncertain=client.post('/api/v1/ai-search/voice',json=payload,headers=headers)
+        assert uncertain.status_code==503 and uncertain.json()=={'detail':'AI_SERVICE_UNAVAILABLE'}
+        assert 'PRIVATE' not in uncertain.text and voice.execute.await_count==1
+
+
 def test_http_api_is_disabled_without_database_provider_or_runtime():
     with TestClient(app) as client:
         assert client.get("/api/v1/ai-search/capabilities").json() == {"text": False, "map": False, "voice": False, "saved_searches": False}

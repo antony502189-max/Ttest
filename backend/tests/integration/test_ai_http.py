@@ -98,6 +98,51 @@ async def active(monkeypatch):
     return value, parser, gate
 
 
+async def test_voice_http_one_debit_owned_replay_and_media_rejection(active, monkeypatch):
+    import base64
+    import io
+    import wave
+    from dataclasses import replace
+
+    from app.services.ai_voice_execution import VoicePolicy, VoiceSearchExecution
+
+    runtime, parser, _ = active
+    class ASR:
+        calls = 0
+        async def transcribe(self, _audio, _media):
+            self.calls += 1
+            return "synthetic private transcript"
+    asr = ASR()
+    policy = VoicePolicy(media_types=("audio/wav",), max_audio_bytes=480044, max_transcript_bytes=640,
+        asr_budget_seconds=1.0, intent_budget_seconds=1.0, total_budget_seconds=5.0)
+    configured = replace(runtime, voice=VoiceSearchExecution(runtime.sessions, asr, parser,
+        runtime.execution.attempts, runtime.cards, policy))
+    monkeypatch.setattr(app.state, "ai_search_runtime", configured)
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as wav:
+        wav.setparams((1, 2, 16000, 0, "NONE", "not compressed"))
+        wav.writeframes(b"\0"*6400)
+    async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as client:
+        assert (await client.get("/api/v1/ai-search/capabilities")).json()["voice"] is True
+        created = await client.post("/api/v1/ai-search/sessions")
+        payload = {"idempotency_key":str(uuid4()), "session_id":created.json()["intent"]["session_id"],
+            "expected_version":0, "media_type":"audio/wav", "audio_base64":base64.b64encode(buffer.getvalue()).decode(), "search":{"limit":1}}
+        before = (await client.get("/api/v1/ai-search/quota")).json()["used"]
+        first = await client.post("/api/v1/ai-search/voice", json=payload)
+        assert first.status_code == 200 and first.json()["operation"]["status"] == "succeeded", first.text
+        replay = await client.post("/api/v1/ai-search/voice", json=payload)
+        assert replay.json()["operation"]["receipt"] == first.json()["operation"]["receipt"]
+        assert asr.calls == parser.calls == 1
+        assert (await client.get("/api/v1/ai-search/quota")).json()["used"] == before+1
+        async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as other:
+            await other.post("/api/v1/ai-search/identity")
+            assert (await other.post("/api/v1/ai-search/voice", json=payload)).status_code in (404,409)
+        for invalid in ("!"*100, base64.b64encode(b"RIFF"+b"x"*4000).decode()):
+            response = await client.post("/api/v1/ai-search/voice", json={**payload,"idempotency_key":str(uuid4()),"audio_base64":invalid})
+            assert response.status_code == 400
+        assert asr.calls == 1
+
+
 async def test_live_cards_then_proof_change_map_rechecks_without_snapshot_claim(active):
     from app.models import ExternalListingSource
 

@@ -1,5 +1,6 @@
 """Disabled-by-default HTTP boundary; application never constructs its runtime."""
 import asyncio
+import base64
 import hashlib
 from dataclasses import dataclass
 from typing import Annotated, Literal, Protocol
@@ -23,9 +24,11 @@ from ...schemas.listings import ListingCardSearchRequest, ListingMapRequest
 from ...services.ai_card_cursors import InvalidAICursor
 from ...services.ai_guest_tokens import GuestTokens, InvalidGuestToken
 from ...services.ai_http_policy import HTTP_DEADLINE, AIHTTPPolicy
+from ...services.ai_local_asr import validate_pcm
 from ...services.ai_operating_limits import AI_IP_KEY
 from ...services.ai_search_attempts import AIAttemptRejected
 from ...services.ai_search_execution import TextSearchExecution
+from ...services.ai_voice_execution import VoiceSearchExecution
 from ...services.moderation import enforce_full_access
 from ..dependencies import bearer, token_user
 
@@ -48,6 +51,7 @@ class AISearchRuntime:
     origins: frozenset[str]
     max_body_bytes: int
     policy: AIHTTPPolicy
+    voice: VoiceSearchExecution | None = None
 
     def __post_init__(self):
         if not isinstance(self.policy, AIHTTPPolicy):
@@ -60,17 +64,20 @@ class AISearchRuntime:
             raise ValueError("guest origin must be explicitly allowed")
         if self.cards.sessions is not self.sessions or self.execution.sessions is not self.sessions:
             raise ValueError("runtime must share one owned-session authority")
+        if self.voice is not None and (self.voice.sessions is not self.sessions or self.voice.query is not self.cards):
+            raise ValueError("voice must share owned sessions and verified cards")
 
 
 async def bounded_handler(request: Request, handler, deadline: float):
     active = await runtime(request)
     if request.method not in {"GET", "HEAD"}:
         length = request.headers.get("content-length")
-        if length is not None and (int(length) < 0 or int(length) > active.max_body_bytes):
+        maximum = 650_000 if request.url.path == "/api/v1/ai-search/voice" and active.voice is not None else active.max_body_bytes
+        if length is not None and (int(length) < 0 or int(length) > maximum):
             raise HTTPException(413, "AI_REQUEST_BODY_TOO_LARGE")
         body = bytearray()
         async for chunk in request.stream():
-            if len(body) + len(chunk) > active.max_body_bytes:
+            if len(body) + len(chunk) > maximum:
                 raise HTTPException(413, "AI_REQUEST_BODY_TOO_LARGE")
             body.extend(chunk)
         request._body = bytes(body)
@@ -153,6 +160,10 @@ class PrivateAIRoute(APIRoute):
                 except InvalidAICursor:
                     return JSONResponse({"detail": "AI_REQUERY_REQUIRED"}, 409, headers={"Cache-Control": "no-store"})
                 except ValueError:
+                    if request.url.path == '/api/v1/ai-search/voice':
+                        # After handing off to execution a ValueError does not
+                        # prove that reservation/finalize never happened.
+                        return JSONResponse({'detail':'AI_SERVICE_UNAVAILABLE'},503,headers={'Cache-Control':'no-store'})
                     return JSONResponse({"detail": "AI_REQUEST_INVALID"}, 400, headers={"Cache-Control": "no-store"})
                 except Exception:  # noqa: BLE001 - private fixed response, no transcript/SQL/secret logging
                     return JSONResponse({"detail": "AI_SERVICE_UNAVAILABLE"}, 503, headers={"Cache-Control": "no-store"})
@@ -274,7 +285,8 @@ async def subject(request: Request, response: Response, active: AISearchRuntime 
 async def capabilities(request: Request):
     # Configuration advertisement only, never a dependency-health probe.
     active = isinstance(getattr(request.app.state, "ai_search_runtime", None), AISearchRuntime)
-    return {"text": active, "map": active, "voice": False, "saved_searches": False}
+    configured = getattr(request.app.state, "ai_search_runtime", None)
+    return {"text": active, "map": active, "voice": isinstance(configured, AISearchRuntime) and configured.voice is not None, "saved_searches": False}
 
 
 @router.post("/identity")
@@ -325,6 +337,28 @@ async def message(payload: MessageBody, active: AISearchRuntime = Depends(runtim
         payload_sha256=hashlib.sha256(payload.text.encode()).hexdigest(), session_id=payload.session_id,
         expected_session_version=payload.expected_version, clarification_key=payload.clarification_key)
     return jsonable_encoder(await active.execution.execute(owner, operation, payload.text, payload.search.to_request()))
+
+
+class VoiceBody(APIBody):
+    idempotency_key: UUID
+    session_id: UUID
+    expected_version: Annotated[int, Field(strict=True, ge=0, le=2_147_483_647)]
+    media_type: Literal["audio/wav"]
+    audio_base64: Annotated[StrictStr, Field(min_length=60, max_length=640_100)] = Field(repr=False)
+    search: AICardView = Field(default_factory=AICardView)
+
+
+@router.post("/voice")
+async def voice_message(payload: VoiceBody, active: AISearchRuntime = Depends(runtime), owner: QuotaSubject = Depends(subject)):
+    if active.voice is None:
+        raise HTTPException(503, "AI_VOICE_DISABLED")
+    try:
+        audio = base64.b64decode(payload.audio_base64, validate=True)
+        validate_pcm(audio)
+    except ValueError:
+        raise HTTPException(400,'AI_REQUEST_INVALID') from None
+    return jsonable_encoder(await active.voice.execute(owner, payload.idempotency_key, payload.session_id,
+        payload.expected_version, audio, payload.media_type, payload.search.to_request()))
 
 
 class ResultPageBody(APIBody):

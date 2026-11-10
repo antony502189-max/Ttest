@@ -1,0 +1,9 @@
+{
+  "source": "255b65ef3efffcfb2606000204a8dfb47163b307",
+  "normalized_lf_sha256": {
+    "app/services/ai_local_asr_worker.py": "d13e36166d81a5b296605f7b66f34dfaf0e40bf22f23dd31a7a08fb7c3407519",
+    "pilot/input.py": "d3730d1f65e22cbf84c8af828f6574d7c03f2be2ae2e8bad6d52b65f44c41e7d",
+    "pilot/russian_budget.py": "b5118dc3dd07d30b138af0c9298185ad023cecf403890245f9ea803778bbb723"
+  },
+  "match": true
+}

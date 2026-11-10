@@ -5,7 +5,7 @@ import type { RentalMode } from '@/types'
 
 export type AICapabilities = { text: boolean; map: boolean; voice: boolean; saved_searches: boolean }
 export type AISession = { intent: AIIntent; expires_at: string }
-export type AIMessage = { idempotency_key: string; session_id: string; expected_version: number; text: string }
+export type AIMessage = { idempotency_key: string; session_id: string; expected_version: number; text: string; audio_base64?: string }
 export type AIBudgetPrice = { listing_id: string; matched_amount: number; matched_period: 'monthly' | 'weekly' | 'nightly'; display_amount: number | null; display_period: 'monthly' | 'nightly'; currency: 'EUR'; confirmation: 'current_source_proof' }
 type CardResponse = { map_center?: { listing_id: string; latitude: number; longitude: number } | null; budget_prices?: AIBudgetPrice[]; cards: { items: ListingCardDto[]; total: number; nextCursor: string | null; previousCursor: string | null }; intent_hash: string }
 export type AIExecution = {
@@ -32,8 +32,11 @@ export const getAISession = (id: string, signal: AbortSignal) => api<AISession>(
 export const getAIResult = (ref: string, signal: AbortSignal) => api<AICommittedIntent>(`/ai-search/results/${encodeURIComponent(ref)}`, { signal, cache: 'no-store' })
 export const getAIQuota = (signal: AbortSignal) => api<{ remaining: number }>('/ai-search/quota', { signal, cache: 'no-store' })
 export const getAIOperation = (key: string, signal: AbortSignal) => api<AIExecution['operation'] & { idempotency_key: string }>(`/ai-search/operations/${encodeURIComponent(key)}`, { signal, cache: 'no-store' })
-export const sendAIMessage = (message: AIMessage, signal: AbortSignal) => api<AIExecution>('/ai-search/query', {
-  method: 'POST', headers, body: JSON.stringify({ ...message, search: { limit: 6 } }), signal, cache: 'no-store',
+export const sendAIMessage = (message: AIMessage, signal: AbortSignal) => api<AIExecution>(message.audio_base64 ? '/ai-search/voice' : '/ai-search/query', {
+  method: 'POST', headers, body: JSON.stringify(message.audio_base64
+    ? { idempotency_key: message.idempotency_key, session_id: message.session_id, expected_version: message.expected_version,
+      audio_base64: message.audio_base64, media_type: 'audio/wav', search: { limit: 6 } }
+    : { ...message, search: { limit: 6 } }), signal, cache: 'no-store', timeoutMs: message.audio_base64 ? 22000 : 15000,
 })
 export async function aiResultPage(ref: string, cursor: string | undefined, signal: AbortSignal) {
   return api<CardResponse>(`/ai-search/results/${encodeURIComponent(ref)}/cards`, {

@@ -1,0 +1,52 @@
+{
+  "observedAt": "2026-11-09T17:56:57.147Z",
+  "before": {
+    "attempts": 8,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "views": [
+    {
+      "width": 1440,
+      "enabled": true,
+      "recording": true,
+      "cancelled": true
+    },
+    {
+      "width": 390,
+      "enabled": true,
+      "recording": true,
+      "cancelled": true
+    }
+  ],
+  "paidRequests": 0,
+  "errors": [],
+  "after": {
+    "attempts": 8,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "manifest": {
+    "source": "857d8c4118360c89a84b54eb4019baa7aa905522",
+    "mode": "ai-site-pilot",
+    "base": "/ai-pilot/",
+    "api": "/ai-pilot/api/v1",
+    "mock": false,
+    "traefikPeer": "172.18.0.2",
+    "files": {
+      "advertising-sw.js": "f11293c21c5a1ac949928e18b3c95578fbad4658c936b6b180e817887c286b64",
+      "index.html": "f0e8ed3b895eb0b9b79233d1e76f14743d34ac561cad2472108bc3bdcc0bc490",
+      "assets/ai-pcm-worklet-BFN9yxmr.js": "9bcbcb97117127aacb93e4bc248a9e668404c90836f2f29ea9519106a2d56569",
+      "assets/index-CGeEB4GX.js": "3c468bfc0b62b87347ba82d9c8e5db8fabd20daf1542acd8aa9725507d2efba0"
+    }
+  },
+  "deployedStaleExplanation": true
+}

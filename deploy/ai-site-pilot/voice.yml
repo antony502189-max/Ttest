@@ -1,0 +1,11 @@
+# Explicit opt-in overlay. Build/review before changing the running pilot.
+services:
+  backend:
+    build:
+      dockerfile: deploy/ai-site-pilot/voice-backend.Dockerfile
+    environment:
+      AI_SITE_PILOT_VOICE: local-pcm-v1
+    mem_limit: 1536m
+    cpus: 2.0
+    read_only: true
+    tmpfs: ['/tmp:size=16m,noexec,nosuid']

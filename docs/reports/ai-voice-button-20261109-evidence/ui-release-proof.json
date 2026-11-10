@@ -1,0 +1,9 @@
+{
+  "source": "857d8c4118360c89a84b54eb4019baa7aa905522",
+  "frontend_image": "sha256:a3f4f9df008588bf1ec776c14a079be61fffe85c7dd68ad7bdb75af03ac510cd",
+  "provider_before": 8,
+  "provider_after": 8,
+  "other_containers_unchanged": true,
+  "protected_files_unchanged": true,
+  "backup": "/srv/112233-ai-site-pilot-20261108/backups/microphone-ui-20261109T175605Z"
+}

@@ -1,0 +1,141 @@
+# S4.1: local voice input
+
+Current released application source is255b65ef3efffcfb2606000204a8dfb47163b307;
+the owner has confirmed the voice scenario works. See the
+[Russian700 final report](AI_SEARCH_RUSSIAN_700_20261109.md) and
+[PR412 completeness audit](PR412_COMPLETENESS_20261109.md). The following a8506724
+release record is historical and remains bound to its original evidence.
+
+## Final closed-pilot release,09 November
+
+Source `a8506724b46ad5746167a54a3f03d84bedd98440` was deployed at the existing
+Basic-protected site pilot. Actual HTTPS browser fake-microphone speech →local
+ASR→DeepSeek→verified SQL succeeded: budget600/month,12results,8277ms from Stop
+to painted conditions. Reload at390px restored the same committed result without
+another upload or provider dispatch. This synthetic sample is not human-accent
+quality or p95 acceptance. Native device permission/cancel/late-grant cases are
+also covered by the mandatory Chromium pilot suite.
+
+Provider counter7→8/50, observed usage8, total reserved88480microUSD (not invoice).
+The unique owned dispatch identity matches ticket8/reserve11060 with observed
+usage. One business debit, test guest remaining2. No key/journal/signing changes,
+source timestamp edits, source exports, migrations or reseeding. DB/state backup
+was created before cutover; every existing volume was retained. Backend image
+`sha256:3f4080531ddd8b650e6742d135aba4fdeab023a9a28cfb82a6f78365073d9f5f`,
+frontend `sha256:5a83a81465c04dc415ca4a50a8eb7bd9e0dcfadd64b73ff8cfeb0a2bc6edba8c`.
+The optional backend is read-only/2CPU/1536MiB; frontend fixed172.30.41.2 and
+backend internal-only. Model SHA and signing-key hash match; code bytes match
+the released archive exactly. The Windows-created archive carries CRLF; after
+explicit LF normalization all six checked core files match their Git blobs.
+Both raw/archive and normalized/Git hashes are preserved in the evidence folder.
+
+Latest-per-workflow exact-head CI:13SUCCESS/2conditional SKIPPED,21jobsSUCCESS/
+2conditional SKIPPED. PR test merge52d93c4c has identical tree712c53a1. Earlier
+same-head runs superseded after a delayed-CI PR reopen are retained as cancelled;
+they are not counted as current successful gates. CI1853unit/7skip,1007factsPG/
+1skip,78verified/1skip,4HTTP/1cookie/23seed PASS;93ordinary/27lab/2private/15pilot
+browser PASS; production1857unit/3skip,1188integration/10skip and1S3 PASS.
+Counts overlap. The real async-ASR CI artifact13663945606 was downloaded and
+verified SHA256 `cd4a7893198409f97d475a11fc7817a15de08102406e7d80a36ff30647448aff`;
+both synthetic languages matched in1.451s on its runner, not an E2E SLO.
+
+Conditional workflow skips require special PR298/Phase2 branch names. Three
+Full audit steps require non-pull_request events; its PR fullstack audit passed.
+Dataset/source-discovery/native-tools/AI_UI_TEST_URL integration skips remain
+explicit in XML/job logs; no required test was removed. Main production and the
+sealed3/3demo were not updated. PR412 remains draft/open/not merged for owner
+review. The rest of this report is the historical implementation/preparation
+record. Final proof, runtime attestation, CI snapshot and HTTPS screenshots are
+under `ai-voice-input-20261109-evidence` in this canonical local report copy and
+the final PR description; this appendix does not change the checked source SHA.
+
+Base: merged PR411/main `1a91d8fe6025ef49fc17765ed97b7638116870b8`.
+Owner explicitly prioritized voice on09.11 after confirming merge. Existing
+worktree/branch `codex/ai-search-voice-input`; root dirty files preserved.
+
+Microphone →15s canonical PCM → same-origin private HTTP → local ASR → existing
+positive-rent parser → verified SQL/cards/map is one durable voice operation.
+There is no transcription-only second quota operation or second text submission.
+The same audio/key/session/version is replayed after lost acknowledgements;
+reload uses the existing receipt locator and never persists audio/transcript.
+Media validation rejects noncanonical WAV, arbitrary codecs/URLs, malformed
+lengths and oversized audio before quota reservation. CSRF/ownership/IP gates,
+source/approval preflight and the existing provider journal remain authoritative.
+
+The optional local CPU adapter runs faster-whisper in a separate exact-version
+environment and hard-bounded disposable process. Model revision and every asset
+SHA256 are pinned; no model download during inference. Audio stays on the owned
+server, outside third-party ASR. Child environment excludes app/provider secrets;
+stdout is bounded and stderr discarded. ONNX telemetry is disabled; pilot's
+internal network has no direct external route. The CI ASR test additionally runs
+with Docker network=none/read-only/nobody/no capabilities/2CPUs/1536MiB, synthetic
+speech only. [Upstream implementation](https://github.com/SYSTRAN/faster-whisper)
+and [model source](https://huggingface.co/Systran/faster-whisper-tiny/tree/d90ca5fe260221311c53c58e660288d3deb8d356).
+
+Browser capture uses AudioWorklet and bounded Float32 chunks converted to PCM,
+not browser speech-recognition vendor services. Explicit start/stop/cancel;
+permission denial and unavailable media retain text fallback. Cancel/dialog close
+release all tracks, including streams resolving after close. In-memory ambiguous
+audio is dropped after15minutes; only the existing nonprivate locator survives.
+The emitted worklet must be a same-origin asset (`no-inline`) to satisfy CSP.
+Proxy buffering is off to avoid audio request bodies being spooled to disk.
+The pilot document explicitly uses `camera=(), microphone=(self)`, covered by
+preview and actual proxy assertions. The earlier running API had microphone=()
+from app.main, while its HTML document had no such header; API headers are not
+the document's permission policy. Ordinary-site headers are unchanged.
+
+Source/runtime changes are opt-in: ordinary voice capability remains false;
+pilot voice requires `voice.yml`, local assets and explicit `local-pcm-v1` config.
+Voice admission now shares text's transaction/owner/version lock and inference
+slot. Invalid owner/version creates neither a request nor a usage row. Existing
+offline voice tests were strengthened for this behavior; failure/error cases
+remain zero-debit and terminal replay never reruns ASR or intent.
+
+## Verification
+
+- Local full backend unit1843 PASS/16SKIP/1199integration deselected;8 local
+  ASR/media/process cases are included, with real child timeout/cancel/overlap.
+- Browser11 existing pilot cases +4 new voice cases PASS across390/1440px,
+  permission denial, cancellation, late grant after close, immutable-audio lost
+  ACK replay and receipt reload. Chromium uses a fake device; no person's mic.
+- Real local synthetic EN/RU speech matched600/month through the actual bounded
+  transcriber with the tiny model:4.592s/5.140s cold processes. These are ASR-only observations, not
+  end-to-end p95 or recognition quality for real speakers/accents.
+- Disposable PostGIS voice/HTTP110 PASS/1optional UI bridge SKIP, including the
+  distinct stale-catalog zero-debit code. Exact-head CI is recorded separately
+  in the final PR description/evidence. Counts overlap broader CI.
+- TypeScript/Ruff/mypy177/i18n guard PASS; oxlint six existing unrelated warnings.
+  Model hashes/dependency lock and source provenance are independently checked.
+
+Initial failures retained in ignored output: standalone ASR initially imported
+the web package initializer without backend dependencies; corrected to a direct
+worker entry. Vite initially inlined the tiny worklet, which CSP rejected;
+corrected to an emitted protected asset. PG harness initially used a psycopg DSN
+with asyncpg settings, then lacked full public migrations; corrected only in
+the disposable harness. New owner/version admission correctly created no usage
+row, so old tests now assert absence rather than a zero-valued row. No test/gate
+was removed. Initial raw logs and final proof are under ignored
+`output/ai-voice-20261108` and owned `/srv/112233-ai-voice-review-20261108`.
+
+Final-candidate corrections: the ordinary mobile runner initially discovered the
+four pilot-only voice tests. They remain mandatory in the dedicated15-case pilot
+suite and are excluded only from the incompatible ordinary build. The original
+base model was too close to the unchanged8s ASR deadline (a wrapper timed out;
+diagnostic cold runs7.5–9s). The compact multilingual tiny model preserves the
+8s/2CPU policy and passed both exact synthetic phrases through the actual wrapper
+in4.6/5.1s. Human/accents/noise quality remains an open gate. CI now calls the
+actual async adapter rather than only invoking its child script. A maximum-size
+PCM/EOF regression also passes without deadlock.
+
+## Release and continuation
+
+At initial source commit this increment is not yet deployed; actual deployed
+SHA/HTTPS microphone/ASR/search proof must be reported separately. No paid calls,
+source exports/refreshes, production migrations or durable journal writes were
+made during preparation. Existing50/$1 nonpersonal rental approval is preserved;
+ASR adds no external paid provider. Do not reset journals, replace signing keys,
+or extend original source timestamps. Rollback/revoke uses existing owned egress
+stop/backend restart and retained durable state; removing voice overlay restores
+voice=false without deleting history or reservations. Main production/DB0066 and
+sealed3/3 demo remain unchanged. S2.1 standing data, human voice/browser quality,
+S5 p95/capacity, saved/delivery and full release gates remain open.
