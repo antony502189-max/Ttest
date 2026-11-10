@@ -1,5 +1,22 @@
 # PR412 remediation — 10 November 2026
 
+Implementation commits:3a978ad848270039a5bb5aeff8b492977274b67f and
+38b9e43f3df46dbbcd5897498188723e7e022e8f. The latter fixes host-created lock
+ownership; an actual root→unprivileged UID publication rehearsal passed after
+first reproducing PermissionError against the old staged helper. Source points:
+01 exporter36/refresh31;02 refresh63/guarded_cards6;03 refresh public-field update;
+04 home-ai-search388 and ai_search.voice_message;05 ai_voice_execution191;
+06 ai_voice_execution99/164 and ai_observability;07 refresh_catalog69/102 and
+the new alert/metrics units. All seven findings are source-fixed and locally
+verified; none are claimed deployed by this review.
+
+Completed local results:1873unit/16skip,26pilot browser,93ordinary browser
+(installed-Chrome override),27refresh/recovery PG,116voice+HTTP PG/1explicit skip,
+Ruff/mypy179/types/i18n/provenance1039 PASS. Actual isolated systemd failure/
+OnFailure/recovery and cross-UID publication PASS. Counts overlap. Final exact-head
+CI remains a merge prerequisite; see current PR checks rather than treating old
+baseline CI as certification of the new head.
+
 Baseline fde63c90. Source-only fixes; no merge/live deployment/crawl/paid calls,
 approval changes, production migrations or journal resets.
 
