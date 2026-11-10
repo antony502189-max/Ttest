@@ -83,6 +83,9 @@ class CatalogHealth:
         if lock.is_symlink():
             raise ValueError("PILOT_HEALTH_STATE_INVALID")
         with lock.open("a+b") as stream:
+            if self.uid is not None and os.name != "nt":
+                os.fchmod(stream.fileno(),0o600)
+                os.fchown(stream.fileno(),self.uid,self.uid)
             if os.name == "nt":
                 import msvcrt
 

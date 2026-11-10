@@ -338,7 +338,7 @@
     "backend/lab/test_synthetic_fact_supervisor.py": "254690e0893da025197356e3174a6f6703dc6924",
     "backend/pilot/__init__.py": "d068f0dbb18d2916e1bdfab88a68fe1a458dbbc1",
     "backend/pilot/budget.py": "94af6799f9c0917b91604e27138366cea97d3531",
-    "backend/pilot/catalog_health.py": "1d44374ddde11a887f89a32671f8007e5e50b6c0",
+    "backend/pilot/catalog_health.py": "d1ae13b6f9a191b5cae68986b9744fa66fa8280f",
     "backend/pilot/egress.py": "34b2551b6ef6a2c53d456693ef5f82d16825cd6a",
     "backend/pilot/entry.py": "2b117def943e7e77ab9566cbb907470633a5ca6a",
     "backend/pilot/guarded_cards.py": "bfde06d8f60c6fb46dcd09771fedd89efbb9cd11",
