@@ -733,7 +733,7 @@
     "scripts/check-production-config.sh": "f70e414d46e0735a5ed5b4f508b3a9c9e761fdb1",
     "scripts/check-supply-chain.py": "e850675b9b13f5b760436c33c943c0927fadc85b",
     "scripts/ci-fullstack-audit.sh": "0294968eb7478696051deebbcb73aa7d828ee251",
-    "scripts/ci-ubuntu-mirror.py": "754040360319bb90ecfae00b2194c4511ed4d090",
+    "scripts/ci-ubuntu-mirror.py": "392c1b413a6f431e2ffac83e1541644c23254e41",
     "scripts/compare-admin-screenshots.py": "c547ff2acccdb98847c19c6f2ca3fd4bfca831d9",
     "scripts/compare-phase2-release-visuals.py": "1964b41137635a1efc8ecee83b649c250a9d515b",
     "scripts/configure-main-protection.sh": "bd3d09da156830493eee5dc0a62ffb18820be16f",

@@ -1,8 +1,14 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.31**, 11 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.32**, 11 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+**Сессия3.32 / S6 — разрешённая ручная bounded-beta выкладка.** Владелец повторил требование закончить и развернуть, затем запросил фактический деплой. Принято решение выпустить уже проверенное приложение061474ec штатным ручным runner с backup/rollback: его tree ba4fd18f идентичен90b68f36, на котором13PR workflows SUCCESS/2conditionalSKIP; public home4, pilot26, unit73 и194actual backend hashes проверены. Main Full audit attempt1:740browserPASS/1SKIP/1false loading-precondition failure; focused corrected test10PASS. Attempt2 не выполнил browser suite из-за Ubuntu mirror DNS. Эти результаты не считаются PASS и main/full-release gates остаются открыты. Исправление CI/test/documentation продолжает PR414; оно не меняет UI/API приложения. Это обоснованное изменение маршрута ограниченной беты по прямому приоритету владельца; не сертификация полного продукта и не снижение критериев выхода S0–S7.
+
+**Следующее действие3.32:** дождаться фактического результата штатного deployment, проверить main build-info, health, anonymous voice/text/map/reload и сохранение прежних controls styles; зафиксировать реальные доказательства. Завершить PR414 CI и слияние отдельно, не подменяя actual release source061474ec новым CI-only head. Лимиты50/$1, expiry11.11 23:59:59МСК и13IDs сохранены.
+
+**Историческая сессия3.31:**
+
 **Сессия3.31 / S6 — устранение DNS blocker CI.** PR414 first runs failed before browser tests: Ubuntu package downloads cannot resolve azure.archive.ubuntu.com; logs retained. Fresh-runner retries reached the same installation bottleneck. Added CI-only canonical Ubuntu archive normalization before dependency installation in the six required workflows. All Playwright dependencies, signature keys, browser/test commands and assertions remain mandatory. Legacy/deb822/mirror-list fixtures, unchanged other repositories, preserved Signed-By and idempotence checked. Application UI/API code unchanged; runtime input policy still counts CI/scripts, so the new projection is independently recorded rather than inheriting old full-runtime evidence.
 
 **Следующее действие3.31:** obtain successful CI with the mirror correction, merge the pending follow-up if necessary for exact-main gate, then finish official primary rollout and live voice/text/map/reload/design comparison. Current primary release remains1292c680 until a gated rollout actually succeeds. Existing public AI backend remains90b68f36/14of50 at15:32UTC; spending/expiry/cohort unchanged. Source readiness, CI and actual release remain separate.
@@ -482,3 +488,6 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 
 ### Версия3.30 — release verification
 Retained failed main audit; exact loading precondition added to existing rotation test. Runtime code and acceptance criteria unchanged. Public backend deployment and primary frontend deployment remain separate facts.
+
+### Изменение маршрута3.32
+Повторное требование владельца о фактической выкладке. Причина: идентичное passing PR application tree уже проверено, последующий CI блокируется установленным infra DNS и отдельным test loading race. Влияние: bounded public beta допускается через audited manual runner/backup/rollback/live verification; failed/main/full release gates сохраняются открытыми, не объявляются пройденными.
