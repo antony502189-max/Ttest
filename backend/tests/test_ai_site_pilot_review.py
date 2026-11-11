@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import multiprocessing
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -54,6 +55,55 @@ async def test_expired_catalog_blocks_before_key_read_budget_or_transport(tmp_pa
 
 def revoke_file(path):
     Path(path).rename(Path(path).with_suffix(".disabled"))
+
+
+@pytest.mark.parametrize('public', [False, True])
+def test_invitation_expiry_blocks_reserve_without_resetting_prior_spend(tmp_path, monkeypatch, public):
+    from pilot import entry
+    monkeypatch.setattr(entry, "CONTROL", tmp_path)
+    artifact = {"binding": BINDING, "owner_approved": True, "max_calls": 50,
+        "max_micro_usd": 1_000_000, "scope": "invited-external-nonpersonal-positive-rent-grammar.v1",
+        "max_invites": 10, "expires_at": "2026-11-11T20:59:59Z"}
+    if public:
+        artifact['scope'] = 'public-nonpersonal-positive-rent-grammar.v1'
+        del artifact['max_invites']
+    (tmp_path / "approval.json").write_text(json.dumps(artifact))
+    class Clock(datetime):
+        instant = entry.EXTERNAL_DEMO_END - timedelta(seconds=1)
+        @classmethod
+        def now(cls, tz=None):
+            assert tz is UTC
+            return cls.instant
+    monkeypatch.setattr(entry, "datetime", Clock)
+    budget = PilotBudget(tmp_path / "provider.sqlite3", initialize=True)
+    budget.dispatch_guard = entry.require_approval
+    token = ATTEMPT.set("invited-before-expiry")
+    try:
+        assert entry.approved()
+        budget.reserve()
+        before = budget.summary()
+        Clock.instant = entry.EXTERNAL_DEMO_END
+        assert not entry.approved()
+        with pytest.raises(ProviderFailure, match="APPROVAL_REQUIRED"):
+            budget.reserve()
+        assert budget.summary() == before
+    finally:
+        ATTEMPT.reset(token)
+
+
+@pytest.mark.parametrize("field,value", [("max_calls", 51), ("max_micro_usd", 1_000_001),
+    ("expires_at", "2026-11-12T20:59:59Z"), ("max_invites", 11), ("owner_approved", False),
+    ("scope", "public")])
+def test_invitation_scope_cannot_expand_existing_cap(tmp_path, monkeypatch, field, value):
+    from pilot import entry
+    monkeypatch.setattr(entry, "CONTROL", tmp_path)
+    artifact = {"binding": BINDING, "owner_approved": True, "max_calls": 50,
+        "max_micro_usd": 1_000_000, "scope": "invited-external-nonpersonal-positive-rent-grammar.v1",
+        "max_invites": 10, "expires_at": "2026-11-11T20:59:59Z"}
+    artifact[field] = value
+    (tmp_path / "approval.json").write_text(json.dumps(artifact))
+    with pytest.raises(ValueError, match="PILOT_APPROVAL_MISMATCH"):
+        entry.approved()
 
 
 @pytest.mark.asyncio

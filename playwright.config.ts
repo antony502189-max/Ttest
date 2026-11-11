@@ -7,7 +7,7 @@ export default defineConfig({
   // Private/lab contracts require their dedicated Vite mode, not this ordinary
   // build. Both remain mandatory in the AI frontend CI dedicated configs.
   // These runtime-specific files run in their mandatory dedicated CI suites.
-  testIgnore: ['full-stack/**', 'phase1/**', '**/tests/admin-performance/**', '**/google-auth.spec.ts', '**/listing-publication-errors.spec.ts', '**/location-counts-api.spec.ts', '**/ai-lab-runtime.spec.ts', '**/ai-private-demo.spec.ts', '**/ai-site-pilot.spec.ts', '**/ai-voice-input.spec.ts'],
+  testIgnore: ['**/ai-public-entry.spec.ts', 'full-stack/**', 'phase1/**', '**/tests/admin-performance/**', '**/google-auth.spec.ts', '**/listing-publication-errors.spec.ts', '**/location-counts-api.spec.ts', '**/ai-lab-runtime.spec.ts', '**/ai-private-demo.spec.ts', '**/ai-site-pilot.spec.ts', '**/ai-voice-input.spec.ts'],
   timeout: 60_000,
   expect: { timeout: 7_000 },
   snapshotPathTemplate: '{testDir}/visual-snapshots/{projectName}/{arg}{ext}',

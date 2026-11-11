@@ -24,7 +24,7 @@ if [[ $# -eq 0 ]]; then
   # A transient systemd service survives an interrupted SSH connection.
   # Do not launch a second deployment while the existing unit/lock is active.
   systemd-run --wait --collect --property=Type=exec \
-    --property=TimeoutStartSec=0 \
+    --property=TimeoutStartSec=infinity \
     --unit="112233-release-$SHA" "$SELF" --internal "$SHA"
   test "$(readlink -f "$ROOT/current")" = "$ROOT/releases/$SHA"
   grep -Fxq 'status=success' "$ROOT/releases/$SHA.deploy-info"

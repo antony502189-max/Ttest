@@ -1,0 +1,9 @@
+{
+  "actual_systemd_oneshot_failure": true,
+  "actual_on_failure_callback": true,
+  "recovery": true,
+  "journal_redacted": true,
+  "synthetic_canary_unchanged": true,
+  "production_units_touched": false,
+  "provider_calls": 0
+}

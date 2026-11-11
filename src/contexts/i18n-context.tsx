@@ -6,6 +6,9 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'Buscar con mi voz': { ru: 'Искать голосом', en: 'Search with my voice' },
+  'También puedes escribir tu búsqueda': { ru: 'Также можно написать запрос', en: 'You can also type your search' },
+  'Dinos tu presupuesto mensual. Encontraremos opciones para ti.': { ru: 'Назовите месячный бюджет. Подберём варианты для вас.', en: 'Tell us your monthly budget. We will find options for you.' },
   "Modo de alquiler": {"ru": "Режим аренды", "en": "Rental mode"},
   "Presupuesto máximo": {"ru": "Максимальный бюджет", "en": "Maximum budget"},
   "Provincia INE": {"ru": "Провинция INE", "en": "INE province"},

@@ -1,12 +1,27 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.25**, 10 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.29**, 11 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+**Сессия 3.29 / S6,S4.1 — публичная главная, выпуск готовится.** Прямое новое указание владельца: разместить голосовую кнопку на главной по screenshot, остальной дизайн сохранить, слить незакоммиченные обновления в main и выпустить. Это явно заменяет прежнее ограничение аудитории приглашениями. Подключается существующий AI dialog к изолированному guest backend через /ai-pilot/api/v1; обычный API и фильтры сохранены. Публичный scope имеет прежний общий lifetime 50/$1, тот же binding/journal и срок 11.11 23:59:59 МСК; расширения затрат/критериев/13 IDs нет. На 06:00 UTC live14/50, каталог ready. Source readiness, main merge и live rollout фиксируются отдельно. [Отчёт](reports/AI_PUBLIC_HOME_20261111.md).
+
+**Следующее действие3.29:** завершить exact-head CI, затем разрешённое слияние PR413 и проверяемый production rollout с backup и live desktop/mobile/voice проверкой. S2.1/provider/privacy/performance/saved/delivery/full-release gates остаются открытыми. Полный AI Search этим ограниченным публичным beta entry не объявляется готовым.
+
+**Историческая сессия3.28:**
+
+**Сессия 3.28 / S6, S4.1 — ограниченная внешняя бета активирована.** Владелец явно одобрил предложенный в 3.27 scope. В 20:44 UTC установлен отдельный invited-external artifact до 11.11.2026 23:59:59 МСК и подключены 10 новых индивидуальных BasicAuth учётных записей. Прежние lifetime 50/$1, provider binding и журнал сохранены; при активации счётчик 13→13. Owner auth сохранён, пересоздан только frontend; migrations/seed/reset — 0. Все 10 входов: page/API 200; без credentials — 401, private metrics — 404. Новый внешний credential: actual Chrome synthetic Russian 700→12 карточек, map/reload 390 PASS; 9083 ms — один образец, не p95. Одна paid операция 13→14/50; PG used=1/reserved=0 и provider ticket 14 совпали, reload без нового IO. Expiry guard в actual image отклонил reserve на сроке без изменения журнала; часы сервера не менялись. [Активация и доказательства](reports/AI_EXTERNAL_DEMO_20261110.md). Application 5af4190c, проверенный 18160925: 13 SUCCESS/2 conditional SKIP, 1039 runtime inputs идентичны. Текущие doc-only CI учитываются отдельно; PR413 draft/open/unmerged.
+
+**Следующее действие 3.28:** передать владельцу готовый локальный архив 10 индивидуальных приглашений, по одному файлу на участника. Наблюдать обратную связь по человеческому микрофону, отказы, свежесть и общий остаток в рамках уже разрешённой беты; не расширять аудиторию, lifetime cap, cohort из 13 IDs или критерии. На 20:47 UTC использовано 14/50; потенциальный остаток 36 не гарантируется на будущее. По окончании срока новые dispatch автоматически блокируются; не возвращать owner approval, пока внешние auth entries не убраны. После показа продолжить обязательные S2.1/S4.1/S4.2–4.4 и provider/privacy/performance/release gates. Saved/delivery и A1–A12 не закрыты. Credentials находятся только в ignored private output и на сервере; в Git/отчётах их нет, сообщения третьим лицам не отправлены.
+
+**Историческая сессия 3.27:** подготовлен и выпущен закрытый candidate 5af4190c с health bootstrap (13 active, UID999), matching host helpers и timers. HTTPS voice700→12/text400→3/remove→13/map/reload PASS; три paid calls 10→13/50. Owner/team и provider state сохранены. Внешние credentials оставались неактивны (401) до явного ответа владельца. Retained offline ASR timeout и четыре последующих PASS сохранены; human/p95/privacy/full-release gates открыты.
+
+**Историческая сессия3.26:** merged412/main251d444f/tree619de9e1 подтверждены, внешний demo приоритет задан владельцем на11ноября, selected independent external access. ТогдаHTTPS ещё255b65ef/10of50; новыхruntime changes не было. Это историческийснимок, неготовностьвнешнегодоступа.
+
+**Историческая сессия3.25:**
 
 **Сессия3.25 / S2.1,S4.1,S6 — review412:** исправляются PR412-01–07: tombstones, durable publication/recovery, все public fields, terminal400, typed capacity, voice metrics и OnFailure/alerts. QA-01–03 остаются отдельными blockers. Source-only: merge/deploy/crawl/paid calls0, schema migrations0, journals/approval сохранены. [Матрица и проверки](reports/PR412_REVIEW_REMEDIATION.md).
 
-**Следующее действие3.25:** завершить final-source PG/HTTP и exact-head CI, оставить PR412 на повторное owner review; новый код не выдан за deployed readiness.
+**Следующее действие3.25:** owner review/merge PR412. Head7236ae04432b41bbb642e91ced2df96d33541a3c: exact-head CI13SUCCESS/2conditionalSKIP, test mergefff7fe3b с идентичным tree619de9e1. Final PG27refresh и116voice/HTTP/1skip, browser26pilot/93ordinary, unit1873/16skip, actual isolated systemd/OnFailure иroot→backend UID PASS. PR mergeable=true/draft=true/not merged; runtime1039. Review01–07 source-fixed; QA01–03/release gates остаются открытыми. Deploy/migrations/paid/approval/journal reset0.
 
 **Историческая сессия3.24:**
 
@@ -296,7 +311,7 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 
 ### S6 — выпуск и эксплуатация
 
-**Публичный выпуск не выполнен. Закрытая HTTPS-страница site-domain pilot подготовлена в3.14; новый paid model test ещё ожидает конкретного допуска.**
+**Общий публичный выпуск не выполнен. Закрытый owner/team HTTPS candidate5af4190c выпущен и проверен в3.27. Ограниченная внешняя invitation beta подготовлена отдельно и ждёт явного допуска; это не закрывает S6 целиком.**
 
 - [ ] S6.1 Production-like rehearsal миграций0077–0079 и последующих: locks/WAL/disk/write impact, backup и независимый erasure journal/restore barrier.
 - [ ] S6.2 Проверить production provider/data/runtime config, supervisor, alerts и aggregate telemetry без приватного текста.
@@ -441,3 +456,12 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 - **3.18→3.19:** пользователь подтвердил merge411 и прямо попросил голосовой ввод. Ближайший increment перенесён наS4.1 поверх существующей voice operation; S2.1 остаётся обязательным, standing freshness/ASR human quality/performance/public release не объявлены закрытыми. Выбран local ASR с сетью, закрытой на inference, чтобы не вводить нового внешнего получателя аудио.
 
 - **3.19→3.20:** приоритет владельца на голос доведён до настоящего закрытого HTTPS сценария. Выбран local tiny ASR, чтобы удержать исходный8s budget на2CPU без внешней передачи аудио. Реальный синтетический E2E, точный CI/source/runtime иdurable provider state разделены. Следующий шаг — owner human-mic acceptance/review412, затем прежнийS2.1; полный public/quality/performance/saved/delivery route не ослаблен.
+
+- **3.26→3.27 / S6,S4.1:** подготовлен invitation-only runtime допуск отдельно от owner/team: те же lifetime50/$1 и журнал, максимум10 приглашений, expiry11.11 23:59:59МСК. Он не установлен. UI объясняет голос/текст/ограничения/квоту;26browser и22focused backend PASS, types/i18n/Ruff PASS. Следующее действие — candidate build, закрытый bootstrap/rehearsal, затем конкретный внешний допуск. [Evidence/scope](reports/AI_EXTERNAL_DEMO_20261110.md). Общие gates не закрыты.
+
+- **3.27 final / S6,S4.1:** закрытый candidate5af4190c реально выпущен сmatching helpers/health bootstrap/UID999 иобоимиtimers; PG/Redis/state/keys/seed/approval/auth сохранены. HTTPS700→12/400→3/remove→13/map/reload PASS,3paid10→13/50, ledger3debits/0reserved/provider11–13. Exact checked18160925:13SUCCESS/2conditionalSKIP; runtime1039 идентичен5af. External10invitations/approval prepared butinactive401; следующийшаг — явный ограниченный внешний допуск, затемактивация/проверка/выдача owner новыхcredentials. ОбщиеS0–S7 gates не закрыты.
+
+- **3.27→3.28 / S6, S4.1:** по прямому согласию владельца активирован предложенный limited external scope: 10 отдельных приглашений, expiry 11.11 23:59:59 МСК, прежний 50/$1 journal. Реальный внешний voice→cards/map/reload PASS; один paid call 13→14/50, PG/provider ticket 14 сверены, expiry test — 0 spend. Архив новых credentials подготовлен владельцу, сообщения участникам не отправлены. Общие AI Search/saved/delivery/provider/privacy/performance gates не закрыты.
+
+### Изменение маршрута 3.29 — 11.11.2026
+Прямое указание владельца переводит вход с приглашений на публичную главную. S6/S4.1 приоритет: доступная voice/text кнопка, без изменений прочего дизайна. Сохраняются lifetime budget, срок и positive grammar; широкий продукт и обязательные gates не исключаются.

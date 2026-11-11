@@ -1,0 +1,13 @@
+{
+  "source": "ad0365e27977ae7df6b2b4753d00ed45604114c8",
+  "mode": "ai-site-pilot",
+  "base": "/ai-pilot/",
+  "api": "/ai-pilot/api/v1",
+  "mock": false,
+  "traefikPeer": "172.18.0.2",
+  "files": {
+    "advertising-sw.js": "f11293c21c5a1ac949928e18b3c95578fbad4658c936b6b180e817887c286b64",
+    "index.html": "8109e2e5ab4c88b20836a3a81554c89365d36f18506bfaff05266a93df4f873e",
+    "assets/index-D0g8wL7X.js": "9e16931ca5a6384b3dc5427319da3143d32e9e4a3113a6fac33e7c6a1a840dc7"
+  }
+}

@@ -44,3 +44,6 @@ body:has(.ai-search-dialog[data-state=open]) [data-slot=dialog-content] { z-inde
 }
 
 .ai-search-dialog__card > p { margin-bottom: .5rem; font-weight: 600; }
+
+.home-ai-search--public .home-ai-search__text { display: block; width: 100%; margin-top: .35rem; height: auto; white-space: normal; font-weight: 400; color: #424a37; }
+.home-ai-search--public .home-ai-search__action svg { width: 1.8rem; height: 1.8rem; }

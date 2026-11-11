@@ -10,7 +10,9 @@ const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim()
 if (git('status', '--porcelain')) throw new Error('Clean committed source required for pilot release build')
 const source = git('rev-parse', 'HEAD')
 await build({ mode: 'ai-site-pilot', build: { outDir: 'output/site-pilot-dist', emptyOutDir: true } })
-const template = await readFile('deploy/ai-site-pilot/nginx.conf', 'utf8')
+const publicAccess = process.argv[3] === '--public'
+if (process.argv[3] && !publicAccess) throw new Error('Unknown access mode')
+const template = await readFile(publicAccess ? 'deploy/ai-site-pilot/nginx-public.conf' : 'deploy/ai-site-pilot/nginx.conf', 'utf8')
 await writeFile('output/site-pilot-nginx.conf', template.replaceAll('__TRAEFIK_IP__', peer))
 const files = {}
 for (const file of await readdir('output/site-pilot-dist', { recursive: true })) {
@@ -21,5 +23,5 @@ for (const file of await readdir('output/site-pilot-dist', { recursive: true }))
     files[file.replaceAll('\\', '/')] = createHash('sha256').update(value).digest('hex')
   }
 }
-await writeFile('output/site-pilot-dist/build-manifest.json', JSON.stringify({ source, mode: 'ai-site-pilot', base: '/ai-pilot/', api: '/ai-pilot/api/v1', mock: false, traefikPeer: peer, files }, null, 2))
+await writeFile('output/site-pilot-dist/build-manifest.json', JSON.stringify({ source, access: publicAccess ? 'public' : 'private', mode: 'ai-site-pilot', base: '/ai-pilot/', api: '/ai-pilot/api/v1', mock: false, traefikPeer: peer, files }, null, 2))
 await writeFile('output/site-pilot-build.env', `PILOT_SOURCE_SHA=${source}\n`)

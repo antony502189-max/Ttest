@@ -1,0 +1,9 @@
+{
+  "source": "5af4190cfdd58a11e20cf523684ea7c3fa90a299",
+  "stage": "first candidate offline ASR rehearsal",
+  "result": "TimeoutError at existing8s adapter deadline",
+  "failing_fixture": "unknown because original runner printed only final aggregate",
+  "provider_calls": 0,
+  "cause": "unproven; do not infer a cold-start cause from one sample",
+  "followup": "separate run four fixtures all matched in4.379\u20136.03s; no timeout/resource change"
+}

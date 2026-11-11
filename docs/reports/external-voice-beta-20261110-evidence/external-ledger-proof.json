@@ -1,0 +1,17 @@
+{
+  "postgres": {
+    "successful_operations": 1,
+    "voice_operations": 1,
+    "text_operations": 0,
+    "versions": [
+      0
+    ],
+    "used": 1,
+    "reserved": 0
+  },
+  "provider_tickets": [
+    14
+  ],
+  "one_dispatch_per_operation": true,
+  "unresolved_usage": 0
+}

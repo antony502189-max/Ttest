@@ -49,6 +49,8 @@ jobs:
         run: |
           node scripts/test-ai-site-pilot-build.mjs
           node scripts/build-ai-site-pilot.mjs 172.18.0.2
+      - name: Public home voice and bounded guest API (no provider)
+        run: npx playwright test --config playwright.ai-public.config.ts
       - name: Lab build-mode matrix (no provider)
         run: node scripts/check-ai-lab-builds.mjs output/ai-lab-build-matrix
       - name: Exact runtime code and evidence provenance

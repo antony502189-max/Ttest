@@ -1,0 +1,5 @@
+{
+  "unauth_page": 401,
+  "unauth_api": 401,
+  "inactive_invite": 401
+}
