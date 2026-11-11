@@ -1,8 +1,16 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.29**, 11 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.30**, 11 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+**Сессия3.30 / S6,S4.1 — main merged, public backend active, primary rollout pending.** PR413 merged into main061474ec; exact PR head90b68f36 had13SUCCESS/2conditionalSKIP, identical tree ba4fd18f. Public guest backend90b68f36 activated with backup, same PG/Redis/signing/journal,14→14/50, migrations/seed0. 194 running backend files and local ASR model hash matched; catalog13/ready. No-auth capabilities/status200; auth/admin/metrics404. Main candidate images built, frontend build-info061474ec, migrations head0079. Fresh authenticated encrypted MinIO backup821546016bytes created.
+
+**Блокер3.30:** main Full audit attempt1 failed one existing photo-rotation test (740browser PASS/1SKIP). Test captured the temporary loading SVG before IndexedDB resolved the actual blob; observed expected placeholder vs received blob. Added actual-image natural-size wait before snapshot, preserving all rotation assertions; focused10repeats PASS/36.1s. No runtime files changed by this fix. Same061 main audit rerun is active; automatic monitor only starts authorized official deployment after all exact-main required checks succeed. Primary site remains1292c680 until that gate passes. Failed attempt retained, not reported PASS.
+
+**Следующее действие3.30:** finish exact-main rerun, official deployment/backup/migration/smoke and live no-auth voice/text/map/reload + comparison of pre-existing controls at390/1440. Then record actual release evidence and merge this test/documentation follow-up. Broader S0–S7 gates remain open; budget/expiry/13 IDs unchanged. [Report](reports/AI_PUBLIC_HOME_20261111.md).
+
+**Историческая сессия3.29:**
+
 **Сессия 3.29 / S6,S4.1 — публичная главная, выпуск готовится.** Прямое новое указание владельца: разместить голосовую кнопку на главной по screenshot, остальной дизайн сохранить, слить незакоммиченные обновления в main и выпустить. Это явно заменяет прежнее ограничение аудитории приглашениями. Подключается существующий AI dialog к изолированному guest backend через /ai-pilot/api/v1; обычный API и фильтры сохранены. Публичный scope имеет прежний общий lifetime 50/$1, тот же binding/journal и срок 11.11 23:59:59 МСК; расширения затрат/критериев/13 IDs нет. На 06:00 UTC live14/50, каталог ready. Source readiness, main merge и live rollout фиксируются отдельно. [Отчёт](reports/AI_PUBLIC_HOME_20261111.md).
 
 **Следующее действие3.29:** завершить exact-head CI, затем разрешённое слияние PR413 и проверяемый production rollout с backup и live desktop/mobile/voice проверкой. S2.1/provider/privacy/performance/saved/delivery/full-release gates остаются открытыми. Полный AI Search этим ограниченным публичным beta entry не объявляется готовым.
@@ -465,3 +473,6 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 
 ### Изменение маршрута 3.29 — 11.11.2026
 Прямое указание владельца переводит вход с приглашений на публичную главную. S6/S4.1 приоритет: доступная voice/text кнопка, без изменений прочего дизайна. Сохраняются lifetime budget, срок и positive grammar; широкий продукт и обязательные gates не исключаются.
+
+### Версия3.30 — release verification
+Retained failed main audit; exact loading precondition added to existing rotation test. Runtime code and acceptance criteria unchanged. Public backend deployment and primary frontend deployment remain separate facts.

@@ -4,8 +4,15 @@ Owner explicitly requested public access on the main site, a voice-first panel m
 
 The existing home panel uses the isolated guest API; ordinary account bearer tokens are removed from AI calls, normal account API remains unchanged. No save/account linkage is advertised. Voice and typed entry share the existing dialog. Production enables microphone for its own origin. The public nginx variant retains exact route allowlist, trusted peer, local-only metrics and guest rate/ownership limits.
 
-Source checks: TypeScript PASS, i18n PASS, lint has six pre-existing warnings and no errors, bounded pilot unit/review tests 73 PASS. Public desktop/mobile mocked contracts and exact-head CI pending final evidence. Main merge and deployment pending; this is not a release proof.
+Source checks: TypeScript PASS, i18n PASS, lint has six pre-existing warnings and no errors, bounded pilot unit/review tests 73 PASS. Public desktop/mobile mocked contracts 4 PASS, existing pilot browser26 PASS. PR413 head90b68f36:13 SUCCESS/2 conditional SKIP; merged main061474ec, identical tree ba4fd18f. Public isolated backend is deployed; primary site rollout remains pending exact-main retry.
 
 Uncommitted inventory: 20 authored scripts/reports/evidence files from the old checkout copied into this PR without replacing newer reports. The runner timeout correction is included. 4646 historical baseline/media/payment artifacts plus 117 generated build/attachment files remain local; raw customer recordings, copied source snapshots and generated archives are not published. Existing root checkout changes are preserved.
 
 Open: broad criteria, full catalog coverage/freshness acceptance, human accent/cross-browser quality, p95/performance, provider/privacy gates, saved search after registration and notifications. The public entry is a bounded beta, not completion of S0–S7.
+
+## S6 release verification, interim3.30
+Public backend source90b68f365ec7325c5df724a3ab91bbd8d74a36e3 activated with backup /srv/112233-ai-site-pilot-20261108/backups/public-90b68f36-20261111T062213Z. Journal14→14, seed/migrations0, PG/Redis unchanged, protected files unchanged except explicitly authorized public approval scope. Images backend ab40f6247af25a627852beaa79c5ee225f10140c52eadd706b57d176ebb37c78; frontend39c87a476bc4eb2a321dd6c0b42784ec7542e80c6e641acb8e0ee18d0f047cdf.194 runtime Python files and local ASR model hash matched. No-auth status/capabilities200; auth/admin/metrics404.
+
+Primary candidate frontend build-info061474ec818a2da0acf24e6cf7a26469026404eb, image1a95f54516af046b93bce16e315c03b281d1a68246f4d0da8c044ab442731f5c; backend migration head0079. Fresh authenticated encrypted MinIO archive821546016bytes prepared. No primary rollout is claimed yet.
+
+Main audit attempt1 retained failure: workflow42971890388/job130362044711, 740browserPASS/1SKIP/1FAIL, photo360 test captured loading SVG as beforeSrc while preview later resolved to blob. Test now waits for uploaded2×1 image, just as the adjacent90-degree test already does; rotation/source/save assertions unchanged.10focused repeats PASS. Same application SHA main audit rerun in progress; official deployment is gated on successful required exact-main checks.
