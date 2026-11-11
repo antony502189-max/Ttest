@@ -1,8 +1,14 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.30**, 11 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.31**, 11 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+**Сессия3.31 / S6 — устранение DNS blocker CI.** PR414 first runs failed before browser tests: Ubuntu package downloads cannot resolve azure.archive.ubuntu.com; logs retained. Fresh-runner retries reached the same installation bottleneck. Added CI-only canonical Ubuntu archive normalization before dependency installation in the six required workflows. All Playwright dependencies, signature keys, browser/test commands and assertions remain mandatory. Legacy/deb822/mirror-list fixtures, unchanged other repositories, preserved Signed-By and idempotence checked. Application UI/API code unchanged; runtime input policy still counts CI/scripts, so the new projection is independently recorded rather than inheriting old full-runtime evidence.
+
+**Следующее действие3.31:** obtain successful CI with the mirror correction, merge the pending follow-up if necessary for exact-main gate, then finish official primary rollout and live voice/text/map/reload/design comparison. Current primary release remains1292c680 until a gated rollout actually succeeds. Existing public AI backend remains90b68f36/14of50 at15:32UTC; spending/expiry/cohort unchanged. Source readiness, CI and actual release remain separate.
+
+**Историческая сессия3.30:**
+
 **Сессия3.30 / S6,S4.1 — main merged, public backend active, primary rollout pending.** PR413 merged into main061474ec; exact PR head90b68f36 had13SUCCESS/2conditionalSKIP, identical tree ba4fd18f. Public guest backend90b68f36 activated with backup, same PG/Redis/signing/journal,14→14/50, migrations/seed0. 194 running backend files and local ASR model hash matched; catalog13/ready. No-auth capabilities/status200; auth/admin/metrics404. Main candidate images built, frontend build-info061474ec, migrations head0079. Fresh authenticated encrypted MinIO backup821546016bytes created.
 
 **Блокер3.30:** main Full audit attempt1 failed one existing photo-rotation test (740browser PASS/1SKIP). Test captured the temporary loading SVG before IndexedDB resolved the actual blob; observed expected placeholder vs received blob. Added actual-image natural-size wait before snapshot, preserving all rotation assertions; focused10repeats PASS/36.1s. No runtime files changed by this fix. Same061 main audit rerun is active; automatic monitor only starts authorized official deployment after all exact-main required checks succeed. Primary site remains1292c680 until that gate passes. Failed attempt retained, not reported PASS.
