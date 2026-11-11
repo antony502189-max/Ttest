@@ -1,0 +1,30 @@
+{
+  "observed_at": "2026-11-11T16:42:25.241541+00:00",
+  "primary_source": "061474ec818a2da0acf24e6cf7a26469026404eb",
+  "previous_primary_source": "1292c6807ece59999238bb31c80e09ef7e2c3212",
+  "pilot_source": "90b68f365ec7325c5df724a3ab91bbd8d74a36e3",
+  "official_manual_runner": "success",
+  "revision_before": "0066_complimentary_ads (head)",
+  "revision_after": "0079_ai_operating_policy (head)",
+  "data_maintenance": "skipped",
+  "rollback_backups": "minio=/srv/112233.es/backups/minio-20261111-062622-2754701-25734.tar.enc postgres=/srv/112233.es/backups/postgres-20261111-161029-3467-31706.dump.enc",
+  "main_postmerge_full_audit": "FAILED retained: loading-race then Ubuntu DNS; not certified as passed",
+  "source_basis": "PR413 head90b68f36:13 SUCCESS/2 conditional SKIP, identical Git tree ba4fd18f to released main061474ec",
+  "live": "PASS synthetic voice700→12,text400→3,map200,reload no repeat dispatch",
+  "voice_stop_to_conditions_ms": 14313,
+  "voice_sample_limit": "one successful synthetic sample with1s lead-in; prior ASR_FAILURE and INTENT_UNSUPPORTED retained; not human/p95 certification",
+  "provider_before": 14,
+  "provider_after": 16,
+  "business_used": 2,
+  "business_reserved": 0,
+  "provider_tickets": [
+    15,
+    16
+  ],
+  "unchanged_control_styles": {
+    "390": 18,
+    "1440": 23
+  },
+  "general_product_gates": "S0–S7/provider/privacy/full-data/human-ASR/performance/saved/delivery remain open",
+  "ci_followup": "PR414 changes CI/test/docs only, with unchanged product application files"
+}

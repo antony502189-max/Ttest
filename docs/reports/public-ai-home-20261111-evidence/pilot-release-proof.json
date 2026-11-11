@@ -1,0 +1,32 @@
+{
+  "source": "90b68f365ec7325c5df724a3ab91bbd8d74a36e3",
+  "backup": "/srv/112233-ai-site-pilot-20261108/backups/public-90b68f36-20261111T062213Z",
+  "provider_before": 14,
+  "provider_after": 14,
+  "provider_journal_unchanged": true,
+  "protected_files_unchanged": true,
+  "postgres_redis_containers_unchanged": true,
+  "migrations": 0,
+  "seed": 0,
+  "health": {
+    "active": 13,
+    "cohort_hash": "d88aec67ad95de3339144bc1d7f4ea412abee8b853a6be852d07864fd7eb0c9d",
+    "consecutive_failures": 0,
+    "generation": 21,
+    "last_success": "2026-11-11T06:22:54.542471+00:00",
+    "phase": "ready",
+    "removed": 0,
+    "schema": "pilot-health.v1",
+    "snapshot_at": "2026-11-11T06:22:41.183898+00:00",
+    "token": "cf04465bdd614b0581f7f6f0a06fd5ff"
+  },
+  "health_uid": 999,
+  "public_access_activated": true,
+  "expires_at": "2026-11-11T20:59:59Z",
+  "images": {
+    "backend": "sha256:ab40f6247af25a627852beaa79c5ee225f10140c52eadd706b57d176ebb37c78",
+    "maintenance": "sha256:ab40f6247af25a627852beaa79c5ee225f10140c52eadd706b57d176ebb37c78",
+    "egress": "sha256:ab40f6247af25a627852beaa79c5ee225f10140c52eadd706b57d176ebb37c78",
+    "frontend": "sha256:39c87a476bc4eb2a321dd6c0b42784ec7542e80c6e641acb8e0ee18d0f047cdf"
+  }
+}

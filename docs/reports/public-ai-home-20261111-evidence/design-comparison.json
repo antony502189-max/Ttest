@@ -1,0 +1,116 @@
+[
+  {
+    "width": 390,
+    "before_controls": 18,
+    "after_controls": 18,
+    "style_or_size_changes": [],
+    "images_before": [],
+    "images_after": []
+  },
+  {
+    "width": 1440,
+    "before_controls": 23,
+    "after_controls": 23,
+    "style_or_size_changes": [],
+    "images_before": [
+      {
+        "alt": "Habitaci\u00f3n luminosa con cama, escritorio y ventana",
+        "source": "6314aebff7679ef20b21b4fc543ce04502b8289ec0f0365125346044126a7db0",
+        "width": 1440,
+        "height": 543
+      },
+      {
+        "alt": "",
+        "source": "76ff4eb715ff664ee8fa1b20721ded1451efa87d4a9c4dbb9528e93d8bb5a412",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "00e56a03fa0e824d11f9506374bc6b55f2ccdbc39ea146795c2131e50694aa27",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "377731c14f802210f9c111ceb08632be2d1501702c0524675646943ec6bab5a0",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "5e60939b53f153a8b1a7a99ffbbbc728e97f907b325651b38aebb57ad637d9d8",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "6fadcc3b8d4a7d3cac879168101e16457220621d427d1f4b98b5251516abb303",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "82c9457ba2d90a7f6bddf947d0e60b3d34e1fd675bea26061cda9423e0a5d378",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "b4c86afa532ce3ce5e1ea4264317ad3c3e451f3bf232588e0f95e3db2f52a1b6",
+        "width": 42.390625,
+        "height": 42.390625
+      }
+    ],
+    "images_after": [
+      {
+        "alt": "Habitaci\u00f3n luminosa con cama, escritorio y ventana",
+        "source": "6314aebff7679ef20b21b4fc543ce04502b8289ec0f0365125346044126a7db0",
+        "width": 1440,
+        "height": 543
+      },
+      {
+        "alt": "",
+        "source": "89b0f803b2821c5f850883df49a3ea17e0fefc061f2b259023f57e46c5f9730e",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "14d42a6e4ded5ca00a654abb7c03ca6405aed47afb462317d6d1e1b9aa925561",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "999e670d51ace2f2a9ad775004f5138fd967cdbeb7028b5f79550d058bea29a6",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "e9a33978399d9e0c626411f17868d3b44e2f708f7723451c00d4df879fd754e5",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "ffc2e5b8ae1c7f5203f7ff33d5ba3d24bf1b55da070668140ff73188c1d2b509",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "f2a5bb6dfecb62adc031a50ffc77620769fe22e47dd77b15e1305b7efd5e21e3",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "48304d81b51cddbda3e27d0ace3d2e18045b3dd8641f09ef0fb50579729ffcea",
+        "width": 42.390625,
+        "height": 42.390625
+      }
+    ]
+  }
+]
