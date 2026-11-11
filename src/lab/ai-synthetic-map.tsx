@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { aiResultMap } from '@/api/ai-search'
 import type { ListingMapMarker } from '@/api/listings'
 
-// Explicit synthetic lab or private real-data demo only. No fixture markers.
+// Coordinate renderer for the lab and bounded real-data beta. No fixture markers.
 export function AIResultMap({ resultRef, intentHash, refreshVersion, center, total }: {
   resultRef: string; intentHash: string; refreshVersion: number; center?: { lat: number; lng: number }; total: number
 }) {

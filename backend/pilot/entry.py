@@ -54,6 +54,9 @@ def approved():
     if value == {**common, "scope": "invited-external-nonpersonal-positive-rent-grammar.v1",
                  "max_invites": 10, "expires_at": "2026-11-11T20:59:59Z"}:
         return datetime.now(UTC) < EXTERNAL_DEMO_END
+    if value == {**common, "scope": "public-nonpersonal-positive-rent-grammar.v1",
+                 "expires_at": "2026-11-11T20:59:59Z"}:
+        return datetime.now(UTC) < EXTERNAL_DEMO_END
     raise ValueError("PILOT_APPROVAL_MISMATCH")
 
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AudioLines, Search } from 'lucide-react'
+import { AudioLines, Mic, Search } from 'lucide-react'
 import { ApiError } from '@/api/client'
 import { aiCapabilities, aiCardPage, aiMapCenter, aiResultPage, createAISession, getAIOperation, getAIQuota, getAIResult, getAISession, resetAISession, sendAIMessage, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
 import { aiConditionRows, aiModeLabel, type AICommittedIntent } from '@/api/ai-intent'
@@ -15,13 +15,18 @@ import { Button } from '@/components/ui/button'
 import { AIVoiceInput } from '@/components/ai-voice-input'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import '@/home-ai-search.css'
+import { pilotInput } from '@/lab/pilot-input'
+import { AIResultMap as PublicAIMap } from '@/lab/ai-synthetic-map'
 import { readAIContinuation, storeAIContinuation } from '@/api/ai-continuation'
+
+const publicAI = import.meta.env.VITE_PUBLIC_AI_BETA === '1'
+const ResultMap = publicAI ? PublicAIMap : AIResultMap
 
 // Keying by identity discards private in-memory conversation on login/logout.
 type AIInputPolicy = { maxLength: number; placeholder: string; hint: string; validate: (text: string) => boolean }
 export function HomeAISearch({ homeMode, initialRentalMode, inputPolicy }: { homeMode: RentalMode; initialRentalMode?: RentalMode; inputPolicy?: AIInputPolicy }) {
   const { currentUser } = useApp()
-  return <AISearchPanel key={currentUser?.id ?? 'guest'} identity={currentUser?.id ?? 'guest'} homeMode={homeMode} initialRentalMode={initialRentalMode} inputPolicy={inputPolicy} />
+  return <AISearchPanel key={currentUser?.id ?? 'guest'} identity={publicAI ? 'public-guest' : currentUser?.id ?? 'guest'} homeMode={homeMode} initialRentalMode={publicAI ? 'long' : initialRentalMode} inputPolicy={publicAI ? pilotInput : inputPolicy} />
 }
 
 function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: { homeMode: RentalMode; identity: string; initialRentalMode?: RentalMode; inputPolicy?: AIInputPolicy }) {
@@ -432,13 +437,18 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
 
   if (!enabled) return null
   return <Dialog open={open} onOpenChange={setOpen}>
-    <section className="home-ai-search" aria-label={t('Búsqueda con IA')}>
+    <section className={`home-ai-search${publicAI ? " home-ai-search--public" : ""}`} aria-label={t('Búsqueda con IA')}>
       <div className="home-ai-search__intro"><span className="home-ai-search__wave"><AudioLines aria-hidden="true" /></span><div>
         <h2>{t('¿No sabes por dónde empezar?')}</h2>
-        <p>{inputPolicy ? inputPolicy.hint : t('Dinos dónde buscas, qué zona y qué precio quieres pagar.')}</p>
+        <p>{publicAI ? t('Dinos tu presupuesto mensual. Encontraremos opciones para ti.') : inputPolicy ? inputPolicy.hint : t('Dinos dónde buscas, qué zona y qué precio quieres pagar.')}</p>
       </div></div>
-      <DialogTrigger asChild><Button type="button" className="home-ai-search__action"><Search aria-hidden="true" />{t('Escribir mi búsqueda')}</Button></DialogTrigger>
-      {voiceEnabled ? <DialogTrigger asChild><Button type="button" variant="outline"><AudioLines aria-hidden="true" />{t('Buscar con la voz')}</Button></DialogTrigger> : null}
+      {publicAI ? <>
+        <DialogTrigger asChild><Button type="button" className="home-ai-search__action"><Mic aria-hidden="true" />{t('Buscar con mi voz')}</Button></DialogTrigger>
+        <DialogTrigger asChild><Button type="button" variant="ghost" className="home-ai-search__text">{t('También puedes escribir tu búsqueda')}</Button></DialogTrigger>
+      </> : <>
+        <DialogTrigger asChild><Button type="button" className="home-ai-search__action"><Search aria-hidden="true" />{t('Escribir mi búsqueda')}</Button></DialogTrigger>
+        {voiceEnabled ? <DialogTrigger asChild><Button type="button" variant="outline"><AudioLines aria-hidden="true" />{t('Buscar con la voz')}</Button></DialogTrigger> : null}
+      </>}
       {!inputPolicy ? <small>{t('Describe también quién vivirá y las condiciones que necesitas.')}</small> : null}
     </section>
     <DialogContent className="ai-search-dialog">
@@ -493,7 +503,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
         <Button type="button" variant="outline" disabled={busy || changingSession || pending !== null || !pagingAvailable} onClick={() => void page()}>{t('Actualizar resultados sin gastar una búsqueda')}</Button>
         {mapEnabled ? <Button type="button" variant="outline" aria-pressed={mapVisible} onClick={() => setMapVisible(value => !value)}>{t(mapVisible ? 'Ver lista' : 'Ver mapa')}</Button> : null}
         {!result.page.total ? <p>{t('No encontramos opciones con todas las condiciones confirmadas. Puedes ajustar tu búsqueda.')}</p> : null}
-        {mapVisible ? <AIResultMap key={`${result.ref}:${result.hash}`} resultRef={result.ref} intentHash={result.hash} refreshVersion={mapRefreshVersion}
+        {mapVisible ? <ResultMap key={`${result.ref}:${result.hash}`} resultRef={result.ref} intentHash={result.hash} refreshVersion={mapRefreshVersion}
           center={result.center} total={result.page.total} /> : null}
         <div className="ai-search-dialog__cards" hidden={mapVisible} style={{ display: mapVisible ? 'none' : undefined }}>{result.page.items.map(listing => {
           const price = result.prices.find(value => value.listing_id === listing.id)

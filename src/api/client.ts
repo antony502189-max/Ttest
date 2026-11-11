@@ -85,8 +85,10 @@ export async function api<T>(path: string, init: ApiRequestInit = {}, retried = 
   if (requestInit.signal?.aborted) controller.abort()
   try {
     const headers = new Headers(requestInit.headers)
-    const requestHadAccessToken = Boolean(accessToken)
-    if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
+    const publicAIRequest = import.meta.env.VITE_PUBLIC_AI_BETA === '1' && path.startsWith('/ai-search/')
+    if (publicAIRequest) headers.delete('Authorization')
+    const requestHadAccessToken = !publicAIRequest && Boolean(accessToken)
+    if (accessToken && !publicAIRequest) headers.set('Authorization', `Bearer ${accessToken}`)
     if (requestInit.body && !headers.has('Content-Type') && !(requestInit.body instanceof FormData)) headers.set('Content-Type', 'application/json')
     if (path.startsWith('/ai-search/') && import.meta.env.VITE_AI_CLOSED_LAB) {
       // Re-attest before every AI request. A backend restart or mixed frontend
@@ -113,7 +115,7 @@ export async function api<T>(path: string, init: ApiRequestInit = {}, retried = 
       headers.set('X-AI-Lab-Source', value.source)
       headers.set('X-AI-Lab-Instance', value.instance)
     }
-    const response = await fetch(`${API_BASE_URL}${path}`, { ...requestInit, headers, credentials: 'include', signal: controller.signal })
+    const response = await fetch(`${publicAIRequest ? '/ai-pilot/api/v1' : API_BASE_URL}${path}`, { ...requestInit, headers, credentials: 'include', signal: controller.signal })
     // Refresh is recovery for an expired bearer token, not an authentication
     // mechanism for anonymous requests. Session hydration explicitly calls the
     // refresh endpoint on page load; requests made after logout must not revive
@@ -161,9 +163,11 @@ export async function apiBlob(path: string, init: ApiRequestInit = {}, retried =
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
   try {
     const headers = new Headers(requestInit.headers)
-    const requestHadAccessToken = Boolean(accessToken)
-    if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
-    const response = await fetch(`${API_BASE_URL}${path}`, { ...requestInit, headers, credentials: 'include', signal: requestInit.signal ?? controller.signal })
+    const publicAIRequest = import.meta.env.VITE_PUBLIC_AI_BETA === '1' && path.startsWith('/ai-search/')
+    if (publicAIRequest) headers.delete('Authorization')
+    const requestHadAccessToken = !publicAIRequest && Boolean(accessToken)
+    if (accessToken && !publicAIRequest) headers.set('Authorization', `Bearer ${accessToken}`)
+    const response = await fetch(`${publicAIRequest ? '/ai-pilot/api/v1' : API_BASE_URL}${path}`, { ...requestInit, headers, credentials: 'include', signal: requestInit.signal ?? controller.signal })
     if (response.status === 401 && requestHadAccessToken && path !== '/auth/refresh' && !retried && await refresh()) {
       return apiBlob(path, init, true)
     }

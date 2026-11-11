@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="3" time="44.830" timestamp="2026-11-09T20:42:33.487745+00:00" hostname="36b253308203"><testcase classname="tests.demo_pg.test_refresh_baseline" name="test_current_review_defect[missing]" time="12.376"><failure message="assert not True">tests/demo_pg/test_refresh_baseline.py:29: in test_current_review_defect
+    assert not (await ready())['catalog_ready']
+E   assert not True</failure></testcase><testcase classname="tests.demo_pg.test_refresh_baseline" name="test_current_review_defect[partial]" time="13.369"><failure message="assert not True">tests/demo_pg/test_refresh_baseline.py:40: in test_current_review_defect
+    assert not (await ready())['catalog_ready']
+E   assert not True</failure></testcase><testcase classname="tests.demo_pg.test_refresh_baseline" name="test_current_review_defect[fields]" time="16.442"><failure message="assert False is True&#10; +  where False = &lt;app.models.Listing object at 0x76ea82e42490&gt;.pets_allowed">tests/demo_pg/test_refresh_baseline.py:45: in test_current_review_defect
+    assert (await session.get(Listing,UUID(incoming['records'][0]['listing']['id']))).pets_allowed is True
+E   assert False is True
+E    +  where False = &lt;app.models.Listing object at 0x76ea82e42490&gt;.pets_allowed</failure></testcase></testsuite></testsuites>

@@ -57,12 +57,16 @@ def revoke_file(path):
     Path(path).rename(Path(path).with_suffix(".disabled"))
 
 
-def test_invitation_expiry_blocks_reserve_without_resetting_prior_spend(tmp_path, monkeypatch):
+@pytest.mark.parametrize('public', [False, True])
+def test_invitation_expiry_blocks_reserve_without_resetting_prior_spend(tmp_path, monkeypatch, public):
     from pilot import entry
     monkeypatch.setattr(entry, "CONTROL", tmp_path)
     artifact = {"binding": BINDING, "owner_approved": True, "max_calls": 50,
         "max_micro_usd": 1_000_000, "scope": "invited-external-nonpersonal-positive-rent-grammar.v1",
         "max_invites": 10, "expires_at": "2026-11-11T20:59:59Z"}
+    if public:
+        artifact['scope'] = 'public-nonpersonal-positive-rent-grammar.v1'
+        del artifact['max_invites']
     (tmp_path / "approval.json").write_text(json.dumps(artifact))
     class Clock(datetime):
         instant = entry.EXTERNAL_DEMO_END - timedelta(seconds=1)
