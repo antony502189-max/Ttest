@@ -11,7 +11,7 @@ CLOUD = re.compile(r'https?://azure\.archive\.ubuntu\.com/ubuntu(?=/|\s|$)')
 
 def normalize(apt: Path) -> list[str]:
     apt = apt.resolve()
-    files = [apt / 'sources.list', *(apt / 'sources.list.d').glob('*.list'),
+    files = [apt / 'sources.list', apt / 'apt-mirrors.txt', *(apt / 'sources.list.d').glob('*.list'),
         *(apt / 'sources.list.d').glob('*.sources'), *(apt / 'mirrors').glob('*.list')]
     changed = []
     for path in files:
