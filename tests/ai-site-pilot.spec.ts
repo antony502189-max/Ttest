@@ -40,11 +40,11 @@ for (const width of [390, 1440]) for (const state of ['pending', 'approved', 'un
     expect(apiPaths).toContain('/ai-pilot/api/v1/private-demo/status')
     expect(await page.evaluate(() => ['112233:favorites:v2', '112233:listing-draft:v3', '112233:language:v1', '112233:saved-searches:v3', '112233:listing-pending-media:v1', 'third-party-computed-key'].every(key => localStorage.getItem(key) === 'ordinary-site-storage-sentinel'))).toBe(true)
     expect(await page.evaluate(() => sessionStorage.getItem('112233:ai-continuation:v1:guest'))).toBe('ordinary-session-sentinel')
-    await expect(page.locator('#ai-search-text')).toHaveAttribute('maxlength', '160')
+    await expect(page.locator('#ai-search-text')).toHaveAttribute('maxlength', '2000')
     if (state === 'approved') {
       await page.locator('#ai-search-text').fill('rooms under 500 euros per month with a cat')
-      await expect(submit).toBeDisabled()
-      await expect(page.getByRole('alert')).toContainText('Только бюджет')
+      await expect(submit).toBeEnabled()
+      await expect(page.getByText(/Опишите место, цену/).last()).toBeVisible()
     }
   })
 }

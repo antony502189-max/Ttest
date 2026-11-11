@@ -363,8 +363,8 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
         setNotice(answer.clarification ? questions[answer.clarification]
           : code === 'INTENT_CLARIFICATION_REQUIRED' ? 'Aclara la ubicación, el presupuesto o los requisitos antes de continuar.'
           : code === 'INTENT_NO_CHANGE' ? 'La petición no cambia los criterios. Añade un requisito nuevo.'
-          : code === 'INTENT_UNSUPPORTED' ? (message.audio_base64 ? 'Не удалось разобрать бюджет из записи. Повторите или введите его текстом. Поиск не списан.' : questions.unsupported)
-          : code === 'SOURCE_COVERAGE_UNAVAILABLE' ? (inputPolicy ? 'Каталог устарел или недоступен. Новые обращения к модели остановлены до проверки данных.' : 'No hay fuentes verificadas recientes disponibles. Prueba la búsqueda con filtros.')
+          : code === 'INTENT_UNSUPPORTED' ? (message.audio_base64 ? 'Не удалось разобрать условия из записи. Повторите или введите запрос текстом. Поиск не списан.' : questions.unsupported)
+          : code === 'SOURCE_COVERAGE_UNAVAILABLE' ? (inputPolicy ? 'В текущем каталоге недостаточно свежих подтверждённых данных для всех этих условий. Это не означает, что подходящего жилья нет. Предыдущие условия сохранены, поиск не списан. Измените запрос или используйте обычные фильтры.' : 'No hay fuentes verificadas recientes disponibles. Prueba la búsqueda con filtros.')
           : code === 'ASR_FAILURE' ? 'Не удалось распознать запись. Повторите или введите запрос текстом. Поиск не списан.'
           : code === 'VOICE_CAPACITY_LIMIT' ? 'Сервер распознавания занят. Повторите запись позже. Поиск не списан.'
           : code === 'SESSION_VERSION_CONFLICT'
@@ -440,7 +440,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
     <section className={`home-ai-search${publicAI ? " home-ai-search--public" : ""}`} aria-label={t('Búsqueda con IA')}>
       <div className="home-ai-search__intro"><span className="home-ai-search__wave"><AudioLines aria-hidden="true" /></span><div>
         <h2>{t('¿No sabes por dónde empezar?')}</h2>
-        <p>{publicAI ? t('Dinos tu presupuesto mensual. Encontraremos opciones para ti.') : inputPolicy ? inputPolicy.hint : t('Dinos dónde buscas, qué zona y qué precio quieres pagar.')}</p>
+        <p>{publicAI ? t('Dinos dónde buscas, qué zona y qué precio quieres pagar.') : inputPolicy ? inputPolicy.hint : t('Dinos dónde buscas, qué zona y qué precio quieres pagar.')}</p>
       </div></div>
       {publicAI ? <>
         <DialogTrigger asChild><Button type="button" className="home-ai-search__action"><Mic aria-hidden="true" />{t('Buscar con mi voz')}</Button></DialogTrigger>

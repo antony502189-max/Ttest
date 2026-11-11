@@ -167,7 +167,7 @@ def _input_context():
 
 
 def current_projection_predicate(listing_id, *, resolver_version: str, vocabulary_hash: str,
-                                 match_plan=None, cohort_scope=None) -> ColumnElement[bool]:
+                                 match_plan=None, cohort_scope=None, coverage=False) -> ColumnElement[bool]:
     """Use with existing eligibility and hard matching BEFORE count/order/seek/limit."""
     # The legacy digest stays inside COALESCE/CASE, not an equality hash key.
     # PostgreSQL may choose a set join for broad views and indexed probes for
@@ -182,7 +182,7 @@ def current_projection_predicate(listing_id, *, resolver_version: str, vocabular
     fast_match: ColumnElement[bool] = literal(True)
     legacy_match: ColumnElement[bool] = literal(True)
     if match_plan is not None:
-        matching = select(AiLiveMatchCohort.id).where(hard_match_predicate(AiLiveMatchCohort.__table__.c.features, match_plan))
+        matching = select(AiLiveMatchCohort.id).where(hard_match_predicate(AiLiveMatchCohort.__table__.c.features, match_plan, coverage=coverage))
         if cohort_scope is not None:
             cohorts = matching.where(AiLiveMatchCohort.id.in_(cohort_scope)).cte().prefix_with("MATERIALIZED")
             fast_match = AiQueryProof.match_cohort_id.in_(select(cohorts.c.id))
@@ -192,7 +192,7 @@ def current_projection_predicate(listing_id, *, resolver_version: str, vocabular
                 ).offset(0).correlate(AiQueryProof).exists()
         features = AiListingSearchFeatures.__table__.alias()
         legacy_match = select(1).select_from(features).where(features.c.canonical_listing_id == AiQueryProof.canonical_listing_id,
-            hard_match_predicate(features.c.features, match_plan)).correlate_except(features).exists()
+            hard_match_predicate(features.c.features, match_plan, coverage=coverage)).correlate_except(features).exists()
     decision = case((AiQueryProof.input_status != "legacy",
         case((binding_valid, case((AiQueryProof.input_status == "current", fast_match),
                                  (AiQueryProof.input_status == "changed", None), else_=False)),

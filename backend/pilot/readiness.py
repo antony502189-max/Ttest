@@ -3,7 +3,11 @@ from uuid import UUID
 
 from sqlalchemy import select, text
 
-from app.repositories.ai_verified_cards import verified_intent_predicate
+from app.repositories.ai_verified_cards import (
+    SourceCoverageUnavailable,
+    verified_coverage_predicate,
+    verified_intent_predicate,
+)
 from app.repositories.listings import visible_query
 from app.schemas.ai_search_intent import SearchIntent
 
@@ -18,6 +22,17 @@ def readiness_query(pipeline):
 class CatalogReadiness:
     def __init__(self, pipeline, health=None):
         self.pipeline, self.health = pipeline, health
+
+    async def require_intent(self, intent):
+        token = self.health.ticket() if self.health is not None else None
+        async with self.pipeline.sessions() as session, session.begin():
+            await session.execute(text("SET TRANSACTION READ ONLY"))
+            known = await session.scalar(select(visible_query().where(
+                verified_coverage_predicate(self.pipeline, intent)).exists()))
+        if self.health is not None:
+            self.health.unchanged(token)
+        if not known:
+            raise SourceCoverageUnavailable("SOURCE_COVERAGE_UNAVAILABLE")
 
     async def __call__(self):
         try:

@@ -1,8 +1,20 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.33**, 11 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.35**, 12 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+**Сессия3.35 / S3,S4.1,S6 — ускоренный выпуск составного intent.** Владелец12.11 прямо поручил быстрее выпустить финальную версию с последующими исправлениями; обязательные saved/notification и honest-data критерии сохранены. Отдельно явно одобрено продление прежнего cumulative50calls/$1 до12.11 23:59МСК (2026-11-12T20:59:59Z), без сброса прошлого расхода, binding или журнала. Это единственное изменение денежного допуска; старые scopes/expiry не расширяются.
+
+**Следующее действие3.35:** завершить actual-image составные ASR и реальные provider-backed text/voice/card/map/reload проверки, exact-head CI и штатную выкладку с сохранением дизайна; затем продолжать S4.2–4.4. PR415 sourcef06383a2:13SUCCESS/2conditionalSKIP,1930unitPASS/16skip. Candidate imagee2b4012a построен;4actual-image offline EN/RU samples PASS4.042–6.25s/provider0. Новый extension commit проверяется отдельно отf063. ПолныйS0–S7 release не объявлен готовым.
+
+**Историческая сессия3.34:**
+**Сессия3.34 / S2.1,S3.1–3.4,S4.1–4.4,S6 — полноценный составной запрос.** Прямое поручение владельца 11.11: учитывать бюджет и период/режим, состав жильцов, место, тип, мебель, платежи, депозит, балкон/террасу, животных, курение, даты/срок и поддерживаемые удобства. Прежняя monthly-only grammar больше не является продуктовым ограничением. Сначала расширяется существующий общий intent/parser/facts/query/UI путь, с сохранением остальных условий при уточнениях и дизайна. Saved после регистрации и notifications обязательны и остаются открытыми.
+
+**Следующее действие3.34:** реализовать минимизацию полного жилищного запроса, строгую проверку patch, честное различение unknown data/нет совпадений и составные text/voice/map/reload проверки на существующем сайте. Проверить реальное покрытие текущих13IDs до включения условий; не превращать legacy defaults в факты. Рабочая база origin/main6f089919, GitHub414 merged подтверждён; использован чистый existing worktree, старый checkout не переключался. Lifetime50/$1, binding/journals/keys и expiry2026-11-11T20:59:59Z сохраняются; расширение продуктового scope не увеличивает денежный допуск. Код, локальные проверки и фактически выпущенная версия фиксируются отдельно. S0–S7 не закрыты.
+
+**Checkpoint3.34:** общий housing boundary и exact merged-patch guard реализованы; unknown hard facts отделены от meaningful zero до provider/SQL.49 housing unit,173 ранее focused,4 public и26 pilot/voice browser PASS; PG92PASS/6mount failures сохранены, corrected7PASS/81.39s. На13real IDs read-only подтверждены geography/deposit13,bills12,furnished5,balcony1; legacy defaults не повышены. Deploy/paid0 на этом checkpoint. [Разбор и открытые gates](reports/AI_FULL_HOUSING_INTENT_20261111.md). Следующий шаг — exact-source CI/build/actual-image ASR, затем реальная расширенная проверка и выпуск; S4.2–4.4 остаются обязательными.
+
+**Историческая сессия3.33:**
 **Сессия3.33 / S6,S4.1 — публичная главная выпущена и проверена.** Обычный сайт https://app.112233.es/#/ теперь содержит voice-first AI panel и текстовый вход без приглашений. Штатный manual runner выпустил main061474ec с backup/rollback,0079, data_maintenance=skipped; build-info/metadata success подтверждены. Application tree ba4fd18f равен passing PR413 source90b68f36 (13SUCCESS/2conditionalSKIP). Повторные main Full audit FAILED сохранены (один loading-race test, затем Ubuntu DNS); ручная bounded-beta маршрутизация3.32 не объявляется прохождением этих gates.
 
 Actual Chrome без credentials: synthetic voice700→12; typed400→3; map200; reload390 восстановил result без новой paid операции.14313ms Stop→conditions — один sample, неp95. ПервыеASR_FAILURE иINTENT_UNSUPPORTED сохранены, paid0; успешный synthetic fixture содержит1s silence для готовности записи, изменение harness не выдано за общий ASR fix. Отдельно четыре actual-image offline EN/RU samples PASS/4.241–5.833s/provider0. PG used2/reserved0 и provider tickets15,16 независимо совпали; lifetime14→16/50, reload16→16. Оставшиеся34 на этот snapshot не гарантируются будущим пользователям.50/$1/binding/expiry11.11 23:59:59МСК/13IDs сохранены, без reset/seed.
@@ -501,3 +513,9 @@ Retained failed main audit; exact loading precondition added to existing rotatio
 
 ### Изменение маршрута3.32
 Повторное требование владельца о фактической выкладке. Причина: идентичное passing PR application tree уже проверено, последующий CI блокируется установленным infra DNS и отдельным test loading race. Влияние: bounded public beta допускается через audited manual runner/backup/rollback/live verification; failed/main/full release gates сохраняются открытыми, не объявляются пройденными.
+
+### Изменение маршрута3.34 — 11.11.2026
+Прямое поручение владельца заменяет monthly-only ближайший шаг полноценным составным AI Search на общих контрактах. Причина: цена в месяц не удовлетворяет исходному продукту. Влияние: S2.1/S3/S4 приоритет полным условиям и сохранению контекста; остальные gates и saved/delivery сохраняются. Нового spending допуска, сброса или нового проекта нет.
+
+### Изменение маршрута3.35 — 12.11.2026
+Прямой приоритет владельца — ускоренный фактический выпуск. Явный ответ на истечение прежнего допуска: продлить до12.11 23:59МСК при тех же cumulative50/$1, без refund/reset/reseed. Saved/delivery, неизвестные данные и общие quality/privacy/performance gates не отменены.

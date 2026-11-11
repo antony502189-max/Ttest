@@ -130,8 +130,8 @@ def pipeline(factory):
     from app.schemas.ai_listing_facts import FactVocabulary
     from app.services.ai_fact_quality import FactQualityPolicy
     return FactPipeline(factory, FactQueuePolicy(lease_seconds=60, max_attempts=2, retry_delay_seconds=1),
-        FactVocabulary(amenity_codes=frozenset(), catalog_other_codes=frozenset(),
-            tenant_group_codes=frozenset(), municipality_zones=frozenset()),
+        FactVocabulary(amenity_codes=frozenset({"wifi", "lift", "air_conditioning", "parking"}), catalog_other_codes=frozenset(),
+            tenant_group_codes=frozenset({"friends"}), municipality_zones=frozenset()),
         resolver_version="private-pisocompartido.v1", operating_policy=FactQualityPolicy(
             price_max_age_seconds=86400, policy_max_age_seconds=86400, evidence_retention_seconds=86400))
 

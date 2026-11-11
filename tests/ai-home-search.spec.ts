@@ -27,7 +27,7 @@ test('all normalized criteria preserve false, units, identity and strength; unsu
   expect(rows).toHaveLength(15)
   expect(rows.find(row => row.name === 'furnished')?.value).toBe('No')
   expect(rows.find(row => row.name === 'budget')?.value).toBe('700.00 EUR / semana')
-  expect(rows.find(row => row.name === 'geography')?.value).toContain('Municipio INE: 28079')
+  expect(rows.find(row => row.name === 'geography')?.value).toContain('Madrid')
   expect(rows.find(row => row.name === 'deposit')?.value).toBe('0 meses')
   expect(rows.find(row => row.name === 'balcony')?.strength).toBe('soft')
   expect(rows.find(row => row.name === 'pets')?.value).toBe('Gato · Pequeño × 2')

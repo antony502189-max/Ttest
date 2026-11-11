@@ -47,7 +47,7 @@ class LocalPCMTranscriber:
         async with self.lock:
             process = await asyncio.create_subprocess_exec(str(self.python), str(Path(__file__).with_name("ai_local_asr_worker.py")),
                 str(self.model), stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.DEVNULL, limit=4096,
+                stderr=asyncio.subprocess.DEVNULL, limit=16384,
                 env={"PATH": "/usr/bin:/bin", "HF_HUB_OFFLINE": "1"})
             try:
                 async with asyncio.timeout(self.seconds):
@@ -57,12 +57,12 @@ class LocalPCMTranscriber:
                     process.stdin.write(audio)
                     await process.stdin.drain()
                     process.stdin.close()
-                    body = await process.stdout.read(2049)
+                    body = await process.stdout.read(12003)
                     await process.wait()
-                    if process.returncode != 0 or len(body) > 2048:
+                    if process.returncode != 0 or len(body) > 12002:
                         raise ValueError("LOCAL_ASR_UNAVAILABLE")
                     value = json.loads(body)
-                    if not isinstance(value, str) or not value.strip() or len(value) > 160:
+                    if not isinstance(value, str) or not value.strip() or len(value) > 2000:
                         raise ValueError("VOICE_TRANSCRIPT_INVALID")
                     return value
             finally:

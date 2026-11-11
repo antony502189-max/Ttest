@@ -13,6 +13,41 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda c: c["name"])
+def test_known_fact_coverage_is_distinct_from_matching_and_unknown(pg, case):
+    engine, _ = pg
+    compiled = plan(case)
+    with engine.connect() as connection:
+        def covered(features):
+            return connection.scalar(select(hard_match_predicate(literal(features, type_=JSONB), compiled, coverage=True)))
+        assert covered(case["features"]) is True
+        assert covered([]) is False
+        for status in ("unknown", "conditional", "conflict", "legacy_unverified"):
+            changed = copy.deepcopy(case["features"])
+            changed[0].update(status=status, typed_value=None)
+            assert covered(changed) is False
+        changed = copy.deepcopy(case["features"])
+        if changed[0]["typed_value"]["kind"] == "policy":
+            changed[0].update(status="explicit_deny")
+            changed[0]["typed_value"]["allowed"] = False
+            assert covered(changed) is True
+            assert connection.scalar(select(hard_match_predicate(literal(changed, type_=JSONB), compiled))) is False
+
+
+def test_price_coverage_keeps_period_currency_and_ignores_budget_threshold(pg):
+    engine, _ = pg
+    case = next(c for c in CASES if c["name"] == "budget")
+    features = copy.deepcopy(case["features"])
+    features[0]["typed_value"]["amount"] = "999999.00"
+    with engine.connect() as connection:
+        compiled = plan(case)
+        assert connection.scalar(select(hard_match_predicate(literal(features, type_=JSONB), compiled, coverage=True))) is True
+        for field, value in (("period", "nightly"), ("currency", "USD")):
+            changed = copy.deepcopy(features)
+            changed[0]["typed_value"][field] = value
+            assert connection.scalar(select(hard_match_predicate(literal(changed, type_=JSONB), compiled, coverage=True))) is False
+
+
+@pytest.mark.parametrize("case", CASES, ids=lambda c: c["name"])
 def test_sql_and_typed_match_agree_on_all_criteria(pg, case):
     engine, _ = pg
     compiled = plan(case)

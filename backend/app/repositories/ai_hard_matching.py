@@ -17,7 +17,7 @@ _VALUE_FIELDS = {
 }
 
 
-def hard_match_predicate(features: ColumnElement, plan: HardMatchPlan, *, key_prefilter=True) -> ColumnElement[bool]:
+def hard_match_predicate(features: ColumnElement, plan: HardMatchPlan, *, key_prefilter=True, coverage=False) -> ColumnElement[bool]:
     """Apply to current validated projections BEFORE count/order/seek/limit.
 
     Explicit bindings only; neither model text nor client SQL enters this tree.
@@ -55,7 +55,7 @@ def hard_match_predicate(features: ColumnElement, plan: HardMatchPlan, *, key_pr
                 for option in choices)))
         relevant = and_(item["key"].astext == rule.key, *scope_conditions)
         unique = select(func.count()).select_from(element).where(relevant).scalar_subquery() == 1
-        conditions = [relevant, item["status"].astext == "explicit_allow",
+        conditions = [relevant, item["status"].astext.in_(("explicit_allow", "explicit_deny")) if coverage else item["status"].astext == "explicit_allow",
                       func.jsonb_typeof(item["qualifiers"]) == "object",
                       qualifiers.op("-")(literal(list(rule.allowed_qualifiers), type_=ARRAY(TEXT))) == literal({}, type_=JSONB),
                       or_(qualifiers["approval_required"].is_(None),
@@ -66,12 +66,17 @@ def hard_match_predicate(features: ColumnElement, plan: HardMatchPlan, *, key_pr
             conditions.append(or_(*(
                 qualifiers[key].is_(None) if option is None else qualifiers[key] == literal(option, type_=JSONB)
                 for option in choices)))
-        if rule.qualifier_min_count is not None:
+        if rule.qualifier_min_count is not None and not coverage:
             raw_count = qualifiers["max_count"]
             count = case((and_(func.jsonb_typeof(raw_count) == "number",
                               raw_count.astext.op("~")(r"^([1-9]|10)$")), cast(raw_count.astext, Numeric)), else_=None)
             conditions.append(or_(raw_count.is_(None), count >= rule.qualifier_min_count))
         for test in rule.tests:
+            # Coverage asks whether the required fact is known, independently
+            # of whether its value matches. Keep economic units/currency: a
+            # monthly rent never establishes nightly price coverage.
+            if coverage and test.field not in {"unit", "currency", "period"}:
+                continue
             raw = value[test.field]
             if test.operator == "eq":
                 conditions.append(raw.is_(None) if test.value is None else raw == literal(test.value, type_=JSONB))

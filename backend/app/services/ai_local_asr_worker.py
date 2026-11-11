@@ -23,8 +23,15 @@ def main():
                          num_workers=1, local_files_only=True)
     segments, _ = model.transcribe(samples, beam_size=5, vad_filter=True, condition_on_previous_text=False,
                                    without_timestamps=True, max_new_tokens=96, temperature=0.0)
-    transcript = " ".join(segment.text.strip() for segment in segments).strip()
-    if not 1 <= len(transcript) <= 160:
+    parts = []
+    for segment in segments:
+        # A token-bound truncation must not silently drop the last condition
+        # of a composite request. Reject before intent/provider work instead.
+        if len(segment.tokens) >= 96:
+            raise ValueError("VOICE_TRANSCRIPT_TRUNCATED")
+        parts.append(segment.text.strip())
+    transcript = " ".join(parts).strip()
+    if not 1 <= len(transcript) <= 2000:
         raise ValueError("VOICE_TRANSCRIPT_INVALID")
     sys.stdout.write(json.dumps(transcript, ensure_ascii=True))
 
