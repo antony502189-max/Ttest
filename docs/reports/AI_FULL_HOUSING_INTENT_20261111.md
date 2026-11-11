@@ -25,3 +25,6 @@ No new deployment or paid call has occurred at this checkpoint. Primary remains0
 Next: exact-source CI/build, actual-image offline ASR/composite/data checks, then authorized staged rollout and real provider-backed text/voice, individual refinements, map/reload and design comparison on the site. Source readiness, test validation and actual release must be recorded separately.
 
 S4.2 saved-search creation after registration and S4.3 notifications remain mandatory and OPEN, alongside party/free-place/date coverage, broader language/human ASR, standing quality, provider/account/privacy, p95/capacity/ISSUE-004 and full-release gates. None of S0–S7 or A1–A12 is declared fully complete by this increment.
+
+## 12 November: explicit extension and candidate verification
+Owner explicitly approved extending the same cumulative50/$1 spending window until2026-11-12T20:59:59Z. Existing attempts/binding/journal must be retained. Only the full-housing scope gains this explicit date; old approval scopes keep their prior expiry. Focused extension/journal/expiry tests24PASS. PR415 f06383a2 has13SUCCESS/2conditionalSKIP; full local unit1930PASS/16skip. Candidate imagee2b4012ab164154b6e16def27a0c30667d13d36f31443f2507170a44d2c8ef51 built from exact source; four actual-image offline ASR samples PASS4.042–6.25s/provider0. No new paid call or deployment yet at this checkpoint.

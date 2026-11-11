@@ -106,6 +106,41 @@ def test_invitation_scope_cannot_expand_existing_cap(tmp_path, monkeypatch, fiel
         entry.approved()
 
 
+def test_explicit_housing_extension_keeps_lifetime_journal_and_new_expiry(tmp_path, monkeypatch):
+    from datetime import UTC, datetime, timedelta
+
+    from pilot import entry
+
+    monkeypatch.setattr(entry, "CONTROL", tmp_path)
+    artifact = {"binding": BINDING, "owner_approved": True, "max_calls": 50,
+        "max_micro_usd": 1_000_000, "scope": "public-nonpersonal-housing-criteria.v1",
+        "expires_at": "2026-11-12T20:59:59Z"}
+    (tmp_path / "approval.json").write_text(json.dumps(artifact))
+
+    class Clock(datetime):
+        instant = entry.HOUSING_DEMO_END - timedelta(seconds=1)
+        @classmethod
+        def now(cls, tz=None):
+            assert tz is UTC
+            return cls.instant
+
+    monkeypatch.setattr(entry, "datetime", Clock)
+    budget = PilotBudget(tmp_path / "provider.sqlite3", initialize=True)
+    budget.dispatch_guard = entry.require_approval
+    context = ATTEMPT.set("authorized-housing-extension")
+    try:
+        budget.reserve()
+        before = budget.summary()
+        assert before["attempts"] == 1 and entry.approved()
+        Clock.instant = entry.HOUSING_DEMO_END
+        assert not entry.approved()
+        with pytest.raises(ProviderFailure, match="APPROVAL_REQUIRED"):
+            budget.reserve()
+        assert PilotBudget(tmp_path / "provider.sqlite3").summary() == before
+    finally:
+        ATTEMPT.reset(context)
+
+
 @pytest.mark.asyncio
 async def test_external_process_revokes_after_preflight_before_reserve(tmp_path, monkeypatch):
     from pilot import entry
