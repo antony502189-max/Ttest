@@ -1,0 +1,760 @@
+[
+  {
+    "width": 390,
+    "controls": [
+      {
+        "key": "BUTTON:Vivienda — HABITACIONES LARGA ESTANCIA",
+        "width": 163.55615234375,
+        "height": 217.48492431640625,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "12.64px",
+          "fontWeight": "400",
+          "lineHeight": "18.96px",
+          "color": "rgb(37, 42, 43)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "padding": "32px 7.2px 21.6px",
+          "border": "2px solid rgb(116, 185, 0)",
+          "borderRadius": "16.8px",
+          "boxShadow": "rgba(0, 0, 0, 0.16) 0px 3.2px 10.4px 0px"
+        }
+      },
+      {
+        "key": "BUTTON:Turismo — HABITACIONES TURÍSTICAS",
+        "width": 163.57154846191406,
+        "height": 217.48492431640625,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "12.64px",
+          "fontWeight": "400",
+          "lineHeight": "18.96px",
+          "color": "rgb(37, 42, 43)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "padding": "32px 7.2px 21.6px",
+          "border": "2px solid rgb(198, 0, 131)",
+          "borderRadius": "16.8px",
+          "boxShadow": "rgba(0, 0, 0, 0.16) 0px 3.2px 10.4px 0px"
+        }
+      },
+      {
+        "key": "BUTTON:¿Quién vivirá? Para quién: cualquiera",
+        "width": 367.625,
+        "height": 71.1875,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "15.04px",
+          "fontWeight": "400",
+          "lineHeight": "22.56px",
+          "color": "rgb(37, 42, 43)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "padding": "8.8px 12px",
+          "border": "1px solid rgb(207, 210, 205)",
+          "borderRadius": "0px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Seleccionar ubicación actual",
+        "width": 367.625,
+        "height": 48,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "12.16px",
+          "fontWeight": "400",
+          "lineHeight": "18.24px",
+          "color": "rgb(37, 42, 43)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "padding": "0px 12px",
+          "border": "1px solid rgb(207, 210, 205)",
+          "borderRadius": "0px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Buscar",
+        "width": 367.625,
+        "height": 51.1875,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "13.44px",
+          "fontWeight": "800",
+          "lineHeight": "20.16px",
+          "color": "rgb(20, 20, 20)",
+          "backgroundColor": "rgb(210, 255, 63)",
+          "padding": "11.2px 16px",
+          "border": "0px none rgb(20, 20, 20)",
+          "borderRadius": "0px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Publicar anuncio",
+        "width": 367.625,
+        "height": 48,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "12.16px",
+          "fontWeight": "750",
+          "lineHeight": "18.24px",
+          "color": "rgb(85, 112, 0)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "padding": "0px",
+          "border": "1px solid rgb(112, 137, 0)",
+          "borderRadius": "0px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Pulsa aquí para publicar y pagar",
+        "width": 349.25,
+        "height": 48,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "13.28px",
+          "fontWeight": "750",
+          "lineHeight": "19.92px",
+          "color": "rgb(255, 255, 255)",
+          "backgroundColor": "rgb(48, 78, 12)",
+          "padding": "9.6px 13.6px",
+          "border": "0px none rgb(255, 255, 255)",
+          "borderRadius": "9.6px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Espacio publicitarioPUBLICIDAD30 € / 30 días",
+        "width": 373.625,
+        "height": 75.1875,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "15.68px",
+          "fontWeight": "400",
+          "lineHeight": "23.52px",
+          "color": "rgb(28, 38, 29)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "padding": "9.6px 8.8px",
+          "border": "1px solid rgb(220, 224, 219)",
+          "borderRadius": "12.48px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Espacio publicitarioPUBLICIDAD30 € / 30 días",
+        "width": 373.625,
+        "height": 75.1875,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "15.68px",
+          "fontWeight": "400",
+          "lineHeight": "23.52px",
+          "color": "rgb(28, 38, 29)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "padding": "9.6px 8.8px",
+          "border": "1px solid rgb(220, 224, 219)",
+          "borderRadius": "12.48px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Espacio publicitarioPUBLICIDAD30 € / 30 días",
+        "width": 373.625,
+        "height": 75.1875,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "15.68px",
+          "fontWeight": "400",
+          "lineHeight": "23.52px",
+          "color": "rgb(28, 38, 29)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "padding": "9.6px 8.8px",
+          "border": "1px solid rgb(220, 224, 219)",
+          "borderRadius": "12.48px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Espacio publicitarioPUBLICIDAD30 € / 30 días",
+        "width": 373.625,
+        "height": 75.1875,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "15.68px",
+          "fontWeight": "400",
+          "lineHeight": "23.52px",
+          "color": "rgb(28, 38, 29)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "padding": "9.6px 8.8px",
+          "border": "1px solid rgb(220, 224, 219)",
+          "borderRadius": "12.48px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Espacio publicitarioPUBLICIDAD30 € / 30 días",
+        "width": 373.625,
+        "height": 75.1875,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "15.68px",
+          "fontWeight": "400",
+          "lineHeight": "23.52px",
+          "color": "rgb(28, 38, 29)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "padding": "9.6px 8.8px",
+          "border": "1px solid rgb(220, 224, 219)",
+          "borderRadius": "12.48px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Espacio publicitarioPUBLICIDAD30 € / 30 días",
+        "width": 373.625,
+        "height": 75.1875,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "15.68px",
+          "fontWeight": "400",
+          "lineHeight": "23.52px",
+          "color": "rgb(28, 38, 29)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "padding": "9.6px 8.8px",
+          "border": "1px solid rgb(220, 224, 219)",
+          "borderRadius": "12.48px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Espacio publicitarioPUBLICIDAD30 € / 30 días",
+        "width": 373.625,
+        "height": 75.1875,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "15.68px",
+          "fontWeight": "400",
+          "lineHeight": "23.52px",
+          "color": "rgb(28, 38, 29)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "padding": "9.6px 8.8px",
+          "border": "1px solid rgb(220, 224, 219)",
+          "borderRadius": "12.48px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Inicio",
+        "width": 97.5,
+        "height": 68.59375,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "8.96px",
+          "fontWeight": "400",
+          "lineHeight": "13.44px",
+          "color": "rgb(85, 112, 0)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "padding": "4px 1.6px",
+          "border": "0px none rgb(85, 112, 0)",
+          "borderRadius": "0px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Búsquedas",
+        "width": 97.5,
+        "height": 68.59375,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "8.96px",
+          "fontWeight": "400",
+          "lineHeight": "13.44px",
+          "color": "rgb(98, 106, 107)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "padding": "4px 1.6px",
+          "border": "0px none rgb(98, 106, 107)",
+          "borderRadius": "0px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Favoritos",
+        "width": 97.5,
+        "height": 68.59375,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "8.96px",
+          "fontWeight": "400",
+          "lineHeight": "13.44px",
+          "color": "rgb(98, 106, 107)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "padding": "4px 1.6px",
+          "border": "0px none rgb(98, 106, 107)",
+          "borderRadius": "0px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Menú",
+        "width": 97.5,
+        "height": 68.59375,
+        "style": {
+          "fontFamily": "Arial, Helvetica, sans-serif",
+          "fontSize": "8.96px",
+          "fontWeight": "400",
+          "lineHeight": "13.44px",
+          "color": "rgb(98, 106, 107)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "padding": "4px 1.6px",
+          "border": "0px none rgb(98, 106, 107)",
+          "borderRadius": "0px",
+          "boxShadow": "none"
+        }
+      }
+    ],
+    "images": []
+  },
+  {
+    "width": 1440,
+    "controls": [
+      {
+        "key": "BUTTON:Vivienda, Larga estancia",
+        "width": 446.2050476074219,
+        "height": 78.800048828125,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "14.4px",
+          "fontWeight": "650",
+          "lineHeight": "20.5714px",
+          "color": "rgb(95, 101, 93)",
+          "backgroundColor": "rgb(241, 242, 239)",
+          "padding": "12px 16px",
+          "border": "1px solid rgb(210, 213, 204)",
+          "borderRadius": "12px",
+          "boxShadow": "rgba(35, 43, 22, 0.08) 0px 2.88px 6.72px 0px"
+        }
+      },
+      {
+        "key": "BUTTON:Turismo, Corta estancia",
+        "width": 446.205078125,
+        "height": 78.800048828125,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "14.4px",
+          "fontWeight": "650",
+          "lineHeight": "20.5714px",
+          "color": "rgb(95, 101, 93)",
+          "backgroundColor": "rgb(241, 242, 239)",
+          "padding": "12px 16px",
+          "border": "1px solid rgb(210, 213, 204)",
+          "borderRadius": "12px",
+          "boxShadow": "rgba(35, 43, 22, 0.1) 0px 3.2px 8.8px 0px"
+        }
+      },
+      {
+        "key": "BUTTON:1 persona",
+        "width": 292.53125,
+        "height": 83.1875,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "12px",
+          "fontWeight": "690",
+          "lineHeight": "17.1429px",
+          "color": "rgb(64, 70, 64)",
+          "backgroundColor": "rgb(246, 247, 244)",
+          "padding": "8.8px 7.2px",
+          "border": "1px solid rgb(207, 211, 204)",
+          "borderRadius": "11.2px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:2 personas (pareja/amigos)",
+        "width": 292.546875,
+        "height": 83.1875,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "12px",
+          "fontWeight": "690",
+          "lineHeight": "17.1429px",
+          "color": "rgb(64, 70, 64)",
+          "backgroundColor": "rgb(246, 247, 244)",
+          "padding": "8.8px 7.2px",
+          "border": "1px solid rgb(207, 211, 204)",
+          "borderRadius": "11.2px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Solo hombre",
+        "width": 292.53125,
+        "height": 83.1875,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "12px",
+          "fontWeight": "690",
+          "lineHeight": "17.1429px",
+          "color": "rgb(64, 70, 64)",
+          "backgroundColor": "rgb(246, 247, 244)",
+          "padding": "8.8px 7.2px",
+          "border": "1px solid rgb(207, 211, 204)",
+          "borderRadius": "11.2px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Solo mujer",
+        "width": 292.53125,
+        "height": 83.1875,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "12px",
+          "fontWeight": "690",
+          "lineHeight": "17.1429px",
+          "color": "rgb(64, 70, 64)",
+          "backgroundColor": "rgb(246, 247, 244)",
+          "padding": "8.8px 7.2px",
+          "border": "1px solid rgb(207, 211, 204)",
+          "borderRadius": "11.2px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Con niños",
+        "width": 292.546875,
+        "height": 83.1875,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "12px",
+          "fontWeight": "690",
+          "lineHeight": "17.1429px",
+          "color": "rgb(64, 70, 64)",
+          "backgroundColor": "rgb(246, 247, 244)",
+          "padding": "8.8px 7.2px",
+          "border": "1px solid rgb(207, 211, 204)",
+          "borderRadius": "11.2px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Sin restricción",
+        "width": 292.53125,
+        "height": 83.1875,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "12px",
+          "fontWeight": "690",
+          "lineHeight": "17.1429px",
+          "color": "rgb(64, 70, 64)",
+          "backgroundColor": "rgb(246, 247, 244)",
+          "padding": "8.8px 7.2px",
+          "border": "1px solid rgb(207, 211, 204)",
+          "borderRadius": "11.2px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Con mascotas",
+        "width": 442.40625,
+        "height": 61.984375,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "12px",
+          "fontWeight": "690",
+          "lineHeight": "17.1429px",
+          "color": "rgb(64, 70, 64)",
+          "backgroundColor": "rgb(246, 247, 244)",
+          "padding": "8.8px 7.2px",
+          "border": "1px solid rgb(207, 211, 204)",
+          "borderRadius": "11.2px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Sin mascotas",
+        "width": 442.40625,
+        "height": 61.984375,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "12px",
+          "fontWeight": "690",
+          "lineHeight": "17.1429px",
+          "color": "rgb(64, 70, 64)",
+          "backgroundColor": "rgb(246, 247, 244)",
+          "padding": "8.8px 7.2px",
+          "border": "1px solid rgb(207, 211, 204)",
+          "borderRadius": "11.2px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Para fumadores",
+        "width": 442.40625,
+        "height": 51.1875,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "12px",
+          "fontWeight": "690",
+          "lineHeight": "17.1429px",
+          "color": "rgb(64, 70, 64)",
+          "backgroundColor": "rgb(246, 247, 244)",
+          "padding": "8.8px 7.2px",
+          "border": "1px solid rgb(207, 211, 204)",
+          "borderRadius": "11.2px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:No fumadores",
+        "width": 442.40625,
+        "height": 51.1875,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "12px",
+          "fontWeight": "690",
+          "lineHeight": "17.1429px",
+          "color": "rgb(64, 70, 64)",
+          "backgroundColor": "rgb(246, 247, 244)",
+          "padding": "8.8px 7.2px",
+          "border": "1px solid rgb(207, 211, 204)",
+          "borderRadius": "11.2px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "INPUT:null",
+        "width": 772.078125,
+        "height": 32,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "14px",
+          "fontWeight": "400",
+          "lineHeight": "20px",
+          "color": "rgb(37, 42, 43)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "padding": "4px 10px",
+          "border": "1px solid rgb(174, 179, 176)",
+          "borderRadius": "6px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Abrir selección de ubicación. Tenerife. Zonas",
+        "width": 79.96875,
+        "height": 40,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "12.8px",
+          "fontWeight": "500",
+          "lineHeight": "18.2857px",
+          "color": "rgb(0, 107, 114)",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "padding": "0px 10.4px",
+          "border": "1px solid rgba(0, 0, 0, 0)",
+          "borderRadius": "4px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Ver habitaciones",
+        "width": 918,
+        "height": 57.59375,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "16px",
+          "fontWeight": "760",
+          "lineHeight": "22.8571px",
+          "color": "rgb(138, 144, 138)",
+          "backgroundColor": "rgb(230, 232, 228)",
+          "padding": "0px 10px 0px 8px",
+          "border": "1px solid rgb(210, 213, 208)",
+          "borderRadius": "6px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Pulsa aquí para publicar y pagar",
+        "width": 1004,
+        "height": 52.796875,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "16px",
+          "fontWeight": "750",
+          "lineHeight": "24px",
+          "color": "rgb(255, 255, 255)",
+          "backgroundColor": "rgb(48, 78, 12)",
+          "padding": "9.6px 13.6px",
+          "border": "0px none rgb(255, 255, 255)",
+          "borderRadius": "9.6px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Espacio publicitarioPUBLICIDAD30 € / 30 días",
+        "width": 513.40625,
+        "height": 88,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "15.68px",
+          "fontWeight": "400",
+          "lineHeight": "23.52px",
+          "color": "rgb(28, 38, 29)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "padding": "11.2px 14.4px",
+          "border": "1px solid rgb(220, 224, 219)",
+          "borderRadius": "12.48px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Espacio publicitarioPUBLICIDAD30 € / 30 días",
+        "width": 513.40625,
+        "height": 88,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "15.68px",
+          "fontWeight": "400",
+          "lineHeight": "23.52px",
+          "color": "rgb(28, 38, 29)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "padding": "11.2px 14.4px",
+          "border": "1px solid rgb(220, 224, 219)",
+          "borderRadius": "12.48px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Espacio publicitarioPUBLICIDAD30 € / 30 días",
+        "width": 513.40625,
+        "height": 88,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "15.68px",
+          "fontWeight": "400",
+          "lineHeight": "23.52px",
+          "color": "rgb(28, 38, 29)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "padding": "11.2px 14.4px",
+          "border": "1px solid rgb(220, 224, 219)",
+          "borderRadius": "12.48px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Espacio publicitarioPUBLICIDAD30 € / 30 días",
+        "width": 513.40625,
+        "height": 88,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "15.68px",
+          "fontWeight": "400",
+          "lineHeight": "23.52px",
+          "color": "rgb(28, 38, 29)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "padding": "11.2px 14.4px",
+          "border": "1px solid rgb(220, 224, 219)",
+          "borderRadius": "12.48px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Espacio publicitarioPUBLICIDAD30 € / 30 días",
+        "width": 513.40625,
+        "height": 88,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "15.68px",
+          "fontWeight": "400",
+          "lineHeight": "23.52px",
+          "color": "rgb(28, 38, 29)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "padding": "11.2px 14.4px",
+          "border": "1px solid rgb(220, 224, 219)",
+          "borderRadius": "12.48px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Espacio publicitarioPUBLICIDAD30 € / 30 días",
+        "width": 513.40625,
+        "height": 88,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "15.68px",
+          "fontWeight": "400",
+          "lineHeight": "23.52px",
+          "color": "rgb(28, 38, 29)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "padding": "11.2px 14.4px",
+          "border": "1px solid rgb(220, 224, 219)",
+          "borderRadius": "12.48px",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "key": "BUTTON:Espacio publicitarioPUBLICIDAD30 € / 30 días",
+        "width": 513.40625,
+        "height": 88,
+        "style": {
+          "fontFamily": "\"Geist Variable\", system-ui, sans-serif",
+          "fontSize": "15.68px",
+          "fontWeight": "400",
+          "lineHeight": "23.52px",
+          "color": "rgb(28, 38, 29)",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "padding": "11.2px 14.4px",
+          "border": "1px solid rgb(220, 224, 219)",
+          "borderRadius": "12.48px",
+          "boxShadow": "none"
+        }
+      }
+    ],
+    "images": [
+      {
+        "alt": "Habitación luminosa con cama, escritorio y ventana",
+        "source": "6314aebff7679ef20b21b4fc543ce04502b8289ec0f0365125346044126a7db0",
+        "width": 1440,
+        "height": 543
+      },
+      {
+        "alt": "",
+        "source": "89b0f803b2821c5f850883df49a3ea17e0fefc061f2b259023f57e46c5f9730e",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "14d42a6e4ded5ca00a654abb7c03ca6405aed47afb462317d6d1e1b9aa925561",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "999e670d51ace2f2a9ad775004f5138fd967cdbeb7028b5f79550d058bea29a6",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "e9a33978399d9e0c626411f17868d3b44e2f708f7723451c00d4df879fd754e5",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "ffc2e5b8ae1c7f5203f7ff33d5ba3d24bf1b55da070668140ff73188c1d2b509",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "f2a5bb6dfecb62adc031a50ffc77620769fe22e47dd77b15e1305b7efd5e21e3",
+        "width": 42.390625,
+        "height": 42.390625
+      },
+      {
+        "alt": "",
+        "source": "48304d81b51cddbda3e27d0ace3d2e18045b3dd8641f09ef0fb50579729ffcea",
+        "width": 42.390625,
+        "height": 42.390625
+      }
+    ]
+  }
+]

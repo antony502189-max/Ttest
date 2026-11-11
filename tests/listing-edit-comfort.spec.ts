@@ -354,6 +354,12 @@ test('four rapid photo rotations collapse to 360 degrees without re-encoding', a
 
   const image = photos.nth(before)
   const rotate = page.getByRole('button', { name: `Girar foto ${before + 1} 90 grados` })
+  // IndexedDB previews resolve asynchronously after the card is inserted.
+  // Capture the uploaded image, rather than its temporary loading placeholder.
+  await expect.poll(() => image.evaluate((node) => ({
+    width: (node as HTMLImageElement).naturalWidth,
+    height: (node as HTMLImageElement).naturalHeight,
+  }))).toEqual({ width: 2, height: 1 })
   const beforeSrc = await image.getAttribute('src')
   expect(beforeSrc).toBeTruthy()
 

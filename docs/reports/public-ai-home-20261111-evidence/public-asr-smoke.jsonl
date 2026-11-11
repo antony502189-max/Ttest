@@ -1,0 +1,5 @@
+{"sample": "english.wav", "seconds": 5.833, "matched": true}
+{"sample": "russian.wav", "seconds": 5.276, "matched": true}
+{"sample": "russian-700-irina.wav", "seconds": 4.71, "matched": true}
+{"sample": "russian-700-pavel.wav", "seconds": 4.241, "matched": true}
+{"all_passed": true, "samples": [{"sample": "english.wav", "seconds": 5.833, "matched": true}, {"sample": "russian.wav", "seconds": 5.276, "matched": true}, {"sample": "russian-700-irina.wav", "seconds": 4.71, "matched": true}, {"sample": "russian-700-pavel.wav", "seconds": 4.241, "matched": true}]}

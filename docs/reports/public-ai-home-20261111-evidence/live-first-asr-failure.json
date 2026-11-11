@@ -1,0 +1,26 @@
+{
+  "main": "061474ec818a2da0acf24e6cf7a26469026404eb",
+  "pilot": "90b68f365ec7325c5df724a3ab91bbd8d74a36e3",
+  "observedAt": "2026-11-11T16:19:34.755Z",
+  "requests": [
+    {
+      "kind": "voice",
+      "key": "b24269fb-33e4-418a-85b6-265bcbe81d09",
+      "session": "4a1462e0-db1b-4b5d-a352-c0c3df580c9e",
+      "version": 0
+    }
+  ],
+  "results": [],
+  "errors": [],
+  "before": {
+    "attempts": 14,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "checks": "FAIL",
+  "failure": "{\"operation\":{\"idempotency_key\":\"b24269fb-33e4-418a-85b6-265bcbe81d09\",\"status\":\"failed\",\"madrid_date\":\"2026-11-11\",\"fence\":1,\"lease_until\":\"2026-11-11T16:21:04.155825Z\",\"recover_after\":\"2026-11-11T16:21:34.155825Z\",\"receipt\":null,\"failure_code\":\"ASR_FAILURE\",\"used\":0,\"reserved\":0,\"limit\":3,\"remaining\":3,\"reset_at\":\"2026-11-11T23:00:00Z\"},\"cards\":null,\"replay\":false,\"result_unavailable\":false,\"clarification\":null,\"cards_error\":null}\n+ actual - expected\n\n+ 'failed'\n- 'succeeded'\n"
+}

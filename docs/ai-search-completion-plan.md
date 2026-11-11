@@ -1,8 +1,38 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.29**, 11 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.33**, 11 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+**Сессия3.33 / S6,S4.1 — публичная главная выпущена и проверена.** Обычный сайт https://app.112233.es/#/ теперь содержит voice-first AI panel и текстовый вход без приглашений. Штатный manual runner выпустил main061474ec с backup/rollback,0079, data_maintenance=skipped; build-info/metadata success подтверждены. Application tree ba4fd18f равен passing PR413 source90b68f36 (13SUCCESS/2conditionalSKIP). Повторные main Full audit FAILED сохранены (один loading-race test, затем Ubuntu DNS); ручная bounded-beta маршрутизация3.32 не объявляется прохождением этих gates.
+
+Actual Chrome без credentials: synthetic voice700→12; typed400→3; map200; reload390 восстановил result без новой paid операции.14313ms Stop→conditions — один sample, неp95. ПервыеASR_FAILURE иINTENT_UNSUPPORTED сохранены, paid0; успешный synthetic fixture содержит1s silence для готовности записи, изменение harness не выдано за общий ASR fix. Отдельно четыре actual-image offline EN/RU samples PASS/4.241–5.833s/provider0. PG used2/reserved0 и provider tickets15,16 независимо совпали; lifetime14→16/50, reload16→16. Оставшиеся34 на этот snapshot не гарантируются будущим пользователям.50/$1/binding/expiry11.11 23:59:59МСК/13IDs сохранены, без reset/seed.
+
+Прежние18mobile/23desktop controls: размеры и computed styles совпали,0изменений; новый блок расположен по reference между mode cards и manual filters. [Отчёт](reports/AI_PUBLIC_HOME_20261111.md), [release proof](reports/public-ai-home-20261111-evidence/primary-release-proof.json), [proof hashes](reports/public-ai-home-20261111-evidence/SHA256.json). Test/CI repair оформлен в [PR414](https://github.com/antony502189-max/Ttest/pull/414); его текущие проверки/слияние фиксируются GitHub отдельно от application release061474ec. Он не меняет src/backend/deploy/Docker/package application files.
+
+**Следующее действие3.33:** наблюдать bounded public beta в уже разрешённых рамках; продолжить обязательные S2.1 standing quality/freshness, S4.1 human/cross-browser/accent acceptance иS4.2–4.4 saved/notification flow, provider/privacy/performance/full release gates. Устранённый маршрут публикации кнопки не заменяет эти задачи. Послеexpiry новые dispatch блокируются; без нового разрешения не расширять lifetime spend/cohort/grammar. Полное завершение AI Search иS0–S7 не объявлено.
+
+**Историческая сессия3.32:**
+
+**Сессия3.32 / S6 — разрешённая ручная bounded-beta выкладка.** Владелец повторил требование закончить и развернуть, затем запросил фактический деплой. Принято решение выпустить уже проверенное приложение061474ec штатным ручным runner с backup/rollback: его tree ba4fd18f идентичен90b68f36, на котором13PR workflows SUCCESS/2conditionalSKIP; public home4, pilot26, unit73 и194actual backend hashes проверены. Main Full audit attempt1:740browserPASS/1SKIP/1false loading-precondition failure; focused corrected test10PASS. Attempt2 не выполнил browser suite из-за Ubuntu mirror DNS. Эти результаты не считаются PASS и main/full-release gates остаются открыты. Исправление CI/test/documentation продолжает PR414; оно не меняет UI/API приложения. Это обоснованное изменение маршрута ограниченной беты по прямому приоритету владельца; не сертификация полного продукта и не снижение критериев выхода S0–S7.
+
+**Следующее действие3.32:** дождаться фактического результата штатного deployment, проверить main build-info, health, anonymous voice/text/map/reload и сохранение прежних controls styles; зафиксировать реальные доказательства. Завершить PR414 CI и слияние отдельно, не подменяя actual release source061474ec новым CI-only head. Лимиты50/$1, expiry11.11 23:59:59МСК и13IDs сохранены.
+
+**Историческая сессия3.31:**
+
+**Сессия3.31 / S6 — устранение DNS blocker CI.** PR414 first runs failed before browser tests: Ubuntu package downloads cannot resolve azure.archive.ubuntu.com; logs retained. Fresh-runner retries reached the same installation bottleneck. Added CI-only canonical Ubuntu archive normalization before dependency installation in the six required workflows. All Playwright dependencies, signature keys, browser/test commands and assertions remain mandatory. Legacy/deb822/mirror-list fixtures, unchanged other repositories, preserved Signed-By and idempotence checked. Application UI/API code unchanged; runtime input policy still counts CI/scripts, so the new projection is independently recorded rather than inheriting old full-runtime evidence.
+
+**Следующее действие3.31:** obtain successful CI with the mirror correction, merge the pending follow-up if necessary for exact-main gate, then finish official primary rollout and live voice/text/map/reload/design comparison. Current primary release remains1292c680 until a gated rollout actually succeeds. Existing public AI backend remains90b68f36/14of50 at15:32UTC; spending/expiry/cohort unchanged. Source readiness, CI and actual release remain separate.
+
+**Историческая сессия3.30:**
+
+**Сессия3.30 / S6,S4.1 — main merged, public backend active, primary rollout pending.** PR413 merged into main061474ec; exact PR head90b68f36 had13SUCCESS/2conditionalSKIP, identical tree ba4fd18f. Public guest backend90b68f36 activated with backup, same PG/Redis/signing/journal,14→14/50, migrations/seed0. 194 running backend files and local ASR model hash matched; catalog13/ready. No-auth capabilities/status200; auth/admin/metrics404. Main candidate images built, frontend build-info061474ec, migrations head0079. Fresh authenticated encrypted MinIO backup821546016bytes created.
+
+**Блокер3.30:** main Full audit attempt1 failed one existing photo-rotation test (740browser PASS/1SKIP). Test captured the temporary loading SVG before IndexedDB resolved the actual blob; observed expected placeholder vs received blob. Added actual-image natural-size wait before snapshot, preserving all rotation assertions; focused10repeats PASS/36.1s. No runtime files changed by this fix. Same061 main audit rerun is active; automatic monitor only starts authorized official deployment after all exact-main required checks succeed. Primary site remains1292c680 until that gate passes. Failed attempt retained, not reported PASS.
+
+**Следующее действие3.30:** finish exact-main rerun, official deployment/backup/migration/smoke and live no-auth voice/text/map/reload + comparison of pre-existing controls at390/1440. Then record actual release evidence and merge this test/documentation follow-up. Broader S0–S7 gates remain open; budget/expiry/13 IDs unchanged. [Report](reports/AI_PUBLIC_HOME_20261111.md).
+
+**Историческая сессия3.29:**
+
 **Сессия 3.29 / S6,S4.1 — публичная главная, выпуск готовится.** Прямое новое указание владельца: разместить голосовую кнопку на главной по screenshot, остальной дизайн сохранить, слить незакоммиченные обновления в main и выпустить. Это явно заменяет прежнее ограничение аудитории приглашениями. Подключается существующий AI dialog к изолированному guest backend через /ai-pilot/api/v1; обычный API и фильтры сохранены. Публичный scope имеет прежний общий lifetime 50/$1, тот же binding/journal и срок 11.11 23:59:59 МСК; расширения затрат/критериев/13 IDs нет. На 06:00 UTC live14/50, каталог ready. Source readiness, main merge и live rollout фиксируются отдельно. [Отчёт](reports/AI_PUBLIC_HOME_20261111.md).
 
 **Следующее действие3.29:** завершить exact-head CI, затем разрешённое слияние PR413 и проверяемый production rollout с backup и live desktop/mobile/voice проверкой. S2.1/provider/privacy/performance/saved/delivery/full-release gates остаются открытыми. Полный AI Search этим ограниченным публичным beta entry не объявляется готовым.
@@ -465,3 +495,9 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 
 ### Изменение маршрута 3.29 — 11.11.2026
 Прямое указание владельца переводит вход с приглашений на публичную главную. S6/S4.1 приоритет: доступная voice/text кнопка, без изменений прочего дизайна. Сохраняются lifetime budget, срок и positive grammar; широкий продукт и обязательные gates не исключаются.
+
+### Версия3.30 — release verification
+Retained failed main audit; exact loading precondition added to existing rotation test. Runtime code and acceptance criteria unchanged. Public backend deployment and primary frontend deployment remain separate facts.
+
+### Изменение маршрута3.32
+Повторное требование владельца о фактической выкладке. Причина: идентичное passing PR application tree уже проверено, последующий CI блокируется установленным infra DNS и отдельным test loading race. Влияние: bounded public beta допускается через audited manual runner/backup/rollback/live verification; failed/main/full release gates сохраняются открытыми, не объявляются пройденными.

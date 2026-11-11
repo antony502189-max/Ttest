@@ -1,0 +1,89 @@
+{
+  "main": "061474ec818a2da0acf24e6cf7a26469026404eb",
+  "pilot": "90b68f365ec7325c5df724a3ab91bbd8d74a36e3",
+  "observedAt": "2026-11-11T16:30:17.619Z",
+  "requests": [
+    {
+      "kind": "voice",
+      "key": "f7a2b49e-e1da-4939-8c83-593475e431be",
+      "session": "f6d93046-ad37-438b-9817-d8b4be5e5e61",
+      "version": 0
+    },
+    {
+      "kind": "text",
+      "key": "efedfc71-64d3-449f-9940-82f55dcfe881",
+      "session": "f6d93046-ad37-438b-9817-d8b4be5e5e61",
+      "version": 1
+    }
+  ],
+  "results": [
+    {
+      "ref": "f69434ec-423f-4d32-a1d6-279949d2ca24",
+      "budget": "700",
+      "count": 12,
+      "version": 1,
+      "remaining": 2
+    },
+    {
+      "ref": "e93c0ea5-f43b-4376-ad4a-80498abd7e05",
+      "budget": "400",
+      "count": 3,
+      "version": 2,
+      "remaining": 1
+    }
+  ],
+  "errors": [],
+  "syntheticLeadInMs": 1000,
+  "before": {
+    "attempts": 14,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "capture": {
+    "bytes": 192640,
+    "rms": 0.10681290575148579,
+    "peak": 0.99609375
+  },
+  "voiceMs": 14313,
+  "mapStatus": 200,
+  "after": {
+    "attempts": 16,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "guestBeforeReload": {
+    "madrid_date": "2026-11-11",
+    "reset_at": "2026-11-11T23:00:00Z",
+    "limit": 3,
+    "used": 2,
+    "reserved": 0,
+    "remaining": 1
+  },
+  "afterReload": {
+    "attempts": 16,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "guestAfterReload": {
+    "madrid_date": "2026-11-11",
+    "reset_at": "2026-11-11T23:00:00Z",
+    "limit": 3,
+    "used": 2,
+    "reserved": 0,
+    "remaining": 1
+  },
+  "metricsStatus": 404,
+  "checks": "PASS"
+}

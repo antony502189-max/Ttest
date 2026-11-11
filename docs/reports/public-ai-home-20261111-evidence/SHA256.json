@@ -1,0 +1,54 @@
+[
+  {
+    "file": "controls-after.json",
+    "sha256": "830863c0b4c37acda36a1e827614a7f95d3d6923f002da7ce4e274495b6661af"
+  },
+  {
+    "file": "controls-before.json",
+    "sha256": "b302bbe70951fa252372a3f7b0fe444efd58d647c59cf292890e17934c712525"
+  },
+  {
+    "file": "design-comparison.json",
+    "sha256": "117b4004f02c3e9559c5853ea52ac03ce75079e8690c0c80a4ce870f383fefee"
+  },
+  {
+    "file": "live-first-asr-failure.json",
+    "sha256": "423bda192c1975fd2e8971b3614d38072677b5249973f74581a64e6d437042e6"
+  },
+  {
+    "file": "live-proof.json",
+    "sha256": "42dedda2a5fbba94be6dabacd4416a1c1ee1dc3ce7e56b14a50abbb77d5acb6b"
+  },
+  {
+    "file": "live-second-intent-failure.json",
+    "sha256": "f7154ee61d001d610dbd85ba0b7eecd762b13c05655541901b62104590788f68"
+  },
+  {
+    "file": "main-deploy-info.txt",
+    "sha256": "9b0982c77b5434c25e5aaf182342d84c0f4d31701ed91abe4a85c02c8ba9fecb"
+  },
+  {
+    "file": "pilot-release-proof.json",
+    "sha256": "a93508aa70db308c460501d358e270b6d1cb712a1980b3348739f7213ed443b5"
+  },
+  {
+    "file": "primary-release-proof.json",
+    "sha256": "9d72c92c85d7727fcb47ef5eed246dfc9c350cf3e7f2110fcb110d208c823798"
+  },
+  {
+    "file": "public-asr-smoke.jsonl",
+    "sha256": "1800a3c22ca69d534e2e52ee330d1762938a3d2b9820f71aaa803592d61239c5"
+  },
+  {
+    "file": "public-ledger-proof.json",
+    "sha256": "99c6fa499bdf2a39f5e92b7a1f4620cb69fb913ab9562e7fea08f741aa068157"
+  },
+  {
+    "file": "published-1440.png",
+    "sha256": "f57dc8d21c2ef3b5ba0de1249aded5384599480da55188742c0ae0946d05d309"
+  },
+  {
+    "file": "published-390.png",
+    "sha256": "6c98e86292d7cfa55533162e60aa1c8ab30e6dc84f56367acc21bdeea537cd2b"
+  }
+]
