@@ -18,7 +18,7 @@ from app.repositories.ai_fact_snapshots import FactSnapshotReader
 from app.repositories.ai_query_proofs import QueryProofs
 from app.repositories.listings import point
 from app.schemas.ai_listing_facts import digest
-from app.services.ai_pisocompartido_price import prepare_price
+from app.services.ai_pisocompartido_housing import minimize_source, prepare_housing
 from demo.entry import pipeline
 from demo.seed_state import CARD_FIELDS, timestamp, validated_snapshot
 from pilot.catalog_health import CatalogHealth, cohort_hash
@@ -38,9 +38,17 @@ def receipt(original, incoming):
         raise ValueError("PILOT_REFRESH_RECEIPT_INVALID")
     if not isinstance(incoming["records"], list):
         raise TypeError("PILOT_REFRESH_RECEIPT_INVALID")
+    # Raw public source snippets exist only in the host-to-backend pipe. Store
+    # and hash only recognized evidence, never contacts or unrecognized prose.
+    import copy
+    incoming = copy.deepcopy(incoming)
+    for record in incoming["records"]:
+        payload = record["source"]["normalized_payload"]
+        if "housing_source" in payload:
+            payload["housing_evidence"] = minimize_source(payload.pop("housing_source"), record["source"]["source_url"])
     records = validated_snapshot(incoming) if incoming["records"] else []
     price_fields={'source_name','source_price_text','rental_mode','price_currency','price_period','price_is_from','price_amount'}
-    if any(set(r['source']['normalized_payload'])!=price_fields for r in records):
+    if any(set(r['source']['normalized_payload']) not in (price_fields, price_fields | {'housing_evidence'}) for r in records):
         raise ValueError('PILOT_REFRESH_SOURCE_FIELDS_INVALID')
     active = {(r["lid"], r["sid"]) for r in records}
     removed = []
@@ -151,7 +159,7 @@ async def refresh(factory, original, incoming, *, health, token=None, checkpoint
             reader = FactSnapshotReader(factory, max_payload_bytes=65536)
             proofs = QueryProofs(facts)
             for index, r in enumerate(records):
-                prepared = prepare_price(await reader.capture(r["sid"]))
+                prepared = prepare_housing(await reader.capture(r["sid"]))
                 job_id = await facts.observe(prepared.source)
                 await checkpoint("observe", index)
                 async with factory() as session:

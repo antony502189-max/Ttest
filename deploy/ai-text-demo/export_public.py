@@ -53,6 +53,10 @@ def snapshot_statement(cohort=None,limit=21):
     card += ",'published_at',coalesce(l.published_at,l.created_at)"
     source = ",".join(f"'{k}',s.{k}" for k in source_fields)
     normalized = ",".join(f"'{k}',s.normalized_payload->'{k}'" for k in price_fields)
+    # Existing thirteen IDs only. The refresh consumer minimizes these public
+    # source fields into recognized evidence before storage; no card defaults.
+    if cohort:
+        normalized += ",'housing_source',jsonb_build_object('city',s.normalized_payload->'city','title',s.normalized_payload->'title','description',s.normalized_payload->'description','html',s.raw_payload->'html')"
     statement = (f"WITH eligible AS ({eligible}) SELECT jsonb_build_object('snapshot_at',statement_timestamp(),"
         f"'records',jsonb_agg(jsonb_build_object('listing',jsonb_build_object({card}),"
         f"'source',jsonb_build_object({source},'normalized_payload',jsonb_build_object({normalized}))))) "

@@ -1,4 +1,9 @@
 import type { RentalMode } from '@/types'
+import provinces from '../data/spain-provinces.json' with { type: 'json' }
+import municipalities from '../data/spain-municipalities.json' with { type: 'json' }
+
+const provinceNames: Record<string, string> = provinces
+const municipalityNames: Record<string, string> = municipalities.municipalities
 
 type Criterion<T> = { strength: 'hard' | 'soft'; value: T }
 export type AICriteria = {
@@ -68,10 +73,13 @@ export function aiConditionRows(intent: AIIntent, t: Translate): ConditionRow[] 
       },
       geography: value => {
         const v = object(value, ['province_code'], ['municipality_code', 'zone_id'])
-        const parts = [`${t('Provincia INE')}: ${code(v.province_code, /^\d{2}$/)}`]
+        const province = provinceNames[code(v.province_code, /^\d{2}$/)]; check(province)
+        const parts = [province]
         if (v.municipality_code !== undefined) {
           const municipality = code(v.municipality_code, /^\d{5}$/); check(municipality.startsWith(String(v.province_code)))
-          parts.push(`${t('Municipio INE')}: ${municipality}`)
+          const name = municipalityNames[municipality]; check(name)
+          const [base, article] = name.split('/')[0].split(',').map(part => part.trim())
+          parts.unshift(article ? `${article} ${base}` : base)
         }
         if (v.zone_id !== undefined) { check(v.municipality_code !== undefined); parts.push(`${t('Código de zona')}: ${code(v.zone_id)}`) }
         return ['Ubicación', parts.join(' · ')]
@@ -109,7 +117,8 @@ export function aiConditionRows(intent: AIIntent, t: Translate): ConditionRow[] 
       terrace: value => ['Terraza', boolean(value, t)],
       amenities: value => {
         const codes = list(value, 100).map(v => code(v)); check(new Set(codes).size === codes.length)
-        return ['Códigos de servicios', codes.join(', ')]
+        const labels: Record<string, string> = { wifi: 'Wi-Fi', internet: 'Internet', lift: 'Ascensor', parking: 'Aparcamiento', air_conditioning: 'Aire acondicionado' }
+        return ['Servicios', codes.map(value => labels[value] ? t(labels[value]) : value).join(', ')]
       },
       dates: value => {
         const v = object(value, ['check_in', 'check_out']); const start = date(v.check_in), end = date(v.check_out); check(end > start)

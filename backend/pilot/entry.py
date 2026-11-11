@@ -13,9 +13,11 @@ from pydantic import SecretStr
 from sqlalchemy.engine import make_url
 
 from app.repositories.ai_verified_cards import SourceCoverageUnavailable
+from app.schemas.ai_search_intent import apply_patch
 from app.services.ai_closed_deepseek import _BudgetTransport
 from app.services.ai_decision_intent import DecisionDeepSeekIntent
 from app.services.ai_deepseek_intent import DeepSeekPolicy, ProviderFailure
+from app.services.ai_housing_input import HousingGate, canonical_patch, housing_patch, validate_housing_result
 from demo.entry import pipeline
 from pilot.budget import ATTEMPT, BINDING, PilotBudget
 from pilot.input import PilotGate, minimize, safe_criteria, validate_result
@@ -57,22 +59,34 @@ def approved():
     if value == {**common, "scope": "public-nonpersonal-positive-rent-grammar.v1",
                  "expires_at": "2026-11-11T20:59:59Z"}:
         return datetime.now(UTC) < EXTERNAL_DEMO_END
+    if value == {**common, "scope": "public-nonpersonal-housing-criteria.v1",
+                 "expires_at": "2026-11-11T20:59:59Z"}:
+        return datetime.now(UTC) < EXTERNAL_DEMO_END
     raise ValueError("PILOT_APPROVAL_MISMATCH")
 
 
 class PilotParser(DecisionDeepSeekIntent):
-    def __init__(self, budget, readiness):
+    def __init__(self, budget, readiness, vocabulary=None):
         self.budget, self.gate = budget, PilotGate()
+        self.vocabulary = vocabulary
+        if vocabulary is not None:
+            self.gate = HousingGate(vocabulary)
         self.readiness = readiness
         self.policy = DeepSeekPolicy(model="deepseek-flash", timeout_seconds=8,
             total_budget_seconds=10, max_tokens=1024, max_attempts=1,
             retry_delay_seconds=0, max_response_bytes=65536)
 
     async def parse(self, text, current):
-        canonical = minimize(text)
-        safe_criteria(current.criteria)
+        expected = housing_patch(text, current, self.vocabulary) if self.vocabulary is not None else None
+        canonical = canonical_patch(expected) if expected else minimize(text)
+        if expected is None:
+            safe_criteria(current.criteria)
         await require_catalog(self.readiness)
+        if expected is not None:
+            await self.readiness.require_intent(apply_patch(current, expected))
         if not approved():
+            raise ProviderFailure("PILOT_SPENDING_APPROVAL_REQUIRED")
+        if expected is not None and json.loads((CONTROL / "approval.json").read_bytes()).get("scope") != "public-nonpersonal-housing-criteria.v1":
             raise ProviderFailure("PILOT_SPENDING_APPROVAL_REQUIRED")
         key = (CONTROL / "deepseek.env").read_text().strip()
         prefix = "AI_INTENT_EVAL_DEEPSEEK_KEY="
@@ -90,7 +104,10 @@ class PilotParser(DecisionDeepSeekIntent):
             patch = await adapter.parse(text, current)
             # Model output must implement exactly the bounded request; even a
             # schema-valid different budget cannot silently reach SQL.
-            validate_result(current, patch, canonical)
+            if expected is not None:
+                validate_housing_result(current, patch, expected)
+            else:
+                validate_result(current, patch, canonical)
             return patch
         finally:
             ATTEMPT.reset(token)
@@ -136,7 +153,13 @@ def create_app():
     from pilot.guarded_cards import GuardedCards, install_catalog_guard
     health = CatalogHealth(STATE/'catalog-health.json',cohort_hash(json.loads(Path('/demo-input/catalog.json').read_text())))
     readiness = CatalogReadiness(facts,health)
-    runtime = assemble_text_runtime(pipeline=facts, parser=PilotParser(budget, readiness),
+    from app.repositories.ai_search_sessions import IntentVocabulary
+    full_intent = os.environ.get("AI_SITE_PILOT_INTENT") == "housing-v1"
+    if os.environ.get("AI_SITE_PILOT_INTENT") and not full_intent:
+        raise ValueError("HOUSING_INTENT_CONFIGURATION_INVALID")
+    vocab = facts.vocabulary
+    intent_vocabulary = IntentVocabulary(vocab.amenity_codes, vocab.catalog_other_codes, vocab.municipality_zones)
+    runtime = assemble_text_runtime(pipeline=facts, parser=PilotParser(budget, readiness, intent_vocabulary if full_intent else None),
         limiter=RedisRateLimiter("redis://redis:6379/0"),
         lease_policy=LeasePolicy(reservation_seconds=60, running_seconds=60, recovery_grace_seconds=30),
         session_policy=SessionPolicy(inactivity_seconds=86400),
@@ -161,7 +184,7 @@ def create_app():
 
         runtime = replace(runtime, voice=VoiceSearchExecution(runtime.sessions, ApprovedLocalASR(),
             runtime.execution.parser, runtime.execution.attempts, runtime.cards,
-            VoicePolicy(media_types=("audio/wav",), max_audio_bytes=480044, max_transcript_bytes=640,
+            VoicePolicy(media_types=("audio/wav",), max_audio_bytes=480044, max_transcript_bytes=8000 if full_intent else 640,
                 asr_budget_seconds=8.0, intent_budget_seconds=10.0, total_budget_seconds=19.0)))
     elif os.environ.get("AI_SITE_PILOT_VOICE"):
         raise ValueError("LOCAL_VOICE_CONFIGURATION_INVALID")

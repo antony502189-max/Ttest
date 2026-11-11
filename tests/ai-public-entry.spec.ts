@@ -51,7 +51,7 @@ for (const width of [390, 1440]) for (const ready of [true, false]) {
     await page.screenshot({path:`output/ai-home-public-${width}-${ready}.png`,fullPage:true})
     await voice.click()
     await expect(page.getByRole('button',{name:'Надиктовать запрос',exact:true})).toBeVisible()
-    await page.locator('#ai-search-text').fill('hasta 500 euros al mes mi nombre es Ana')
+    await page.locator('#ai-search-text').fill('')
     const submit = page.getByRole('button',{name:'Buscar habitaciones',exact:true})
     await expect(submit).toBeDisabled()
     await page.locator('#ai-search-text').fill('до 600 евро в месяц')

@@ -119,9 +119,8 @@ class VerifiedCardSearch:
             if self.pipeline.operating_policy is not None:
                 # Check coverage independently of the requested constraints:
                 # zero matches is meaningful only with usable source evidence.
-                baseline = candidate.model_copy(update={"criteria": type(candidate.criteria)()})
                 base = apply_search_filters(visible_query(), payload)
-                covered = base.where(verified_intent_predicate(self.pipeline, baseline,
+                covered = base.where(verified_coverage_predicate(self.pipeline, candidate,
                     cohort_scope=_candidate_cohorts(base, self.pipeline)))
                 if not await session.scalar(select(covered.exists())):
                     raise SourceCoverageUnavailable("SOURCE_COVERAGE_UNAVAILABLE")
@@ -233,6 +232,21 @@ class VerifiedMapResult:
 def verified_intent_predicate(pipeline: FactPipeline, intent: SearchIntent, *, cohort_scope=None):
     """Identical evidence/current card-value contract for cards, map and later saved matching."""
     return _verified_intent_predicate(pipeline, intent, compile_hard_match(intent, pipeline.vocabulary), cohort_scope=cohort_scope)
+
+
+def verified_coverage_predicate(pipeline: FactPipeline, intent: SearchIntent, *, cohort_scope=None):
+    """Known facts for every hard requirement; values may explicitly disagree.
+
+    Unknown/conditional/legacy/missing facts cannot turn into a meaningful
+    zero-match success and debit. Current proofs and freshness remain required.
+    """
+    plan = compile_hard_match(intent, pipeline.vocabulary)
+    conditions = [current_projection_predicate(Listing.id, resolver_version=pipeline.resolver_version,
+        vocabulary_hash=pipeline.vocabulary_hash, match_plan=plan, cohort_scope=cohort_scope, coverage=True)]
+    if pipeline.operating_policy is not None:
+        conditions.extend((source_freshness_predicate(Listing.__table__.c.id, plan, pipeline.operating_policy),
+                           proof_age_predicate(Listing.id)))
+    return and_(*conditions)
 
 
 def _candidate_cohorts(base, pipeline):

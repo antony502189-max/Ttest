@@ -68,7 +68,7 @@ for(const width of [390,1440]) for(const failure of ['INTENT_UNSUPPORTED','VOICE
     await expect(page.getByRole('button',{name:'Проверить результат попытки',exact:true})).toHaveCount(0)
     await expect(mic).toBeDisabled()
   }finally{release()}
-  await expect(page.getByText(failure==='INTENT_UNSUPPORTED'?'Не удалось разобрать бюджет из записи. Повторите или введите его текстом. Поиск не списан.':'Сервер распознавания занят. Повторите запись позже. Поиск не списан.',{exact:true})).toBeVisible()
+  await expect(page.getByText(failure==='INTENT_UNSUPPORTED'?'Не удалось разобрать условия из записи. Повторите или введите запрос текстом. Поиск не списан.':'Сервер распознавания занят. Повторите запись позже. Поиск не списан.',{exact:true})).toBeVisible()
   await expect(mic).toBeEnabled()
   await expect(page.locator('[data-voice-unavailable]')).toHaveCount(0)
   expect(await page.evaluate(()=>JSON.stringify(Object.values(sessionStorage)))).not.toContain(settledKey)

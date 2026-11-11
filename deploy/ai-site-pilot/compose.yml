@@ -6,6 +6,7 @@ x-common: &common
 x-env: &env
   APP_ENV: test
   AI_SITE_PILOT: site-pilot-20261108.v1
+  AI_SITE_PILOT_INTENT: ${AI_SITE_PILOT_INTENT:-}
   DATABASE_URL: postgresql+asyncpg://ai_demo:${AI_DEMO_DATABASE_PASSWORD:?required}@postgres:5432/ai_text_demo_20261108
   AI_MAINTENANCE_DATABASE_URL: postgresql+asyncpg://ai_demo:${AI_DEMO_DATABASE_PASSWORD:?required}@postgres:5432/ai_text_demo_20261108
   REDIS_URL: redis://redis:6379/0

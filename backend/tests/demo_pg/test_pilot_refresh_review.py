@@ -27,6 +27,97 @@ from pilot.refresh import refresh
 pytestmark = pytest.mark.integration
 
 
+async def test_composite_housing_refresh_followups_map_and_replay_keep_one_intent(seed_database):
+    import hashlib
+    from uuid import uuid4
+
+    import httpx
+    from pydantic import SecretStr
+
+    from app.repositories.ai_search_quota import QuotaLedger
+    from app.repositories.ai_search_sessions import IntentVocabulary, SearchSessions, SessionPolicy
+    from app.schemas.ai_search_intent import SessionCreate, apply_patch
+    from app.schemas.ai_search_quota import LeasePolicy, QuotaOperation, QuotaSubject
+    from app.schemas.listings import ListingCardSearchRequest, ListingMapRequest
+    from app.services.ai_decision_intent import DecisionDeepSeekIntent
+    from app.services.ai_deepseek_intent import DeepSeekPolicy
+    from app.services.ai_housing_input import HousingGate, housing_patch, validate_housing_result
+    from app.services.ai_search_execution import TextSearchExecution
+
+    engine, factory, state, original, health, incoming = await setup(seed_database)
+    try:
+        for i, row in enumerate(incoming["records"]):
+            row["source"]["normalized_payload"]["housing_source"] = {
+                "city": "san_cristobal_de_la_laguna", "html": '<div class="seccionesFichaAnuncio"><div class="contCaract"><ul><li>Amueblada</li></ul></div><div class="contTwocols"><ul><li>Incluye gastos</li><li>Fianza: ' + ("0" if i < 2 else "200") + ' €</li></ul></div></div>'}
+        await refresh(factory, original, incoming, health=health)
+        async with factory() as conn:
+            stored = (await conn.execute(text("SELECT normalized_payload FROM external_listing_sources"))).scalars().all()
+            assert all("housing_source" not in r and "html" not in json.dumps(r) for r in stored)
+        facts = pipeline(factory)
+        vocab = IntentVocabulary(facts.vocabulary.amenity_codes, frozenset(), frozenset())
+        sessions = SearchSessions(QuotaLedger(factory, LeasePolicy(reservation_seconds=60, running_seconds=60, recovery_grace_seconds=30)),
+            SessionPolicy(inactivity_seconds=86400), vocab)
+        cards = GuardedCards(facts, sessions, signing_key=b"q" * 32, health=health)
+        ready = CatalogReadiness(facts, health)
+        subject = QuotaSubject(kind="guest", id=uuid4())
+        owned = await sessions.create(subject, SessionCreate(rental_mode="long"))
+        calls = []
+
+        async def handler(request):
+            data = json.loads(request.content)
+            message = json.loads(data["messages"][1]["content"])
+            assert str(subject.id) not in json.dumps(message) and str(owned.intent.session_id) not in json.dumps(message)
+            calls.append(message)
+            decision = {"status": "patch", "patch": json.loads(message["text"].split(": ", 1)[1])}
+            return httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": {"role": "assistant", "content": json.dumps(decision)}}]})
+
+        adapter = DecisionDeepSeekIntent(transport=httpx.MockTransport(handler), key=SecretStr("offline-only"),
+            policy=DeepSeekPolicy(model="deepseek-flash", timeout_seconds=8, total_budget_seconds=10,
+                max_tokens=1024, max_attempts=1, retry_delay_seconds=0, max_response_bytes=65536), gate=HousingGate(vocab))
+
+        class Parser:
+            async def parse(self, text, current):
+                expected = housing_patch(text, current, vocab)
+                await ready.require_intent(apply_patch(current, expected))
+                patch = await adapter.parse(text, current)
+                validate_housing_result(current, patch, expected)
+                return patch
+
+        class Gate:
+            async def check(self, subject):
+                pass
+
+        execution = TextSearchExecution(sessions, Parser(), Gate(), cards)
+        async def message(text, version):
+            operation = QuotaOperation(idempotency_key=uuid4(), channel="text", payload_sha256=hashlib.sha256(text.encode()).hexdigest(),
+                session_id=owned.intent.session_id, expected_session_version=version)
+            result = await execution.execute(subject, operation, text, ListingCardSearchRequest())
+            return result, operation
+
+        utterance = "a room in La Laguna under 700 euros per month, furnished, bills included, deposit 0 euros"
+        first, operation = await message(utterance, 0)
+        assert first.operation.status == "succeeded" and first.cards.cards.total == 2
+        replay = await execution.execute(subject, operation, utterance, ListingCardSearchRequest())
+        assert replay.replay and len(calls) == 1
+        second, _ = await message("now under 360 euros per month", 1)
+        assert second.operation.status == "succeeded" and second.cards.cards.total == 1
+        current = (await sessions.get(subject, owned.intent.session_id)).intent
+        before = current.criteria.model_dump(mode="json", exclude_none=True)
+        assert set(before) == {"rental_mode", "budget", "geography", "accommodation", "furnished", "bills_included", "deposit"}
+        failed, _ = await message("2 adults, 0 children", 2)
+        assert failed.operation.failure_code == "SOURCE_COVERAGE_UNAVAILABLE" and failed.operation.remaining == second.operation.remaining
+        assert (await sessions.get(subject, owned.intent.session_id)).intent.criteria.model_dump(mode="json", exclude_none=True) == before
+        assert len(calls) == 2
+        restored = await cards.query_result(subject, first.operation.receipt.result_ref, ListingCardSearchRequest())
+        assert restored.cards.total == 2 and restored.intent_hash == first.cards.intent_hash
+        mapped = await cards.map_result(subject, second.operation.receipt.result_ref,
+            ListingMapRequest(north=29, south=27, east=-16, west=-17, zoom=18))
+        assert len(mapped.map.items) == 1 and mapped.intent_hash == second.cards.intent_hash
+        assert len(calls) == 2 and PilotBudget(state / "provider.sqlite3").summary()["attempts"] == 0
+    finally:
+        await engine.dispose()
+
+
 async def setup(seed_database):
     dsn, name, _, state = seed_database
     engine = create_async_engine(dsn, pool_size=3, max_overflow=0)
