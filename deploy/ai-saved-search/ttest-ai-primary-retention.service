@@ -1,0 +1,14 @@
+[Unit]
+Description=Recover AI leases and prune bounded primary AI retention batches
+After=docker.service
+Requires=docker.service
+OnFailure=ttest-ai-saved-maintenance-alert.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/usr/bin/docker exec ttest-production-backend-1 python -c "import os; os.environ['AI_MAINTENANCE_DATABASE_URL'] = os.environ['DATABASE_URL']; from app.commands.maintain_ai_search import main; main()"
+TimeoutStartSec=30
+NoNewPrivileges=true
+PrivateTmp=true

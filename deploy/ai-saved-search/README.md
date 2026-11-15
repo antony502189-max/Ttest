@@ -82,3 +82,22 @@ compatible previous release. Never roll the schema backward or delete volumes.
 Text/voice provider dispatch still follows its separate, cumulative approval and
 expiry. Saved matching does not extend that approval. A synthetic test or deployed
 button does not close provider/data/ASR/performance/full-release acceptance gates.
+
+## Existing-authority completeness and retention
+
+The configured thirteen source UUIDs anchor the original thirteen canonical
+listings. A canonical listing may already have multiple active imported
+PisoCompartido records. Maintenance resolves all such current records for only
+these same objects (100-source hard bound), so the existing publication barrier
+can verify every authority. Unsupported publishers remain fail-closed. This does
+not add canonical listings, crawl sources or rewrite original payloads/timestamps.
+The live cohort currently needs fourteen imported authorities for thirteen objects.
+
+Install the primary retention service/timer alongside the three delivery units.
+It runs the existing bounded recovery/erasure/fact-retention command once per
+hour using the running primary container's database and independent journal.
+Database credentials stay inside that container. Historical facts/events use the
+existing seven-day policy and bounded batches; active current facts remain.
+Both jobs report failures through the same fixed OnFailure marker. Enabling these
+units requires verified current images and a successful first real maintenance
+and retention tick; deployment and journal initialization remain separate steps.

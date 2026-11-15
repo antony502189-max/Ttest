@@ -30,7 +30,7 @@ async def main():
                 if not await lock.scalar(text("SELECT pg_try_advisory_lock(hashtextextended('ai-saved-maintenance.v1',0))")):
                     raise ValueError("AI_SAVED_MAINTENANCE_BUSY")
                 try:
-                    result = await refresh_saved_catalog(active.repo.pipeline, source_ids)
+                    result = await refresh_saved_catalog(active.repo.pipeline, source_ids, include_current_authorities=True)
                     delivered = 0
                     for _ in range(4):
                         claim = await active.worker.claim()
