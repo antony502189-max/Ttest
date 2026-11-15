@@ -1882,6 +1882,8 @@ h2 { font-size: clamp(1.35rem, 2vw, 1.8rem); line-height: 1.18; letter-spacing: 
 .favorites-recent .account-section-head h2 svg { width: 1rem; height: 1rem; }
 .favorites-recent__empty { margin: .25rem 0 0; color: var(--ink-muted); }
 
+.notifications-page .section-heading { flex-wrap: wrap; gap: 1rem; }
+.notifications-page .section-heading > div { min-width: 0; }
 .notifications-list { display: grid; gap: .75rem; margin: 0; padding: 0; list-style: none; }
 .notifications-list li { border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
 .notifications-list li.is-unread { border-left: 4px solid var(--brand-active); background: color-mix(in srgb, var(--brand-active) 7%, var(--surface)); }
