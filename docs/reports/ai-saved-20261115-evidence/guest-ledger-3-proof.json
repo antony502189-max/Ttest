@@ -1,0 +1,33 @@
+{
+  "version": 3,
+  "budget": "700",
+  "used": 3,
+  "reserved": 0,
+  "operations": [
+    {
+      "channel": "text",
+      "status": "succeeded",
+      "failure": null,
+      "idempotency_key": "a5927271-e3d6-4fff-9f2a-ac06842f39c9",
+      "result_count": 3
+    },
+    {
+      "channel": "text",
+      "status": "succeeded",
+      "failure": null,
+      "idempotency_key": "d05b826c-dd8f-468d-b733-5e5d74de9141",
+      "result_count": 3
+    },
+    {
+      "channel": "voice",
+      "status": "succeeded",
+      "failure": null,
+      "idempotency_key": "d8634d73-7ce7-4ed0-b777-41990c22eb0c",
+      "result_count": 3
+    }
+  ],
+  "lifetime_attempts": 30,
+  "usage_observed": 30,
+  "lifetime_reserved_micro_usd": 331800,
+  "guest_identity_reset": false
+}

@@ -1,0 +1,75 @@
+{
+  "phase": "verify",
+  "requests": [
+    {
+      "path": "/api/v1/saved-searches/ai",
+      "method": "POST",
+      "bearerPresent": true
+    },
+    {
+      "path": "/api/v1/saved-searches/ai/9f343384-cf6b-44f0-8943-6a8ff3af0d3b",
+      "method": "PATCH",
+      "bearerPresent": true
+    },
+    {
+      "path": "/api/v1/saved-searches/ai/9f343384-cf6b-44f0-8943-6a8ff3af0d3b",
+      "method": "PATCH",
+      "bearerPresent": true
+    }
+  ],
+  "errors": [],
+  "providerRequests": [
+    {
+      "key": "d05b826c-dd8f-468d-b733-5e5d74de9141",
+      "session": "50bb2df2-507c-4a46-8d23-bebf6b45baa0",
+      "version": 1,
+      "channel": "text"
+    }
+  ],
+  "authResponses": [
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 401
+    },
+    {
+      "path": "/api/v1/auth/login",
+      "status": 200
+    }
+  ],
+  "saved": {
+    "id": "9f343384-cf6b-44f0-8943-6a8ff3af0d3b",
+    "matcher": "ai.v1",
+    "name": "",
+    "revision": 1,
+    "enabled": true
+  },
+  "collection": {
+    "items": [
+      {
+        "id": "9f343384-cf6b-44f0-8943-6a8ff3af0d3b",
+        "matcher": "ai.v1",
+        "name": "",
+        "revision": 1,
+        "enabled": true
+      }
+    ],
+    "next_cursor": null,
+    "collection_count": 1
+  },
+  "aiNotifications": [
+    {
+      "id": "784b1768-7566-47f6-a054-579feed977df",
+      "listing": "227fb40d-e05d-4ea3-91d5-aa372e25243e"
+    }
+  ],
+  "notificationLayoutGate": "separate retained FAIL in saved-account-verify-proof.json; pending page correction",
+  "toggledRevision": 3,
+  "followup": {
+    "ref": "a0dd653a-4ad5-488d-919d-2cc359712973",
+    "count": 3,
+    "remaining": 1
+  },
+  "mapStatus": 200,
+  "guestIdentityUnchanged": true,
+  "passed": true
+}

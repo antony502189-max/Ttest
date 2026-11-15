@@ -1,0 +1,18 @@
+{
+  "primary": "42ea90cba2332397dc74f0abba965108f84b2179",
+  "checks": [
+    {
+      "width": 390,
+      "controls": 18,
+      "controls_unchanged": true,
+      "image_dimensions_unchanged": true
+    },
+    {
+      "width": 1440,
+      "controls": 23,
+      "controls_unchanged": true,
+      "image_dimensions_unchanged": true
+    }
+  ],
+  "image_bytes_compared": false
+}

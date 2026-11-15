@@ -1,0 +1,26 @@
+[
+  {
+    "passed": true,
+    "asr_seconds": 4.925,
+    "hash": "af1df67a130a5d58b22da22308593675b8a62c7afffc5a1b30fee61199cacbc2",
+    "chars": 59,
+    "fixture": "en-conditions.wav",
+    "provider_calls": 0
+  },
+  {
+    "passed": true,
+    "asr_seconds": 5.201,
+    "hash": "befda0f1027b41f194f53221763a2f371b96924b9f286505bede8ba9405ad6d2",
+    "chars": 51,
+    "fixture": "ru-conditions.wav",
+    "provider_calls": 0
+  },
+  {
+    "passed": true,
+    "asr_seconds": 5.866,
+    "hash": "2717b616f2309f7d470fb3fc093cb60cec649c0014272ffe67f44c83cbe77bd7",
+    "chars": 27,
+    "fixture": "ru-400-simple.wav",
+    "provider_calls": 0
+  }
+]

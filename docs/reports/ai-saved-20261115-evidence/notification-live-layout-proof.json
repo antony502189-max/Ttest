@@ -1,0 +1,74 @@
+{
+  "expectedMain": "42ea90cba2332397dc74f0abba965108f84b2179",
+  "checks": [
+    {
+      "language": "es",
+      "width": 320,
+      "scrollWidth": 320,
+      "notificationVisible": true,
+      "actionFits": true
+    },
+    {
+      "language": "es",
+      "width": 390,
+      "scrollWidth": 390,
+      "notificationVisible": true,
+      "actionFits": true
+    },
+    {
+      "language": "es",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "notificationVisible": true,
+      "actionFits": true
+    },
+    {
+      "language": "en",
+      "width": 320,
+      "scrollWidth": 320,
+      "notificationVisible": true,
+      "actionFits": true
+    },
+    {
+      "language": "en",
+      "width": 390,
+      "scrollWidth": 390,
+      "notificationVisible": true,
+      "actionFits": true
+    },
+    {
+      "language": "en",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "notificationVisible": true,
+      "actionFits": true
+    },
+    {
+      "language": "ru",
+      "width": 320,
+      "scrollWidth": 320,
+      "notificationVisible": true,
+      "actionFits": true
+    },
+    {
+      "language": "ru",
+      "width": 390,
+      "scrollWidth": 390,
+      "notificationVisible": true,
+      "actionFits": true
+    },
+    {
+      "language": "ru",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "notificationVisible": true,
+      "actionFits": true
+    }
+  ],
+  "providerCalls": 0,
+  "errors": [],
+  "ownedFixtureAuthenticated": true,
+  "actualMain": "42ea90cba2332397dc74f0abba965108f84b2179",
+  "markAllRead": true,
+  "passed": true
+}

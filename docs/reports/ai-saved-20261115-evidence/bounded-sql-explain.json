@@ -1,0 +1,1484 @@
+{
+  "approved_objects": 13,
+  "limit": 20,
+  "statement_timeout_seconds": 10,
+  "samples": 1,
+  "read_only": true,
+  "provider_calls": 0,
+  "source_updates": 0,
+  "not_capacity_or_p95": true,
+  "results": [
+    {
+      "variant": "budget_only",
+      "planning_ms": 20.314,
+      "execution_ms": 22.311,
+      "plan": {
+        "Node Type": "Limit",
+        "Actual Rows": 12,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 754,
+        "Shared Read Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Result",
+            "Actual Rows": 1,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 448,
+            "Shared Read Blocks": 0
+          },
+          {
+            "Node Type": "Index Scan",
+            "Actual Rows": 1,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 2,
+            "Shared Read Blocks": 0
+          },
+          {
+            "Node Type": "Nested Loop",
+            "Actual Rows": 12,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 754,
+            "Shared Read Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Nested Loop",
+                "Actual Rows": 12,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 706,
+                "Shared Read Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Nested Loop",
+                    "Actual Rows": 12,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 670,
+                    "Shared Read Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Nested Loop",
+                        "Actual Rows": 12,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 172,
+                        "Shared Read Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Nested Loop",
+                            "Actual Rows": 12,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 136,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Merge Join",
+                                "Actual Rows": 12,
+                                "Actual Loops": 1,
+                                "Shared Hit Blocks": 124,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Sort",
+                                    "Actual Rows": 12,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 122,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Nested Loop",
+                                        "Actual Rows": 12,
+                                        "Actual Loops": 1,
+                                        "Shared Hit Blocks": 122,
+                                        "Shared Read Blocks": 0,
+                                        "Plans": [
+                                          {
+                                            "Node Type": "Seq Scan",
+                                            "Actual Rows": 9,
+                                            "Actual Loops": 1,
+                                            "Shared Hit Blocks": 1,
+                                            "Shared Read Blocks": 0
+                                          },
+                                          {
+                                            "Node Type": "Bitmap Heap Scan",
+                                            "Actual Rows": 1,
+                                            "Actual Loops": 9,
+                                            "Shared Hit Blocks": 121,
+                                            "Shared Read Blocks": 0,
+                                            "Plans": [
+                                              {
+                                                "Node Type": "BitmapAnd",
+                                                "Actual Rows": 0,
+                                                "Actual Loops": 9,
+                                                "Shared Hit Blocks": 111,
+                                                "Shared Read Blocks": 0,
+                                                "Plans": [
+                                                  {
+                                                    "Node Type": "Bitmap Index Scan",
+                                                    "Actual Rows": 187,
+                                                    "Actual Loops": 9,
+                                                    "Shared Hit Blocks": 33,
+                                                    "Shared Read Blocks": 0
+                                                  },
+                                                  {
+                                                    "Node Type": "Bitmap Index Scan",
+                                                    "Actual Rows": 13,
+                                                    "Actual Loops": 3,
+                                                    "Shared Hit Blocks": 78,
+                                                    "Shared Read Blocks": 0
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "Node Type": "Sort",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 2,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Bitmap Heap Scan",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 1,
+                                        "Shared Hit Blocks": 2,
+                                        "Shared Read Blocks": 0,
+                                        "Plans": [
+                                          {
+                                            "Node Type": "Bitmap Index Scan",
+                                            "Actual Rows": 0,
+                                            "Actual Loops": 1,
+                                            "Shared Hit Blocks": 2,
+                                            "Shared Read Blocks": 0
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Seq Scan",
+                                "Actual Rows": 9,
+                                "Actual Loops": 12,
+                                "Shared Hit Blocks": 12,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Index Scan",
+                            "Actual Rows": 1,
+                            "Actual Loops": 12,
+                            "Shared Hit Blocks": 36,
+                            "Shared Read Blocks": 0
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Index Scan",
+                        "Actual Rows": 1,
+                        "Actual Loops": 12,
+                        "Shared Hit Blocks": 498,
+                        "Shared Read Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Index Scan",
+                            "Actual Rows": 1,
+                            "Actual Loops": 12,
+                            "Shared Hit Blocks": 24,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Aggregate",
+                                "Actual Rows": 1,
+                                "Actual Loops": 12,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Function Scan",
+                                    "Actual Rows": 1,
+                                    "Actual Loops": 12,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Function Scan",
+                                "Actual Rows": 1,
+                                "Actual Loops": 12,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Aggregate",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Sort",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Limit",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Index Scan",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Aggregate",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Sort",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Limit",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Seq Scan",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Aggregate",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Sort",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Limit",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Seq Scan",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Aggregate",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Sort",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Limit",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Seq Scan",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Aggregate",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Limit",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Sort",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Seq Scan",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Aggregate",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Limit",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Nested Loop",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Unique",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0,
+                                        "Plans": [
+                                          {
+                                            "Node Type": "Sort",
+                                            "Actual Rows": 0,
+                                            "Actual Loops": 0,
+                                            "Shared Hit Blocks": 0,
+                                            "Shared Read Blocks": 0,
+                                            "Plans": [
+                                              {
+                                                "Node Type": "Append",
+                                                "Actual Rows": 0,
+                                                "Actual Loops": 0,
+                                                "Shared Hit Blocks": 0,
+                                                "Shared Read Blocks": 0,
+                                                "Plans": [
+                                                  {
+                                                    "Node Type": "Index Scan",
+                                                    "Actual Rows": 0,
+                                                    "Actual Loops": 0,
+                                                    "Shared Hit Blocks": 0,
+                                                    "Shared Read Blocks": 0
+                                                  },
+                                                  {
+                                                    "Node Type": "Seq Scan",
+                                                    "Actual Rows": 0,
+                                                    "Actual Loops": 0,
+                                                    "Shared Hit Blocks": 0,
+                                                    "Shared Read Blocks": 0
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "Node Type": "Index Scan",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Aggregate",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Limit",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Sort",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Nested Loop",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0,
+                                        "Plans": [
+                                          {
+                                            "Node Type": "Aggregate",
+                                            "Actual Rows": 0,
+                                            "Actual Loops": 0,
+                                            "Shared Hit Blocks": 0,
+                                            "Shared Read Blocks": 0,
+                                            "Plans": [
+                                              {
+                                                "Node Type": "Seq Scan",
+                                                "Actual Rows": 0,
+                                                "Actual Loops": 0,
+                                                "Shared Hit Blocks": 0,
+                                                "Shared Read Blocks": 0
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "Node Type": "Index Scan",
+                                            "Actual Rows": 0,
+                                            "Actual Loops": 0,
+                                            "Shared Hit Blocks": 0,
+                                            "Shared Read Blocks": 0
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Aggregate",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Limit",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Sort",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Hash Join",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0,
+                                        "Plans": [
+                                          {
+                                            "Node Type": "Seq Scan",
+                                            "Actual Rows": 0,
+                                            "Actual Loops": 0,
+                                            "Shared Hit Blocks": 0,
+                                            "Shared Read Blocks": 0
+                                          },
+                                          {
+                                            "Node Type": "Hash",
+                                            "Actual Rows": 0,
+                                            "Actual Loops": 0,
+                                            "Shared Hit Blocks": 0,
+                                            "Shared Read Blocks": 0,
+                                            "Plans": [
+                                              {
+                                                "Node Type": "Seq Scan",
+                                                "Actual Rows": 0,
+                                                "Actual Loops": 0,
+                                                "Shared Hit Blocks": 0,
+                                                "Shared Read Blocks": 0
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Index Scan",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Aggregate",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Function Scan",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Function Scan",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "Node Type": "Index Scan",
+                    "Actual Rows": 0,
+                    "Actual Loops": 12,
+                    "Shared Hit Blocks": 36,
+                    "Shared Read Blocks": 0
+                  }
+                ]
+              },
+              {
+                "Node Type": "Nested Loop",
+                "Actual Rows": 1,
+                "Actual Loops": 12,
+                "Shared Hit Blocks": 48,
+                "Shared Read Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Index Scan",
+                    "Actual Rows": 1,
+                    "Actual Loops": 12,
+                    "Shared Hit Blocks": 24,
+                    "Shared Read Blocks": 0
+                  },
+                  {
+                    "Node Type": "Index Scan",
+                    "Actual Rows": 1,
+                    "Actual Loops": 12,
+                    "Shared Hit Blocks": 24,
+                    "Shared Read Blocks": 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "variant": "composite",
+      "planning_ms": 13.593,
+      "execution_ms": 18.933,
+      "plan": {
+        "Node Type": "Limit",
+        "Actual Rows": 3,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 466,
+        "Shared Read Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Result",
+            "Actual Rows": 1,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 223,
+            "Shared Read Blocks": 0
+          },
+          {
+            "Node Type": "Index Scan",
+            "Actual Rows": 1,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 2,
+            "Shared Read Blocks": 0
+          },
+          {
+            "Node Type": "Nested Loop",
+            "Actual Rows": 3,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 466,
+            "Shared Read Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Nested Loop",
+                "Actual Rows": 3,
+                "Actual Loops": 1,
+                "Shared Hit Blocks": 454,
+                "Shared Read Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Nested Loop",
+                    "Actual Rows": 3,
+                    "Actual Loops": 1,
+                    "Shared Hit Blocks": 445,
+                    "Shared Read Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Nested Loop",
+                        "Actual Rows": 12,
+                        "Actual Loops": 1,
+                        "Shared Hit Blocks": 172,
+                        "Shared Read Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Nested Loop",
+                            "Actual Rows": 12,
+                            "Actual Loops": 1,
+                            "Shared Hit Blocks": 136,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Merge Join",
+                                "Actual Rows": 12,
+                                "Actual Loops": 1,
+                                "Shared Hit Blocks": 124,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Sort",
+                                    "Actual Rows": 12,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 122,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Nested Loop",
+                                        "Actual Rows": 12,
+                                        "Actual Loops": 1,
+                                        "Shared Hit Blocks": 122,
+                                        "Shared Read Blocks": 0,
+                                        "Plans": [
+                                          {
+                                            "Node Type": "Seq Scan",
+                                            "Actual Rows": 9,
+                                            "Actual Loops": 1,
+                                            "Shared Hit Blocks": 1,
+                                            "Shared Read Blocks": 0
+                                          },
+                                          {
+                                            "Node Type": "Bitmap Heap Scan",
+                                            "Actual Rows": 1,
+                                            "Actual Loops": 9,
+                                            "Shared Hit Blocks": 121,
+                                            "Shared Read Blocks": 0,
+                                            "Plans": [
+                                              {
+                                                "Node Type": "BitmapAnd",
+                                                "Actual Rows": 0,
+                                                "Actual Loops": 9,
+                                                "Shared Hit Blocks": 111,
+                                                "Shared Read Blocks": 0,
+                                                "Plans": [
+                                                  {
+                                                    "Node Type": "Bitmap Index Scan",
+                                                    "Actual Rows": 187,
+                                                    "Actual Loops": 9,
+                                                    "Shared Hit Blocks": 33,
+                                                    "Shared Read Blocks": 0
+                                                  },
+                                                  {
+                                                    "Node Type": "Bitmap Index Scan",
+                                                    "Actual Rows": 13,
+                                                    "Actual Loops": 3,
+                                                    "Shared Hit Blocks": 78,
+                                                    "Shared Read Blocks": 0
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "Node Type": "Sort",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 1,
+                                    "Shared Hit Blocks": 2,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Bitmap Heap Scan",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 1,
+                                        "Shared Hit Blocks": 2,
+                                        "Shared Read Blocks": 0,
+                                        "Plans": [
+                                          {
+                                            "Node Type": "Bitmap Index Scan",
+                                            "Actual Rows": 0,
+                                            "Actual Loops": 1,
+                                            "Shared Hit Blocks": 2,
+                                            "Shared Read Blocks": 0
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Seq Scan",
+                                "Actual Rows": 9,
+                                "Actual Loops": 12,
+                                "Shared Hit Blocks": 12,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Index Scan",
+                            "Actual Rows": 1,
+                            "Actual Loops": 12,
+                            "Shared Hit Blocks": 36,
+                            "Shared Read Blocks": 0
+                          }
+                        ]
+                      },
+                      {
+                        "Node Type": "Index Scan",
+                        "Actual Rows": 0,
+                        "Actual Loops": 12,
+                        "Shared Hit Blocks": 273,
+                        "Shared Read Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Index Scan",
+                            "Actual Rows": 0,
+                            "Actual Loops": 12,
+                            "Shared Hit Blocks": 24,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Aggregate",
+                                "Actual Rows": 1,
+                                "Actual Loops": 12,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Function Scan",
+                                    "Actual Rows": 1,
+                                    "Actual Loops": 12,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Function Scan",
+                                "Actual Rows": 1,
+                                "Actual Loops": 12,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              },
+                              {
+                                "Node Type": "Aggregate",
+                                "Actual Rows": 1,
+                                "Actual Loops": 12,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Function Scan",
+                                    "Actual Rows": 1,
+                                    "Actual Loops": 12,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Function Scan",
+                                "Actual Rows": 1,
+                                "Actual Loops": 12,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              },
+                              {
+                                "Node Type": "Aggregate",
+                                "Actual Rows": 1,
+                                "Actual Loops": 12,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Function Scan",
+                                    "Actual Rows": 1,
+                                    "Actual Loops": 12,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Function Scan",
+                                "Actual Rows": 1,
+                                "Actual Loops": 12,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              },
+                              {
+                                "Node Type": "Aggregate",
+                                "Actual Rows": 1,
+                                "Actual Loops": 12,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Function Scan",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 12,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Function Scan",
+                                "Actual Rows": 1,
+                                "Actual Loops": 4,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              },
+                              {
+                                "Node Type": "Aggregate",
+                                "Actual Rows": 1,
+                                "Actual Loops": 4,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Function Scan",
+                                    "Actual Rows": 1,
+                                    "Actual Loops": 4,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Function Scan",
+                                "Actual Rows": 1,
+                                "Actual Loops": 3,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Aggregate",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Sort",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Limit",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Index Scan",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Aggregate",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Sort",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Limit",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Seq Scan",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Aggregate",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Sort",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Limit",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Seq Scan",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Aggregate",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Sort",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Limit",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Seq Scan",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Aggregate",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Limit",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Sort",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Seq Scan",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Aggregate",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Limit",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Nested Loop",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Unique",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0,
+                                        "Plans": [
+                                          {
+                                            "Node Type": "Sort",
+                                            "Actual Rows": 0,
+                                            "Actual Loops": 0,
+                                            "Shared Hit Blocks": 0,
+                                            "Shared Read Blocks": 0,
+                                            "Plans": [
+                                              {
+                                                "Node Type": "Append",
+                                                "Actual Rows": 0,
+                                                "Actual Loops": 0,
+                                                "Shared Hit Blocks": 0,
+                                                "Shared Read Blocks": 0,
+                                                "Plans": [
+                                                  {
+                                                    "Node Type": "Index Scan",
+                                                    "Actual Rows": 0,
+                                                    "Actual Loops": 0,
+                                                    "Shared Hit Blocks": 0,
+                                                    "Shared Read Blocks": 0
+                                                  },
+                                                  {
+                                                    "Node Type": "Seq Scan",
+                                                    "Actual Rows": 0,
+                                                    "Actual Loops": 0,
+                                                    "Shared Hit Blocks": 0,
+                                                    "Shared Read Blocks": 0
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "Node Type": "Index Scan",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Aggregate",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Limit",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Sort",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Nested Loop",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0,
+                                        "Plans": [
+                                          {
+                                            "Node Type": "Aggregate",
+                                            "Actual Rows": 0,
+                                            "Actual Loops": 0,
+                                            "Shared Hit Blocks": 0,
+                                            "Shared Read Blocks": 0,
+                                            "Plans": [
+                                              {
+                                                "Node Type": "Seq Scan",
+                                                "Actual Rows": 0,
+                                                "Actual Loops": 0,
+                                                "Shared Hit Blocks": 0,
+                                                "Shared Read Blocks": 0
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "Node Type": "Index Scan",
+                                            "Actual Rows": 0,
+                                            "Actual Loops": 0,
+                                            "Shared Hit Blocks": 0,
+                                            "Shared Read Blocks": 0
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Aggregate",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Limit",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Sort",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Hash Join",
+                                        "Actual Rows": 0,
+                                        "Actual Loops": 0,
+                                        "Shared Hit Blocks": 0,
+                                        "Shared Read Blocks": 0,
+                                        "Plans": [
+                                          {
+                                            "Node Type": "Seq Scan",
+                                            "Actual Rows": 0,
+                                            "Actual Loops": 0,
+                                            "Shared Hit Blocks": 0,
+                                            "Shared Read Blocks": 0
+                                          },
+                                          {
+                                            "Node Type": "Hash",
+                                            "Actual Rows": 0,
+                                            "Actual Loops": 0,
+                                            "Shared Hit Blocks": 0,
+                                            "Shared Read Blocks": 0,
+                                            "Plans": [
+                                              {
+                                                "Node Type": "Seq Scan",
+                                                "Actual Rows": 0,
+                                                "Actual Loops": 0,
+                                                "Shared Hit Blocks": 0,
+                                                "Shared Read Blocks": 0
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Index Scan",
+                            "Actual Rows": 0,
+                            "Actual Loops": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Aggregate",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Function Scan",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Function Scan",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              },
+                              {
+                                "Node Type": "Aggregate",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Function Scan",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Function Scan",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              },
+                              {
+                                "Node Type": "Aggregate",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Function Scan",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Function Scan",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              },
+                              {
+                                "Node Type": "Aggregate",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Function Scan",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Function Scan",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              },
+                              {
+                                "Node Type": "Aggregate",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Function Scan",
+                                    "Actual Rows": 0,
+                                    "Actual Loops": 0,
+                                    "Shared Hit Blocks": 0,
+                                    "Shared Read Blocks": 0
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Function Scan",
+                                "Actual Rows": 0,
+                                "Actual Loops": 0,
+                                "Shared Hit Blocks": 0,
+                                "Shared Read Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "Node Type": "Index Scan",
+                    "Actual Rows": 0,
+                    "Actual Loops": 3,
+                    "Shared Hit Blocks": 9,
+                    "Shared Read Blocks": 0
+                  }
+                ]
+              },
+              {
+                "Node Type": "Nested Loop",
+                "Actual Rows": 1,
+                "Actual Loops": 3,
+                "Shared Hit Blocks": 12,
+                "Shared Read Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Index Scan",
+                    "Actual Rows": 1,
+                    "Actual Loops": 3,
+                    "Shared Hit Blocks": 6,
+                    "Shared Read Blocks": 0
+                  },
+                  {
+                    "Node Type": "Index Scan",
+                    "Actual Rows": 1,
+                    "Actual Loops": 3,
+                    "Shared Hit Blocks": 6,
+                    "Shared Read Blocks": 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
