@@ -72,3 +72,5 @@ Thirty-one redacted machine-readable proofs and their SHA256 manifest are in [th
 Two read-only EXPLAIN ANALYZE/BUFFERS cases used only the approved13object IDs and LIMIT20, under10-second statement/1-second lock timeouts. Budget-only returned12rows: planning20.314ms, execution22.311ms. Composite returned3rows: planning13.593ms, execution18.933ms. One sample per case is not a capacity, browser-latency or p95 certification. Only node types/counts/loops/buffer counters were retained, excluding query text and data-bearing filter expressions. The existing ISSUE-004 optimization and deferred large-capacity gate remain open.
 
 Municipality geography is supported, but the reviewed municipality-zone vocabulary is empty; specific district search was not certified. An earlier conversational statement listing districts as implemented was too broad. District/date/room-capacity coverage requires further mandatory S2.1 work, without inventing missing facts.
+
+Evidence JSON is stored with directory-local LF attributes; SHA256 values refer to canonical Git bytes, so Windows checkout conversion cannot invalidate the manifest.
