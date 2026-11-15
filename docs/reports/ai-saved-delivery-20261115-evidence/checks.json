@@ -1,0 +1,44 @@
+{
+  "schema": "ai-saved-source-validation.v1",
+  "date": "2026-11-15",
+  "source_base": "f5f7cbdf05c8e158ff71ee7659c9de104c54b72a",
+  "unit": {
+    "tests": "1967",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "16",
+    "time": "99.706"
+  },
+  "pg_retained": [
+    {
+      "run": "first",
+      "passed": 55,
+      "failed": 1,
+      "reason": "obsolete schema assertion"
+    },
+    {
+      "run": "v2",
+      "passed": 60,
+      "failed": 1,
+      "reason": "missing test import"
+    },
+    {
+      "run": "v3",
+      "passed": 13,
+      "failed": 1,
+      "reason": "incoherent price fixture rejected"
+    },
+    {
+      "run": "v4",
+      "passed": 1,
+      "failed": 0
+    }
+  ],
+  "browser": {
+    "public_previous": 4,
+    "registered_save_retry": 2,
+    "collection_pause_delete": 2
+  },
+  "runtime_active": false,
+  "new_provider_calls": 0
+}

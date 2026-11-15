@@ -1,0 +1,8 @@
+[Unit]
+Description=Record a failed AI saved-search maintenance tick
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/logger -p daemon.err -t ttest-ai-saved-maintenance AI_SAVED_MAINTENANCE_FAILED
+NoNewPrivileges=true
+PrivateTmp=true

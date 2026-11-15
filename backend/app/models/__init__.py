@@ -456,6 +456,7 @@ from .ai_query_proof import (  # noqa: F401
     AiProofPopulation,
     AiQueryProof,
 )
+from .ai_saved_rematch import AiSavedRematch, AiSavedSeen  # noqa: F401
 from .ai_saved_search import AiSavedSearch, AiSavedSearchCommand  # noqa: F401
 from .ai_search_quota import AISearchRequest, AIUsageDay  # noqa: F401
 from .ai_search_session import AISearchResult, AISearchSession, AISessionCommand  # noqa: F401

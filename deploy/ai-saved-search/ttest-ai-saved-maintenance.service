@@ -1,0 +1,14 @@
+[Unit]
+Description=Refresh the selected AI search cohort and deliver in-app saved alerts
+After=docker.service
+Requires=docker.service
+OnFailure=ttest-ai-saved-maintenance-alert.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/usr/bin/docker exec ttest-production-backend-1 python -m app.commands.ai_saved_maintenance
+TimeoutStartSec=150
+NoNewPrivileges=true
+PrivateTmp=true

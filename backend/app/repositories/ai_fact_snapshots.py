@@ -26,6 +26,7 @@ class CapturedParserSnapshot:
     raw_json: str = field(repr=False)
     normalized_json: str = field(repr=False)
     source_price_text: str | None = field(repr=False)
+    source_url: str | None = field(default=None, repr=False)
 
 
 class FactSnapshotReader:
@@ -45,7 +46,7 @@ class FactSnapshotReader:
             row = (await session.execute(select(
                 ExternalListingSource.id, ExternalListingSource.canonical_listing_id, ExternalListingSource.source_name,
                 raw.label("raw_json"), normalized.label("normalized_json"), ExternalListingSource.source_price_text,
-                source_snapshot_hash().label("snapshot_hash"),
+                source_snapshot_hash().label("snapshot_hash"), ExternalListingSource.source_url,
             ).join(Listing, Listing.id == ExternalListingSource.canonical_listing_id).where(
                 ExternalListingSource.id == source_record_id, ExternalListingSource.current_status == "active",
                 Listing.status == "published", Listing.deleted_at.is_(None), size <= self.max_payload_bytes,
@@ -57,4 +58,4 @@ class FactSnapshotReader:
                     source_identifier=f"{row.source_name}:{row.id.hex}", snapshot_hash=row.snapshot_hash)
             except ValueError:
                 raise BridgeRejected("SOURCE_IDENTITY_UNSUPPORTED") from None
-            return CapturedParserSnapshot(reference, row.raw_json, row.normalized_json, row.source_price_text)
+            return CapturedParserSnapshot(reference, row.raw_json, row.normalized_json, row.source_price_text, row.source_url)

@@ -201,7 +201,17 @@ services:
     tmpfs:
       - /tmp:size=384m,mode=1777
     pids_limit: 256
-    environment: *backend-env
+    environment:
+      <<: *backend-env
+      AI_SAVED_SEARCH_MODE: ${AI_SAVED_SEARCH_MODE:-}
+      AI_SAVED_HANDOFF_KEY_FILE: ${AI_SAVED_HANDOFF_KEY_FILE:-}
+      AI_SAVED_COHORT_FILE: ${AI_SAVED_COHORT_FILE:-}
+      AI_ERASURE_JOURNAL_PATH: ${AI_ERASURE_JOURNAL_PATH:-}
+      AI_ERASURE_JOURNAL_KEY: ${AI_ERASURE_JOURNAL_KEY:-}
+      AI_ERASURE_JOURNAL_KEY_FILE: ${AI_ERASURE_JOURNAL_KEY_FILE:-}
+    volumes:
+      - ai-saved-state:/ai-saved-state
+      - ai-saved-secrets:/ai-saved-secrets:ro
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -293,6 +303,8 @@ volumes:
   postgres-data:
   redis-data:
   minio-data:
+  ai-saved-state:
+  ai-saved-secrets:
 
 networks:
   data:

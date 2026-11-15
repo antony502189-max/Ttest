@@ -171,6 +171,13 @@ def create_app():
     guarded=GuardedCards(facts,runtime.sessions,signing_key=bytes.fromhex(keys['cursor']),health=health)
     runtime.execution.query=guarded
     runtime=replace(runtime,cards=guarded)
+    handoff_key = os.environ.get("AI_SAVED_HANDOFF_KEY_FILE")
+    if handoff_key:
+        import base64
+
+        from app.services.ai_saved_handoff import SavedHandoffSigner
+        runtime = replace(runtime, saved_handoff=SavedHandoffSigner(
+            base64.b64decode(Path(handoff_key).read_bytes().strip(), validate=True)))
     install_catalog_guard(app,health)
     if os.environ.get("AI_SITE_PILOT_VOICE") == "local-pcm-v1":
         from app.services.ai_local_asr import LocalPCMTranscriber

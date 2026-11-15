@@ -3,7 +3,7 @@ import { toCardListing, type ListingCardDto, type ListingCardPage, type ListingM
 import type { AICommittedIntent, AIIntent } from '@/api/ai-intent'
 import type { RentalMode } from '@/types'
 
-export type AICapabilities = { text: boolean; map: boolean; voice: boolean; saved_searches: boolean }
+export type AICapabilities = { text: boolean; map: boolean; voice: boolean; saved_searches: boolean; save_handoff?: boolean }
 export type AISession = { intent: AIIntent; expires_at: string }
 export type AIMessage = { idempotency_key: string; session_id: string; expected_version: number; text: string; audio_base64?: string }
 export type AIBudgetPrice = { listing_id: string; matched_amount: number; matched_period: 'monthly' | 'weekly' | 'nightly'; display_amount: number | null; display_period: 'monthly' | 'nightly'; currency: 'EUR'; confirmation: 'current_source_proof' }

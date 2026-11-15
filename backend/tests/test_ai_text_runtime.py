@@ -72,7 +72,7 @@ def test_capabilities_only_after_dependencies_and_erasure_replay(setup):
     with TestClient(setup.app, base_url="https://testserver") as client:
         setup.replay.assert_awaited_once_with(active.sessions.ledger.sessions, setup.journal)
         assert client.get("/api/v1/ai-search/capabilities").json() == {
-            "text": True, "map": True, "voice": False, "saved_searches": False}
+            "text": True, "map": True, "voice": False, "saved_searches": False, "save_handoff": False}
         # An operator kill switch immediately closes the existing API.
         setup.app.state.ai_search_runtime = None
         assert client.get("/api/v1/ai-search/capabilities").json()["text"] is False

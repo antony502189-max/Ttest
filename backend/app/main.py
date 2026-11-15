@@ -20,6 +20,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from .api.public_pages import router as public_pages_router
 from .api.v1.admin import router as admin_router
+from .api.v1.ai_saved_searches import router as ai_saved_searches_router
 from .api.v1.ai_search import router as ai_search_router
 from .api.v1.auth import router as auth_router
 from .api.v1.commercial_advertisements import router as commercial_advertisements_router
@@ -34,7 +35,7 @@ from .api.v1.uploads import router as uploads_router
 from .api.v1.users import router as users_router
 from .core.config import get_settings
 from .core.observability import REQUEST_DURATION, REQUESTS, UNHANDLED_ERRORS, configure_logging, metrics_payload
-from .db.session import engine
+from .db.session import SessionLocal, engine
 from .services.rate_limit import ResilientRateLimiter
 from .storage import get_storage
 
@@ -50,10 +51,10 @@ def exclude_private_ai_telemetry(event, hint):
         return None
     if isinstance(url, str):
         try:
-            if urlsplit(url).path.startswith("/api/v1/ai-search"):
+            if urlsplit(url).path.startswith(("/api/v1/ai-search", "/api/v1/saved-searches/ai")):
                 return None
         except ValueError:
-            return None if "/api/v1/ai-search" in url else event
+            return None if any(p in url for p in ("/api/v1/ai-search", "/api/v1/saved-searches/ai")) else event
     return event
 
 
@@ -223,12 +224,12 @@ def request_id_for(request: Request) -> str:
 
 def private_log_path(request: Request) -> str:
     path = request.url.path
-    return "/api/v1/ai-search/<private>" if path.startswith("/api/v1/ai-search") else path
+    return "/api/v1/ai-search/<private>" if path.startswith(("/api/v1/ai-search", "/api/v1/saved-searches/ai")) else path
 
 
 def metric_route_for(request: Request, *, fallback: str = "<unmatched>") -> str:
     """Return a bounded Prometheus route label even before routing completes."""
-    if request.url.path.startswith("/api/v1/ai-search"):
+    if request.url.path.startswith(("/api/v1/ai-search", "/api/v1/saved-searches/ai")):
         return "/api/v1/ai-search/<private>"
     route = request.scope.get("route")
     route_path = getattr(route, "path", None)
@@ -389,7 +390,7 @@ async def internal_error(request: Request, exc: Exception):
     request_id = getattr(request.state, "request_id", None) or request_id_for(request)
     UNHANDLED_ERRORS.labels(type(exc).__name__).inc()
     # Private exception text/tracebacks can contain an unvalidated URL.
-    log_error = logger.error if request.url.path.startswith("/api/v1/ai-search") else logger.exception
+    log_error = logger.error if request.url.path.startswith(("/api/v1/ai-search", "/api/v1/saved-searches/ai")) else logger.exception
     log_error(
         "unhandled_request_error",
         extra={"request_id": request_id, "method": request.method, "path": private_log_path(request)},
@@ -443,6 +444,11 @@ app.include_router(listings_router, prefix="/api/v1")
 app.include_router(notifications_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")
 app.include_router(saved_searches_router, prefix="/api/v1")
+app.include_router(ai_saved_searches_router, prefix="/api/v1")
 app.include_router(search_history_router, prefix="/api/v1")
 app.include_router(users_router, prefix="/api/v1")
 app.include_router(uploads_router, prefix="/api/v1")
+
+from .services.ai_saved_runtime import install_saved_runtime
+
+install_saved_runtime(app, SessionLocal)

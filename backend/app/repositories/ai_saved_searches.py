@@ -1,6 +1,6 @@
 """Offline registered snapshots and current-proof dry runs. Delivery stays off."""
 import json
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from uuid import UUID, uuid4
 
 from pydantic import Field
@@ -21,6 +21,9 @@ from .ai_fact_pipeline import FactPipeline
 from .ai_search_sessions import IntentVocabulary, SearchSessions
 from .ai_verified_cards import verified_intent_predicate
 from .listings import visible_query
+
+if TYPE_CHECKING:
+    from ..services.ai_saved_handoff import SavedHandoffSigner
 
 
 class SavedAIError(ValueError):
@@ -68,12 +71,15 @@ class RegisteredAISearches:
         return subject
 
     @staticmethod
-    async def _active(conn: AsyncSession, subject: QuotaSubject) -> None:
+    def active_owner_query(user_id: UUID):
         restriction = select(1).where(UserRestriction.user_id == User.id,
             UserRestriction.restriction_type.in_(("full", "view_listings")),
             *active_window(UserRestriction)).correlate(User).exists()
-        owner = await conn.scalar(select(User.id).where(User.id == subject.id, User.deleted_at.is_(None),
-                                                       User.blocked.is_(False), ~restriction))
+        return select(User.id).where(User.id == user_id, User.deleted_at.is_(None), User.blocked.is_(False), ~restriction)
+
+    @staticmethod
+    async def _active(conn: AsyncSession, subject: QuotaSubject) -> None:
+        owner = await conn.scalar(RegisteredAISearches.active_owner_query(subject.id))
         if owner is None:
             raise SavedAIError("REGISTERED_USER_UNAVAILABLE")
 
@@ -153,6 +159,53 @@ class RegisteredAISearches:
         async with self.connections() as conn:
             return (await self._read(conn, subject, saved_id))[1]
 
+    async def save_handoff(self, subject: QuotaSubject, token: str, signer: "SavedHandoffSigner", *, name: str = "", notifications: bool = False) -> SavedAISnapshot:
+        """Explicit registered copy from an independently signed guest result.
+
+        The result UUID is the stable create command across renewed tokens.
+        A deleted receipt stays deleted; neither guest identity nor quota move.
+        """
+        subject = self._subject(subject)
+        if type(name) is not str or len(name) > 120:
+            raise SavedAIError("SAVED_AI_NAME_INVALID")
+        verified = signer.verify(token)
+        copied = verified.intent
+        self._validate_criteria(copied.criteria)
+        name = name.strip()
+        fingerprint = digest({"result_ref": str(verified.result_ref), "intent": copied.model_dump(mode="json", exclude_none=True), "name": name})
+        async with self.connections.begin() as conn:
+            # Account deletion uses this same collection -> subject order.
+            await lock_saved_searches(subject.id, conn)
+            await self.sessions.lock_subject(conn, subject)
+            await self._active(conn, subject)
+            # Recheck time after waiting for locks, without accepting an expired
+            # signed snapshot simply because validation started earlier.
+            signer.verify(token)
+            command = await conn.get(AiSavedSearchCommand, (subject.id, verified.result_ref))
+            if command is not None:
+                if command.fingerprint != fingerprint:
+                    raise SavedAIError("SAVED_AI_IDEMPOTENCY_CONFLICT")
+                if command.saved_search_id is None:
+                    raise SavedAIError("SAVED_AI_DELETED")
+                return (await self._read(conn, subject, command.saved_search_id))[1]
+            if await saved_search_count(subject.id, conn) >= get_settings().max_saved_searches_per_user:
+                raise SavedAIError("SAVED_SEARCH_LIMIT")
+            child = AiSavedSearch(saved_search_id=uuid4(), user_id=subject.id, name=name,
+                matcher="ai.v1", revision=1, enabled=True,
+                schema_version=copied.schema_version, taxonomy_version=copied.taxonomy_version,
+                criteria=copied.criteria.model_dump(mode="json", exclude_none=True),
+                intent_hash=digest(copied.model_dump(mode="json", exclude_none=True)))
+            conn.add(child)
+            await conn.flush()
+            conn.add(AiSavedSearchCommand(user_id=subject.id, idempotency_key=verified.result_ref,
+                fingerprint=fingerprint, saved_search_id=child.saved_search_id))
+            await conn.flush()
+            saved = self._decode(child)
+            if notifications:
+                from ..services.ai_saved_notifications import initialize_rematch
+                await initialize_rematch(conn, self, saved)
+            return saved
+
     async def list_for_user(self, subject: QuotaSubject, *, after: UUID | None = None, limit: int = 100) -> list[SavedAISnapshot]:
         subject = self._subject(subject)
         if type(limit) is not int or not 1 <= limit <= 100 or (after is not None and not isinstance(after, UUID)):
@@ -169,6 +222,8 @@ class RegisteredAISearches:
         if type(revision) is not int or revision < 1 or type(enabled) is not bool:
             raise SavedAIError("SAVED_AI_COMMAND_INVALID")
         async with self.connections.begin() as conn:
+            await lock_saved_searches(subject.id, conn)
+            await self.sessions.lock_subject(conn, subject)
             child, current = await self._read(conn, subject, saved_id, lock=True)
             if current.revision != revision:
                 raise SavedAIError("SAVED_AI_VERSION_CONFLICT")
