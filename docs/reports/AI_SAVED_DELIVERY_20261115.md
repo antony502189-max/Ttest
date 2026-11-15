@@ -74,3 +74,7 @@ Two read-only EXPLAIN ANALYZE/BUFFERS cases used only the approved13object IDs a
 Municipality geography is supported, but the reviewed municipality-zone vocabulary is empty; specific district search was not certified. An earlier conversational statement listing districts as implemented was too broad. District/date/room-capacity coverage requires further mandatory S2.1 work, without inventing missing facts.
 
 Evidence JSON is stored with directory-local LF attributes; SHA256 values refer to canonical Git bytes, so Windows checkout conversion cannot invalidate the manifest.
+
+## Handoff update
+
+Fresh GitHub check on15November confirms all8main42 workflowsSUCCESS. Earlier pending/cancelled snapshots remain historical. The evidence directory now contains32canonical-LF JSON proofs. Owner explicitly requested continuation in a new GPT‑6.1 Sol/medium chat with full access; runtime, approved cohort and spending state are unchanged. See AI_SEARCH_HANDOFF_20261115.md and canonical plan3.42.
