@@ -140,6 +140,11 @@ const productNotificationCopy: Record<string, Record<Language, { title: string; 
     en: { title: 'Your listing was deleted by an administrator', body: 'Your listing was deleted by an administrator.' },
     ru: { title: 'Ваше объявление было удалено администратором', body: 'Ваше объявление было удалено администратором.' },
   },
+  ai_saved_match: {
+    es: { title: 'Nueva coincidencia para tu búsqueda IA', body: 'Hay un anuncio que cumple las condiciones de tu búsqueda guardada.' },
+    en: { title: 'New match for your saved AI search', body: 'A listing matches the conditions of your saved search.' },
+    ru: { title: 'Новое совпадение для сохранённого AI-поиска', body: 'Найдено объявление, которое соответствует условиям сохранённого поиска.' },
+  },
   saved_search_match: {
     es: { title: 'Nueva habitación para tu búsqueda guardada', body: 'Ha aparecido una nueva habitación que coincide con tu búsqueda.' },
     en: { title: 'New room for your saved search', body: 'A new room matching your saved search is available.' },
