@@ -49,6 +49,10 @@ class PilotBudget(EvaluationBudget):
             raise ProviderFailure("PILOT_DISPATCH_CONTEXT_REQUIRED")
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
+            # A reviewed calendar migration retains this original journal.
+            # A compatible older composition must never bypass the new caps.
+            if db.execute("SELECT 1 FROM sqlite_master WHERE name='calendar_budget'").fetchone():
+                raise ProviderFailure("PILOT_CALENDAR_BUDGET_MIGRATED")
             if self.dispatch_guard is not None:
                 self.dispatch_guard()
             count, spent, missing = db.execute("SELECT count(*),coalesce(sum(reserved),0),count(*)-count(prompt_tokens) FROM attempts").fetchone()
