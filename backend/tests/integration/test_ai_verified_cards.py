@@ -28,6 +28,38 @@ from app.services.ai_card_cursors import InvalidAICursor
 pytestmark = pytest.mark.integration
 
 
+async def test_shared_candidates_evaluate_eligibility_once_and_keep_live_proof_guard():
+    from app.repositories.ai_verified_cards import (
+        _candidate_cohorts,
+        _materialized_candidates,
+        verified_intent_predicate,
+    )
+    from app.repositories.listings import visible_query
+
+    query, subject, session_id, ids, source_ids = await setup("long")
+    async with SessionLocal() as session, session.begin():
+        _, intent = await query.sessions._read(session, subject, session_id)
+        # A volatile counter measures actual eligibility work, independently
+        # of SQL shape or wall-clock noise on the small regression fixture.
+        await session.execute(text("CREATE TEMP TABLE candidate_probes (id uuid) ON COMMIT DROP"))
+        await session.execute(text("""CREATE FUNCTION pg_temp.candidate_probe(value uuid)
+            RETURNS boolean LANGUAGE plpgsql VOLATILE AS $$ BEGIN
+                INSERT INTO pg_temp.candidate_probes VALUES (value); RETURN true;
+            END $$"""))
+        base = _materialized_candidates(visible_query().where(
+            Listing.id.in_(ids[1:3]), func.pg_temp.candidate_probe(Listing.id)))
+        statement = base.with_only_columns(Listing.id).where(verified_intent_predicate(
+            query.pipeline, intent, cohort_scope=_candidate_cohorts(base, query.pipeline)))
+        assert set(await session.scalars(statement)) == set(ids[1:3])
+        assert await session.scalar(select(func.count()).select_from(text("pg_temp.candidate_probes"))) == 2
+        # Candidate materialization is statement-local. A changed authority
+        # cannot be hidden by the previously evaluated eligibility population.
+        await session.execute(update(ExternalListingSource).where(
+            ExternalListingSource.id == source_ids[1]).values(raw_payload={"changed": True}))
+        assert set(await session.scalars(statement)) == {ids[2]}
+        assert await session.scalar(select(func.count()).select_from(text("pg_temp.candidate_probes"))) == 4
+
+
 async def test_fact_catalog_generation_rejects_same_sum_changes_and_restoration():
     from app.models.ai_fact_pipeline import AiFactCatalog
     query, subject, session_id, _, _ = await setup("long")

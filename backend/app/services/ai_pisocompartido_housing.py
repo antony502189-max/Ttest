@@ -14,7 +14,7 @@ from .ai_fact_bridge import PreparedFactInput, _observation
 from .ai_listing_input import clean_evidence_text
 from .ai_pisocompartido_price import prepare_price
 
-VERSION = "pisocompartido-housing.v1"
+VERSION = "pisocompartido-housing.v2"
 ALIASES = {}
 for _code in MUNICIPALITIES:
     for _alias in unique_municipality_aliases(_code):
@@ -38,6 +38,16 @@ POLICY = {"se admiten mascotas": ("pets", True), "no se admiten mascotas": ("pet
 POLICY.update({"no se aceptan mascotas": ("pets", False), "no se permiten parejas": ("couples", False)})
 CLAUSES.update({"incluye gastos": ("bills_included", True), "balcón propio": ("balcony", True)})
 AMENITIES = {"wifi": "wifi", "ascensor": "lift", "aire acondicionado": "air_conditioning", "parking": "parking"}
+# A blanket published prohibition entails an indoor prohibition. It does not
+# establish whether smoking is permitted on a balcony, terrace or outdoors.
+# Positive permissions always need an explicit location in the source clause.
+SMOKING = {"no se permite fumar": ("indoors", False),
+           "no se permite fumar en el interior": ("indoors", False),
+           "se permite fumar en el interior": ("indoors", True),
+           "no se permite fumar en el balcón": ("balcony", False),
+           "se permite fumar en el balcón": ("balcony", True),
+           "no se permite fumar en la terraza": ("terrace", False),
+           "se permite fumar en la terraza": ("terrace", True)}
 
 
 class HousingHTML(HTMLParser):
@@ -67,7 +77,7 @@ class HousingHTML(HTMLParser):
         if (tag == "li" and "seccionesFichaAnuncio" in classes
                 and classes & {"contCaract", "contTwocols"} and not hidden
                 and not classes & {"disabled", "off", "inactive"}
-                and (text in CLAUSES or text in POLICY or text in AMENITIES
+                and (text in CLAUSES or text in POLICY or text in AMENITIES or text in SMOKING
                      or re.fullmatch(r"fianza: (?:0|[1-9][0-9]{0,5})(?:[.,][0-9]{1,2})? €", text))):
             self.clauses.add(text)
         self.stack = self.stack[:index]
@@ -104,7 +114,7 @@ def minimize_source(value, source_url):
         text = clean_evidence_text(value.get(key) or "").casefold()
         for clause in re.split(r"[.!?;\n|•]+", text):
             clause = " ".join(clause.split()).strip()
-            if clause in CLAUSES or clause in POLICY:
+            if clause in CLAUSES or clause in POLICY or clause in SMOKING:
                 clauses.add(clause)
     if clauses:
         result["clauses"] = sorted(clauses)
@@ -145,6 +155,10 @@ def prepare_housing(snapshot):
         elif clause in POLICY:
             key, allowed = POLICY[clause]
             add(key, {"kind": "policy", "allowed": allowed}, clause, policy=True)
+        elif clause in SMOKING:
+            scope, allowed = SMOKING[clause]
+            add("smoking", {"kind": "policy", "allowed": allowed}, clause,
+                {"smoking_scope": scope}, policy=True)
         elif clause in AMENITIES:
             add("amenity", {"kind": "boolean", "value": True}, clause, {"amenity_code": AMENITIES[clause]})
         elif re.fullmatch(r"fianza: (?:0|[1-9][0-9]{0,5})(?:[.,][0-9]{1,2})? €", clause):

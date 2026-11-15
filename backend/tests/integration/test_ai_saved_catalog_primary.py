@@ -9,7 +9,7 @@ from test_ai_verified_cards import setup
 from app.db.session import SessionLocal
 from app.models import ExternalListingSource, Listing
 from app.models.ai_fact_pipeline import AiFactSource
-from app.repositories.ai_verified_cards import verified_intent_predicate
+from app.repositories.ai_verified_cards import verified_coverage_predicate, verified_intent_predicate
 from app.repositories.listings import visible_query
 from app.schemas.ai_search_intent import Criteria, Criterion, SearchIntent
 from app.services.ai_housing_catalog import housing_pipeline
@@ -25,13 +25,29 @@ async def imported_target():
     normalized = {"source_name": "PisoCompartido", "source_price_text": "600 €/mes", "rental_mode": "long",
         "price_currency": "EUR", "price_period": "month", "price_is_from": False, "price_amount": 600,
         "city": "Madrid", "title": "Habitación amueblada", "description": "Gastos incluidos."}
-    raw = {"html": '<div class="seccionesFichaAnuncio"><div class="contCaract"><li>Wifi</li></div></div>'}
+    raw = {"html": '<div class="seccionesFichaAnuncio"><div class="contCaract"><li>Wifi</li>'
+        '<li>No se permite fumar</li></div></div>'}
     async with SessionLocal.begin() as conn:
         await conn.execute(update(ExternalListingSource).where(ExternalListingSource.id == source_id).values(
             source_name="PisoCompartido", source_url="https://www.pisocompartido.com/habitacion/123456/",
             normalized_payload=normalized, raw_payload=raw, source_price_text="600 €/mes", last_success_at=now))
     pipeline = housing_pipeline(SessionLocal, resolver_version="housing-main.v1")
     return pipeline, source_id, listing_id, normalized, raw, now, sources
+
+
+async def test_published_smoking_denial_is_known_coverage_without_permission_or_outdoor_defaults():
+    pipeline, source_id, listing_id, normalized, raw, now, _ = await imported_target()
+    await refresh_saved_catalog(pipeline, (source_id,))
+    for scope, covered in (("indoors", True), ("balcony", False), ("terrace", False), ("outdoors", False)):
+        intent = SearchIntent(schema_version="ai-search.v1", taxonomy_version="rental.v1",
+            session_id=uuid4(), version=0, criteria=Criteria.model_validate({
+                "smoking": {"strength": "hard", "value": {"scope": scope}}}))
+        async with SessionLocal() as conn:
+            base = visible_query().where(Listing.id == listing_id).with_only_columns(Listing.id)
+            assert bool(await conn.scalar(base.where(verified_coverage_predicate(pipeline, intent)))) is covered
+            assert await conn.scalar(base.where(verified_intent_predicate(pipeline, intent))) is None
+            source = await conn.get(ExternalListingSource, source_id)
+            assert (source.normalized_payload, source.raw_payload, source.last_success_at) == (normalized, raw, now)
 
 
 async def test_original_import_cas_freshness_and_fact_query_without_source_rewrite():
@@ -91,5 +107,5 @@ async def test_all_current_authorities_of_selected_object_without_admitting_othe
         outside = await conn.get(AiFactSource, others[2])
         assert outside.extractor_version == "test-cards.v1"
         ids = list(await conn.scalars(select(AiFactSource.canonical_listing_id).where(
-            AiFactSource.extractor_version == "pisocompartido-housing.v1")))
+            AiFactSource.extractor_version == "pisocompartido-housing.v2")))
         assert set(ids) <= {listing_id}
