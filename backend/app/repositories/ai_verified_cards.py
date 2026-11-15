@@ -119,7 +119,7 @@ class VerifiedCardSearch:
             if self.pipeline.operating_policy is not None:
                 # Check coverage independently of the requested constraints:
                 # zero matches is meaningful only with usable source evidence.
-                base = apply_search_filters(visible_query(), payload)
+                base = _materialized_candidates(apply_search_filters(visible_query(), payload))
                 covered = base.where(verified_coverage_predicate(self.pipeline, candidate,
                     cohort_scope=_candidate_cohorts(base, self.pipeline)))
                 if not await session.scalar(select(covered.exists())):
@@ -158,7 +158,7 @@ class VerifiedCardSearch:
         payload = payload.model_copy(update={"cursor": raw_cursor})
         # EXISTS preserves one catalog row per listing and the existing
         # commercial ordering/gallery/redirect pipeline. No post-page filter.
-        base = apply_search_filters(visible_query(), payload)
+        base = _materialized_candidates(apply_search_filters(visible_query(), payload))
         filtered = base.where(_verified_intent_predicate(self.pipeline, intent, compiled,
             cohort_scope=_candidate_cohorts(base, self.pipeline)))
         cards = await _search_filtered_cards(session, payload, filtered, _cursor_fingerprint(payload))
@@ -218,7 +218,7 @@ class VerifiedCardSearch:
         await configure_ai_query(session)
         bounded = payload.model_copy(update={"minLatitude": payload.south, "maxLatitude": payload.north,
                                              "minLongitude": payload.west, "maxLongitude": payload.east})
-        base = apply_search_filters(visible_query(), bounded)
+        base = _materialized_candidates(apply_search_filters(visible_query(), bounded))
         filtered = base.where(verified_intent_predicate(self.pipeline, intent, cohort_scope=_candidate_cohorts(base, self.pipeline)))
         return VerifiedMapResult(await _search_filtered_map(session, payload, filtered), intent_hash(intent))
 
@@ -247,6 +247,21 @@ def verified_coverage_predicate(pipeline: FactPipeline, intent: SearchIntent, *,
         conditions.extend((source_freshness_predicate(Listing.__table__.c.id, plan, pipeline.operating_policy),
                            proof_age_predicate(Listing.id)))
     return and_(*conditions)
+
+
+def _materialized_candidates(base):
+    # Both the card/map query and its cohort scope need this exact public and
+    # manually filtered population. Share only candidate IDs within the SQL
+    # statement, rather than planning and executing eligibility twice. Live
+    # proof, current values and source freshness still run before count/LIMIT;
+    # this is not a cache and cannot survive the statement's snapshot.
+    candidates = base.with_only_columns(Listing.id, maintain_column_froms=True).order_by(None).correlate(None)
+    eligible = candidates.cte().prefix_with("MATERIALIZED")
+    # Card rendering later replaces selected columns and still relies on the
+    # original User/room-detail joins. Retain those FROMs, including optional
+    # room details; dropping them silently creates a Cartesian product when
+    # the renderer selects roomCapacity, even if the ID count is correct.
+    return select(Listing).select_from(*base.get_final_froms()).where(Listing.id.in_(select(eligible.c.id)))
 
 
 def _candidate_cohorts(base, pipeline):

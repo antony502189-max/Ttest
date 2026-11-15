@@ -1,0 +1,89 @@
+{
+  "source": "50112a9e",
+  "main": "25492e5915e7fb0b35b4454f7e79e2561b9efc37",
+  "synthetic": true,
+  "requests": [
+    {
+      "kind": "voice",
+      "key": "d8634d73-7ce7-4ed0-b777-41990c22eb0c",
+      "session": "50bb2df2-507c-4a46-8d23-bebf6b45baa0",
+      "version": 2,
+      "audioBytes": 231724,
+      "audioHash": "8e715c48bf78e75e69891996cfaa2d58de9ca1c74da72eec3c6d7a9adec91d68"
+    }
+  ],
+  "errors": [],
+  "build": {
+    "commit": "25492e5915e7fb0b35b4454f7e79e2561b9efc37"
+  },
+  "before": {
+    "attempts": 29,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "stopToConditionsMs": 10718,
+  "result": {
+    "ref": "43ef811f-26a2-4186-83a5-61db5ebbdcd7",
+    "committed": {
+      "result_ref": "43ef811f-26a2-4186-83a5-61db5ebbdcd7",
+      "count": 3,
+      "intent": {
+        "schema_version": "ai-search.v1",
+        "taxonomy_version": "rental.v1",
+        "session_id": "50bb2df2-507c-4a46-8d23-bebf6b45baa0",
+        "version": 3,
+        "criteria": {
+          "rental_mode": {
+            "strength": "hard",
+            "value": "long"
+          },
+          "budget": {
+            "strength": "hard",
+            "value": {
+              "amount": "700",
+              "currency": "EUR",
+              "period": "monthly"
+            }
+          },
+          "accommodation": {
+            "strength": "hard",
+            "value": {
+              "kind": "room"
+            }
+          },
+          "furnished": {
+            "strength": "hard",
+            "value": true
+          },
+          "bills_included": {
+            "strength": "hard",
+            "value": true
+          }
+        }
+      },
+      "intent_hash": "595160db027f02e399187fe1cc5c9f948a30bc78c3f089226b28170808178955"
+    },
+    "ids": [
+      "227fb40d-e05d-4ea3-91d5-aa372e25243e",
+      "3aceeb27-50af-4883-9e39-816fc2cefd47",
+      "a4053659-6965-460e-9e53-299d3cc70fc2"
+    ],
+    "count": 3,
+    "remaining": 0
+  },
+  "after": {
+    "attempts": 30,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": false,
+    "approved": true,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "guestIdentityUnchanged": true,
+  "passed": true
+}

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "budget": "700",
+  "used": 1,
+  "reserved": 0,
+  "operations": [
+    {
+      "channel": "text",
+      "status": "succeeded",
+      "failure": null,
+      "idempotency_key": "a5927271-e3d6-4fff-9f2a-ac06842f39c9",
+      "result_count": 3
+    }
+  ],
+  "lifetime_attempts": 28,
+  "usage_observed": 28,
+  "lifetime_reserved_micro_usd": 309680,
+  "guest_identity_reset": false
+}

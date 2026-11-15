@@ -1,0 +1,61 @@
+{
+  "commit": "25492e5915e7fb0b35b4454f7e79e2561b9efc37",
+  "runs": [
+    {
+      "id": 43742651745,
+      "name": "AI local voice without outbound audio",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/antony502189-max/Ttest/actions/runs/43742651745"
+    },
+    {
+      "id": 43742651815,
+      "name": "AI pilot sealed proxy boundary",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/antony502189-max/Ttest/actions/runs/43742651815"
+    },
+    {
+      "id": 43742651747,
+      "name": "AI Search private frontend",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/antony502189-max/Ttest/actions/runs/43742651747"
+    },
+    {
+      "id": 43742651779,
+      "name": "Capacity smoke safeguards",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/antony502189-max/Ttest/actions/runs/43742651779"
+    },
+    {
+      "id": 43742651813,
+      "name": "Security dependency and static audit",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/antony502189-max/Ttest/actions/runs/43742651813"
+    },
+    {
+      "id": 43742651752,
+      "name": "GitHub Pages UI preview",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/antony502189-max/Ttest/actions/runs/43742651752"
+    },
+    {
+      "id": 43742651755,
+      "name": "AI Search combined facts quota sessions",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/antony502189-max/Ttest/actions/runs/43742651755"
+    },
+    {
+      "id": 43742651799,
+      "name": "Full audit",
+      "status": "completed",
+      "conclusion": "cancelled",
+      "html_url": "https://github.com/antony502189-max/Ttest/actions/runs/43742651799"
+    }
+  ]
+}

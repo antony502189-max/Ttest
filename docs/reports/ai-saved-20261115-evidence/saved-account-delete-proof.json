@@ -1,0 +1,34 @@
+{
+  "phase": "delete",
+  "requests": [
+    {
+      "path": "/api/v1/saved-searches/9f343384-cf6b-44f0-8943-6a8ff3af0d3b",
+      "method": "DELETE",
+      "bearerPresent": true
+    },
+    {
+      "path": "/api/v1/saved-searches/ai",
+      "method": "POST",
+      "bearerPresent": true
+    }
+  ],
+  "errors": [],
+  "providerRequests": [],
+  "authResponses": [
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/login",
+      "status": 200
+    }
+  ],
+  "deleted": true,
+  "deletedReceiptRetry": {
+    "status": 409,
+    "detail": "SAVED_AI_DELETED"
+  },
+  "guestIdentityUnchanged": true,
+  "passed": true
+}

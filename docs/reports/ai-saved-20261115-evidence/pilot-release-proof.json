@@ -1,0 +1,15 @@
+{
+  "source": "50112a9eebb90a41420ef80746108cc454ebf48f",
+  "backend_image": "sha256:1d741e7afe78602344777b6e9167327eaf08bddf2b5aa1de795d3999648572f5",
+  "proxy_image": "sha256:9af18c4c07e558f0452bc1c93b52eb89b8853759a1ef7fb8133cff2c63ffa0d7",
+  "before_attempts": 28,
+  "after_attempts": 28,
+  "journal_resets": 0,
+  "seed": 0,
+  "migrations": 0,
+  "protected_files_unchanged": true,
+  "postgres_redis_unchanged": true,
+  "cohort_sources": 13,
+  "approval_expires_at": "2026-11-15T20:59:59Z",
+  "backup": "/srv/112233-ai-site-pilot-20261108/backups/saved-50112a9e-20261115T174313Z"
+}

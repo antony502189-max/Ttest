@@ -1,0 +1,8 @@
+{
+  "primary": "42ea90cba2332397dc74f0abba965108f84b2179",
+  "delivery_timer": "active",
+  "retention_timer": "active",
+  "post_release_ticks": "success",
+  "journal_settings_retained": true,
+  "provider_calls": 0
+}

@@ -84,3 +84,49 @@ def test_source_layout_only_reads_detail_lists_not_filters_hidden_or_related_ads
 @pytest.mark.parametrize("city,code", [("santa_cruz_de_tenerife_capital", "38038"), ("la_orotava", "38026"), ("guimar", "38020")])
 def test_reviewed_source_city_slugs_resolve_official_identity(city, code):
     assert minimize_source({"city": city}, URL)["municipality"]["code"] == code
+
+
+def test_blanket_smoking_prohibition_proves_indoor_denial_without_outdoor_assumptions():
+    html = '<div class="seccionesFichaAnuncio"><div class="contTwocols"><ul>' \
+           '<li>No se permite fumar</li></ul></div></div>'
+    prepared = prepare_housing(snapshot(minimize_source({"html": html}, URL)))
+    smoking = [fact for fact in prepared.facts if fact.key == "smoking"]
+    assert len(smoking) == 1
+    assert smoking[0].status == "explicit_deny"
+    assert smoking[0].typed_value.allowed is False
+    assert smoking[0].qualifiers.smoking_scope == "indoors"
+    assert smoking[0].evidence[0].quote == "no se permite fumar"
+
+
+@pytest.mark.parametrize("clause,scope,allowed", [
+    ("Se permite fumar en el interior", "indoors", True),
+    ("No se permite fumar en el interior", "indoors", False),
+    ("Se permite fumar en el balcón", "balcony", True),
+    ("No se permite fumar en el balcón", "balcony", False),
+    ("Se permite fumar en la terraza", "terrace", True),
+    ("No se permite fumar en la terraza", "terrace", False),
+])
+def test_smoking_permissions_and_denials_keep_the_exact_source_scope(clause, scope, allowed):
+    prepared = prepare_housing(snapshot(minimize_source({"description": clause}, URL)))
+    fact = next(f for f in prepared.facts if f.key == "smoking")
+    assert fact.status == ("explicit_allow" if allowed else "explicit_deny")
+    assert fact.typed_value.allowed is allowed
+    assert fact.qualifiers.smoking_scope == scope
+
+
+@pytest.mark.parametrize("description", [
+    "Se permite fumar", "No se permite fumar salvo en el interior",
+    "Se permite fumar en el balcón si el dueño acepta", "¿No se permite fumar?",
+    "El vecino dice: no se permite fumar", "No se permite fumar. Excepto en el interior.",
+])
+def test_unscoped_permission_qualified_or_quoted_smoking_does_not_become_a_fact(description):
+    prepared = prepare_housing(snapshot(minimize_source({"description": description}, URL)))
+    assert not any(f.key == "smoking" for f in prepared.facts)
+
+
+def test_explicit_smoking_conflict_and_different_scopes_are_preserved():
+    prepared = prepare_housing(snapshot(minimize_source({"description":
+        "No se permite fumar. Se permite fumar en el interior. Se permite fumar en el balcón."}, URL)))
+    facts = {f.qualifiers.smoking_scope: f for f in prepared.facts if f.key == "smoking"}
+    assert facts["indoors"].status == "conflict"
+    assert facts["balcony"].status == "explicit_allow"

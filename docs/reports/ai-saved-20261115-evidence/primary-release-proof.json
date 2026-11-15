@@ -1,0 +1,61 @@
+{
+  "actual_primary": "42ea90cba2332397dc74f0abba965108f84b2179",
+  "releases": [
+    {
+      "sha": "0cd4aa809bf19fddfc39e5a93eda64fefeb32736",
+      "status": "success",
+      "revision_after": "0080_ai_saved_rematch (head)",
+      "data_maintenance": "skipped",
+      "encrypted_backup_files": {
+        "minio": {
+          "path": "/srv/112233.es/backups/minio-20261115-124247-1215986-21040.tar.enc",
+          "bytes": 840199200,
+          "hmac_file_present": true
+        },
+        "postgres": {
+          "path": "/srv/112233.es/backups/postgres-20261115-125829-1284107-11791.dump.enc",
+          "bytes": 73634976,
+          "hmac_file_present": true
+        }
+      }
+    },
+    {
+      "sha": "25492e5915e7fb0b35b4454f7e79e2561b9efc37",
+      "status": "success",
+      "revision_after": "0080_ai_saved_rematch (head)",
+      "data_maintenance": "skipped",
+      "encrypted_backup_files": {
+        "minio": {
+          "path": "/srv/112233.es/backups/minio-20261115-124247-1215986-21040.tar.enc",
+          "bytes": 840199200,
+          "hmac_file_present": true
+        },
+        "postgres": {
+          "path": "/srv/112233.es/backups/postgres-20261115-174424-1971289-19756.dump.enc",
+          "bytes": 73670048,
+          "hmac_file_present": true
+        }
+      }
+    },
+    {
+      "sha": "42ea90cba2332397dc74f0abba965108f84b2179",
+      "status": "success",
+      "revision_after": "0080_ai_saved_rematch (head)",
+      "data_maintenance": "skipped",
+      "encrypted_backup_files": {
+        "minio": {
+          "path": "/srv/112233.es/backups/minio-20261115-124247-1215986-21040.tar.enc",
+          "bytes": 840199200,
+          "hmac_file_present": true
+        },
+        "postgres": {
+          "path": "/srv/112233.es/backups/postgres-20261115-181756-2057048-5535.dump.enc",
+          "bytes": 73680160,
+          "hmac_file_present": true
+        }
+      }
+    }
+  ],
+  "provider_calls": 0,
+  "production_restore_not_executed": true
+}

@@ -1,0 +1,35 @@
+{
+  "phase": "save",
+  "requests": [
+    {
+      "path": "/api/v1/saved-searches/ai",
+      "method": "POST",
+      "bearerPresent": true
+    }
+  ],
+  "errors": [],
+  "providerRequests": [],
+  "saved": {
+    "id": "9f343384-cf6b-44f0-8943-6a8ff3af0d3b",
+    "matcher": "ai.v1",
+    "name": "",
+    "revision": 1,
+    "enabled": true
+  },
+  "collection": {
+    "items": [
+      {
+        "id": "9f343384-cf6b-44f0-8943-6a8ff3af0d3b",
+        "matcher": "ai.v1",
+        "name": "",
+        "revision": 1,
+        "enabled": true
+      }
+    ],
+    "next_cursor": null,
+    "collection_count": 1
+  },
+  "aiNotifications": [],
+  "guestIdentityUnchanged": true,
+  "passed": true
+}

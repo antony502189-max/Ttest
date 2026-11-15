@@ -1,0 +1,10 @@
+{
+  "active_piso_source_rows": 66,
+  "canonical_objects": 29,
+  "fresh_source_rows_24h": 26,
+  "fresh_canonical_objects_24h": 18,
+  "source_reads_only": true,
+  "provider_calls": 0,
+  "source_updates": 0,
+  "approved_canonical_cohort": 13
+}

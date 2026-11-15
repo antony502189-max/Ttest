@@ -1,0 +1,10 @@
+{
+  "primary": "25492e5915e7fb0b35b4454f7e79e2561b9efc37",
+  "delivery_timer": "active",
+  "retention_timer": "active",
+  "first_ticks": "success",
+  "fixed_alert_marker_observed": true,
+  "destructive_failure_injection": false,
+  "email_sent": 0,
+  "provider_calls": 0
+}

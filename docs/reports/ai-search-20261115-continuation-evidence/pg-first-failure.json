@@ -1,0 +1,12 @@
+{
+  "source_stage": "first query candidate before JOIN correction and smoking-v2 increment",
+  "passed": 50,
+  "failed": 19,
+  "duration_seconds": 569.45,
+  "failure": "Total count correct but card items empty: original User/room-detail FROM joins were omitted. Candidate not deployed.",
+  "new_shared_candidate_counter_regression_passed": true,
+  "corrected_run": "pending",
+  "provider_calls": 0,
+  "production_writes": 0,
+  "test_database_container_removed": true
+}
