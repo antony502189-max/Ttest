@@ -48,7 +48,11 @@ class LocalPCMTranscriber:
             process = await asyncio.create_subprocess_exec(str(self.python), str(Path(__file__).with_name("ai_local_asr_worker.py")),
                 str(self.model), stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL, limit=16384,
-                env={"PATH": "/usr/bin:/bin", "HF_HUB_OFFLINE": "1"})
+                # Keep numeric import/VAD pools from oversubscribing the
+                # two-CPU container before Whisper's explicit two threads run.
+                # Preserve the disposable process, offline boundary and 8s cap.
+                env={"PATH": "/usr/bin:/bin", "HF_HUB_OFFLINE": "1", "OMP_NUM_THREADS": "1",
+                     "OPENBLAS_NUM_THREADS": "1", "MKL_NUM_THREADS": "1", "NUMEXPR_NUM_THREADS": "1"})
             try:
                 async with asyncio.timeout(self.seconds):
                     # Canonical PCM is already bounded. Worker emits only a small
