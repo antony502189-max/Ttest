@@ -36,7 +36,7 @@ class IntentBoundary(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(hasattr(app.state, "ai_search_runtime"))
         async with AsyncClient(transport=ASGITransport(app), base_url=ORIGIN) as client:
             capabilities = await client.get("/api/v1/ai-search/capabilities")
-            self.assertEqual(capabilities.json(), {"text": False, "map": False, "voice": False, "saved_searches": False})
+            self.assertEqual(capabilities.json(), {"text": False, "map": False, "voice": False, "saved_searches": False, "save_handoff": False})
             disabled = await client.post("/api/v1/ai-search/query", json={})
             self.assertEqual(disabled.status_code, 503)
 

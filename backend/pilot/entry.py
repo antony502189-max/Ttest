@@ -32,6 +32,8 @@ CONTROL = Path("/pilot-control")
 EXTERNAL_DEMO_END = datetime(2026, 11, 11, 20, 59, 59, tzinfo=UTC)
 # Explicit owner extension on12Nov: same cumulative50/$1 journal, no reset.
 HOUSING_DEMO_END = datetime(2026, 11, 12, 20, 59, 59, tzinfo=UTC)
+# Explicit owner renewal on15Nov; same original journal and cumulative50/$1.
+HOUSING_RENEWAL_END = datetime(2026, 11, 15, 20, 59, 59, tzinfo=UTC)
 
 
 def require_pilot():
@@ -64,6 +66,9 @@ def approved():
     if value == {**common, "scope": "public-nonpersonal-housing-criteria.v1",
                  "expires_at": "2026-11-12T20:59:59Z"}:
         return datetime.now(UTC) < HOUSING_DEMO_END
+    if value == {**common, "scope": "public-nonpersonal-housing-criteria.v1",
+                 "expires_at": "2026-11-15T20:59:59Z"}:
+        return datetime.now(UTC) < HOUSING_RENEWAL_END
     raise ValueError("PILOT_APPROVAL_MISMATCH")
 
 

@@ -1,8 +1,15 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.37**, 15 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.38**, 15 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+**Сессия3.38 / S4.2–4.4,S6 — PR416 и явное продление15.11.** PR [416](https://github.com/antony502189-max/Ttest/pull/416) открыт от654c72bc. Владелец явно продлил тот же cumulative50calls/$1 до15.11 23:59МСК (2026-11-15T20:59:59Z), сохранив весь фактический расход. Read-only actualjournal:27attempts/27usage-observed, reserved_micro_usd298620, exhausted=false/halted=false; primary0079/saved0/bindings0/proofs0. Новых paidcalls и resets0 на checkpoint. Старый artifact12.11 остаётсяexpired; новый deadline действует только с отдельным exact15.11 artifact.25renewal/review testsPASS, первоначальный incomplete synthetic usage fixture исправлен без ослабления usage guard.
+
+CI654: Full auditSUCCESS, parser/quota/voice/proxy/payment ичастьобщихchecksSUCCESS; remainingchecks учитываются отдельно. Facts guard остановлен на устаревшем lab assertion о новом false capability; скорректирован ожидаемый контракт, lab unittest5PASS и111pytestPASS/1skip. Security обнаружил опубликованный13.11 dependency advisory CVE-2026-128089 в прежнемdnspython2.9.0. Pin обновлён2.9.2, исключений/skip нет; local exact-graph pip-audit0knownvulns, Bandit medium/high0, isolated2.9.2 WKS-boundary/email sanityPASS/provider0. [Upstream advisory](https://github.com/rthalley/dnspython/security/advisories/GHSA-vvf4-9x63-8xvv).
+
+**Следующее действие3.38:** отправить renewal/dependency/lab follow-up и обновлённый runtime manifest в тот жеPR416; дождаться проверок нового точногоsource, затем продолжить compatible primary0080 rollout, независимый primary journal/cohort setup, supervisor иactual registered save/delivery. Только после установки одобренного15.11 artifact допускается свежий synthetic text/voice request в прежнем бюджете; не сбрасывать27existing attempts. Saved/delivery ещёнеактивны; остальныеS0–S7 gates открыты.
+
+**Историческая сессия3.37:**
 **Сессия3.37 / S4.2–4.4 — сохранение и in-app delivery, source-only.** Продолжается существующая ветка `codex/ai-saved-handoff` в `C:/Users/HONOR/.codex/worktrees/main-integration-audit/Ttest`, base/mainf5f7cbdf; старый root checkout не переключать и не очищать. Подписанный300s owned immutable handoff, явный registered save/retry/tombstone, list/pause/delete UI,0080fenced scan/seen, SQL-only current-proof in-app delivery и20/day/user Madrid background allowance реализованы. Модель/SMTP не вызываются. Primaryfacts читают только явно переданный прежний13-source cohort; исходные listings/payloads/timestamps не переписываются. Сохранение и уведомления на сайте ещё не активированы.
 
 **Проверки3.37:** полный localunit1951PASS/16skip/99.74s до последнего file-key/lifecycle дополнения; после него27focusedPASS, targetedmypy5filesPASS, Ruff/types/i18nPASS. PostgreSQL: first55PASS/1obsolete0079assert; corrected60PASS/1missing test import; final13deliveryPASS, затем1primary catalogCAS/freshnessPASS. Исправления тестовых fixtures/import/0080expectation сохранены отдельно от продуктовых изменений; combined0080 migration/model parity PASS. Browser: existing4publicPASS, new2registered save/retry PASS390/1440; savedcollection pause/resume/delete2PASS320/1280. Первые2browserfixtures не имели GETsession stub, initial saved harness cwd не нашёл Vite; отказы retained, исправлены только fixtures/harness.
@@ -543,3 +550,6 @@ Retained failed main audit; exact loading precondition added to existing rotatio
 
 ### Версия3.37 — 15.11.2026 / S4.2–4.4
 Реализация обязательного registered save иnotifications продолжается на прежнем source/runtime пути. Expiry12.11 не расширяется автоматически после возобновления15.11. Новые saved SQL операции не требуют provider IO. Runtime, CI и actualrelease остаются отдельными доказательствами; activation иS4/A7/A8 ещёOPEN.
+
+### Версия3.38 — явное продление и найденный CI blocker
+Прямой ответ владельца15.11 разрешает прежний совокупный50/$1 до15.11 23:59МСК ссохранениемвсегорасхода. Это не reset и не расширение cohort. Новый опубликованныйdependencyadvisory устранёнpatchpin2.9.2, а не исключением securitygate; фактический CI/release новойверсии проверяетсяотдельно.
