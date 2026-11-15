@@ -22,8 +22,8 @@ RUN pip install --constraint constraints.txt .
 # capable of providing the configured Playwright fallback without a host browser.
 RUN python -m playwright install --with-deps chromium
 
-RUN mkdir -p /app/var/media /ms-playwright \
-    && chown -R app:app /app /ms-playwright \
+RUN mkdir -p /app/var/media /ms-playwright /ai-saved-state /ai-saved-secrets \
+    && chown -R app:app /app /ms-playwright /ai-saved-state /ai-saved-secrets \
     && chmod -R a+rX /ms-playwright
 USER app
 

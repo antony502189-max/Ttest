@@ -5,6 +5,7 @@ import { aiCapabilities, aiCardPage, aiMapCenter, aiResultPage, createAISession,
 import { aiConditionRows, aiModeLabel, type AICommittedIntent } from '@/api/ai-intent'
 import type { RentalMode } from '@/types'
 import { AIConditions } from '@/components/ai-conditions'
+import { SaveAIResult } from '@/components/save-ai-result'
 import { hydrateIncompleteInternalGallery, type ListingCardPage } from '@/api/listings'
 import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
@@ -34,6 +35,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
   const [enabled, setEnabled] = useState(false)
   const [mapEnabled, setMapEnabled] = useState(false)
   const [voiceEnabled, setVoiceEnabled] = useState(false)
+  const [saveEnabled, setSaveEnabled] = useState(false)
   const [recording, setRecording] = useState(false)
   const [mapVisible, setMapVisible] = useState(false)
   const [mapRefreshVersion, setMapRefreshVersion] = useState(0)
@@ -172,7 +174,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
   useEffect(() => {
     const controller = new AbortController()
     void aiCapabilities(controller.signal).then(value => {
-      if (!controller.signal.aborted) { setEnabled(value.text === true); setMapEnabled(value.map === true); setVoiceEnabled(value.voice === true) }
+      if (!controller.signal.aborted) { setEnabled(value.text === true); setMapEnabled(value.map === true); setVoiceEnabled(value.voice === true); setSaveEnabled(value.save_handoff === true) }
     }).catch(() => { /* Ordinary search stays available when capability lookup fails. */ })
     return () => { controller.abort(); flight.current?.abort(); syncFlight.current?.abort() }
   }, [])
@@ -497,6 +499,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
         <p>{t('Solo mostramos opciones con datos verificados recientes. Puede haber fuentes sin verificar; los resultados no cubren todo el mercado.')}</p>
         <p>{t('La lista y el mapa se actualizan por separado. Los anuncios pueden cambiar entre ambas lecturas; el mapa solo muestra la zona visible.')}</p>
         <AIConditions intent={result.committed.intent} title="Condiciones de estos resultados" />
+        {!resultInvalid ? <SaveAIResult key={`${identity}:${result.ref}`} resultRef={result.ref} available={saveEnabled} disabled={busy || changingSession || pending !== null || !pagingAvailable} /> : null}
         {!resultInvalid ? <>
         <h3>{result.page.total} {t('opciones con condiciones confirmadas')}</h3>
         <p>{t('Los anuncios y su orden pueden cambiar entre páginas. Actualiza la lista para ver cambios desde el principio.')}</p>

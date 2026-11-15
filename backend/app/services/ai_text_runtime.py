@@ -78,7 +78,10 @@ def install_text_runtime(app: FastAPI, runtime: AISearchRuntime) -> None:
                     raise ValueError("AI runtime already active")
                 async with runtime.sessions.ledger.sessions() as connection:
                     revisions = (await connection.execute(text("SELECT version_num FROM alembic_version"))).scalars().all()
-                    if revisions != [DATABASE_REVISION]:
+                    # 0080 only adds registered rematch/seen children. The
+                    # isolated foreground database may stay at its reviewed
+                    # 0079 revision; no migration or capability is inferred.
+                    if revisions not in ([DATABASE_REVISION], ["0080_ai_saved_rematch"]):
                         raise ValueError("AI_DATABASE_REVISION_MISMATCH")
                 if not await limiter.ping():
                     raise ValueError("AI_REDIS_UNAVAILABLE")

@@ -20,6 +20,15 @@ for (const width of [320, 1280]) {
     let rejectDelete = true
     await page.route('**/api/v1/saved-searches/**', route => {
       const url = new URL(route.request().url())
+      if (url.pathname.endsWith('/capabilities')) return route.fulfill({ json: { save: true } })
+      if (route.request().method() === 'PATCH') {
+        const row = rows.find(row => url.pathname.endsWith(row.id))!
+        const command = route.request().postDataJSON()
+        expect(command.revision).toBe(row.revision)
+        expect(typeof command.enabled).toBe('boolean')
+        row.enabled = command.enabled; row.revision++
+        return route.fulfill({ json: row })
+      }
       if (route.request().method() === 'DELETE') {
         if (rejectDelete) { rejectDelete = false; return route.fulfill({ status: 503, json: { detail: 'try again' } }) }
         const index = rows.findIndex(row => url.pathname.endsWith(row.id))
@@ -38,6 +47,10 @@ for (const width of [320, 1280]) {
     expect(bounds).not.toBeNull()
     expect(bounds!.x).toBeGreaterThanOrEqual(0)
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width)
+    await collection.getByRole('button', { name: 'Pausar avisos', exact: true }).click()
+    await expect(collection.getByText('Avisos pausados', { exact: true })).toBeVisible()
+    await collection.getByRole('button', { name: 'Activar avisos', exact: true }).click()
+    await expect(collection.getByRole('button', { name: 'Pausar avisos', exact: true })).toBeVisible()
     await collection.getByRole('button', { name: 'Cargar más' }).click()
     await expect(collection.getByRole('heading', { name: 'Otra búsqueda' })).toBeVisible()
     await page.reload()

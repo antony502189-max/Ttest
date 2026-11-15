@@ -28,3 +28,13 @@ S4.2 saved-search creation after registration and S4.3 notifications remain mand
 
 ## 12 November: explicit extension and candidate verification
 Owner explicitly approved extending the same cumulative50/$1 spending window until2026-11-12T20:59:59Z. Existing attempts/binding/journal must be retained. Only the full-housing scope gains this explicit date; old approval scopes keep their prior expiry. Focused extension/journal/expiry tests24PASS. PR415 f06383a2 has13SUCCESS/2conditionalSKIP; full local unit1930PASS/16skip. Candidate imagee2b4012ab164154b6e16def27a0c30667d13d36f31443f2507170a44d2c8ef51 built from exact source; four actual-image offline ASR samples PASS4.042–6.25s/provider0. No new paid call or deployment yet at this checkpoint.
+
+## 12 November actual release and live acceptance checkpoint
+
+PR415 merged into mainf5f7cbdf (same treead8e1228 as passing7958f270). Primary manual runner statusSUCCESS22:08:08UTC, schema0079, backup verified; live build-info matched. Isolated7958 backend imagea87bb30c retained PG/Redis/13IDs/keys/journals; activation17→17, migrations/reseed0. All197 backend source hashes and ASR model hash matched. Main push CI last snapshot:7SUCCESS, Full audit in_progress; PR and main proof remain distinct.
+
+Live Chrome with valid TLS: ENvoice composite→city→price3→1→0; RUtext composite→voice budget→text budget1→0→1. Both map200/mobile390reload recovered intent without another model dispatch. Unknown party coverage rejected before provider and preserved previous intent. Independent PG/provider reconciliation confirmed tickets22–27, one dispatch per successful operation,3used/0reserved per synthetic guest. Lifetime27/50, same cumulative$1 and binding, explicit expiry2026-11-12T20:59:59Z. Failed earlier paid attempts remain included. Controls18mobile/23desktop unchanged.
+
+Voice10.476sEN/8.896sRU are single synthetic samples. Longer location samples and first RUcompoundvoice safely rejected before provider; first ENreload timed out in harness, reason unproven, subsequent independent reload passed. Retained failures are not a general ASR/reload fix. Human/accent/p95/full-release gates remain open.
+
+Next mandatory S4.2–4.4 work is on codex/ai-saved-handoff, source-only: signed immutable guest result copying, registered save/pause/delete, fenced SQL-only in-app notifications, independent primary erasure journal and original-cohort current proofs.55focused unit/boundary checks and TypeScript pass. PostgreSQL/new migration, browser, supervised runtime and actual save/delivery acceptance still required before activation.

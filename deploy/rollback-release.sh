@@ -82,6 +82,12 @@ previous="$RELEASES/$target_sha"
 }
 verify_release_worktree "$previous" "$target_sha"
 
+# An activated primary deletion journal survives feature disable and application
+# rollback. Refuse an old binary before stopping today's healthy writers.
+if grep -Eq '^AI_ERASURE_JOURNAL_(PATH|KEY)=.+' "$ENV_FILE"; then
+  python3 "$SCRIPT_DIR/check-ai-saved-runtime.py" "$previous"
+fi
+
 compose=(env DEPLOY_SHA="$target_sha" docker compose --env-file "$ENV_FILE" -f "$previous/docker-compose.production.yml")
 "${compose[@]}" config --quiet
 # A historical target can predate digest pinning.  Resolve any tag-only

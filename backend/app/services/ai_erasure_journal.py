@@ -163,9 +163,17 @@ async def bind_journal(factory, journal: ErasureJournal, *, initialize: bool = F
 
 def configured_journal(*, initialize: bool = False) -> ErasureJournal | None:
     path, encoded = os.environ.get("AI_ERASURE_JOURNAL_PATH"), os.environ.get("AI_ERASURE_JOURNAL_KEY")
-    if not path and not encoded:
+    key_file = os.environ.get("AI_ERASURE_JOURNAL_KEY_FILE")
+    if not path and not encoded and not key_file:
         return None
-    if not path or not encoded:
+    if not path or bool(encoded) == bool(key_file):
+        raise ValueError("AI_ERASURE_CONFIGURATION_INVALID")
+    if key_file:
+        target = Path(key_file)
+        if not target.is_absolute() or target.is_symlink() or target.stat().st_size > 128:
+            raise ValueError("AI_ERASURE_CONFIGURATION_INVALID")
+        encoded = target.read_text(encoding="ascii").strip()
+    if not encoded:
         raise ValueError("AI_ERASURE_CONFIGURATION_INVALID")
     return ErasureJournal(Path(path), base64.b64decode(encoded, validate=True), initialize=initialize)
 

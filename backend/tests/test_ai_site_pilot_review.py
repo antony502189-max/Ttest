@@ -141,6 +141,45 @@ def test_explicit_housing_extension_keeps_lifetime_journal_and_new_expiry(tmp_pa
         ATTEMPT.reset(context)
 
 
+def test_15nov_renewal_preserves_previous_spend_and_does_not_extend_old_artifact(tmp_path, monkeypatch):
+    from pilot import entry
+    monkeypatch.setattr(entry, "CONTROL", tmp_path)
+    artifact = {"binding": BINDING, "owner_approved": True, "max_calls": 50,
+        "max_micro_usd": 1_000_000, "scope": "public-nonpersonal-housing-criteria.v1",
+        "expires_at": "2026-11-12T20:59:59Z"}
+
+    class Clock(datetime):
+        instant = entry.HOUSING_RENEWAL_END - timedelta(seconds=1)
+        @classmethod
+        def now(cls, tz=None):
+            return cls.instant
+
+    monkeypatch.setattr(entry, "datetime", Clock)
+    path = tmp_path / "approval.json"
+    path.write_text(json.dumps(artifact))
+    budget = PilotBudget(tmp_path / "provider.sqlite3", initialize=True)
+    context = ATTEMPT.set("previous-authorized-housing-attempt")
+    try:
+        ticket = budget.reserve()
+        budget.record_usage(ticket, json.dumps({"usage": {"prompt_tokens": 10, "completion_tokens": 1, "total_tokens": 11}}).encode())
+    finally:
+        ATTEMPT.reset(context)
+    before = budget.summary()
+    assert not entry.approved()
+    path.write_text(json.dumps(artifact | {"expires_at": "2026-11-15T20:59:59Z"}))
+    renewed = PilotBudget(tmp_path / "provider.sqlite3")
+    renewed.dispatch_guard = entry.require_approval
+    assert renewed.summary() == before and entry.approved()
+    Clock.instant = entry.HOUSING_RENEWAL_END
+    context = ATTEMPT.set("expired-renewal-no-dispatch")
+    try:
+        with pytest.raises(ProviderFailure, match="APPROVAL_REQUIRED"):
+            renewed.reserve()
+        assert renewed.summary() == before
+    finally:
+        ATTEMPT.reset(context)
+
+
 @pytest.mark.asyncio
 async def test_external_process_revokes_after_preflight_before_reserve(tmp_path, monkeypatch):
     from pilot import entry

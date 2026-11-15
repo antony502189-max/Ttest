@@ -68,3 +68,63 @@ for (const width of [390, 1440]) for (const ready of [true, false]) {
     expect(paths).toContain('/ai-pilot/api/v1/private-demo/status')
   })
 }
+
+for (const width of [390, 1440]) {
+  test(`registered explicit save ${width}px retries without another model call or persisted token`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.addInitScript(() => {
+      const id = '00000000-0000-4000-8000-000000000011'
+      localStorage.setItem('112233:language:v1', 'es')
+      localStorage.setItem('112233:mobile-onboarding:v1', 'done')
+      localStorage.setItem('112233:session:v1', JSON.stringify(id))
+      localStorage.setItem('112233:users:v1', JSON.stringify([{ id, name: 'Synthetic', email: 'synthetic@example.test',
+        password: '', passwordHash: 'offline', role: 'tenant', initials: 'S', phone: '', whatsapp: '', telegram: '', about: '',
+        showPhone: false, showWhatsApp: false, emailVerified: true }]))
+    })
+    const sid = '00000000-0000-4000-8000-000000000001', ref = '00000000-0000-4000-8000-000000000002'
+    let calls = 0, saves = 0, issues = 0
+    const intent = () => ({ schema_version: 'ai-search.v1', taxonomy_version: 'rental.v1', session_id: sid, version: calls,
+      criteria: { rental_mode: { strength: 'hard', value: 'long' }, ...(calls ? { furnished: { strength: 'hard', value: false } } : {}) } })
+    await page.route('**/*', route => {
+      const request = route.request(), url = new URL(request.url()), path = url.pathname
+      if (url.hostname !== '127.0.0.1') return route.abort()
+      if (path === '/api/v1/saved-searches/ai/capabilities') return route.fulfill({ json: { save: true } })
+      if (path === '/api/v1/saved-searches/ai' && request.method() === 'POST') {
+        expect(request.headers().authorization).toBe('Bearer synthetic-primary-token')
+        expect(request.postDataJSON()).toEqual({ token: 'synthetic-signed-handoff' })
+        saves++
+        return route.fulfill({ status: saves === 1 ? 503 : 200, json: saves === 1 ? { detail: 'unavailable' } : { id: ref, matcher: 'ai.v1', enabled: true, revision: 1, name: '' } })
+      }
+      if (path.startsWith('/ai-pilot/api/v1/')) {
+        expect(request.headers().authorization).toBeUndefined()
+        let value: unknown
+        if (path.endsWith('/private-demo/status')) value = { attempts: calls, maximum: 50, approved: true, halted: false, exhausted: false, catalog_ready: true }
+        else if (path.endsWith('/capabilities')) value = { text: true, map: true, voice: true, saved_searches: false, save_handoff: true }
+        else if (path.endsWith('/identity')) value = { ready: true }
+        else if (path.endsWith('/quota')) value = { remaining: 3 - calls }
+        else if (path.endsWith('/sessions')) value = { intent: intent(), expires_at: '2099-01-01T00:00:00Z' }
+        else if (path.endsWith('/sessions/' + sid)) value = { intent: intent(), expires_at: '2099-01-01T00:00:00Z' }
+        else if (path.endsWith('/query')) { calls++; value = { operation: { status: 'succeeded', remaining: 2, receipt: { result_ref: ref, count: 0 } }, cards: { cards: { items: [], total: 0, nextCursor: null, previousCursor: null }, intent_hash: 'frozen-hash' } } }
+        else if (path.endsWith('/results/' + ref)) value = { result_ref: ref, count: 0, intent_hash: 'frozen-hash', intent: intent() }
+        else if (path.endsWith('/results/' + ref + '/save-token')) { issues++; value = { token: 'synthetic-signed-handoff', expires_in: 300 } }
+        else throw Error('Unexpected guest route: ' + path)
+        return route.fulfill({ json: value })
+      }
+      if (path.startsWith('/api/')) return route.fulfill({ status: 404, json: {} })
+      return route.continue()
+    })
+    await page.goto('/#/')
+    await page.evaluate(async () => { const client = await import('/src/api/client.ts'); client.setAccessToken('synthetic-primary-token') })
+    await page.getByRole('button', { name: 'También puedes escribir tu búsqueda', exact: true }).click()
+    await page.locator('#ai-search-text').fill('sin muebles')
+    await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+    const save = page.getByRole('button', { name: 'Guardar búsqueda y activar avisos', exact: true })
+    await expect(save).toBeVisible()
+    await save.click()
+    await expect(page.getByText(/No se pudo guardar\. Comprueba/)).toBeVisible()
+    await save.click()
+    await expect(page.getByText(/Búsqueda guardada\. Puedes pausar/)).toBeVisible()
+    expect({ calls, saves, issues }).toEqual({ calls: 1, saves: 2, issues: 2 })
+    expect(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }))).not.toContain('synthetic-signed-handoff')
+  })
+}

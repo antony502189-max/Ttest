@@ -26,6 +26,7 @@ from ...services.ai_guest_tokens import GuestTokens, InvalidGuestToken
 from ...services.ai_http_policy import HTTP_DEADLINE, AIHTTPPolicy
 from ...services.ai_local_asr import validate_pcm
 from ...services.ai_operating_limits import AI_IP_KEY
+from ...services.ai_saved_handoff import SavedHandoffSigner
 from ...services.ai_search_attempts import AIAttemptRejected
 from ...services.ai_search_execution import TextSearchExecution
 from ...services.ai_voice_execution import VoiceSearchExecution
@@ -52,6 +53,7 @@ class AISearchRuntime:
     max_body_bytes: int
     policy: AIHTTPPolicy
     voice: VoiceSearchExecution | None = None
+    saved_handoff: SavedHandoffSigner | None = None
 
     def __post_init__(self):
         if not isinstance(self.policy, AIHTTPPolicy):
@@ -66,6 +68,9 @@ class AISearchRuntime:
             raise ValueError("runtime must share one owned-session authority")
         if self.voice is not None and (self.voice.sessions is not self.sessions or self.voice.query is not self.cards):
             raise ValueError("voice must share owned sessions and verified cards")
+        if self.saved_handoff is not None and any(self.saved_handoff.uses_key(key)
+                for key in (*self.guests.verification_keys, self.cards.cursors.key)):
+            raise ValueError("independent saved handoff key required")
 
 
 async def bounded_handler(request: Request, handler, deadline: float):
@@ -286,7 +291,8 @@ async def capabilities(request: Request):
     # Configuration advertisement only, never a dependency-health probe.
     active = isinstance(getattr(request.app.state, "ai_search_runtime", None), AISearchRuntime)
     configured = getattr(request.app.state, "ai_search_runtime", None)
-    return {"text": active, "map": active, "voice": isinstance(configured, AISearchRuntime) and configured.voice is not None, "saved_searches": False}
+    return {"text": active, "map": active, "voice": isinstance(configured, AISearchRuntime) and configured.voice is not None,
+        "saved_searches": False, "save_handoff": isinstance(configured, AISearchRuntime) and configured.saved_handoff is not None}
 
 
 @router.post("/identity")
@@ -413,6 +419,16 @@ async def operation_status(key: UUID, active: AISearchRuntime = Depends(runtime)
 @router.get("/results/{result_ref}")
 async def result_metadata(result_ref: UUID, active: AISearchRuntime = Depends(runtime), owner: QuotaSubject = Depends(subject)):
     return jsonable_encoder(await active.sessions.result(owner, result_ref), exclude_none=True)
+
+
+@router.post("/results/{result_ref}/save-token")
+async def saved_handoff(result_ref: UUID, active: AISearchRuntime = Depends(runtime), owner: QuotaSubject = Depends(subject)):
+    if active.saved_handoff is None:
+        raise HTTPException(503, "AI_SAVE_UNAVAILABLE")
+    # Ownership, immutable result and expiry are checked on every issue. No
+    # model call, quota transfer, client criteria or mutable session read.
+    committed = await active.sessions.result(owner, result_ref)
+    return {"token": active.saved_handoff.issue(committed), "expires_in": 300}
 
 
 @router.post("/sessions/{session_id}/map")
