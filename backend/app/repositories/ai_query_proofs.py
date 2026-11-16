@@ -184,7 +184,8 @@ def current_projection_predicate(listing_id, *, resolver_version: str, vocabular
     if match_plan is not None:
         matching = select(AiLiveMatchCohort.id).where(hard_match_predicate(AiLiveMatchCohort.__table__.c.features, match_plan, coverage=coverage))
         if cohort_scope is not None:
-            cohorts = matching.where(AiLiveMatchCohort.id.in_(cohort_scope)).cte().prefix_with("MATERIALIZED")
+            # An explicit role avoids anonymous-name collisions with candidate IDs.
+            cohorts = matching.where(AiLiveMatchCohort.id.in_(cohort_scope)).cte("ai_matching_cohorts").prefix_with("MATERIALIZED")
             fast_match = AiQueryProof.match_cohort_id.in_(select(cohorts.c.id))
         else:
             # One-listing/saved matching must not scan every catalog cohort.

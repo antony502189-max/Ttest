@@ -1,8 +1,15 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.46**, 16 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.47**, 16 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+**Сессия 3.47 / S3, S4.1, S5.1, S6 — голосовая сборка проверена, исправляется SQL release blocker.** Source320a5eb4: full immutable image287Python/23ASRpins/4model hashes подтверждён. Шесть speech PASS10.252–12.045s, подготовка публичной модели3.219–7.263s отдельно, silence reject0.312s; memory peak631795712 bytes при2CPU/1536MiB, uid65534/network-none. Это не human/p95/full-release acceptance.
+
+**Текущий шаг 3.47:** исправить найденный Production audit SQLCompileError при полном снятии каталога:12CI SUCCESS/1FAIL,1245integrationPASS/1FAIL/10SKIP. Материализованные candidate IDs и matching cohorts получают разные явные statement-local имена; proof/freshness/joins/count/LIMIT не ослаблены.2compile regressions/Ruff/targetedmypyPASS. Private PostGIS10cases ужеPASS, включая3→2→0→3 и составные followups/map/replay; следующие9cases проверяются после исправления read-only deploy mount в тестовом harness. Затем exact-source CI и immutable image, compatible rollout и оставшаяся1livevoice попытка того же guest. Не обходить failed CI и не сбрасывать квоту.
+
+Текущий сайт всё ещё primary631e/isolated722c с реальнымиEN3/RU1, quota used2/remaining1 и provider30→30; Small/prewarm не активированы до SQL fix/CI/release. FullS7 не готов; provideraccountterms и sourcebasis/refreshlimits владелец даст позже. [Отчёт](reports/AI_SEARCH_CONTINUATION_20261116.md).
+
+**История 3.46:**
 **Сессия 3.46 / S3, S4.1, S5.3, S6 — точность и ограниченное время голоса.** Текущий сайт остаётся primary631e / isolated722c; реальные EN3/RU1 составные voice, unknown-party no-debit и русский restore/map200 подтверждены. Source449044be:13SUCCESS/2SKIP, но server-image Small не прошёл18s — это сохранённый FAIL, а не разрешение на выкладку.
 
 **Текущее действие 3.46:** закончить проверку нового prepared-disposable ASR increment в PR422. Сохраняются2CPU/1536MiB,18s аудио,24s операция/24.5s HTTP и28s клиент. Публичные веса заранее загружаются в свежий процесс с15s startup-ready bound; пользовательское аудио поступает только после readiness. Процесс обслуживает одну запись и завершается. Следующий процесс создаётся после уничтожения предыдущего; private audio/state не переиспользуются. На время подготовки — capacity rejection без списания. Устранён повторный encoder pass, math threads согласованы с2CPU. Эксперимент4CPU не принят и в runtime не применялся.
@@ -648,3 +655,6 @@ Retained failed main audit; exact loading precondition added to existing rotatio
 
 ### Изменение маршрута 3.46 — 16.11.2026
 Одной замены Base наSmall оказалось недостаточно: packaged-image speech18sFAIL при passing CI. Вместо неограниченного времени/ослабления распознавания добавлена предварительная загрузка публичных весов в ещё не использованный одноразовый процесс, точное encoder-window reuse и2-thread math. CPU/memory caps прежние, отсутствие private-audio reuse сохранено. Public preparation≤15s отдельно от audio≤18s; весь HTTP≤24.5s остаётся внутри proxy25s. Этот кандидат до exact-source/image/release acceptance не считается выпущенным. Provider/data/human/performance/fullS7 gates остаются открытыми.
+
+### Изменение маршрута 3.47 — 16.11.2026
+После положительного exact-image ASR Production audit обнаружил обязательный SQL correctness blocker при empty/restored catalog. S5.1 CTE-role naming и regression завершаются перед rollout; успешные voice проверки не заменяют этот gate.Это исправление основного маршрута, не новое улучшение или другой проект.Все ограничения/cohort/budgets и остальныеS0–S7 exit criteria сохраняются.
