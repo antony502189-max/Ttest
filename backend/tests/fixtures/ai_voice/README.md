@@ -22,5 +22,29 @@ without producing any transcript; a timeout does not count as a passing rejectio
 The supported speech languages are Russian, Spanish and English. The detector
 selects among these languages using its own probabilities. Pinned Base can emit
 “семи сот” for “семисот”; the exact reviewed form retains the same numeric value.
-The seven-sample suite has a 70s bound; each individual transcription retains 8s,
+The seven-sample suite has a 140s bound; each individual transcription has an explicit18s budget,
 2 CPUs, 1536MiB, beam5 and 96 tokens. No prices or housing facts are prompted.
+
+The candidate model is pinned faster-whisper Small536b066. It replaces Base
+after demonstrated cross-run recognition errors; the existing fixed place-only
+vocabulary remains. Cyrillic/domain glossary and ISA-dispatch experiments were
+rejected and are not active. Default callers retain their8s policy; the local
+housing composition explicitly selects18s,2s intent,24s total and24.5s HTTP,
+inside the existing25s proxy. The client waits28s. Audio/media/privacy,2CPU,
+1536MiB,96-token and disposable-worker boundaries remain unchanged.
+
+Small may emit “€600” instead of “600 euros”. The parser explicitly accepts
+that complete EUR budget notation. The speech assertion canonicalizes only
+symbol/name currency spellings, preserving exact amounts and all other words.
+Wrong currencies, incomplete cities and garbled furniture clauses still fail.
+All speech mismatches are collected before the final failing assertion.
+
+The current candidate preloads only public model weights into a fresh child.
+Startup waits at most15s for the exact binary ASR_READY marker. Each child
+receives one recording, returns one transcript and terminates; its replacement
+is prepared only after cleanup. Pending preparation returns capacity rejection
+without audio dispatch. The suite records public preparation separately from
+the18s audio budget and closes all children; its total bound is250s. CPU/memory
+remain2/1536MiB. No private audio state is reused. The pinned1.2.1 detector
+uses exactly the decoder content window so the first encoding can be reused
+without changing decoded features. All seven speech/silence assertions remain.

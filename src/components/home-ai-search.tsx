@@ -488,7 +488,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
       {restoreFailed ? <Button type="button" variant="outline" disabled={restoring} onClick={() => {
         setRestoring(true); setRestoreFailed(false); setRestoreEpoch(value => value + 1)
       }}>{t('Reintentar sincronización')}</Button> : null}
-      {(session || needsConversation || changingSession) ? <Button type="button" variant="outline" disabled={recording || busy || restoreFailed || syncingSession || needsSync || pending !== null}
+      {(session || needsConversation || changingSession) ? <Button type="button" variant="outline" disabled={recording || busy || restoring || restoreFailed || syncingSession || needsSync || pending !== null}
         onClick={() => void newConversation()}>{t('Iniciar nueva conversación')}</Button> : null}
       {needsSync && session && !restoreFailed ? <Button type="button" variant="outline" disabled={syncingSession || busy}
         onClick={() => void refreshSession(session.intent.session_id, true)}>{t('Reintentar sincronización')}</Button> : null}

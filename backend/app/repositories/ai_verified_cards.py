@@ -256,7 +256,8 @@ def _materialized_candidates(base):
     # proof, current values and source freshness still run before count/LIMIT;
     # this is not a cache and cannot survive the statement's snapshot.
     candidates = base.with_only_columns(Listing.id, maintain_column_froms=True).order_by(None).correlate(None)
-    eligible = candidates.cte().prefix_with("MATERIALIZED")
+    # Keep this role distinct from the matching-cohort CTE during ORM cloning.
+    eligible = candidates.cte("ai_candidate_ids").prefix_with("MATERIALIZED")
     # Card rendering later replaces selected columns and still relies on the
     # original User/room-detail joins. Retain those FROMs, including optional
     # room details; dropping them silently creates a Cartesian product when

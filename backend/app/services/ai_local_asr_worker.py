@@ -32,6 +32,12 @@ def main():
             # The product accepts Russian, Spanish and English speech. Short
             # Russian price phrases can otherwise be misclassified as Polish.
             # Reuse the detector's probabilities without encoding audio again.
+            # Pinned faster-whisper1.2.1 decodes shape[-1]-1 content frames.
+            # Use that exact same window for detection, so encode() can reuse it
+            # without approximating or dropping any decoded audio features.
+            features = kwargs.get("features")
+            if features is not None:
+                kwargs = {**kwargs, "features": features[..., :-1]}
             _, _, probabilities = super().detect_language(*args, **kwargs)
             language, probability = max(
                 ((language, probability) for language, probability in probabilities
@@ -39,12 +45,25 @@ def main():
             )
             return language, probability, probabilities
 
+    if len(sys.argv) > 3 or (len(sys.argv) == 3 and sys.argv[2] != "--prewarm"):
+        raise ValueError("VOICE_WORKER_MODE_INVALID")
+
+    def load_model():
+        return HousingWhisperModel(sys.argv[1], device="cpu", compute_type="int8", cpu_threads=2,
+                                   num_workers=1, local_files_only=True)
+
+    model = load_model() if len(sys.argv) == 3 else None
+    if model is not None:
+        # Only public weights have been loaded. This process will receive one
+        # bounded recording, emit one transcript, and terminate.
+        sys.stdout.buffer.write(b"ASR_READY\n")
+        sys.stdout.buffer.flush()
     audio = sys.stdin.buffer.read(480_045)
     validate_pcm(audio)
     with wave.open(io.BytesIO(audio), "rb") as wav:
         samples = np.frombuffer(wav.readframes(240000), dtype="<i2").astype(np.float32)/32768
-    model = HousingWhisperModel(sys.argv[1], device="cpu", compute_type="int8", cpu_threads=2,
-                         num_workers=1, local_files_only=True)
+    if model is None:
+        model = load_model()
     segments, _ = model.transcribe(samples, beam_size=5, vad_filter=True, condition_on_previous_text=False,
                                    without_timestamps=True, max_new_tokens=96, temperature=0.0,
                                    # Fixed reviewed place vocabulary helps ASR

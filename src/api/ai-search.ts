@@ -36,7 +36,7 @@ export const sendAIMessage = (message: AIMessage, signal: AbortSignal) => api<AI
   method: 'POST', headers, body: JSON.stringify(message.audio_base64
     ? { idempotency_key: message.idempotency_key, session_id: message.session_id, expected_version: message.expected_version,
       audio_base64: message.audio_base64, media_type: 'audio/wav', search: { limit: 6 } }
-    : { ...message, search: { limit: 6 } }), signal, cache: 'no-store', timeoutMs: message.audio_base64 ? 22000 : 15000,
+    : { ...message, search: { limit: 6 } }), signal, cache: 'no-store', timeoutMs: message.audio_base64 ? 28000 : 15000,
 })
 export async function aiResultPage(ref: string, cursor: string | undefined, signal: AbortSignal) {
   return api<CardResponse>(`/ai-search/results/${encodeURIComponent(ref)}/cards`, {

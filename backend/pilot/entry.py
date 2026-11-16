@@ -190,7 +190,7 @@ def create_app():
         lease_policy=LeasePolicy(reservation_seconds=60, running_seconds=60, recovery_grace_seconds=30),
         session_policy=SessionPolicy(inactivity_seconds=86400),
         guests=GuestTokens(key=bytes.fromhex(keys["guest"]), policy=GuestPolicy(ttl_seconds=604800)),
-        cursor_key=bytes.fromhex(keys["cursor"]), http_policy=AIHTTPPolicy(20, 3, ("172.30.41.2/32",), ORIGIN),
+        cursor_key=bytes.fromhex(keys["cursor"]), http_policy=AIHTTPPolicy(24.5 if local_intent else 20, 3, ("172.30.41.2/32",), ORIGIN),
         origins=frozenset({ORIGIN}), max_body_bytes=32768, execution_seconds=15)
     guarded=GuardedCards(facts,runtime.sessions,signing_key=bytes.fromhex(keys['cursor']),health=health)
     runtime.execution.query=guarded
@@ -203,11 +203,13 @@ def create_app():
         runtime = replace(runtime, saved_handoff=SavedHandoffSigner(
             base64.b64decode(Path(handoff_key).read_bytes().strip(), validate=True)))
     install_catalog_guard(app,health)
+    local_asr = None
     if os.environ.get("AI_SITE_PILOT_VOICE") == "local-pcm-v1":
         from app.services.ai_local_asr import LocalPCMTranscriber
         from app.services.ai_voice_execution import VoicePolicy, VoiceSearchExecution
 
-        local_asr = LocalPCMTranscriber(python=Path("/opt/voice/bin/python"), model=Path("/opt/voice-model"))
+        local_asr = LocalPCMTranscriber(python=Path("/opt/voice/bin/python"), model=Path("/opt/voice-model"),
+                                       seconds=18 if local_intent else 8, prewarm=local_intent)
 
         class ApprovedLocalASR:
             async def transcribe(self, audio, media_type):
@@ -219,7 +221,8 @@ def create_app():
         runtime = replace(runtime, voice=VoiceSearchExecution(runtime.sessions, ApprovedLocalASR(),
             runtime.execution.parser, runtime.execution.attempts, runtime.cards,
             VoicePolicy(media_types=("audio/wav",), max_audio_bytes=480044, max_transcript_bytes=8000 if full_intent else 640,
-                asr_budget_seconds=8.0, intent_budget_seconds=10.0, total_budget_seconds=19.0)))
+                asr_budget_seconds=18.0 if local_intent else 8.0, intent_budget_seconds=2.0 if local_intent else 10.0,
+                total_budget_seconds=24.0 if local_intent else 19.0)))
     elif os.environ.get("AI_SITE_PILOT_VOICE"):
         raise ValueError("LOCAL_VOICE_CONFIGURATION_INVALID")
     install_text_runtime(app, runtime)
@@ -229,7 +232,13 @@ def create_app():
     async def lifespan(application):
         await verify_completed(SessionLocal, keys)
         async with original(application):
-            yield
+            try:
+                if local_asr is not None:
+                    await local_asr.start()
+                yield
+            finally:
+                if local_asr is not None:
+                    await local_asr.close()
     app.router.lifespan_context = lifespan
 
     @app.get("/api/v1/private-demo/status", include_in_schema=False)
