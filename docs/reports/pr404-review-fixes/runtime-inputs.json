@@ -245,7 +245,7 @@
     "backend/app/services/ai_housing_numbers.py": "af4d20dfb14d0139d1e2e732d2c256342c8ac941",
     "backend/app/services/ai_http_policy.py": "478a4ec1dcc56cfaac332c238ddb345633360802",
     "backend/app/services/ai_listing_input.py": "e79babad27c829c56fbed733a9203738a730251b",
-    "backend/app/services/ai_local_asr.py": "b6ab2ee98c62366d6197220b7c224f9854ac84e5",
+    "backend/app/services/ai_local_asr.py": "a7b1cd8402e3a1db51b3e12e77b6046fb5ab2bc9",
     "backend/app/services/ai_local_asr_worker.py": "1af13e21398973bc5e0a6f541b7954a88c0a33ac",
     "backend/app/services/ai_migration_limits.py": "cf677ce3b2bf04de9bec0b5857f03268e255a92a",
     "backend/app/services/ai_observability.py": "a348b8e1ee988f9737e12ad64ce119817d87458f",

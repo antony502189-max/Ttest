@@ -62,15 +62,17 @@ class LocalPCMTranscriber:
         await process.wait()
 
     async def _prepare(self) -> asyncio.subprocess.Process:
-        process = await self._spawn(prepared=True)
+        process = None
         try:
             async with asyncio.timeout(self.prepare_seconds):
+                process = await self._spawn(prepared=True)
                 assert process.stdout is not None
                 if await process.stdout.readline() != b"ASR_READY\n" or process.returncode is not None:
                     raise ValueError("LOCAL_ASR_UNAVAILABLE")
             return process
         except BaseException:
-            await self._dispose(process)
+            if process is not None:
+                await self._dispose(process)
             raise
 
     def _schedule(self) -> asyncio.Task[asyncio.subprocess.Process] | None:
