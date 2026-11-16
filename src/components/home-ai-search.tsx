@@ -51,7 +51,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
   const [remaining, setRemaining] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [demoBlocked, setDemoBlocked] = useState(PRIVATE_DEMO)
-  const [demoReason, setDemoReason] = useState('Проверяем доступ к голосовому поиску…')
+  const [demoReason, setDemoReason] = useState(() => t('Comprobando la búsqueda…'))
   const [syncingSession, setSyncingSession] = useState(false)
   const [needsSync, setNeedsSync] = useState(false)
   const [pagingAvailable, setPagingAvailable] = useState(true)
@@ -441,8 +441,8 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
   return <Dialog open={open} onOpenChange={setOpen}>
     <section className={`home-ai-search${publicAI ? " home-ai-search--public" : ""}`} aria-label={t('Búsqueda con IA')}>
       <div className="home-ai-search__intro"><span className="home-ai-search__wave"><AudioLines aria-hidden="true" /></span><div>
-        <h2>{t('¿No sabes por dónde empezar?')}</h2>
-        <p>{publicAI ? t('Dinos dónde buscas, qué zona y qué precio quieres pagar.') : inputPolicy ? inputPolicy.hint : t('Dinos dónde buscas, qué zona y qué precio quieres pagar.')}</p>
+        <h2>{t(publicAI ? 'Busca tu vivienda con IA' : '¿No sabes por dónde empezar?')}</h2>
+        <p>{publicAI ? t('Describe el alojamiento, tu presupuesto y las condiciones que necesitas.') : inputPolicy ? inputPolicy.hint : t('Dinos dónde buscas, qué zona y qué precio quieres pagar.')}</p>
       </div></div>
       {publicAI ? <>
         <DialogTrigger asChild><Button type="button" className="home-ai-search__action"><Mic aria-hidden="true" />{t('Buscar con mi voz')}</Button></DialogTrigger>
@@ -474,8 +474,8 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
       {session ? <AIConditions intent={session.intent} title="Condiciones para el próximo mensaje" /> : null}
       <label htmlFor="ai-search-text">{t(result ? '¿Qué quieres cambiar?' : 'Cuéntanos qué necesitas')}</label>
       <textarea id="ai-search-text" data-i18n-exempt value={text} onChange={event => setText(event.target.value)} disabled={recording || busy || restoring || pending !== null}
-        maxLength={inputPolicy?.maxLength ?? 16000} rows={3} autoComplete="off" spellCheck={false} placeholder={inputPolicy?.placeholder ?? t('Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
-      {inputPolicy ? <p role={invalidText ? 'alert' : undefined} data-i18n-exempt>{inputPolicy.hint}</p> : null}
+        maxLength={inputPolicy?.maxLength ?? 16000} rows={3} autoComplete="off" spellCheck={false} placeholder={t(inputPolicy?.placeholder ?? 'Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
+      {inputPolicy ? <p role={invalidText ? 'alert' : undefined} data-i18n-exempt>{t(inputPolicy.hint)}</p> : null}
       {voiceEnabled ? <AIVoiceInput disabled={busy || restoring || restoreFailed || demoBlocked || pending !== null || changingSession || syncingSession || needsSync || needsConversation || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)}
         disabledReason={busy ? 'Обрабатываем запрос и ищем варианты…' : demoBlocked ? demoReason : remaining === 0 ? 'Лимит запросов исчерпан. Повторите после его обновления.' : !modeChoice ? 'Выберите режим аренды перед записью.' : restoreFailed ? 'Не удалось восстановить поиск. Повторите восстановление.' : pending ? 'Ответ не подтверждён. Нажмите «Проверить результат попытки» ниже.' : 'Дождитесь завершения текущей операции и синхронизации поиска.'}
         onAudio={audio => void submit(audio)} onRecording={setRecording} /> : null}

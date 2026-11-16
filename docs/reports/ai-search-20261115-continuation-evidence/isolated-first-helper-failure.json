@@ -1,0 +1,9 @@
+{
+  "failure": "Readiness helper incorrectly treated configuration voice capability as live approval health. Interrupted owned helper; rollback to501 and refresh/timer resume verified.",
+  "candidate_deployed_temporarily": "ba311d86",
+  "corrected_helper_release": "isolated-ba311d86-release.json",
+  "provider_attempts_before": 30,
+  "provider_attempts_after": 30,
+  "approval_not_extended": true,
+  "original_log_retained": "output/housing-validation/isolated-ba311d86-release.log"
+}

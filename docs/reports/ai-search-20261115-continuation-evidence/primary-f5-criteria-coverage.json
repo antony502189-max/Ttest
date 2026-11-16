@@ -1,0 +1,273 @@
+{
+  "approved_canonical_objects": 13,
+  "visible_eligible": 13,
+  "single_read_only_snapshot": true,
+  "fields": [
+    {
+      "criterion": "rental_mode",
+      "request_criteria": {
+        "rental_mode": {
+          "strength": "hard",
+          "value": "long"
+        }
+      },
+      "known_current_coverage": 13,
+      "matches": 13,
+      "not_covered": 0
+    },
+    {
+      "criterion": "budget",
+      "request_criteria": {
+        "budget": {
+          "strength": "hard",
+          "value": {
+            "amount": "700",
+            "currency": "EUR",
+            "period": "monthly"
+          }
+        }
+      },
+      "known_current_coverage": 13,
+      "matches": 12,
+      "not_covered": 0
+    },
+    {
+      "criterion": "accommodation",
+      "request_criteria": {
+        "accommodation": {
+          "strength": "hard",
+          "value": {
+            "kind": "room"
+          }
+        }
+      },
+      "known_current_coverage": 13,
+      "matches": 13,
+      "not_covered": 0
+    },
+    {
+      "criterion": "geography",
+      "request_criteria": {
+        "geography": {
+          "strength": "hard",
+          "value": {
+            "province_code": "08",
+            "municipality_code": "08019"
+          }
+        }
+      },
+      "known_current_coverage": 13,
+      "matches": 0,
+      "not_covered": 0
+    },
+    {
+      "criterion": "furnished",
+      "request_criteria": {
+        "furnished": {
+          "strength": "hard",
+          "value": true
+        }
+      },
+      "known_current_coverage": 5,
+      "matches": 5,
+      "not_covered": 8
+    },
+    {
+      "criterion": "bills_included",
+      "request_criteria": {
+        "bills_included": {
+          "strength": "hard",
+          "value": true
+        }
+      },
+      "known_current_coverage": 12,
+      "matches": 12,
+      "not_covered": 1
+    },
+    {
+      "criterion": "balcony",
+      "request_criteria": {
+        "balcony": {
+          "strength": "hard",
+          "value": true
+        }
+      },
+      "known_current_coverage": 1,
+      "matches": 1,
+      "not_covered": 12
+    },
+    {
+      "criterion": "terrace",
+      "request_criteria": {
+        "terrace": {
+          "strength": "hard",
+          "value": true
+        }
+      },
+      "known_current_coverage": 0,
+      "matches": 0,
+      "not_covered": 13
+    },
+    {
+      "criterion": "amenities",
+      "request_criteria": {
+        "amenities": {
+          "strength": "hard",
+          "value": [
+            "wifi"
+          ]
+        }
+      },
+      "known_current_coverage": 2,
+      "matches": 2,
+      "not_covered": 11
+    },
+    {
+      "criterion": "pets",
+      "request_criteria": {
+        "pets": {
+          "strength": "hard",
+          "value": [
+            {
+              "species": "dog",
+              "size": "unspecified",
+              "count": 1
+            }
+          ]
+        }
+      },
+      "known_current_coverage": 13,
+      "matches": 0,
+      "not_covered": 0
+    },
+    {
+      "criterion": "smoking",
+      "request_criteria": {
+        "smoking": {
+          "strength": "hard",
+          "value": {
+            "scope": "indoors"
+          }
+        }
+      },
+      "known_current_coverage": 13,
+      "matches": 0,
+      "not_covered": 0
+    },
+    {
+      "criterion": "deposit",
+      "request_criteria": {
+        "deposit": {
+          "strength": "hard",
+          "value": {
+            "kind": "quantity",
+            "value": 1,
+            "unit": "months"
+          }
+        }
+      },
+      "known_current_coverage": 0,
+      "matches": 0,
+      "not_covered": 13
+    },
+    {
+      "criterion": "party",
+      "request_criteria": {
+        "party": {
+          "strength": "hard",
+          "value": {
+            "adults": 1,
+            "children": 0,
+            "relationship": "unspecified"
+          }
+        }
+      },
+      "known_current_coverage": 0,
+      "matches": 0,
+      "not_covered": 13
+    },
+    {
+      "criterion": "dates",
+      "request_criteria": {
+        "dates": {
+          "strength": "hard",
+          "value": {
+            "check_in": "2026-12-01",
+            "check_out": "2026-12-31"
+          }
+        }
+      },
+      "known_current_coverage": 0,
+      "matches": 0,
+      "not_covered": 13
+    },
+    {
+      "criterion": "stay",
+      "request_criteria": {
+        "stay": {
+          "strength": "hard",
+          "value": {
+            "value": 1,
+            "unit": "months"
+          }
+        }
+      },
+      "known_current_coverage": 0,
+      "matches": 0,
+      "not_covered": 13
+    },
+    {
+      "criterion": "deposit_money_eur_700",
+      "request_criteria": {
+        "deposit": {
+          "strength": "hard",
+          "value": {
+            "kind": "money",
+            "amount": "700",
+            "currency": "EUR",
+            "period": "one_off"
+          }
+        }
+      },
+      "known_current_coverage": 13,
+      "matches": 13,
+      "not_covered": 0
+    },
+    {
+      "criterion": "composite_room_700_furnished_bills",
+      "request_criteria": {
+        "rental_mode": {
+          "strength": "hard",
+          "value": "long"
+        },
+        "budget": {
+          "strength": "hard",
+          "value": {
+            "amount": "700",
+            "currency": "EUR",
+            "period": "monthly"
+          }
+        },
+        "accommodation": {
+          "strength": "hard",
+          "value": {
+            "kind": "room"
+          }
+        },
+        "furnished": {
+          "strength": "hard",
+          "value": true
+        },
+        "bills_included": {
+          "strength": "hard",
+          "value": true
+        }
+      },
+      "known_current_coverage": 4,
+      "matches": 3,
+      "not_covered": 9
+    }
+  ],
+  "provider_calls": 0,
+  "source_updates": 0
+}

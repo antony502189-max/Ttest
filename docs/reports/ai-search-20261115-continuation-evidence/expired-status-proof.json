@@ -1,0 +1,9 @@
+{
+  "attempts": 30,
+  "maximum": 50,
+  "exhausted": false,
+  "halted": true,
+  "approved": false,
+  "catalog_ready": true,
+  "catalog_reason": null
+}

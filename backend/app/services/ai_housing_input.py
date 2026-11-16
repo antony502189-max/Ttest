@@ -45,7 +45,8 @@ MONTH_PATTERN = "(?:" + "|".join(MONTHS) + ")"
 
 BOOL_WORDS = {
     "furnished": ("furnished", "amueblado", "amueblada", "с мебелью", "меблированная", "меблированную", "мебели"),
-    "bills_included": ("bills included", "gastos incluidos", "коммунальные включены", "с коммунальными", "коммунальные платежи включены"),
+    "bills_included": ("bills included", "gastos incluidos", "коммунальные включены", "с коммунальными", "коммунальные платежи включены",
+                       "включенными счетами", "счета включены", "все счета включены", "коммуналка включена"),
     "balcony": ("balcony", "balcon", "balcón", "балкон", "балконом", "балкона"),
     "terrace": ("terrace", "terraza", "терраса", "террасой", "террасу", "террасы"),
 }
@@ -91,7 +92,13 @@ def housing_patch(text, current, vocabulary):
     # Reject alternatives rather than choosing one side or weakening a hard rule.
     if re.search(r"\b(?:or|или|либо|o)\b", remaining):
         clarification()
-    remaining = re.sub(r"^(?:(?:find|show|busco|ищу|нужна|нужен|нужно|покажи|теперь|now|ahora)\s+)+", "", remaining)
+    # Recognize only complete search/politeness prefixes. Remaining words still
+    # have to be consumed as typed conditions; no arbitrary prose is discarded.
+    prefix = (r"(?:please |пожалуйста |por favor )?(?:find(?: me)?|show(?: me)?|i need|i want|"
+              r"i am looking for|i'm looking for|busco|necesito|quiero alquilar|quiero encontrar|"
+              r"ищу|(?:мне )?(?:нужна|нужен|нужно)|подбери(?:те)?(?: мне)?|"
+              r"(?:я )?хочу (?:снять|найти)|покажи|теперь|now|ahora)")
+    remaining = re.sub(r"^(?:" + prefix + r"\s+)+", "", remaining)
     changes, removed, amenity_values = {}, set(), []
     strength = "hard"
     party_counts = {}

@@ -1,29 +1,33 @@
 import { useEffect, useState } from 'react'
+import { useI18n } from '@/contexts/i18n-context'
 
 export const PRIVATE_DEMO = true
 export function PrivateDemoStatus({ refreshKey, onBlocked, onReason }: { refreshKey: string; onBlocked: (blocked: boolean) => void; onReason?: (reason: string) => void }) {
-  const [message, setMessage] = useState('Проверяем доступ к модели…')
+  const { t } = useI18n()
+  const [message, setMessage] = useState('')
   useEffect(() => {
     const controller = new AbortController()
     onBlocked(true)
-    onReason?.('Проверяем доступ к голосовому поиску…')
+    setMessage(t('Comprobando la búsqueda…'))
+    onReason?.(t('Comprobando la búsqueda…'))
     void fetch('/ai-pilot/api/v1/private-demo/status', { cache: 'no-store', credentials: 'include', signal: controller.signal })
       .then(async response => {
         if (!response.ok) throw new Error('Unavailable')
-        const status = await response.json() as { attempts: number; maximum: number; exhausted: boolean; halted: boolean; approved: boolean; catalog_ready: boolean }
-        if (!Number.isInteger(status.attempts) || status.maximum !== 50 || status.attempts < 0 || status.attempts > 50
+        const status = await response.json() as { attempts: number; maximum: number; exhausted: boolean; halted: boolean; approved: boolean; catalog_ready: boolean; local_housing_available?: boolean }
+        if (!Number.isSafeInteger(status.attempts) || !Number.isSafeInteger(status.maximum) || status.maximum < 1 || status.attempts < 0
+          || (status.local_housing_available !== undefined && typeof status.local_housing_available !== 'boolean')
           || typeof status.exhausted !== 'boolean' || typeof status.halted !== 'boolean' || typeof status.approved !== 'boolean' || typeof status.catalog_ready !== 'boolean') throw new Error('Invalid status')
         if (controller.signal.aborted) return
-        onBlocked(status.exhausted || status.halted || !status.approved || !status.catalog_ready)
-        const blocked = status.exhausted || status.halted || !status.approved || !status.catalog_ready
-        const reason = !status.catalog_ready ? 'Каталог устарел или недоступен. Новые обращения к модели остановлены до проверки данных.'
-          : !status.approved ? 'Страница подготовлена. Обращения к модели ждут согласования тестового лимита.'
-          : status.exhausted || status.halted ? 'Новые обращения остановлены. Доступны результаты завершённых поисков.'
-            : `Общий лимит пилота: ${status.attempts}/50 обращений. Только условия аренды без личных данных.`
+        const localAvailable = status.local_housing_available === true
+        const blocked = !status.catalog_ready || (!localAvailable && (status.exhausted || status.halted || !status.approved))
+        onBlocked(blocked)
+        const reason = !status.catalog_ready ? t('Los anuncios se están actualizando. Inténtalo de nuevo en unos minutos.')
+          : blocked ? t('Las nuevas búsquedas no están disponibles temporalmente. Puedes abrir los resultados guardados.')
+            : t('Busca por voz o texto: tipo de vivienda, presupuesto y comodidades.')
         setMessage(reason)
         onReason?.(blocked ? reason : '')
-      }).catch(() => { if (!controller.signal.aborted) { onBlocked(true); setMessage('Модель временно недоступна.'); onReason?.('Модель временно недоступна.') } })
+      }).catch(() => { if (!controller.signal.aborted) { onBlocked(true); setMessage(t('La búsqueda no está disponible temporalmente.')); onReason?.(t('La búsqueda no está disponible temporalmente.')) } })
     return () => controller.abort()
-  }, [refreshKey, onBlocked, onReason])
-  return <p role="status" data-private-demo-status data-i18n-exempt>{message}</p>
+  }, [refreshKey, onBlocked, onReason, t])
+  return <p role="status" data-private-demo-status>{message}</p>
 }

@@ -1,0 +1,89 @@
+{
+  "approved_canonical_objects": 13,
+  "visible_eligible": 13,
+  "single_read_only_snapshot": true,
+  "fields": [
+    {
+      "criterion": "budget",
+      "request_criteria": {
+        "budget": {
+          "strength": "hard",
+          "value": {
+            "amount": "700",
+            "currency": "EUR",
+            "period": "monthly"
+          }
+        }
+      },
+      "known_current_coverage": 13,
+      "matches": 12,
+      "not_covered": 0
+    },
+    {
+      "criterion": "smoking",
+      "request_criteria": {
+        "smoking": {
+          "strength": "hard",
+          "value": {
+            "scope": "indoors"
+          }
+        }
+      },
+      "known_current_coverage": 13,
+      "matches": 0,
+      "not_covered": 0
+    },
+    {
+      "criterion": "composite_room_700_furnished_bills",
+      "request_criteria": {
+        "rental_mode": {
+          "strength": "hard",
+          "value": "long"
+        },
+        "budget": {
+          "strength": "hard",
+          "value": {
+            "amount": "700",
+            "currency": "EUR",
+            "period": "monthly"
+          }
+        },
+        "accommodation": {
+          "strength": "hard",
+          "value": {
+            "kind": "room"
+          }
+        },
+        "furnished": {
+          "strength": "hard",
+          "value": true
+        },
+        "bills_included": {
+          "strength": "hard",
+          "value": true
+        }
+      },
+      "known_current_coverage": 4,
+      "matches": 3,
+      "not_covered": 9
+    },
+    {
+      "criterion": "smoking_balcony",
+      "request_criteria": {
+        "smoking": {
+          "strength": "hard",
+          "value": {
+            "scope": "balcony"
+          }
+        }
+      },
+      "known_current_coverage": 0,
+      "matches": 0,
+      "not_covered": 13
+    }
+  ],
+  "provider_calls": 0,
+  "source_updates": 0,
+  "actual_released_extractor": "pisocompartido-housing.v2",
+  "isolated_source": "ba311d8637d48a5c1e0c401d85dae1f7fb3e3ef7"
+}
