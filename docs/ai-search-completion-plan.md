@@ -1,8 +1,15 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.45**, 16 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.46**, 16 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+**Сессия 3.46 / S3, S4.1, S5.3, S6 — точность и ограниченное время голоса.** Текущий сайт остаётся primary631e / isolated722c; реальные EN3/RU1 составные voice, unknown-party no-debit и русский restore/map200 подтверждены. Source449044be:13SUCCESS/2SKIP, но server-image Small не прошёл18s — это сохранённый FAIL, а не разрешение на выкладку.
+
+**Текущее действие 3.46:** закончить проверку нового prepared-disposable ASR increment в PR422. Сохраняются2CPU/1536MiB,18s аудио,24s операция/24.5s HTTP и28s клиент. Публичные веса заранее загружаются в свежий процесс с15s startup-ready bound; пользовательское аудио поступает только после readiness. Процесс обслуживает одну запись и завершается. Следующий процесс создаётся после уничтожения предыдущего; private audio/state не переиспользуются. На время подготовки — capacity rejection без списания. Устранён повторный encoder pass, math threads согласованы с2CPU. Эксперимент4CPU не принят и в runtime не применялся.
+
+**Проверки кандидата:**67focused unit, Ruff, targetedmypy PASS. В sealed actual Small image с кандидатными модулями:6speech PASS10.384–13.179s, public prepare3.463–6.264s отдельно; silence reject0.376s. Все прежние записи/условия сохраняются, валидные EUR-обозначения нормализуются без удаления слов. Следующий шаг — exact-source CI, полный immutable image с287Python/23ASRdependency/4model hashes, затем совместимый primary/isolated rollout и оставшаяся разрешённая livevoice попытка того же guest. Квоту/guest/provider journal не сбрасывать. Не включать Small до положительной server-image проверки. [Отчёт](reports/AI_SEARCH_CONTINUATION_20261116.md).
+
+**История 3.45:**
 **Сессия 3.45 / S3, S4.1, S4.4, S6 — реальный визуальный результат и качество голоса.** На сайте выпущен primary `631e8b06691c6f02404d1a66ad15de2d2df6932e`, isolated source `722c592b`; обычный runner SUCCESS / 0080 / data_maintenance skipped, timers восстановлены. PR421 exact source: 13 SUCCESS и 2 conditional SKIP, tree main совпадает. Через настоящую кнопку микрофона: EN комната+700/месяц+мебель+счета → 3 объявления (9.900 s), RU комната+Ла-Лагуна+700/месяц+мебель → 1 (6.961 s). Записи synthetic, это не human-mic acceptance. Provider 30→30, прежний guest сохранён. Неизвестная party2/0 → SOURCE_COVERAGE_UNAVAILABLE, прежний результат сохранён, used2/reserved0/remaining1. Русский restore/map200 и реальные скриншоты получены без новых query/voice. [Отчёт](reports/AI_SEARCH_CONTINUATION_20261116.md).
 
 **Small prototype:** шесть речевых записей точны, тишина отклонена;13.765–16.988 s, cgroup peak635854848 bytes при2CPU/1536MiB.57focusedunit/Ruff/typesPASS. Новый source/CI/candidate/release ещё не подтверждены этим прототипом.
@@ -638,3 +645,6 @@ Retained failed main audit; exact loading precondition added to existing rotatio
 
 ### Изменение маршрута 3.45 — 16.11.2026
 Текущая Base даёт реальные успешные составные voice-результаты, но неустойчива на повторном exact CI. По прямому приоритету владельца качества голоса проверяется более точная Small с явным ограниченным18s ASR бюджетом. Это изменение технического бюджета, не разрешение на provider IO/расширение данных/квоты. Старые8s проверки и неудачные словари/ISA гипотезы сохраняются как история, не переименовываются в PASS. Full release остаётся открытым.
+
+### Изменение маршрута 3.46 — 16.11.2026
+Одной замены Base наSmall оказалось недостаточно: packaged-image speech18sFAIL при passing CI. Вместо неограниченного времени/ослабления распознавания добавлена предварительная загрузка публичных весов в ещё не использованный одноразовый процесс, точное encoder-window reuse и2-thread math. CPU/memory caps прежние, отсутствие private-audio reuse сохранено. Public preparation≤15s отдельно от audio≤18s; весь HTTP≤24.5s остаётся внутри proxy25s. Этот кандидат до exact-source/image/release acceptance не считается выпущенным. Provider/data/human/performance/fullS7 gates остаются открытыми.

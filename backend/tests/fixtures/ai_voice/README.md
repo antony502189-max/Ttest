@@ -38,3 +38,13 @@ that complete EUR budget notation. The speech assertion canonicalizes only
 symbol/name currency spellings, preserving exact amounts and all other words.
 Wrong currencies, incomplete cities and garbled furniture clauses still fail.
 All speech mismatches are collected before the final failing assertion.
+
+The current candidate preloads only public model weights into a fresh child.
+Startup waits at most15s for the exact binary ASR_READY marker. Each child
+receives one recording, returns one transcript and terminates; its replacement
+is prepared only after cleanup. Pending preparation returns capacity rejection
+without audio dispatch. The suite records public preparation separately from
+the18s audio budget and closes all children; its total bound is250s. CPU/memory
+remain2/1536MiB. No private audio state is reused. The pinned1.2.1 detector
+uses exactly the decoder content window so the first encoding can be reused
+without changing decoded features. All seven speech/silence assertions remain.

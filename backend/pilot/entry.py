@@ -203,11 +203,13 @@ def create_app():
         runtime = replace(runtime, saved_handoff=SavedHandoffSigner(
             base64.b64decode(Path(handoff_key).read_bytes().strip(), validate=True)))
     install_catalog_guard(app,health)
+    local_asr = None
     if os.environ.get("AI_SITE_PILOT_VOICE") == "local-pcm-v1":
         from app.services.ai_local_asr import LocalPCMTranscriber
         from app.services.ai_voice_execution import VoicePolicy, VoiceSearchExecution
 
-        local_asr = LocalPCMTranscriber(python=Path("/opt/voice/bin/python"), model=Path("/opt/voice-model"), seconds=18 if local_intent else 8)
+        local_asr = LocalPCMTranscriber(python=Path("/opt/voice/bin/python"), model=Path("/opt/voice-model"),
+                                       seconds=18 if local_intent else 8, prewarm=local_intent)
 
         class ApprovedLocalASR:
             async def transcribe(self, audio, media_type):
@@ -230,7 +232,13 @@ def create_app():
     async def lifespan(application):
         await verify_completed(SessionLocal, keys)
         async with original(application):
-            yield
+            try:
+                if local_asr is not None:
+                    await local_asr.start()
+                yield
+            finally:
+                if local_asr is not None:
+                    await local_asr.close()
     app.router.lifespan_context = lifespan
 
     @app.get("/api/v1/private-demo/status", include_in_schema=False)
