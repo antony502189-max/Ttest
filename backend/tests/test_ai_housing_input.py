@@ -41,6 +41,11 @@ def test_spoken_hundreds_keep_other_conditions(amount, expected):
     assert criteria.accommodation.value.kind == "room" and criteria.furnished.value is True
 
 
+def test_incomplete_recognized_place_never_substitutes_a_municipality():
+    with pytest.raises(ProviderFailure):
+        housing_patch("комната в Лагуна, до 700 евро в месяц, с мебелью", state(), VOCAB)
+
+
 def test_followup_changes_one_condition_preserves_all_others():
     current = state()
     current = apply_patch(current, housing_patch("studio in Madrid under 80 euros per night, holiday rental, 2 adults, 0 children, couple, furnished, terrace, wifi, deposit 200 euros, from 2026-12-01 to 2026-12-08, for 7 nights", current, VOCAB))

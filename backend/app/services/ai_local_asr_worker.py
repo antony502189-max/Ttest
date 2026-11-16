@@ -51,7 +51,7 @@ def main():
                                    # preserve proper names, not rental facts or
                                    # expected answers. Intent still consumes the
                                    # entire transcript and validates geography.
-                                   hotwords="Madrid, Barcelona, Valencia, Santa Cruz de Tenerife, San Cristóbal de La Laguna, La Laguna")
+                                   hotwords="Madrid, Мадрид, Barcelona, Барселона, Valencia, Валенсия, Santa Cruz de Tenerife, Санта-Крус-де-Тенерифе, San Cristóbal de La Laguna, La Laguna, Ла Лагуна")
     parts = []
     for segment in segments:
         # A token-bound truncation must not silently drop the last condition
