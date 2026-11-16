@@ -1,0 +1,26 @@
+{
+  "scope": "S4.4 signup/login return to owned AI result; browser mocks, not actual signup-email",
+  "red": "390px: no return link after successful registration; old UI only offers profile",
+  "green": {
+    "public_suite": 12,
+    "ordinary_registration": 1,
+    "widths": [
+      390,
+      1440
+    ],
+    "return_flows": [
+      "register",
+      "login",
+      "login-then-register"
+    ],
+    "new_search_calls": 0,
+    "save_before_explicit_click": 0,
+    "save_after_explicit_click": 1,
+    "save_tokens_before_explicit_click": 0,
+    "handoff_token_persisted": false,
+    "primary_save_bearer_only": true,
+    "isolated_guest_bearer": false
+  },
+  "actual_email_delivery": false,
+  "deployed": false
+}

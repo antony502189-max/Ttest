@@ -1,0 +1,33 @@
+{
+  "browser": "firefox",
+  "expectedMain": "4c2bef73a2cf596216b00e4368d628b652d70090",
+  "providerRequests": [],
+  "errors": [],
+  "actualMain": "4c2bef73a2cf596216b00e4368d628b652d70090",
+  "before": {
+    "attempts": 30,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": true,
+    "approved": false,
+    "catalog_ready": true,
+    "catalog_reason": null,
+    "local_housing_available": true
+  },
+  "mapStatus": 200,
+  "after": {
+    "attempts": 30,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": true,
+    "approved": false,
+    "catalog_ready": true,
+    "catalog_reason": null,
+    "local_housing_available": true
+  },
+  "authCookiesExcluded": true,
+  "guestIdentityUnchanged": true,
+  "compositeCriteriaRestored": true,
+  "reloadPassed": true,
+  "passed": true
+}

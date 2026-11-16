@@ -1,0 +1,20 @@
+{
+  "source": "b0af9f9969133f77c7b6966de91d0d9e1ea1fc96",
+  "backend_image": "sha256:60a1c713382876c6c7aa62a422d5707a0b204ec2bb02f77e81ca4f52e162e6bb",
+  "proxy_image": "sha256:9af18c4c07e558f0452bc1c93b52eb89b8853759a1ef7fb8133cff2c63ffa0d7",
+  "before_attempts": 30,
+  "after_attempts": 30,
+  "journal_resets": 0,
+  "seed": 0,
+  "migrations": 0,
+  "protected_files_unchanged": true,
+  "postgres_redis_unchanged": true,
+  "cohort_sources": 13,
+  "approval_expires_at": "2026-11-15T20:59:59Z",
+  "approval_expired_enforced": true,
+  "local_housing_available": true,
+  "external_provider_enabled": false,
+  "encrypted_backups_authenticated": true,
+  "keys_copied": false,
+  "backup": "/srv/112233-ai-site-pilot-20261108/backups/local-small-b0af9f99-20261116T160852Z"
+}

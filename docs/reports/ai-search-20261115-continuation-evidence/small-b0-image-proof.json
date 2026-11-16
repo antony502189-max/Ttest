@@ -1,0 +1,15 @@
+{
+  "source": "b0af9f9969133f77c7b6966de91d0d9e1ea1fc96",
+  "image": "sha256:60a1c713382876c6c7aa62a422d5707a0b204ec2bb02f77e81ca4f52e162e6bb",
+  "runtime_python_files": 287,
+  "asr_model_sha256": "7d183970a47aff61e4778a3998f7c8ff4c964f89ad718bf2a9aa70d508031031",
+  "asr_model_revision": "536b0662742c02347bc0e980a01041f333bce120",
+  "model_assets_verified": true,
+  "dnspython": "2.9.2",
+  "previous_base_sha256": "63d9b89b0e7ea527ebe762c7293b556a65bdac600babc9cf78623754974de983",
+  "intent_mode": "local-housing-v1",
+  "voice_dependency_pins_verified": 23,
+  "asr_model_family": "small",
+  "asr_limit_seconds": 18,
+  "provider_calls": 0
+}

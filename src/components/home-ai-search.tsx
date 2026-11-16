@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AudioLines, Mic, Search } from 'lucide-react'
+import { useLocation } from 'react-router'
 import { ApiError } from '@/api/client'
 import { aiCapabilities, aiCardPage, aiMapCenter, aiResultPage, createAISession, getAIOperation, getAIQuota, getAIResult, getAISession, resetAISession, sendAIMessage, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
 import { aiConditionRows, aiModeLabel, type AICommittedIntent } from '@/api/ai-intent'
@@ -39,7 +40,9 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
   const [recording, setRecording] = useState(false)
   const [mapVisible, setMapVisible] = useState(false)
   const [mapRefreshVersion, setMapRefreshVersion] = useState(0)
-  const [open, setOpen] = useState(false)
+  const location = useLocation()
+  // Return only opens the owned continuation; saving remains an explicit action.
+  const [open, setOpen] = useState(() => new URLSearchParams(location.search).get('ai') === 'save')
   const [text, setText] = useState('')
   const invalidText = Boolean(inputPolicy && text && !inputPolicy.validate(text))
   const [session, setSession] = useState<AISession | null>(null)

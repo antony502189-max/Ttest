@@ -128,3 +128,82 @@ for (const width of [390, 1440]) {
     expect(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }))).not.toContain('synthetic-signed-handoff')
   })
 }
+
+for (const width of [390, 1440]) for (const flow of ["register", "login", "login-then-register"]) test(`${flow} returns to the owned AI result ${width}px without another search or automatic save`, async ({ page }) => {
+  await page.setViewportSize({width,height:1000})
+  const sid='00000000-0000-4000-8000-000000000081',ref='00000000-0000-4000-8000-000000000082'
+  await page.addInitScript(({sid,ref})=>{
+    localStorage.setItem('112233:language:v1','es');localStorage.setItem('112233:mobile-onboarding:v1','done')
+    sessionStorage.setItem('112233:ai-continuation:v1:public-guest',JSON.stringify({sessionId:sid,resultRef:ref}))
+  },{sid,ref})
+  const intent={schema_version:'ai-search.v1',taxonomy_version:'rental.v1',session_id:sid,version:1,
+    criteria:{rental_mode:{strength:'hard',value:'long'},budget:{strength:'hard',value:{amount:'700',currency:'EUR',period:'monthly'}},furnished:{strength:'hard',value:true}}}
+  let searches=0,saves=0,tokens=0
+  await page.route('**/*',route=>{
+    const r=route.request(),url=new URL(r.url()),p=url.pathname
+    if(url.hostname!=='127.0.0.1')return route.abort()
+    if(p==='/api/v1/saved-searches/ai/capabilities')return route.fulfill({json:{save:true}})
+    if(p==='/api/v1/saved-searches/ai'&&r.method()==='POST'){
+      saves++;expect(r.headers().authorization).toBe('Bearer synthetic-primary-token')
+      return route.fulfill({json:{id:ref,matcher:'ai.v1',enabled:true,revision:1,name:''}})
+    }
+    if(p.startsWith('/ai-pilot/api/v1/')){
+      expect(r.headers().authorization).toBeUndefined()
+      if(p.endsWith('/query')||p.endsWith('/voice')){searches++;throw Error('Registration must not search again')}
+      let value:unknown
+      if(p.endsWith('/private-demo/status'))value={attempts:30,maximum:50,approved:false,halted:true,catalog_ready:true,local_housing_available:true}
+      else if(p.endsWith('/capabilities'))value={text:true,map:true,voice:true,saved_searches:false,save_handoff:true}
+      else if(p.endsWith('/quota'))value={remaining:0}
+      else if(p.endsWith('/sessions/'+sid))value={intent,expires_at:'2099-01-01T00:00:00Z'}
+      else if(p.endsWith('/results/'+ref))value={result_ref:ref,count:0,intent_hash:'registration-owned',intent}
+      else if(p.endsWith('/cards'))value={cards:{items:[],total:0,nextCursor:null,previousCursor:null},intent_hash:'registration-owned'}
+      else if(p.endsWith('/save-token')){tokens++;value={token:'synthetic-signed-handoff',expires_in:300}}
+      else throw Error('Unexpected request '+p)
+      return route.fulfill({json:value})
+    }
+    if(p.startsWith('/api/'))return route.fulfill({status:404,json:{}})
+    return route.continue()
+  })
+  await page.goto('/#/')
+  await page.getByRole('button',{name:'También puedes escribir tu búsqueda',exact:true}).click()
+  await page.getByRole('link',{name:'Regístrate para guardar esta búsqueda',exact:true}).click()
+  if (flow !== 'register') {
+    await page.getByRole('link',{name:'Accede',exact:true}).click()
+    if (flow === 'login') await page.getByRole('button',{name:'Continuar con Google',exact:false}).click()
+    else {
+      await page.getByRole('button',{name:'Iniciar sesión con email',exact:true}).click()
+      await page.getByRole('link',{name:'Crear una cuenta',exact:true}).click()
+    }
+  }
+  if (flow !== 'login') {
+    await page.locator('#register-name').fill('Synthetic Registration')
+    await page.locator('#register-email').fill(`registration-${width}@example.test`)
+    await page.locator('#register-password').fill('Synthetic-password-2026!')
+    await page.locator('#register-confirm').fill('Synthetic-password-2026!')
+    await page.getByRole('checkbox').check()
+    await page.getByRole('button',{name:'Crear cuenta',exact:true}).click()
+    await page.getByRole('link',{name:'Volver a mi búsqueda',exact:true}).click()
+  }
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.getByText('700 EUR / mes',{exact:true}).first()).toBeVisible()
+  const save=page.getByRole('button',{name:'Guardar búsqueda y activar avisos',exact:true})
+  await expect(save).toBeEnabled();expect({searches,saves,tokens}).toEqual({searches:0,saves:0,tokens:0})
+  await page.evaluate(async()=>{const client=await import('/src/api/client.ts');client.setAccessToken('synthetic-primary-token')})
+  await save.click();await expect(page.getByText(/Búsqueda guardada\. Puedes pausar/)).toBeVisible()
+  expect({searches,saves,tokens}).toEqual({searches:0,saves:1,tokens:1})
+  const stored=await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}))
+  expect(stored).not.toContain('synthetic-signed-handoff')
+})
+
+test('ordinary registration still leads to the profile', async ({page})=>{
+  await page.addInitScript(()=>{localStorage.setItem('112233:language:v1','es');localStorage.setItem('112233:mobile-onboarding:v1','done')})
+  await page.route('**/*',r=>new URL(r.request().url()).hostname!=='127.0.0.1'?r.abort():r.continue())
+  await page.goto('/#/registro')
+  await page.locator('#register-name').fill('Ordinary Synthetic')
+  await page.locator('#register-email').fill('ordinary-registration@example.test')
+  await page.locator('#register-password').fill('Synthetic-password-2026!')
+  await page.locator('#register-confirm').fill('Synthetic-password-2026!')
+  await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Crear cuenta',exact:true}).click()
+  await expect(page.getByRole('link',{name:'Abrir mi perfil',exact:true})).toHaveAttribute('href','#/perfil')
+  await expect(page.getByRole('link',{name:'Volver a mi búsqueda',exact:true})).toHaveCount(0)
+})
