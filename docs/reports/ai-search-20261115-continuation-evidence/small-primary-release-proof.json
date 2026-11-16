@@ -1,0 +1,12 @@
+{
+  "primary": "4c2bef73a2cf596216b00e4368d628b652d70090",
+  "previous_primary": "631e8b06691c6f02404d1a66ad15de2d2df6932e",
+  "regular_runner": "success",
+  "schema": "0080_ai_saved_rematch",
+  "data_maintenance_skipped": true,
+  "delivery_timer": "active",
+  "retention_timer": "active",
+  "post_release_ticks": "success",
+  "provider_calls": 0,
+  "calendar_journal_adoption_executed": false
+}

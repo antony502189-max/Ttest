@@ -1,0 +1,49 @@
+{
+  "main": "4c2bef73a2cf596216b00e4368d628b652d70090",
+  "source": "b0af9f99",
+  "synthetic_microphone_fixture": true,
+  "successful_attempt": 3,
+  "previous_failures": 2,
+  "previous_failure_code": "INTENT_CLARIFICATION_REQUIRED",
+  "failures_business_debits": 0,
+  "same_guest": true,
+  "count": 1,
+  "criteria": {
+    "rental_mode": {
+      "strength": "hard",
+      "value": "long"
+    },
+    "budget": {
+      "strength": "hard",
+      "value": {
+        "amount": "700",
+        "currency": "EUR",
+        "period": "monthly"
+      }
+    },
+    "geography": {
+      "strength": "hard",
+      "value": {
+        "province_code": "38",
+        "municipality_code": "38023"
+      }
+    },
+    "accommodation": {
+      "strength": "hard",
+      "value": {
+        "kind": "room"
+      }
+    },
+    "furnished": {
+      "strength": "hard",
+      "value": true
+    }
+  },
+  "stop_to_conditions_ms": 17848,
+  "provider_before": 30,
+  "provider_after": 30,
+  "remaining": 0,
+  "new_paid_dispatches": 0,
+  "human_acceptance": false,
+  "stability_gate": "OPEN"
+}
