@@ -182,3 +182,8 @@ These are single bounded samples with narrow timing headroom, not p95 or broad
 accent/human/capacity certification. Actual released browser acceptance still follows.
 The model card and pinned files are at
 https://huggingface.co/Systran/faster-whisper-base/tree/ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66 .
+
+
+### PR421 ASR follow-up, source-only
+
+Exact4f source CI local voice failed SYNTHETIC_ASR_MISMATCH; failure artifact14201852346 retained. Diagnostic Base auto-detected Polish on short Russian700 samples. Beam1 also corrupted the amount and is rejected. The candidate keeps beam5 and selects among the three supported languages RU/ES/EN from detector probabilities; identical encoder-feature windows can reuse their result only within one disposable worker. Four legacy samples now retain exact amounts; Irina emits reviewed “семи сот” (same700), supported by exact Russian-hundred morpheme spelling. Compound EN/RU passed6.551/7.555s; no inferred bills for RU. Narrow timing headroom remains; not p95. Focused parser/ASR56PASS and RuffPASS. Added compound and silence fixtures to source CI, keeping per-operation8s/2CPU/1536MiB/96tokens and increasing only the sequential7-sample suite bound45→70s. Seven-case sealed smoke and new exact-source CI pending; no new release claimed.

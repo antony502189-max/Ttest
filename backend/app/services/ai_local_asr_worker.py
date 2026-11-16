@@ -15,11 +15,35 @@ def main():
     # and its unrelated dependencies into the isolated ASR environment.
     from ai_local_asr import validate_pcm  # type: ignore[import-not-found]
     from faster_whisper import WhisperModel  # type: ignore[import-not-found]
+
+    class HousingWhisperModel(WhisperModel):
+        def encode(self, features):
+            # faster-whisper encodes the first window once for language detection
+            # and again for decoding. Reuse only byte-identical features within
+            # this disposable worker; different windows always encode normally.
+            cached = getattr(self, "_housing_encoded", None)
+            if cached is not None and np.array_equal(features, cached[0]):
+                return cached[1]
+            encoded = super().encode(features)
+            self._housing_encoded = (features.copy(), encoded)
+            return encoded
+
+        def detect_language(self, *args, **kwargs):
+            # The product accepts Russian, Spanish and English speech. Short
+            # Russian price phrases can otherwise be misclassified as Polish.
+            # Reuse the detector's probabilities without encoding audio again.
+            _, _, probabilities = super().detect_language(*args, **kwargs)
+            language, probability = max(
+                ((language, probability) for language, probability in probabilities
+                 if language in {"ru", "es", "en"}), key=lambda item: item[1]
+            )
+            return language, probability, probabilities
+
     audio = sys.stdin.buffer.read(480_045)
     validate_pcm(audio)
     with wave.open(io.BytesIO(audio), "rb") as wav:
         samples = np.frombuffer(wav.readframes(240000), dtype="<i2").astype(np.float32)/32768
-    model = WhisperModel(sys.argv[1], device="cpu", compute_type="int8", cpu_threads=2,
+    model = HousingWhisperModel(sys.argv[1], device="cpu", compute_type="int8", cpu_threads=2,
                          num_workers=1, local_files_only=True)
     segments, _ = model.transcribe(samples, beam_size=5, vad_filter=True, condition_on_previous_text=False,
                                    without_timestamps=True, max_new_tokens=96, temperature=0.0,

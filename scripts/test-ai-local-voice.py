@@ -21,7 +21,8 @@ try:
         "--security-opt","no-new-privileges:true","--cap-drop","ALL","-e","HF_HUB_OFFLINE=1",
         "--mount",f"type=bind,src={root/'backend/app/services'},dst=/worker,readonly",
         "--mount",f"type=bind,src={root/'backend/tests/fixtures/ai_voice'},dst=/fixtures,readonly",
-        image_id,"/opt/voice/bin/python","/fixtures/smoke.py"],capture_output=True,text=True,timeout=45)
+        # Seven sequential samples; each retains LocalPCMTranscriber's 8s cap.
+        image_id,"/opt/voice/bin/python","/fixtures/smoke.py"],capture_output=True,text=True,timeout=70)
     (out/"run.log").write_text(result.stdout+result.stderr)
     result.check_returncode()
     proof = json.loads(result.stdout)

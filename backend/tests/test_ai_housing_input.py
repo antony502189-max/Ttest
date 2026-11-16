@@ -33,6 +33,14 @@ def test_composite_languages_same_contract(text):
     assert c.deposit.value.value == 1 and c.stay.value.value == 6
 
 
+@pytest.mark.parametrize("amount, expected", [("семи сот", "700"), ("двух сот пятидесяти", "250"),
+                                            ("девяти сот девяноста девяти", "999")])
+def test_spoken_hundreds_keep_other_conditions(amount, expected):
+    criteria = housing_patch(f"комната до {amount} евро в месяц, с мебелью", state(), VOCAB).set
+    assert criteria.budget.value.amount == expected
+    assert criteria.accommodation.value.kind == "room" and criteria.furnished.value is True
+
+
 def test_followup_changes_one_condition_preserves_all_others():
     current = state()
     current = apply_patch(current, housing_patch("studio in Madrid under 80 euros per night, holiday rental, 2 adults, 0 children, couple, furnished, terrace, wifi, deposit 200 euros, from 2026-12-01 to 2026-12-08, for 7 nights", current, VOCAB))
