@@ -52,7 +52,10 @@ class LocalPCMTranscriber:
                 # two-CPU container before Whisper's explicit two threads run.
                 # Preserve the disposable process, offline boundary and 8s cap.
                 env={"PATH": "/usr/bin:/bin", "HF_HUB_OFFLINE": "1", "OMP_NUM_THREADS": "1",
-                     "OPENBLAS_NUM_THREADS": "1", "MKL_NUM_THREADS": "1", "NUMEXPR_NUM_THREADS": "1"})
+                     "OPENBLAS_NUM_THREADS": "1", "MKL_NUM_THREADS": "1", "NUMEXPR_NUM_THREADS": "1",
+                     # Use the production AMD host's common AVX2/non-MKL path
+                     # in CI too, instead of vendor-dependent int8 dispatch.
+                     "CT2_FORCE_CPU_ISA": "AVX2", "CT2_USE_MKL": "0"})
             try:
                 async with asyncio.timeout(self.seconds):
                     # Canonical PCM is already bounded. Worker emits only a small
