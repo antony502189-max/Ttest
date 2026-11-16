@@ -55,7 +55,8 @@ class LocalPCMTranscriber:
                      "OPENBLAS_NUM_THREADS": "1", "MKL_NUM_THREADS": "1", "NUMEXPR_NUM_THREADS": "1",
                      # Use the production AMD host's common AVX2/non-MKL path
                      # in CI too, instead of vendor-dependent int8 dispatch.
-                     "CT2_FORCE_CPU_ISA": "AVX2", "CT2_USE_MKL": "0"})
+                     "CT2_FORCE_CPU_ISA": "AVX2", "CT2_USE_MKL": "0",
+                     "ONEDNN_MAX_CPU_ISA": "AVX2", "DNNL_MAX_CPU_ISA": "AVX2"})
             try:
                 async with asyncio.timeout(self.seconds):
                     # Canonical PCM is already bounded. Worker emits only a small
