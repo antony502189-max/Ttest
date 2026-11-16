@@ -97,8 +97,8 @@ for (const state of ['stale', 'quota', 'approved']) test(`voice explains ${state
     await expect(page.locator('[data-voice-unavailable]')).toHaveCount(0)
   } else {
     await expect(mic).toBeDisabled()
-    await expect(page.locator('[data-voice-unavailable]')).toContainText(state === 'stale' ? 'Каталог устарел' : 'Лимит запросов исчерпан')
-    await expect(mic).toHaveAccessibleDescription(state === 'stale' ? /Каталог устарел/ : /Лимит запросов исчерпан/)
+    await expect(page.locator('[data-voice-unavailable]')).toContainText(state === 'stale' ? 'Los anuncios se están actualizando' : 'Лимит запросов исчерпан')
+    await expect(mic).toHaveAccessibleDescription(state === 'stale' ? /Los anuncios se están actualizando/ : /Лимит запросов исчерпан/)
   }
   expect(calls).toBe(0)
 })

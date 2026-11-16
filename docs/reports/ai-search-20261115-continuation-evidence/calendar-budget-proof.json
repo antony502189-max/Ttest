@@ -1,0 +1,14 @@
+{
+  "source": "2f50955b3e461094d50abdb082b1fd2297e67863",
+  "tests": 19,
+  "failures": 0,
+  "errors": 0,
+  "junit_sha256": "08d4b2c20a561c351debd84e229e0d55b375f2ae617d4a82acc02b20bb41fa47",
+  "broader_preceding_unit_passed": 1988,
+  "broader_preceding_unit_skipped": 16,
+  "final_app_mypy_passed": true,
+  "ruff_passed": true,
+  "bandit_medium_high_findings": 0,
+  "production_adoption_executed": false,
+  "provider_calls": 0
+}

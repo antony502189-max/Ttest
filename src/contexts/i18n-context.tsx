@@ -6,6 +6,15 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'Busca tu vivienda con IA': { ru: 'Найдите жильё с AI-поиском', en: 'Find your home with AI search' },
+  'Describe el alojamiento, tu presupuesto y las condiciones que necesitas.': { ru: 'Опишите жильё, бюджет и важные для вас условия.', en: 'Describe the home, your budget and the conditions you need.' },
+  'Comprobando la búsqueda…': { ru: 'Проверяем доступность поиска…', en: 'Checking search availability…' },
+  'Los anuncios se están actualizando. Inténtalo de nuevo en unos minutos.': { ru: 'Объявления обновляются. Попробуйте через несколько минут.', en: 'Listings are being updated. Please try again in a few minutes.' },
+  'Las nuevas búsquedas no están disponibles temporalmente. Puedes abrir los resultados guardados.': { ru: 'Новые поиски временно недоступны. Можно открыть сохранённые результаты.', en: 'New searches are temporarily unavailable. You can open saved results.' },
+  'Busca por voz o texto: tipo de vivienda, presupuesto y comodidades.': { ru: 'Ищите голосом или текстом: тип жилья, бюджет и удобства.', en: 'Search by voice or text: home type, budget and amenities.' },
+  'La búsqueda no está disponible temporalmente.': { ru: 'Поиск временно недоступен.', en: 'Search is temporarily unavailable.' },
+  'Una habitación hasta 700 euros al mes, amueblada y con gastos incluidos': { ru: 'Комната до 700 евро в месяц, с мебелью и включёнными счетами', en: 'A room under 700 euros per month, furnished and with bills included' },
+  'Indica el lugar, el tipo de vivienda, el presupuesto y tus requisitos. Puedes cambiar una condición después. No incluyas contactos ni datos personales. Solo mostramos coincidencias con condiciones confirmadas.': { ru: 'Укажите место, тип жилья, бюджет и нужные условия. Затем можно изменить отдельное условие. Не указывайте контакты и личные данные. Показываем совпадения только с подтверждёнными условиями.', en: 'Give the location, home type, budget and your requirements. You can change individual conditions later. Do not include contact or personal details. We only show matches with confirmed conditions.' },
   'Buscar con mi voz': { ru: 'Искать голосом', en: 'Search with my voice' },
   'También puedes escribir tu búsqueda': { ru: 'Также можно написать запрос', en: 'You can also type your search' },
   'Dinos tu presupuesto mensual. Encontraremos opciones para ti.': { ru: 'Назовите месячный бюджет. Подберём варианты для вас.', en: 'Tell us your monthly budget. We will find options for you.' },

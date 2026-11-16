@@ -1,0 +1,30 @@
+{
+  "browser": "webkit",
+  "expectedMain": "42ea90cba2332397dc74f0abba965108f84b2179",
+  "providerRequests": [],
+  "errors": [],
+  "actualMain": "42ea90cba2332397dc74f0abba965108f84b2179",
+  "before": {
+    "attempts": 30,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": true,
+    "approved": false,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "mapStatus": 200,
+  "after": {
+    "attempts": 30,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": true,
+    "approved": false,
+    "catalog_ready": true,
+    "catalog_reason": null
+  },
+  "guestIdentityUnchanged": true,
+  "compositeCriteriaRestored": true,
+  "reloadPassed": true,
+  "passed": true
+}

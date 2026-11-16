@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-for (const width of [390, 1440]) for (const state of ['pending', 'approved', 'unavailable', 'malformed', 'stale']) {
+for (const width of [390, 1440]) for (const state of ['pending', 'approved', 'unavailable', 'malformed', 'stale', 'local', 'local-stale']) {
   test(`site pilot ${width}px ${state} preserves protected-path UI boundary`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     await page.addInitScript(() => {
@@ -15,7 +15,7 @@ for (const width of [390, 1440]) for (const state of ['pending', 'approved', 'un
       if (url.pathname.startsWith('/ai-pilot/api/')) {
         apiPaths.push(url.pathname)
         if (url.pathname.endsWith('/private-demo/status')) return state === 'unavailable' ? route.abort() : route.fulfill({ json: {
-          attempts: state === 'malformed' ? '0' : 0, maximum: 50, exhausted: false, halted: !['approved','stale'].includes(state), approved: ['approved','stale'].includes(state), catalog_ready: state !== 'stale',
+          attempts: state === 'malformed' ? '0' : 0, maximum: 50, exhausted: state === 'local', halted: !['approved','stale'].includes(state), approved: ['approved','stale'].includes(state), catalog_ready: !['stale','local-stale'].includes(state), local_housing_available: state === 'local' || state === 'local-stale',
         } })
         if (url.pathname.endsWith('/capabilities')) return route.fulfill({ json: { text: true, map: true, voice: false, saved_searches: false } })
         if (url.pathname.endsWith('/quota')) return route.fulfill({ json: { remaining: 3 } })
@@ -27,12 +27,12 @@ for (const width of [390, 1440]) for (const state of ['pending', 'approved', 'un
     await page.goto('./#/')
     await expect(page.getByRole('heading', { name: 'Поиск жилья с AI', exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Escribir mi búsqueda', exact: true }).click()
-    await expect(page.locator('[data-private-demo-status]')).toContainText(state === 'approved' ? '0/50'
-      : state === 'pending' ? 'Страница подготовлена' : state === 'stale' ? 'Каталог устарел' : 'временно недоступна')
+    await expect(page.locator('[data-private-demo-status]')).toContainText(['approved','local'].includes(state) ? 'Busca por voz o texto'
+      : state === 'pending' ? 'no están disponibles temporalmente' : ['stale','local-stale'].includes(state) ? 'se están actualizando' : 'no está disponible temporalmente')
     await expect(page.getByLabel('Modo para esta búsqueda', { exact: true })).toHaveValue('long')
     await page.getByLabel('Cuéntanos qué necesitas', { exact: true }).fill('до 600 евро в месяц')
     const submit = page.getByRole('button', { name: 'Buscar habitaciones', exact: true })
-    if (state === 'approved') await expect(submit).toBeEnabled()
+    if (['approved','local'].includes(state)) await expect(submit).toBeEnabled()
     else await expect(submit).toBeDisabled()
     await page.evaluate(() => fetch('https://pilot-csp.invalid/').catch(() => undefined))
     expect(paid).toEqual([])
@@ -41,10 +41,10 @@ for (const width of [390, 1440]) for (const state of ['pending', 'approved', 'un
     expect(await page.evaluate(() => ['112233:favorites:v2', '112233:listing-draft:v3', '112233:language:v1', '112233:saved-searches:v3', '112233:listing-pending-media:v1', 'third-party-computed-key'].every(key => localStorage.getItem(key) === 'ordinary-site-storage-sentinel'))).toBe(true)
     expect(await page.evaluate(() => sessionStorage.getItem('112233:ai-continuation:v1:guest'))).toBe('ordinary-session-sentinel')
     await expect(page.locator('#ai-search-text')).toHaveAttribute('maxlength', '2000')
-    if (state === 'approved') {
+    if (['approved','local'].includes(state)) {
       await page.locator('#ai-search-text').fill('rooms under 500 euros per month with a cat')
       await expect(submit).toBeEnabled()
-      await expect(page.getByText(/Опишите место, цену/).last()).toBeVisible()
+      await expect(page.getByText(/Indica el lugar, el tipo de vivienda/).last()).toBeVisible()
     }
   })
 }

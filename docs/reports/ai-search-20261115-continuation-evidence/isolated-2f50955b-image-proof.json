@@ -1,0 +1,9 @@
+{
+  "source": "2f50955b3e461094d50abdb082b1fd2297e67863",
+  "image": "sha256:d53ea8a0c6803d76278b5f5e896dba190a0b22f7839b0e3560342fe83aae3029",
+  "runtime_python_files": 287,
+  "dnspython": "2.9.2",
+  "asr_model_sha256": "540a5081aecc10692ec80b83499c49cbee903133178d307d1b0c9e6eccf6c68e",
+  "asr_model_unchanged": true,
+  "provider_calls": 0
+}

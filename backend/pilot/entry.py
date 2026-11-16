@@ -125,6 +125,22 @@ async def require_catalog(readiness):
         raise SourceCoverageUnavailable("PILOT_CATALOG_STALE")
 
 
+class LocalHousingParser:
+    """Whole supported housing requests, with no external intent transport.
+
+    Reuses the same typed patch contract and strict unknown/ambiguity handling.
+    Live SQL coverage/matching and durable quota finalization remain in the
+    ordinary execution path. This is not an unrestricted language-model parser.
+    """
+    def __init__(self, readiness, vocabulary):
+        self.readiness, self.vocabulary = readiness, vocabulary
+
+    async def parse(self, text, current):
+        patch = housing_patch(text, current, self.vocabulary)
+        await require_catalog(self.readiness)
+        return patch
+
+
 def require_approval():
     if not approved():
         raise ProviderFailure("PILOT_SPENDING_APPROVAL_REQUIRED")
@@ -161,12 +177,15 @@ def create_app():
     health = CatalogHealth(STATE/'catalog-health.json',cohort_hash(json.loads(Path('/demo-input/catalog.json').read_text())))
     readiness = CatalogReadiness(facts,health)
     from app.repositories.ai_search_sessions import IntentVocabulary
-    full_intent = os.environ.get("AI_SITE_PILOT_INTENT") == "housing-v1"
+    local_intent = os.environ.get("AI_SITE_PILOT_INTENT") == "local-housing-v1"
+    full_intent = os.environ.get("AI_SITE_PILOT_INTENT") in {"housing-v1", "local-housing-v1"}
     if os.environ.get("AI_SITE_PILOT_INTENT") and not full_intent:
         raise ValueError("HOUSING_INTENT_CONFIGURATION_INVALID")
     vocab = facts.vocabulary
     intent_vocabulary = IntentVocabulary(vocab.amenity_codes, vocab.catalog_other_codes, vocab.municipality_zones)
-    runtime = assemble_text_runtime(pipeline=facts, parser=PilotParser(budget, readiness, intent_vocabulary if full_intent else None),
+    parser = LocalHousingParser(readiness, intent_vocabulary) if local_intent else PilotParser(
+        budget, readiness, intent_vocabulary if full_intent else None)
+    runtime = assemble_text_runtime(pipeline=facts, parser=parser,
         limiter=RedisRateLimiter("redis://redis:6379/0"),
         lease_policy=LeasePolicy(reservation_seconds=60, running_seconds=60, recovery_grace_seconds=30),
         session_policy=SessionPolicy(inactivity_seconds=86400),
@@ -193,7 +212,8 @@ def create_app():
         class ApprovedLocalASR:
             async def transcribe(self, audio, media_type):
                 await require_catalog(readiness)
-                require_approval()
+                if not local_intent:
+                    require_approval()
                 return await local_asr.transcribe(audio, media_type)
 
         runtime = replace(runtime, voice=VoiceSearchExecution(runtime.sessions, ApprovedLocalASR(),
@@ -224,5 +244,8 @@ def create_app():
         except Exception:  # noqa: BLE001 - fixed private fail-closed status
             value.update(catalog_ready=False, catalog_reason="PILOT_CATALOG_UNAVAILABLE")
         value["halted"] = value["halted"] or not value["approved"] or not value["catalog_ready"]
+        # Provider approval/cost status stays truthful. The independent local
+        # path can be available without granting or performing external IO.
+        value["local_housing_available"] = local_intent and value["catalog_ready"]
         return JSONResponse(value, headers={"Cache-Control": "no-store"})
     return app

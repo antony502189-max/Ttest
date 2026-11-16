@@ -1,0 +1,11 @@
+{
+  "tests": 70,
+  "failures": 0,
+  "errors": 0,
+  "time_seconds": 481.371,
+  "junit_sha256": "f10574c9e689e0ad607d560e4763eadf32a02bf84be37da242f70eb174b1bb87",
+  "provider_calls": 0,
+  "production_writes": 0,
+  "source_runtime_equal_to_pr419": true,
+  "earlier_failure_retained": "pg-first-failure.json"
+}

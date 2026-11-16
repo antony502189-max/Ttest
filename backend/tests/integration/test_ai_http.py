@@ -98,6 +98,83 @@ async def active(monkeypatch):
     return value, parser, gate
 
 
+async def test_local_compound_voice_refinement_and_missing_coverage_keep_real_http_sql_contract(monkeypatch):
+    import base64
+    import io
+    import wave
+    from dataclasses import replace
+
+    from test_ai_saved_catalog_primary import imported_target
+
+    from app.repositories.ai_search_quota import QuotaLedger
+    from app.repositories.ai_search_sessions import IntentVocabulary, SearchSessions, SessionPolicy
+    from app.repositories.ai_verified_cards import VerifiedCardSearch
+    from app.schemas.ai_search_quota import LeasePolicy
+    from app.services.ai_saved_catalog import refresh_saved_catalog
+    from app.services.ai_voice_execution import VoicePolicy, VoiceSearchExecution
+    from pilot import entry
+
+    pipeline, source_id, listing_id, _, _, _, _ = await imported_target()
+    await refresh_saved_catalog(pipeline, (source_id,))
+    sessions = SearchSessions(QuotaLedger(SessionLocal, LeasePolicy(
+        reservation_seconds=60, running_seconds=60, recovery_grace_seconds=30)),
+        SessionPolicy(inactivity_seconds=600), IntentVocabulary(
+            pipeline.vocabulary.amenity_codes, pipeline.vocabulary.catalog_other_codes, pipeline.vocabulary.municipality_zones))
+    class Ready:
+        async def __call__(self): return {"catalog_ready": True}
+    class ASR:
+        calls = 0
+        async def transcribe(self, _audio, _media):
+            self.calls += 1
+            return "мне нужна комната до 700 евро в месяц, с мебелью и с включёнными счетами"
+    def no_provider(*_args, **_kwargs):
+        raise AssertionError("local voice must not access provider approval, key or transport")
+    monkeypatch.setattr(entry, "approved", no_provider)
+    monkeypatch.setattr(entry.httpx, "AsyncHTTPTransport", no_provider)
+    parser = entry.LocalHousingParser(Ready(), sessions.vocabulary)
+    cards = VerifiedCardSearch(pipeline, sessions, signing_key=b"local-http-cards-synthetic-key32")
+    execution = TextSearchExecution(sessions, parser, Gate(), cards)
+    runtime = AISearchRuntime(sessions, cards, execution,
+        GuestTokens(key=b"synthetic-local-http-guest-key32", policy=GuestPolicy(ttl_seconds=600)),
+        Gate(), frozenset({"https://testserver"}), 131_072, AIHTTPPolicy(10, 5, (), "https://testserver"))
+    asr = ASR()
+    voice = VoiceSearchExecution(sessions, asr, parser, execution.attempts, cards,
+        VoicePolicy(media_types=("audio/wav",), max_audio_bytes=480044, max_transcript_bytes=8000,
+            asr_budget_seconds=1.0, intent_budget_seconds=1.0, total_budget_seconds=5.0))
+    monkeypatch.setattr(app.state, "ai_search_runtime", replace(runtime, execution=execution, cards=cards, voice=voice), raising=False)
+    audio = io.BytesIO()
+    with wave.open(audio, "wb") as wav:
+        wav.setparams((1, 2, 16000, 0, "NONE", "not compressed"))
+        wav.writeframes(b"\0" * 6400)
+    async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as client:
+        assert (await client.post("/api/v1/ai-search/identity")).status_code == 200
+        created = await client.post("/api/v1/ai-search/sessions", json={"rental_mode": "long"})
+        assert created.status_code == 200, created.text
+        sid = created.json()["intent"]["session_id"]
+        payload = {"idempotency_key": str(uuid4()), "session_id": sid, "expected_version": 0,
+            "media_type": "audio/wav", "audio_base64": base64.b64encode(audio.getvalue()).decode(), "search": {"limit": 6}}
+        first = await client.post("/api/v1/ai-search/voice", json=payload)
+        assert first.status_code == 200 and first.json()["operation"]["status"] == "succeeded", first.text
+        result = first.json()
+        assert [item["id"] for item in result["cards"]["cards"]["items"]] == [str(listing_id)]
+        reference = result["operation"]["receipt"]["result_ref"]
+        retry = await client.post("/api/v1/ai-search/voice", json=payload)
+        assert retry.json()["operation"]["receipt"] == result["operation"]["receipt"] and asr.calls == 1
+        refined = await client.post("/api/v1/ai-search/query", json={"idempotency_key": str(uuid4()),
+            "session_id": sid, "expected_version": 1, "text": "теперь до 500 евро в месяц", "search": {"limit": 6}})
+        assert refined.json()["operation"]["status"] == "succeeded", refined.text
+        assert refined.json()["cards"]["cards"]["total"] == 0
+        current = (await client.get(f"/api/v1/ai-search/sessions/{sid}")).json()["intent"]["criteria"]
+        assert current["budget"]["value"]["amount"] == "500"
+        assert current["accommodation"]["value"]["kind"] == "room" and current["furnished"]["value"] and current["bills_included"]["value"]
+        committed = (await client.get(f"/api/v1/ai-search/results/{reference}")).json()["intent"]["criteria"]
+        assert committed["budget"]["value"]["amount"] == "700"
+        missing = await client.post("/api/v1/ai-search/query", json={"idempotency_key": str(uuid4()),
+            "session_id": sid, "expected_version": 2, "text": "2 adults, 0 children", "search": {"limit": 6}})
+        assert missing.json()["operation"]["failure_code"] == "SOURCE_COVERAGE_UNAVAILABLE", missing.text
+        assert (await client.get("/api/v1/ai-search/quota")).json()["used"] == 2
+
+
 async def test_voice_http_one_debit_owned_replay_and_media_rejection(active, monkeypatch):
     import base64
     import io

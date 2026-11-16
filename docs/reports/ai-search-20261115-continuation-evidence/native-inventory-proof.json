@@ -1,0 +1,23 @@
+{
+  "read_only": true,
+  "provider_calls": 0,
+  "source_updates": 0,
+  "catalog_activation": false,
+  "presence_is_not_verified_ai_coverage": true,
+  "candidate_field_presence": {
+    "visible_native_objects": 7,
+    "monthly_price": 7,
+    "room_capacity": 7,
+    "current_residents": 7,
+    "available_from": 7,
+    "available_until": 0,
+    "minimum_stay_months": 7,
+    "deposit_amount": 7,
+    "furnished": 7,
+    "smoking_allowed": 7,
+    "details_room_capacity_v2": 7,
+    "details_current_room_residents": 7,
+    "details_couples_allowed": 7,
+    "complete_ordered_date_ranges": 0
+  }
+}

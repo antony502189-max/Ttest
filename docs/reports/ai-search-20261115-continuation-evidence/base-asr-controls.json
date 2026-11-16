@@ -1,0 +1,53 @@
+[
+  {
+    "passed": true,
+    "seconds": 7.651,
+    "synthetic_transcript": "\u0434\u043e 400 \u0435\u0432\u0440\u043e \u0432 \u043c\u0435\u0441\u044f\u0446.",
+    "criteria": {
+      "budget": {
+        "strength": "hard",
+        "value": {
+          "amount": "400",
+          "currency": "EUR",
+          "period": "monthly"
+        }
+      }
+    },
+    "audio_sha256": "6853dd65e8e512c48a07b99c6760e4c5e532aff82fd1b87056aab4a732e8da2b",
+    "provider_calls": 0,
+    "fixture": "ru-400-simple.wav",
+    "model": "base"
+  },
+  {
+    "passed": true,
+    "seconds": 7.79,
+    "synthetic_transcript": "\u0414\u043e 700 \u0435\u0432\u0440\u043e \u0432 \u043c\u0435\u0441\u044f\u0446, \u043a\u043e\u043c\u043c\u0443\u043d\u0430\u043b\u044c\u043d\u044b\u0435 \u043f\u043b\u0430\u0442\u0435\u0436\u0438 \u0432\u043a\u043b\u044e\u0447\u0435\u043d\u044b",
+    "criteria": {
+      "budget": {
+        "strength": "hard",
+        "value": {
+          "amount": "700",
+          "currency": "EUR",
+          "period": "monthly"
+        }
+      },
+      "bills_included": {
+        "strength": "hard",
+        "value": true
+      }
+    },
+    "audio_sha256": "e4bd7f02b3b73db338995aa2ffb06ec72edfbf1fb5ee9bab1251ec85c38eff77",
+    "provider_calls": 0,
+    "fixture": "ru-conditions.wav",
+    "model": "base"
+  },
+  {
+    "passed": true,
+    "seconds": 4.095,
+    "failure": "LOCAL_ASR_UNAVAILABLE",
+    "synthetic_transcript": null,
+    "provider_calls": 0,
+    "fixture": "voice-silence.wav",
+    "model": "base"
+  }
+]

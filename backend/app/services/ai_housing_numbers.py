@@ -35,3 +35,13 @@ def _forms():
 
 
 AMOUNTS = _forms()
+# Speech decoders may separate the two morphemes of Russian hundreds.
+# These exact spellings preserve their numeric meaning; unknown words remain
+# unconsumed and still cause clarification of the entire request.
+for _joined, _separated in (("двухсот", "двух сот"), ("трехсот", "трех сот"),
+                          ("четырехсот", "четырех сот"), ("пятисот", "пяти сот"),
+                          ("шестисот", "шести сот"), ("семисот", "семи сот"),
+                          ("восьмисот", "восьми сот"), ("девятисот", "девяти сот")):
+    for _words, _amount in list(AMOUNTS.items()):
+        if _words == _joined or _words.startswith(_joined + " "):
+            AMOUNTS[_words.replace(_joined, _separated, 1)] = _amount
