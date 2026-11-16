@@ -160,7 +160,7 @@ def housing_patch(text, current, vocabulary):
         if not matched:
             # Period must be explicit. No monthly/nightly conversion or mode inference.
             for period, words in PERIODS.items():
-                matched = take(r"(?:under|up to|budget up to|hasta|menos de|до|бюджет до|не дороже) ([1-9][0-9]{0,5}(?:[.,][0-9]{1,2})?)(?: ?(?:euros?|eur|евро|€))?\s*" + _alternatives(words))
+                matched = take(r"(?:under|up to|budget up to|hasta|menos de|до|бюджет до|не дороже) (?:€\s*)?([1-9][0-9]{0,5}(?:[.,][0-9]{1,2})?)(?: ?(?:euros?|eur|евро|€))?\s*" + _alternatives(words))
                 if matched:
                     put("budget", {"amount": matched[1].replace(",", "."), "currency": "EUR", "period": period})
                     break

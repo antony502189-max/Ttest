@@ -1,9 +1,18 @@
 """Runs in the sealed ASR image against synthetic speech fixtures only."""
 import asyncio
 import json
+import re
 import sys
 import time
 from pathlib import Path
+
+
+def currency_notation(text):
+    """Equivalent EUR spellings only; retain amounts and every other word."""
+    text = text.casefold().strip().rstrip(".!?").strip()
+    text = re.sub(r"€\s*([1-9][0-9]{0,5})(?![\d.,])", r"\1 eur", text)
+    text = re.sub(r"(?<=[0-9])\s*€", " eur", text)
+    return re.sub(r"\b(?:euros?|евро)\b", "eur", text)
 
 
 async def main():
@@ -11,6 +20,7 @@ async def main():
     from ai_local_asr import LocalPCMTranscriber
     asr = LocalPCMTranscriber(python=Path("/opt/voice/bin/python"),model=Path("/opt/voice-model"),seconds=18)
     proof = []
+    failures = []
     for name, expected in (("english.wav", "find rooms under 600 euros per month"),
                            ("russian.wav", "до 600 евро в месяц"),
                            # Base emits the same amount in words, with the
@@ -22,11 +32,17 @@ async def main():
                            ("ru-composite.wav", ("комната в la laguna, до 700 евро в месяц, с мебелью",
                                                  "комната в ла лагуна, до 700 евро в месяц, с мебелью"))):
         started = time.monotonic()
-        transcript = await asr.transcribe((Path("/fixtures")/name).read_bytes(), "audio/wav")
+        try:
+            transcript = await asr.transcribe((Path("/fixtures")/name).read_bytes(), "audio/wav")
+        except (ValueError, TimeoutError, OSError) as exc:
+            failures.append((name, type(exc).__name__))
+            proof.append({"sample":name, "matched":False, "failure":type(exc).__name__})
+            continue
         accepted = (expected,) if isinstance(expected, str) else expected
-        assert transcript.casefold().strip().rstrip(".!?").strip() in accepted, (
-            "SYNTHETIC_ASR_MISMATCH", name, transcript)
-        proof.append({"sample":name, "seconds":round(time.monotonic()-started,3), "matched":True,
+        matched = currency_notation(transcript) in {currency_notation(value) for value in accepted}
+        if not matched:
+            failures.append((name, transcript))
+        proof.append({"sample":name, "seconds":round(time.monotonic()-started,3), "matched":matched,
                       "external_provider_calls":0})
     started = time.monotonic()
     try:
@@ -37,6 +53,7 @@ async def main():
     else:
         raise AssertionError("SILENCE_MUST_NOT_GENERATE_CONDITIONS")
     print(json.dumps(proof))
+    assert not failures, ("SYNTHETIC_ASR_MISMATCH", failures)
 
 
 asyncio.run(main())

@@ -32,3 +32,9 @@ rejected and are not active. Default callers retain their8s policy; the local
 housing composition explicitly selects18s,2s intent,24s total and24.5s HTTP,
 inside the existing25s proxy. The client waits28s. Audio/media/privacy,2CPU,
 1536MiB,96-token and disposable-worker boundaries remain unchanged.
+
+Small may emit “€600” instead of “600 euros”. The parser explicitly accepts
+that complete EUR budget notation. The speech assertion canonicalizes only
+symbol/name currency spellings, preserving exact amounts and all other words.
+Wrong currencies, incomplete cities and garbled furniture clauses still fail.
+All speech mismatches are collected before the final failing assertion.

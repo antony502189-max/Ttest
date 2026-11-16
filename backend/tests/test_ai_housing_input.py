@@ -46,6 +46,23 @@ def test_incomplete_recognized_place_never_substitutes_a_municipality():
         housing_patch("комната в Лагуна, до 700 евро в месяц, с мебелью", state(), VOCAB)
 
 
+@pytest.mark.parametrize("text", ["a room under €700 per month, furnished, bills included",
+    "комната до € 700 в месяц, с мебелью, счета включены",
+    "una habitación hasta €700 al mes, amueblada, gastos incluidos"])
+def test_prefix_euro_symbol_preserves_all_housing_conditions(text):
+    criteria = housing_patch(text, state(), VOCAB).set
+    assert criteria.budget.value.amount == "700" and criteria.budget.value.period == "monthly"
+    assert criteria.accommodation.value.kind == "room"
+    assert criteria.furnished.value is True and criteria.bills_included.value is True
+
+
+@pytest.mark.parametrize("text", ["under $700 per month", "under €700 USD per month",
+                                "under €700 per month, smibelju"])
+def test_currency_format_does_not_accept_other_currency_or_unknown_conditions(text):
+    with pytest.raises(ProviderFailure):
+        housing_patch(text, state(), VOCAB)
+
+
 def test_followup_changes_one_condition_preserves_all_others():
     current = state()
     current = apply_patch(current, housing_patch("studio in Madrid under 80 euros per night, holiday rental, 2 adults, 0 children, couple, furnished, terrace, wifi, deposit 200 euros, from 2026-12-01 to 2026-12-08, for 7 nights", current, VOCAB))
