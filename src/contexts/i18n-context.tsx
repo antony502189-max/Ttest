@@ -6,6 +6,7 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'Volver a mi búsqueda': { ru: 'Вернуться к моему поиску', en: 'Return to my search' },
   'Busca tu vivienda con IA': { ru: 'Найдите жильё с AI-поиском', en: 'Find your home with AI search' },
   'Describe el alojamiento, tu presupuesto y las condiciones que necesitas.': { ru: 'Опишите жильё, бюджет и важные для вас условия.', en: 'Describe the home, your budget and the conditions you need.' },
   'Comprobando la búsqueda…': { ru: 'Проверяем доступность поиска…', en: 'Checking search availability…' },

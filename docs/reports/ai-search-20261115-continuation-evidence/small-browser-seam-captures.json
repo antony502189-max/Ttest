@@ -1,0 +1,110 @@
+{
+  "synthetic": true,
+  "localComponentOnly": true,
+  "businessRequests": 0,
+  "captures": [
+    {
+      "sample": "seam-cold-0.wav",
+      "bytes": 226006,
+      "sha256": "bb2c5fa0a8445c5a3b30ea5947c46a15ccbafe4a806465c9acd0c3d0a4203ceb",
+      "events": [
+        {
+          "name": "gum-start",
+          "ms": 334.30000001192093
+        },
+        {
+          "name": "gum-ready",
+          "ms": 420.09999999403954,
+          "detail": {
+            "autoGainControl": true,
+            "channelCount": 1,
+            "echoCancellation": true,
+            "latency": 0.01,
+            "noiseSuppression": true,
+            "sampleRate": 48000,
+            "sampleSize": 16,
+            "voiceIsolation": false
+          }
+        },
+        {
+          "name": "worklet-start",
+          "ms": 480.90000000596046
+        },
+        {
+          "name": "worklet-ready",
+          "ms": 504.09999999403954
+        }
+      ]
+    },
+    {
+      "sample": "seam-cold-1.wav",
+      "bytes": 226604,
+      "sha256": "515e4db2e73cf0a045e748d04bb67838049d2c1fe38c0d81959a23fbd2a25192",
+      "events": [
+        {
+          "name": "gum-start",
+          "ms": 297.5
+        },
+        {
+          "name": "gum-ready",
+          "ms": 365.09999999403954,
+          "detail": {
+            "autoGainControl": true,
+            "channelCount": 1,
+            "echoCancellation": true,
+            "latency": 0.01,
+            "noiseSuppression": true,
+            "sampleRate": 48000,
+            "sampleSize": 16,
+            "voiceIsolation": false
+          }
+        },
+        {
+          "name": "worklet-start",
+          "ms": 399.19999998807907
+        },
+        {
+          "name": "worklet-ready",
+          "ms": 405.09999999403954
+        }
+      ]
+    },
+    {
+      "sample": "seam-cold-2.wav",
+      "bytes": 229164,
+      "sha256": "cfae245ada3bbbe4868047186e7f5f640089ca9598a52746076f970c26afdbce",
+      "events": [
+        {
+          "name": "gum-start",
+          "ms": 199.09999999403954
+        },
+        {
+          "name": "gum-ready",
+          "ms": 253.09999999403954,
+          "detail": {
+            "autoGainControl": true,
+            "channelCount": 1,
+            "echoCancellation": true,
+            "latency": 0.01,
+            "noiseSuppression": true,
+            "sampleRate": 48000,
+            "sampleSize": 16,
+            "voiceIsolation": false
+          }
+        },
+        {
+          "name": "worklet-start",
+          "ms": 287.09999999403954
+        },
+        {
+          "name": "worklet-ready",
+          "ms": 294.39999997615814
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "application_source": "b0af9f9969133f77c7b6966de91d0d9e1ea1fc96",
+  "actual_site_capture": false,
+  "notes": "Same source component served by local Vite; all nonlocal requests blocked. Not the missing first/second failed recordings."
+}

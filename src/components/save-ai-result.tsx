@@ -49,7 +49,7 @@ export function SaveAIResult({ resultRef, available, disabled }: { resultRef: st
   return <div data-i18n-exempt>
     {saved ? <p role="status">{t.saved} <Link to="/busquedas-guardadas">{t.manage}</Link></p> : currentUser
       ? <Button type="button" variant="outline" disabled={disabled || busy} onClick={() => void save()}>{busy ? t.busy : t.save}</Button>
-      : <><Link to="/registro">{t.register}</Link><p>{t.hint}</p></>}
+      : <><Link to="/registro" state={{ returnTo: "/?ai=save" }}>{t.register}</Link><p>{t.hint}</p></>}
     {error ? <p role="alert">{t.error}</p> : null}
   </div>
 }

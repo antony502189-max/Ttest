@@ -1,0 +1,63 @@
+{
+  "synthetic": true,
+  "local_component_only": true,
+  "samples": [
+    {
+      "sample": "seam-cold-0.wav",
+      "bytes": 226006,
+      "sha256": "bb2c5fa0a8445c5a3b30ea5947c46a15ccbafe4a806465c9acd0c3d0a4203ceb",
+      "seconds": 15.72,
+      "passed": true,
+      "criteria": {
+        "accommodation": "room",
+        "municipality_code": "38023",
+        "budget_eur_month": "700",
+        "furnished": true,
+        "bills_included": null
+      }
+    },
+    {
+      "sample": "seam-cold-1.wav",
+      "bytes": 226604,
+      "sha256": "515e4db2e73cf0a045e748d04bb67838049d2c1fe38c0d81959a23fbd2a25192",
+      "seconds": 13.131,
+      "passed": true,
+      "criteria": {
+        "accommodation": "room",
+        "municipality_code": "38023",
+        "budget_eur_month": "700",
+        "furnished": true,
+        "bills_included": null
+      }
+    },
+    {
+      "sample": "seam-cold-2.wav",
+      "bytes": 229164,
+      "sha256": "cfae245ada3bbbe4868047186e7f5f640089ca9598a52746076f970c26afdbce",
+      "seconds": 13.22,
+      "passed": true,
+      "criteria": {
+        "accommodation": "room",
+        "municipality_code": "38023",
+        "budget_eur_month": "700",
+        "furnished": true,
+        "bills_included": null
+      }
+    }
+  ],
+  "image": "sha256:60a1c713382876c6c7aa62a422d5707a0b204ec2bb02f77e81ca4f52e162e6bb",
+  "source": "b0af9f9969133f77c7b6966de91d0d9e1ea1fc96",
+  "network": "none",
+  "cpu_limit": 2,
+  "memory_limit_bytes": 1610612736,
+  "memory_peak_bytes": 1243070464,
+  "user": 65534,
+  "business_calls": 0,
+  "provider_calls": 0,
+  "asr_limit_seconds": 18,
+  "separate_disposable_worker_per_sample": true,
+  "original_live_failures": 2,
+  "root_cause_established": false,
+  "human_mic_acceptance": false,
+  "p95_acceptance": false
+}

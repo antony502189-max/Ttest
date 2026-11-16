@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { CheckCircle2, KeyRound, Mail, ShieldCheck } from 'lucide-react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, useLocation, useSearchParams } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -10,6 +10,7 @@ import { Logo } from '@/components/layout'
 import { useApp } from '@/contexts/app-context'
 import { requestEmailVerification, requestPasswordReset, resetPassword, verifyEmail } from '@/api/auth'
 import type { UserRole } from '@/types'
+import { useI18n } from '@/contexts/i18n-context'
 
 const mockMode = import.meta.env.VITE_ENABLE_MOCK_MODE === '1'
 
@@ -19,6 +20,11 @@ function AuthShell({ title, description, children, asideTitle = 'Tu próxima hab
 
 export function RegisterPage() {
   const { register } = useApp()
+  const { t } = useI18n()
+  const location = useLocation()
+  // A fixed internal destination carries no criteria, credentials or handoff token.
+  const returnToAI = (location.state as { returnTo?: unknown } | null)?.returnTo === '/?ai=save'
+  const returnState = returnToAI ? { returnTo: '/?ai=save' } : undefined
   const [success, setSuccess] = useState(false)
   const [accepted, setAccepted] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -43,8 +49,8 @@ export function RegisterPage() {
     setErrors(next)
     if (Object.keys(next).length) window.setTimeout(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(), 0)
   }
-  if (success) return <AuthShell title="Cuenta creada" description="Tu sesión ya está activa."><Alert><CheckCircle2 /><AlertTitle>Registro completado</AlertTitle><AlertDescription>{mockMode ? 'La cuenta se ha creado en esta demostración y ya puedes continuar.' : 'La cuenta se ha creado. Podrás confirmar tu email con un código cuando publiques tu primer anuncio.'}</AlertDescription></Alert><Button asChild className="w-full"><Link to="/perfil">Abrir mi perfil</Link></Button></AuthShell>
-  return <AuthShell title="Crea tu cuenta" description="Tardarás menos de dos minutos."><form className="auth-form" onSubmit={submit} noValidate><FormField label="Nombre" htmlFor="register-name" error={errors.name}><Input id="register-name" name="name" autoComplete="name" aria-invalid={!!errors.name} aria-describedby={errors.name ? 'register-name-error' : undefined} /></FormField><FormField label="Email" htmlFor="register-email" error={errors.email}><Input id="register-email" name="email" type="email" autoComplete="email" aria-invalid={!!errors.email} /></FormField><FormField label="Contraseña" htmlFor="register-password" description="Mínimo 12 caracteres." error={errors.password}><Input id="register-password" name="password" type="password" minLength={12} autoComplete="new-password" aria-invalid={!!errors.password} /></FormField><FormField label="Repite la contraseña" htmlFor="register-confirm" error={errors.confirm}><Input id="register-confirm" name="confirm" type="password" minLength={12} autoComplete="new-password" aria-invalid={!!errors.confirm} /></FormField><fieldset className="role-choice"><legend>¿Qué quieres hacer?</legend><label><input type="radio" name="role" value="tenant" defaultChecked /><span>Busco habitación<small>Guardar, comparar y contactar</small></span></label><label><input type="radio" name="role" value="host" /><span>Publico habitaciones<small>Crear y gestionar anuncios</small></span></label></fieldset><label className="terms-check"><Checkbox checked={accepted} onCheckedChange={(value) => setAccepted(value === true)} aria-invalid={!!errors.terms} /><span>Acepto los <Link to="/terminos">términos</Link>, la <Link to="/privacidad">privacidad</Link> y las <Link to="/normas-de-publicacion">normas de publicación</Link>.</span></label>{errors.terms ? <p className="field-error" role="alert">{errors.terms}</p> : null}<Button type="submit" size="lg">Crear cuenta</Button><p className="auth-switch">¿Ya tienes cuenta? <Link to="/acceso">Accede</Link></p></form></AuthShell>
+  if (success) return <AuthShell title="Cuenta creada" description="Tu sesión ya está activa."><Alert><CheckCircle2 /><AlertTitle>Registro completado</AlertTitle><AlertDescription>{mockMode ? 'La cuenta se ha creado en esta demostración y ya puedes continuar.' : 'La cuenta se ha creado. Podrás confirmar tu email con un código cuando publiques tu primer anuncio.'}</AlertDescription></Alert><Button asChild className="w-full"><Link to={returnToAI ? "/?ai=save" : "/perfil"}>{returnToAI ? t("Volver a mi búsqueda") : "Abrir mi perfil"}</Link></Button></AuthShell>
+  return <AuthShell title="Crea tu cuenta" description="Tardarás menos de dos minutos."><form className="auth-form" onSubmit={submit} noValidate><FormField label="Nombre" htmlFor="register-name" error={errors.name}><Input id="register-name" name="name" autoComplete="name" aria-invalid={!!errors.name} aria-describedby={errors.name ? 'register-name-error' : undefined} /></FormField><FormField label="Email" htmlFor="register-email" error={errors.email}><Input id="register-email" name="email" type="email" autoComplete="email" aria-invalid={!!errors.email} /></FormField><FormField label="Contraseña" htmlFor="register-password" description="Mínimo 12 caracteres." error={errors.password}><Input id="register-password" name="password" type="password" minLength={12} autoComplete="new-password" aria-invalid={!!errors.password} /></FormField><FormField label="Repite la contraseña" htmlFor="register-confirm" error={errors.confirm}><Input id="register-confirm" name="confirm" type="password" minLength={12} autoComplete="new-password" aria-invalid={!!errors.confirm} /></FormField><fieldset className="role-choice"><legend>¿Qué quieres hacer?</legend><label><input type="radio" name="role" value="tenant" defaultChecked /><span>Busco habitación<small>Guardar, comparar y contactar</small></span></label><label><input type="radio" name="role" value="host" /><span>Publico habitaciones<small>Crear y gestionar anuncios</small></span></label></fieldset><label className="terms-check"><Checkbox checked={accepted} onCheckedChange={(value) => setAccepted(value === true)} aria-invalid={!!errors.terms} /><span>Acepto los <Link to="/terminos">términos</Link>, la <Link to="/privacidad">privacidad</Link> y las <Link to="/normas-de-publicacion">normas de publicación</Link>.</span></label>{errors.terms ? <p className="field-error" role="alert">{errors.terms}</p> : null}<Button type="submit" size="lg">Crear cuenta</Button><p className="auth-switch">¿Ya tienes cuenta? <Link to="/acceso" state={returnState}>Accede</Link></p></form></AuthShell>
 }
 
 export function RecoverPasswordPage() {

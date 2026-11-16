@@ -1,8 +1,15 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.48**, 16 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.49**, 16 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+**Сессия 3.49 / S4.1,S4.4 — offline seam проверен; исправлен source-разрыв возврата после регистрации.** Фактический сайт по-прежнему primary `4c2bef73` / isolated `b0af9f99`, без нового deploy. Три новых cold-Chrome synthetic capture через тот же исходный компонент (локальный Vite, все nonlocal requests blocked) → exact released image → whole-request parser:3PASS/13.131–15.720s, все room+LaLaguna+700/month+furnished, без bills.2CPU/1536MiB/network-none/uid65534, memory peak1243070464bytes. Это не первые два failed capture, их аудио отсутствует; причина прежних отказов НЕ установлена, human/p95/stability gate OPEN. Actual UI корректно блокирует запись при remaining0; запрещённый новый query не выполнялся, guest/quota/provider не менялись.
+
+**S4.4 source:** после signup предлагался только профиль, без возврата к найденному результату. RED390 воспроизведён. Теперь фиксированный внутренний return marker открывает owned continuation после signup/login, затем пользователь явно нажимает Save; identity/criteria/token не переносятся в route state.13local browser checks PASS (12public +1ordinary signup), включая6return flows390/1440 с0query/voice/automatic-save; primary bearer/isolated guest boundary прежний. Types/lint/i18n/build проверяются отдельно от CI/release; новый source ещё не объявлен выпущенным. Реальный signup/email пока ждёт разрешённый тестовый адрес, запрошен один раз; erased QA account не создавался снова.
+
+**Следующее обязательное действие3.49:** exact-source CI/review нового registration-return increment, compatible primary release и read-only actual-site return/restore без business calls. Затем actual signup-email/registered save+delivery на предоставленной разрешённой учётке; S4.1 продолжать по конкретной воспроизводимой ошибке/человеческой записи без raw logging и обхода квоты. Обещанные owner providerterms и sourcebasis/refreshlimits остаются внешними зависимостями; fullS2/S3/S4.4/S5/S6/S7 OPEN. [Отчёт](reports/AI_SEARCH_CONTINUATION_20261116.md), [seam evidence](reports/ai-search-20261115-continuation-evidence/small-browser-seam-asr.json).
+
+**История3.48:**
 **Сессия 3.48 / S3, S4.1, S5.1, S6 — новая версия выпущена; полная готовность НЕ подтверждена.** Primary `4c2bef73a2cf596216b00e4368d628b652d70090`, isolated source `b0af9f9969133f77c7b6966de91d0d9e1ea1fc96`, image `sha256:60a1c713382876c6c7aa62a422d5707a0b204ec2bb02f77e81ca4f52e162e6bb`. PR422:13SUCCESS/2conditionalSKIP; exact-main:8SUCCESS. Обычный runner SUCCESS, schema0080, data_maintenance skipped, три timers active; provider30→30, каталог13, keys/PG/Redis/journal сохранены. Full immutable image:287Python/23ASRpins/4model hashes; sealed6speech8.775–13.300s PASS, silence rejected0.408s, peak728580096bytes при2CPU/1536MiB.
 
 **Фактический сайт:** два свежих RU voice вернули INTENT_CLARIFICATION_REQUIRED без списания; третий в той же сессии вернул1объявление по room+LaLaguna+700/month+furnished за17.848s. Оба отказа сохраняются, стабильность не объявлена пройденной. Independent SQL:2failed+1success, used3/reserved0/remaining0, provider30/331800/30. Квоту/guest не сбрасывать, сегодня новых query/voice на этом guest не выполнять. Карточка с загруженным фото, русский restore/map200, Firefox390 reload/map200, unchanged criteria/guest и0новых query подтверждены. Это synthetic microphone fixture, не человеческий микрофон/p95.
@@ -513,6 +520,7 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 
 | Дата | Версия/этап | Выполнено и доказательство | Следующий шаг |
 | --- | --- | --- | --- |
+| 2026-11-16 | 3.49 / S4.1,S4.4 | Browser PCM→released ASR→parser3PASS; прежние2FAIL сохранены. Signup return RED→GREEN13local browser cases,0new businesscalls; source-only | Exact-source CI/review/release, actual registration на разрешённом email; human/quality/fullS7 OPEN |
 | 2026-11-16 | 3.45 / S3,S4.1,S4.4,S6 | Реальные EN3/RU1 voice и русский restore/map200 на primary631e; source13SUCCESS, exact-main voiceFAIL сохранён. Словарные эксперименты отклонены; Small/ограниченный18s кандидат проверяется | Приоритет владельца — реальный визуальный составной поиск; расширение ASR времени обосновано точностью, остальные границы/бюджет/cohort сохранены; S7 OPEN |
 | 2026-11-16 | 3.44/S3,S4,S6 | Primaryf5/isolated2f released,8main/13PR419/7PR420SUCCESS, timersactive, provider30unchanged. Прямойприоритет владельца — видимый voice→compoundcriteria→realcards; вработе постоянныйlocal fallback существующегоtypedparser/ASR, безegress | ЗавершитьsourceCI иactualUI/voice release; не подменять полнуюS0–S7/данные/real registration готовностью этого пути |
 | 2026-11-15 | 3.43/S2.1,S4.4,S5.1,S6 | Main42/server/timers/8CI reverified; actualEdge reload/mapPASS/provider30→30. Source candidate shares eligible IDs; smokingv2 readonly13indoor denials/CAS preserved. PG/CI/release ещёотдельно | Owner одобрил$50month/$5day/noautotopup;native+Piso выбраны,accountterms/sourcebasis/limits обещаныпозже; бюджетещёнеактивирован, gatesOPEN |
@@ -669,3 +677,7 @@ Retained failed main audit; exact loading precondition added to existing rotatio
 
 ### Изменение маршрута 3.48 — 16.11.2026
 SQL blocker закрыт exact-source Production audit и новая версия фактически выпущена через штатный runner. Два browser voice clarification failure при passing sealed samples сохраняют обязательныйS4.1/S4.4 quality gate открытым. Третий успешный запрос не подменяет стабильность/человеческую приёмку. Следующий шаг — конкретный воспроизводимый audio/intent seam без обхода дневной квоты, затем регистрация и прежние data/provider/performance gates. Новый проект, сброс бюджета, расширение cohort или объявлениеS7готовым не разрешены этим выпуском.
+
+
+### Изменение маршрута3.49 — 16.11.2026
+Offline browser seam не воспроизвёл прежние2clarification failures; ASR/parser не менялись. Независимый обязательныйS4.4 разрыв после регистрации подтверждён RED: профиль вместо возврата к результату. Исправляется только маршрут возврата сявным Save и прежней ownership/auth границей; это не новый продукт и не принятие signup-email/human/performance/provider/data gates.

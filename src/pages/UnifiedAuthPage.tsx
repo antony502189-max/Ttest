@@ -200,7 +200,7 @@ export function UnifiedAuthPage() {
           <input aria-label="Email" type="email" autoComplete="email" value={email} onChange={(event) => { setEmail(event.target.value); setError('') }} required placeholder="Email" />
           <input id="login-password" aria-label={t.password} type="password" autoComplete="current-password" value={password} onChange={(event) => { setPassword(event.target.value); setError('') }} required placeholder={t.password} />
           <button type="submit" disabled={submitting}>{submitting ? '…' : t.email}</button>
-          <div className="m2-auth-form-links"><Link to="/registro">{t.create}</Link><Link to="/recuperar-contrasena">{t.forgot}</Link></div>
+          <div className="m2-auth-form-links"><Link to="/registro" state={(location.state as { returnTo?: unknown } | null)?.returnTo === "/?ai=save" ? { returnTo: "/?ai=save" } : undefined}>{t.create}</Link><Link to="/recuperar-contrasena">{t.forgot}</Link></div>
         </form>)}
 
       {error ? <p className="m2-auth-error" role="alert">{error}</p> : null}

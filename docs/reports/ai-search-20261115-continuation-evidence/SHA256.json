@@ -40,6 +40,9 @@
     "small-voice-independent-ledger.json": "443b0b92c24c4da19c5839a4564229739ecc62def198ebdf54c96afac12fbc9e",
     "smoking-v2-readonly-proof.json": "237049afa7782b876700fd4122ddf5feca5babfb5db89467be50d3036258f724",
     "tiny-local-asr-proof.json": "1fda4a3ef5c7c58f9e1e1d31d6a3674368fb5cb9c67a8a2867c20c52c09d998b",
-    "webkit-restore-proof.json": "86d34a53f8648540e0d5c8c814bfe8d4103e5cab0ead4f2aa2c318d544e66ed6"
+    "webkit-restore-proof.json": "86d34a53f8648540e0d5c8c814bfe8d4103e5cab0ead4f2aa2c318d544e66ed6",
+    "small-browser-seam-captures.json": "d084f12f3896d0fed18198effe32639bb2072d4b6d955782c990c3a734d794d5",
+    "small-browser-seam-asr.json": "15753b266fc1266b0a17d4a3570eb9d197cbdff9d54ebd1cad3b87c3d3ebc06e",
+    "registration-return-local.json": "7b33d30a5d261af8d0526fbeb1cb42c034098c83c2e389a86281c70cca223f5a"
   }
 }
