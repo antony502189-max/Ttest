@@ -1,5 +1,9 @@
 {
   "files": {
+    "asr-model-vocabulary-comparison.json": "e03f61c92490335e35ec37546659b62b4c171a0c0e650c3eec758237a6614193",
+    "base-asr-controls.json": "4b52f67ebbb9e0ac21dc9f2a17464d79bdca196a3fdf0798c6d6275e5c7d6e38",
+    "base-model-assets.json": "f83ac15d7f7d37aecb420dd85455d65ad1afd0c98d551b4a6a05c9978c9b44ca",
+    "base-no-vocabulary-proof.json": "7f4705a4e151aca8fe6c6335bacdceec345c310d42bbd404a12d23637f29b335",
     "calendar-budget-proof.json": "a14b45d00ec792666619f914dc25d01ac76cab4d64835e322f56508c44c0f895",
     "candidate-query-plans.json": "0bfe77a99d2d939c69343773e29bf25fd749a6d00563c804b9d48ec0dc9c76af",
     "corrected-candidate-query-plans.json": "5514fbe13f8622a3980273e0974f3100e0927fe19d22ef89961c4240605b30b9",
@@ -23,6 +27,7 @@
     "primary-f5a1-release.json": "22e15daf1e4e282332bb6d077e4a5dbec15436812d47a7aba137d8397d645f06",
     "scoped-query-plans.json": "95a6ce333b7b9d088120772840e980635705906aeac781820cfea2a8094bbd28",
     "smoking-v2-readonly-proof.json": "237049afa7782b876700fd4122ddf5feca5babfb5db89467be50d3036258f724",
+    "tiny-local-asr-proof.json": "1fda4a3ef5c7c58f9e1e1d31d6a3674368fb5cb9c67a8a2867c20c52c09d998b",
     "webkit-restore-proof.json": "86d34a53f8648540e0d5c8c814bfe8d4103e5cab0ead4f2aa2c318d544e66ed6"
   }
 }

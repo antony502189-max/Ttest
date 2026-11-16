@@ -159,3 +159,26 @@ counters are removed from customer copy. Source119unit/parser/pilot,30browser,
 and2real PostgreSQL HTTP composition cases PASS. Actual local-ASR/browser acceptance
 follows exact-source CI/release. The first PG fixture failures and old-copy browser
 assertions are retained; production guards were not weakened.
+
+
+## Russian ASR correction before local activation
+
+Actual offline tests found that tiny corrupted the Russian furniture phrase;
+those failed transcripts are retained, never normalized into invented conditions.
+Pinned Systran/faster-whisper-base revision
+`ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66`, plus a fixed reviewed place-name
+vocabulary, correctly recognized the same Russian room/LaLaguna/700/furniture
+recording. English room/700/furniture/bills also passed. The place hints contain
+no rental facts, prices or expected answers. Model assets are pinned and SHA256
+verified; runtime inference remains offline/disposable, int8/2CPU/1536MiB,
+beam5/max96tokens and the same8-second cap. Public model files alone were downloaded;
+no user audio was sent outward.
+
+Comparison with place vocabulary: tiny English4.731s PASS/Russian4.214s FAIL;
+base English6.649s and Russian6.948s PASS. Controls: Russian price-only4007.651s
+and price700+bills7.790s produced exactly those fields, without invented city,
+furniture or accommodation; silence4.095s correctly produced no transcript.
+These are single bounded samples with narrow timing headroom, not p95 or broad
+accent/human/capacity certification. Actual released browser acceptance still follows.
+The model card and pinned files are at
+https://huggingface.co/Systran/faster-whisper-base/tree/ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66 .

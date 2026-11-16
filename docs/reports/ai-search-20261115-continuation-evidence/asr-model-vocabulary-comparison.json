@@ -1,0 +1,113 @@
+[
+  {
+    "passed": true,
+    "seconds": 4.731,
+    "synthetic_transcript": "A room under 700 euros per month, furnished, bills included.",
+    "criteria": {
+      "budget": {
+        "strength": "hard",
+        "value": {
+          "amount": "700",
+          "currency": "EUR",
+          "period": "monthly"
+        }
+      },
+      "accommodation": {
+        "strength": "hard",
+        "value": {
+          "kind": "room"
+        }
+      },
+      "furnished": {
+        "strength": "hard",
+        "value": true
+      },
+      "bills_included": {
+        "strength": "hard",
+        "value": true
+      }
+    },
+    "audio_sha256": "21cbc8c849c7168a83b2515935e5b6d5dabef238540765a80ac5bd363f267c5d",
+    "provider_calls": 0,
+    "fixture": "en-conditions.wav",
+    "model": "tiny"
+  },
+  {
+    "passed": false,
+    "seconds": 4.214,
+    "failure": "INTENT_CLARIFICATION_REQUIRED",
+    "synthetic_transcript": "\u043a\u043e\u043c\u043d\u0430\u0442\u0430 \u0432 La Laguna, \u0434\u043e 700 \u0435\u0432\u0440\u043e \u0432 \u043c\u0435\u0441\u044f\u0446, \u0441\u043c\u0435\u0435\u0442 \u0431\u0438\u043b\u044e.",
+    "provider_calls": 0,
+    "fixture": "ru-composite.wav",
+    "model": "tiny"
+  },
+  {
+    "passed": true,
+    "seconds": 6.649,
+    "synthetic_transcript": "A room under 700 euros per month, furnished, bills included",
+    "criteria": {
+      "budget": {
+        "strength": "hard",
+        "value": {
+          "amount": "700",
+          "currency": "EUR",
+          "period": "monthly"
+        }
+      },
+      "accommodation": {
+        "strength": "hard",
+        "value": {
+          "kind": "room"
+        }
+      },
+      "furnished": {
+        "strength": "hard",
+        "value": true
+      },
+      "bills_included": {
+        "strength": "hard",
+        "value": true
+      }
+    },
+    "audio_sha256": "21cbc8c849c7168a83b2515935e5b6d5dabef238540765a80ac5bd363f267c5d",
+    "provider_calls": 0,
+    "fixture": "en-conditions.wav",
+    "model": "base"
+  },
+  {
+    "passed": true,
+    "seconds": 6.948,
+    "synthetic_transcript": "\u043a\u043e\u043c\u043d\u0430\u0442\u0430 \u0432 La Laguna, \u0434\u043e 700 \u0435\u0432\u0440\u043e \u0432 \u043c\u0435\u0441\u044f\u0446, \u0441 \u043c\u0435\u0431\u0435\u043b\u044c\u044e.",
+    "criteria": {
+      "budget": {
+        "strength": "hard",
+        "value": {
+          "amount": "700",
+          "currency": "EUR",
+          "period": "monthly"
+        }
+      },
+      "geography": {
+        "strength": "hard",
+        "value": {
+          "province_code": "38",
+          "municipality_code": "38023"
+        }
+      },
+      "accommodation": {
+        "strength": "hard",
+        "value": {
+          "kind": "room"
+        }
+      },
+      "furnished": {
+        "strength": "hard",
+        "value": true
+      }
+    },
+    "audio_sha256": "fa75a29a4a4dc0f604b9c7f870a14069c75579133e9497b807b3f0dfe9169516",
+    "provider_calls": 0,
+    "fixture": "ru-composite.wav",
+    "model": "base"
+  }
+]

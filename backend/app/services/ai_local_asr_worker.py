@@ -22,7 +22,12 @@ def main():
     model = WhisperModel(sys.argv[1], device="cpu", compute_type="int8", cpu_threads=2,
                          num_workers=1, local_files_only=True)
     segments, _ = model.transcribe(samples, beam_size=5, vad_filter=True, condition_on_previous_text=False,
-                                   without_timestamps=True, max_new_tokens=96, temperature=0.0)
+                                   without_timestamps=True, max_new_tokens=96, temperature=0.0,
+                                   # Fixed reviewed place vocabulary helps ASR
+                                   # preserve proper names, not rental facts or
+                                   # expected answers. Intent still consumes the
+                                   # entire transcript and validates geography.
+                                   hotwords="Madrid, Barcelona, Valencia, Santa Cruz de Tenerife, San Cristóbal de La Laguna, La Laguna")
     parts = []
     for segment in segments:
         # A token-bound truncation must not silently drop the last condition
