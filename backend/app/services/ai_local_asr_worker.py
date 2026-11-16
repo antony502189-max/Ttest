@@ -47,11 +47,11 @@ def main():
                          num_workers=1, local_files_only=True)
     segments, _ = model.transcribe(samples, beam_size=5, vad_filter=True, condition_on_previous_text=False,
                                    without_timestamps=True, max_new_tokens=96, temperature=0.0,
-                                   # Fixed reviewed place vocabulary helps ASR
-                                   # preserve proper names, not rental facts or
-                                   # expected answers. Intent still consumes the
-                                   # entire transcript and validates geography.
-                                   hotwords="Madrid, Мадрид, Barcelona, Барселона, Valencia, Валенсия, Santa Cruz de Tenerife, Санта-Крус-де-Тенерифе, San Cristóbal de La Laguna, La Laguna, Ла Лагуна")
+                                   # Fixed place names and housing words help
+                                   # contextual recognition. No amounts, polarity
+                                   # or requested facts are supplied. The entire
+                                   # transcript still passes strict intent parsing.
+                                   hotwords="Madrid, Мадрид, Barcelona, Барселона, Valencia, Валенсия, Santa Cruz de Tenerife, Санта-Крус-де-Тенерифе, San Cristóbal de La Laguna, La Laguna, Ла Лагуна, мебель, мебелью, furnished, amueblado, комната, room, habitación, студия, studio, estudio, коммунальные, bills, gastos, балкон, balcony, balcón, терраса, terrace, terraza")
     parts = []
     for segment in segments:
         # A token-bound truncation must not silently drop the last condition

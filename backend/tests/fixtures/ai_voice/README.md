@@ -24,3 +24,11 @@ selects among these languages using its own probabilities. Pinned Base can emit
 “семи сот” for “семисот”; the exact reviewed form retains the same numeric value.
 The seven-sample suite has a 70s bound; each individual transcription retains 8s,
 2 CPUs, 1536MiB, beam5 and 96 tokens. No prices or housing facts are prompted.
+
+After a real regression on Russian furniture speech, the fixed ASR glossary also
+contains housing nouns and inflections in the three supported languages. It
+contains no amounts or polarity/yes-no statements. The four price-only cases
+must still produce exactly their spoken conditions, and silence must reject.
+Garbled furniture words and incomplete city names are never text-normalized
+into criteria. This contextual-vocabulary change is tracked separately from the
+previous place-only model acceptance.
