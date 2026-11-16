@@ -9,7 +9,7 @@ from pathlib import Path
 async def main():
     sys.path.insert(0, "/worker")
     from ai_local_asr import LocalPCMTranscriber
-    asr = LocalPCMTranscriber(python=Path("/opt/voice/bin/python"),model=Path("/opt/voice-model"))
+    asr = LocalPCMTranscriber(python=Path("/opt/voice/bin/python"),model=Path("/opt/voice-model"),seconds=18)
     proof = []
     for name, expected in (("english.wav", "find rooms under 600 euros per month"),
                            ("russian.wav", "до 600 евро в месяц"),

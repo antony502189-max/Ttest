@@ -80,9 +80,7 @@ async def test_maximum_pcm_flushes_stdin_eof_without_pipe_deadlock(tmp_path, mon
     monkeypatch.setenv("ASR_PRIVATE_SENTINEL", "must-not-enter-worker")
     async def reader(*_args, **kwargs):
         assert kwargs["env"] == {"PATH": "/usr/bin:/bin", "HF_HUB_OFFLINE": "1", "OMP_NUM_THREADS": "1",
-            "OPENBLAS_NUM_THREADS": "1", "MKL_NUM_THREADS": "1", "NUMEXPR_NUM_THREADS": "1",
-            "CT2_FORCE_CPU_ISA": "AVX2", "CT2_USE_MKL": "0",
-            "ONEDNN_MAX_CPU_ISA": "AVX2", "DNNL_MAX_CPU_ISA": "AVX2"}
+            "OPENBLAS_NUM_THREADS": "1", "MKL_NUM_THREADS": "1", "NUMEXPR_NUM_THREADS": "1"}
         return await spawn(sys.executable, "-c", "import sys,json; data=sys.stdin.buffer.read(); assert len(data)==480044; print(json.dumps('fixture transcript'))", **kwargs)
     monkeypatch.setattr(asyncio, "create_subprocess_exec", reader)
     assert await asr.transcribe(pcm(frames=240000), "audio/wav") == "fixture transcript"

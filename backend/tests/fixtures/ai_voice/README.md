@@ -22,10 +22,13 @@ without producing any transcript; a timeout does not count as a passing rejectio
 The supported speech languages are Russian, Spanish and English. The detector
 selects among these languages using its own probabilities. Pinned Base can emit
 “семи сот” for “семисот”; the exact reviewed form retains the same numeric value.
-The seven-sample suite has a 70s bound; each individual transcription retains 8s,
+The seven-sample suite has a 140s bound; each individual transcription has an explicit18s budget,
 2 CPUs, 1536MiB, beam5 and 96 tokens. No prices or housing facts are prompted.
 
-The current worker uses fixed place names only. Cyrillic/housing-glossary
-experiments degraded strict regressions and were rejected. For repeatability
-between the AMD production host and CI, worker startup pins AVX2 and disables
-Intel MKL dispatch; no new words or criteria are injected into transcripts.
+The candidate model is pinned faster-whisper Small536b066. It replaces Base
+after demonstrated cross-run recognition errors; the existing fixed place-only
+vocabulary remains. Cyrillic/domain glossary and ISA-dispatch experiments were
+rejected and are not active. Default callers retain their8s policy; the local
+housing composition explicitly selects18s,2s intent,24s total and24.5s HTTP,
+inside the existing25s proxy. The client waits28s. Audio/media/privacy,2CPU,
+1536MiB,96-token and disposable-worker boundaries remain unchanged.

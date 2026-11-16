@@ -33,7 +33,7 @@ def validate_pcm(audio: bytes) -> None:
 
 class LocalPCMTranscriber:
     def __init__(self, *, python: Path, model: Path, seconds: float = 8):
-        if not python.is_file() or not (model/"model.bin").is_file() or not 0 < seconds <= 8:
+        if not python.is_file() or not (model/"model.bin").is_file() or not 0 < seconds <= 18:
             raise ValueError("LOCAL_ASR_ASSETS_REQUIRED")
         self.python, self.model, self.seconds = python, model, seconds
         self.lock = asyncio.Lock()
@@ -50,13 +50,9 @@ class LocalPCMTranscriber:
                 stderr=asyncio.subprocess.DEVNULL, limit=16384,
                 # Keep numeric import/VAD pools from oversubscribing the
                 # two-CPU container before Whisper's explicit two threads run.
-                # Preserve the disposable process, offline boundary and 8s cap.
+                # Preserve disposable/offline execution and the caller-selected deadline.
                 env={"PATH": "/usr/bin:/bin", "HF_HUB_OFFLINE": "1", "OMP_NUM_THREADS": "1",
-                     "OPENBLAS_NUM_THREADS": "1", "MKL_NUM_THREADS": "1", "NUMEXPR_NUM_THREADS": "1",
-                     # Use the production AMD host's common AVX2/non-MKL path
-                     # in CI too, instead of vendor-dependent int8 dispatch.
-                     "CT2_FORCE_CPU_ISA": "AVX2", "CT2_USE_MKL": "0",
-                     "ONEDNN_MAX_CPU_ISA": "AVX2", "DNNL_MAX_CPU_ISA": "AVX2"})
+                     "OPENBLAS_NUM_THREADS": "1", "MKL_NUM_THREADS": "1", "NUMEXPR_NUM_THREADS": "1"})
             try:
                 async with asyncio.timeout(self.seconds):
                     # Canonical PCM is already bounded. Worker emits only a small
