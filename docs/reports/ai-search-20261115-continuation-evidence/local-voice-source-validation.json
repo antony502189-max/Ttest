@@ -1,0 +1,16 @@
+{
+  "local_parser_unit_and_pilot_passed": 119,
+  "browser_passed": 30,
+  "postgres_http_voice_composition_passed": 2,
+  "postgres_seconds": 11.8,
+  "first_browser_passed": 27,
+  "first_browser_failed": 3,
+  "first_browser_failure": "Old Russian copy assertions corrected to the translated user-facing contract.",
+  "postgres_harness_failures_retained": [
+    "Missing fixture app state before injection",
+    "Explicit guest bootstrap missing before keyed create"
+  ],
+  "local_mode_not_deployed_yet": true,
+  "external_provider_calls": 0,
+  "stage_scope": "Supported local grammar; ASR fixture in HTTP test; actual-image ASR/browser acceptance still required."
+}

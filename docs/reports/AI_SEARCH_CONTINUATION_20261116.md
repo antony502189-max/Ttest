@@ -138,3 +138,24 @@ failed candidate/helper alongside corrected checks. The original32proofs remain
 unchanged. Large capacity, provider/account, standing broader data, human mic,
 real registration and S6/S7 acceptance gates remain open. Continue the canonical
 next action; approval of monthly money does not certify these gates.
+
+
+## Owner visual priority: local voice increment
+
+The owner's16November instruction prioritizes visible compound voice search on
+the actual site. The existing whole-request housing parser can return its typed
+patch directly without external intent IO, then use the existing owned quota,
+current-proof SQL and card pipeline. Local ASR remains the real server-side model.
+This provides a permanent path for supported housing conditions, not unrestricted
+language-model intent acceptance. Unknown/ambiguous clauses still reject the whole
+request instead of falling back silently to budget alone.
+
+Separate local_housing_available does not change provider approved=false or the
+expired artifact. Only the local ASR/intent path becomes independent of that
+external spending approval. Catalog health, resource bounds, media limits, quota,
+ownership and replay remain. The public AI section gains an AI-search title and
+RU/ES/EN examples with room type, furniture and bills; technical pilot spending
+counters are removed from customer copy. Source119unit/parser/pilot,30browser,
+and2real PostgreSQL HTTP composition cases PASS. Actual local-ASR/browser acceptance
+follows exact-source CI/release. The first PG fixture failures and old-copy browser
+assertions are retained; production guards were not weakened.
