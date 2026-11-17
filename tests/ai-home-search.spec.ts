@@ -43,6 +43,15 @@ test('all normalized criteria preserve false, units, identity and strength; unsu
   expect(aiConditionRows({ ...intent(1), schema_version: 'future' } as unknown as AIIntent, text => text)).toBeNull()
 })
 
+test('age-neutral people count is displayed without inventing adults or children', () => {
+  const rows = aiConditionRows(intent(1, { party: hard({ persons: 1 }) }) as AIIntent, text => text)
+  expect(rows).toEqual([{ name: 'party', strength: 'hard', label: 'Personas', value: '1' }])
+  for (const value of [{ persons: 0 }, { persons: 11 }, { persons: true }, { persons: '1' },
+    { persons: 1, adults: 1 }, { persons: 1, children: 0 }, { persons: 1, relationship: 'family' }]) {
+    expect(aiConditionRows(intent(1, { party: hard(value) }) as AIIntent, text => text)).toBeNull()
+  }
+})
+
 async function setup(page: Page, enabled = true, language = 'es') {
   // Deny all nonlocal resources, and stub every API. These tests never touch
   // source sites, real provider APIs or an application database.

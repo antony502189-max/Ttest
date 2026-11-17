@@ -1,0 +1,113 @@
+{
+  "engine": "Parakeet TDT 0.6b v3, offline prototype only",
+  "original_model": "https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3",
+  "license": "CC-BY-4.0",
+  "onnx_export": "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
+  "onnx_revision": "ed5d745623472f97cfc2e6c2916ee248798fc5a8",
+  "model_files": [
+    {
+      "type": "file",
+      "oid": "6f2cdb7f33d37dd32beac8847295ee32f41bea53",
+      "size": 1607,
+      "path": ".gitattributes"
+    },
+    {
+      "type": "file",
+      "oid": "c53a4e8f91fcd5988e4b87355693c5a06597d346",
+      "size": 4905,
+      "path": "README.md"
+    },
+    {
+      "type": "file",
+      "oid": "d551dd304dc5e1b3f6859fdf7eb579e398773e94",
+      "size": 11845274,
+      "lfs": {
+        "oid": "0222a86147299d4dee90edf95b6d13827edb42ad8b7c9cf0b2582f030937c0b5",
+        "size": 11845274,
+        "pointerSize": 133
+      },
+      "xetHash": "789555a8a8a51cab3192af458621a73e638f2ba15eaa993af7604d674a8a9290",
+      "path": "decoder.int8.onnx"
+    },
+    {
+      "type": "file",
+      "oid": "09763610dc664c2c9929481a1ff144b464c18671",
+      "size": 652282294,
+      "lfs": {
+        "oid": "1afbe69c1ffdabee94755f42e4daf1d93549131a3da11356bda84fcef0f2c479",
+        "size": 652282294,
+        "pointerSize": 134
+      },
+      "xetHash": "02265289e350c7ae7dfbe73ecce5976bbdc59d719d9f411e69acc9cad568081f",
+      "path": "encoder.int8.onnx"
+    },
+    {
+      "type": "file",
+      "oid": "4948c5ebfdac83144beb084ebeb523b98411d484",
+      "size": 6355277,
+      "lfs": {
+        "oid": "cbd02f3696e9944970111fb439d9c3fd365a80374565f13f2b9c7007d253fc98",
+        "size": 6355277,
+        "pointerSize": 132
+      },
+      "xetHash": "c3d658772b868a309cfea6e5d71ca57e5ee93e71376fcaf2944062ca96821261",
+      "path": "joiner.int8.onnx"
+    },
+    {
+      "type": "file",
+      "oid": "fc43e1c723e262df60b70e1919614417162d1fe2",
+      "size": 93939,
+      "path": "tokens.txt"
+    }
+  ],
+  "python_runtime": [
+    {
+      "file": "sherpa_onnx-2.0.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "url": "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/d790854220fcfe82e02008967b320bfb340ed07f/cpu/2.0.1/sherpa_onnx-2.0.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl?download=true",
+      "sha256": "a63eeb8d7f06776783f28d89b54813ba1efe4a6e88a88c5da443d1176a1b0a3f",
+      "source_revision": "d790854220fcfe82e02008967b320bfb340ed07f"
+    },
+    {
+      "file": "sherpa_onnx_core-2.0.1-py3-none-manylinux2014_x86_64.whl",
+      "url": "https://huggingface.co/csukuangfj2/sherpa-onnx-wheels/resolve/d790854220fcfe82e02008967b320bfb340ed07f/cpu/2.0.1/sherpa_onnx_core-2.0.1-py3-none-manylinux2014_x86_64.whl?download=true",
+      "sha256": "e9fd0e7f88561bd804363e85f4ce83e4da29733560865449f094a13051883747",
+      "source_revision": "d790854220fcfe82e02008967b320bfb340ed07f"
+    }
+  ],
+  "download_notes": [
+    "Server HF handshake failed; same pinned public encoder downloaded through its resolved public CDN and SHA256 verified.",
+    "HF-maintainer wheels differ from PyPI builds; original PyPI mismatch was rejected. Only independently published HF file hashes at pinned revision were accepted."
+  ],
+  "human_fixture_sha256": [
+    {
+      "language": "ru",
+      "row": 1,
+      "sha256": "11d438247c47cdd5bf8ee898d987c70ca143fa155157985a17495ef146f61c4c"
+    },
+    {
+      "language": "ru",
+      "row": 2,
+      "sha256": "e4af784789aa1d04c35426aa33faef025feec6800d16b0f8b0b380142df0dcae"
+    },
+    {
+      "language": "ru",
+      "row": 3,
+      "sha256": "f861433d99261040ef0528e67043863124855f55cd9505b6438388be8ebf5bda"
+    },
+    {
+      "language": "es",
+      "row": 1,
+      "sha256": "1f68e2ee6acfb23f115e9a4788ccbe438edfe8fdc06cc833126e0dac0dec579b"
+    },
+    {
+      "language": "es",
+      "row": 3,
+      "sha256": "cfcc7e35e99137edf748e4f601fe9798de17c055758824e098200ae0b54b4ce5"
+    },
+    {
+      "language": "es",
+      "row": 6,
+      "sha256": "fe136fb968601f43ed0892607104b48c0cf5ae895fce163d08cb0af0881fe6c2"
+    }
+  ]
+}

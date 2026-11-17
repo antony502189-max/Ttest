@@ -1,0 +1,14 @@
+{
+  "files": {
+    "evaluate.py": "a3d4b4baa22ea00991f4d34088aaaab875f10003c22ea3b635c1c3ef277ef42a",
+    "extract.mjs": "9bca78a3af3ad1bea53ffe2e583a9448ff7a172d8e829acfa6db0633a3405e0e",
+    "human-comparison.json": "b1c5bfbcce4ef13349aa045033e9451acfcb0f704fc692b10c358fe09d34b47a",
+    "owner-russian-summary.json": "e05ddb9bae25c7d93620ab75011592a424a0d191cee470224ad149667cd178f2",
+    "prototype-assets.json": "af6f12ee0761ea6ccce4b9c06e33dc32b69d40f1e9ee25736de8a6598e1cfd35",
+    "README.md": "ca774e0774b527144182213c9bbf9d33679319c5ec5570ee1a53f74e623d9491",
+    "sealed-semantic.json": "399dba6d6dccf68382b1f9afca4df0db6a7faab10ee750c0b3ee49159c5a3fa0",
+    "sealed-semantic.py": "7ea0b7844ceab26a9b7b30f1816681e515c43da168c23ab549b4a5dd181d13be",
+    "source761-ci.json": "c5d10d3afa754fb29c76a8e34136b4e1b06e519867f696e61872fc6df9b82428",
+    "worker-parakeet.py": "7ee37499f2360b2d516d44f78e6fbc263696f34ac470b202ec7a4f8d5b32fe7d"
+  }
+}

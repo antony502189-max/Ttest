@@ -11,7 +11,7 @@ export type AICriteria = {
   budget?: Criterion<{ amount: string; currency: 'EUR'; period: 'monthly' | 'nightly' | 'weekly' }>
   geography?: Criterion<{ province_code: string; municipality_code?: string; zone_id?: string }>
   accommodation?: Criterion<{ kind: 'room' | 'shared_room' | 'studio' | 'one_bedroom' | 'catalog_other'; catalog_code?: string }>
-  party?: Criterion<{ adults: number; children: number; relationship: 'couple' | 'friends' | 'family' | 'unspecified' }>
+  party?: Criterion<{ persons: number } | { adults: number; children: number; relationship: 'couple' | 'friends' | 'family' | 'unspecified' }>
   pets?: Criterion<{ species: 'dog' | 'cat' | 'other'; size: 'small' | 'medium' | 'large' | 'unspecified'; count: number }[]>
   smoking?: Criterion<{ scope: 'indoors' | 'outdoors' | 'balcony' | 'terrace' }>
   furnished?: Criterion<boolean>
@@ -91,6 +91,10 @@ export function aiConditionRows(intent: AIIntent, t: Translate): ConditionRow[] 
         return ['Alojamiento', v.kind === 'catalog_other' ? `${label}: ${code(v.catalog_code)}` : label]
       },
       party: value => {
+        if (value !== null && typeof value === 'object' && Object.hasOwn(value, 'persons')) {
+          const v = object(value, ['persons'])
+          return ['Personas', quantity(v.persons, 1, 10)]
+        }
         const v = object(value, ['adults', 'children', 'relationship'])
         const adults = quantity(v.adults, 1, 10), children = quantity(v.children, 0, 10); check(Number(adults) + Number(children) <= 10)
         return ['Personas', `${t('Adultos')}: ${adults} · ${t('Niños')}: ${children} · ${choice(v.relationship, { couple: 'Pareja', friends: 'Amigos', family: 'Familia', unspecified: 'Sin especificar' }, t)}`]

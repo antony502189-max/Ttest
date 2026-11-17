@@ -1,0 +1,272 @@
+{
+  "schema": "ai-speech-ru-es-review.v1",
+  "released_runtime_changed": false,
+  "base_image": "sha256:60a1c713382876c6c7aa62a422d5707a0b204ec2bb02f77e81ca4f52e162e6bb",
+  "corpus": {
+    "name": "PolyAI MINDS-14",
+    "source": "https://huggingface.co/datasets/PolyAI/minds14",
+    "license": "CC-BY-4.0",
+    "selection": "First three full rows per language with duration between 2 and 14 seconds, from the first 30 train rows. No clips or audio edits other than PCM conversion.",
+    "parquet_sha256": {
+      "ru-RU": "2846c833feb8f341086f33335582a411f968da62e0ce6d4a589ca5a61830c79b",
+      "es-ES": "989bf2f90676a5eb5852fe785a03b1d9b97763e0febbd0fd0a3f489afd83badf"
+    },
+    "conversion": "G.711 mu-law decode, linear 8kHz-to-16kHz resampling into mono PCM16 WAV.",
+    "limitations": [
+      "Telephone banking speech, not housing queries or site microphone recordings.",
+      "Dataset references have possible omissions/noise; raw WER is diagnostic, not a validated accuracy score.",
+      "No speaker-disjoint claim and no manual audio labeling."
+    ]
+  },
+  "timing_scope": "Audio stage only; public model preparation and HTTP/card query excluded. Each child prewarms at most 15 seconds, receives one recording with an 18 second budget, exits before replacement.",
+  "variants": {
+    "whisper-small": {
+      "samples": [
+        {
+          "id": "ru-RU:ru-RU~LATEST_TRANSACTIONS/60301265bb1e6d0fbce93c59.wav",
+          "language": "ru",
+          "kind": "public-human-minds14",
+          "sha256": "11d438247c47cdd5bf8ee898d987c70ca143fa155157985a17495ef146f61c4c",
+          "duration": 8.823625,
+          "completed": true,
+          "reference_words": 15,
+          "word_errors": 2,
+          "wer": 0.1333,
+          "seconds": 17.433
+        },
+        {
+          "id": "ru-RU:ru-RU~LATEST_TRANSACTIONS/603011c505f96973d67951c7.wav",
+          "language": "ru",
+          "kind": "public-human-minds14",
+          "sha256": "e4af784789aa1d04c35426aa33faef025feec6800d16b0f8b0b380142df0dcae",
+          "duration": 6.741375,
+          "completed": true,
+          "reference_words": 6,
+          "word_errors": 1,
+          "wer": 0.1667,
+          "seconds": 14.015
+        },
+        {
+          "id": "ru-RU:ru-RU~LATEST_TRANSACTIONS/60300a88963e11ccd901e706.wav",
+          "language": "ru",
+          "kind": "public-human-minds14",
+          "sha256": "f861433d99261040ef0528e67043863124855f55cd9505b6438388be8ebf5bda",
+          "duration": 6.229375,
+          "completed": false,
+          "failure": "TimeoutError",
+          "seconds": 18.24
+        },
+        {
+          "id": "es-ES:es-ES~APP_ERROR/6026655bdc3604f481bcb4fa.wav",
+          "language": "es",
+          "kind": "public-human-minds14",
+          "sha256": "1f68e2ee6acfb23f115e9a4788ccbe438edfe8fdc06cc833126e0dac0dec579b",
+          "duration": 4.096,
+          "completed": true,
+          "reference_words": 10,
+          "word_errors": 1,
+          "wer": 0.1,
+          "seconds": 14.99
+        },
+        {
+          "id": "es-ES:es-ES~APP_ERROR/602660c0c7abb7f832138160.wav",
+          "language": "es",
+          "kind": "public-human-minds14",
+          "sha256": "cfcc7e35e99137edf748e4f601fe9798de17c055758824e098200ae0b54b4ce5",
+          "duration": 11.434625,
+          "completed": true,
+          "reference_words": 31,
+          "word_errors": 14,
+          "wer": 0.4516,
+          "seconds": 14.225
+        },
+        {
+          "id": "es-ES:es-ES~APP_ERROR/6026623fc7abb7f8321381e0.wav",
+          "language": "es",
+          "kind": "public-human-minds14",
+          "sha256": "fe136fb968601f43ed0892607104b48c0cf5ae895fce163d08cb0af0881fe6c2",
+          "duration": 7.168,
+          "completed": true,
+          "reference_words": 6,
+          "word_errors": 12,
+          "wer": 2.0,
+          "seconds": 14.917
+        }
+      ],
+      "completed": 5,
+      "total": 6,
+      "audio_stage_median_seconds": 14.917,
+      "cpu_limit": 2,
+      "memory_limit_mib": 1536,
+      "memory_peak_bytes": 631529472,
+      "external_calls": 0
+    },
+    "whisper-without-hotwords": {
+      "samples": [
+        {
+          "id": "ru-RU:ru-RU~LATEST_TRANSACTIONS/60301265bb1e6d0fbce93c59.wav",
+          "language": "ru",
+          "kind": "public-human-minds14",
+          "sha256": "11d438247c47cdd5bf8ee898d987c70ca143fa155157985a17495ef146f61c4c",
+          "duration": 8.823625,
+          "completed": true,
+          "reference_words": 15,
+          "word_errors": 2,
+          "wer": 0.1333,
+          "seconds": 14.388
+        },
+        {
+          "id": "ru-RU:ru-RU~LATEST_TRANSACTIONS/603011c505f96973d67951c7.wav",
+          "language": "ru",
+          "kind": "public-human-minds14",
+          "sha256": "e4af784789aa1d04c35426aa33faef025feec6800d16b0f8b0b380142df0dcae",
+          "duration": 6.741375,
+          "completed": true,
+          "reference_words": 6,
+          "word_errors": 1,
+          "wer": 0.1667,
+          "seconds": 14.692
+        },
+        {
+          "id": "ru-RU:ru-RU~LATEST_TRANSACTIONS/60300a88963e11ccd901e706.wav",
+          "language": "ru",
+          "kind": "public-human-minds14",
+          "sha256": "f861433d99261040ef0528e67043863124855f55cd9505b6438388be8ebf5bda",
+          "duration": 6.229375,
+          "completed": true,
+          "reference_words": 10,
+          "word_errors": 1,
+          "wer": 0.1,
+          "seconds": 17.459
+        },
+        {
+          "id": "es-ES:es-ES~APP_ERROR/6026655bdc3604f481bcb4fa.wav",
+          "language": "es",
+          "kind": "public-human-minds14",
+          "sha256": "1f68e2ee6acfb23f115e9a4788ccbe438edfe8fdc06cc833126e0dac0dec579b",
+          "duration": 4.096,
+          "completed": true,
+          "reference_words": 10,
+          "word_errors": 1,
+          "wer": 0.1,
+          "seconds": 12.955
+        },
+        {
+          "id": "es-ES:es-ES~APP_ERROR/602660c0c7abb7f832138160.wav",
+          "language": "es",
+          "kind": "public-human-minds14",
+          "sha256": "cfcc7e35e99137edf748e4f601fe9798de17c055758824e098200ae0b54b4ce5",
+          "duration": 11.434625,
+          "completed": true,
+          "reference_words": 31,
+          "word_errors": 13,
+          "wer": 0.4194,
+          "seconds": 16.544
+        },
+        {
+          "id": "es-ES:es-ES~APP_ERROR/6026623fc7abb7f8321381e0.wav",
+          "language": "es",
+          "kind": "public-human-minds14",
+          "sha256": "fe136fb968601f43ed0892607104b48c0cf5ae895fce163d08cb0af0881fe6c2",
+          "duration": 7.168,
+          "completed": true,
+          "reference_words": 6,
+          "word_errors": 13,
+          "wer": 2.1667,
+          "seconds": 14.252
+        }
+      ],
+      "completed": 6,
+      "total": 6,
+      "audio_stage_median_seconds": 14.54,
+      "cpu_limit": 2,
+      "memory_limit_mib": 1536,
+      "memory_peak_bytes": 631549952,
+      "external_calls": 0
+    },
+    "parakeet-prototype": {
+      "samples": [
+        {
+          "id": "ru-RU:ru-RU~LATEST_TRANSACTIONS/60301265bb1e6d0fbce93c59.wav",
+          "language": "ru",
+          "kind": "public-human-minds14",
+          "sha256": "11d438247c47cdd5bf8ee898d987c70ca143fa155157985a17495ef146f61c4c",
+          "duration": 8.823625,
+          "completed": true,
+          "reference_words": 15,
+          "word_errors": 3,
+          "wer": 0.2,
+          "seconds": 3.231
+        },
+        {
+          "id": "ru-RU:ru-RU~LATEST_TRANSACTIONS/603011c505f96973d67951c7.wav",
+          "language": "ru",
+          "kind": "public-human-minds14",
+          "sha256": "e4af784789aa1d04c35426aa33faef025feec6800d16b0f8b0b380142df0dcae",
+          "duration": 6.741375,
+          "completed": true,
+          "reference_words": 6,
+          "word_errors": 0,
+          "wer": 0.0,
+          "seconds": 2.312
+        },
+        {
+          "id": "ru-RU:ru-RU~LATEST_TRANSACTIONS/60300a88963e11ccd901e706.wav",
+          "language": "ru",
+          "kind": "public-human-minds14",
+          "sha256": "f861433d99261040ef0528e67043863124855f55cd9505b6438388be8ebf5bda",
+          "duration": 6.229375,
+          "completed": true,
+          "reference_words": 10,
+          "word_errors": 1,
+          "wer": 0.1,
+          "seconds": 2.731
+        },
+        {
+          "id": "es-ES:es-ES~APP_ERROR/6026655bdc3604f481bcb4fa.wav",
+          "language": "es",
+          "kind": "public-human-minds14",
+          "sha256": "1f68e2ee6acfb23f115e9a4788ccbe438edfe8fdc06cc833126e0dac0dec579b",
+          "duration": 4.096,
+          "completed": true,
+          "reference_words": 10,
+          "word_errors": 1,
+          "wer": 0.1,
+          "seconds": 2.152
+        },
+        {
+          "id": "es-ES:es-ES~APP_ERROR/602660c0c7abb7f832138160.wav",
+          "language": "es",
+          "kind": "public-human-minds14",
+          "sha256": "cfcc7e35e99137edf748e4f601fe9798de17c055758824e098200ae0b54b4ce5",
+          "duration": 11.434625,
+          "completed": true,
+          "reference_words": 31,
+          "word_errors": 15,
+          "wer": 0.4839,
+          "seconds": 3.498
+        },
+        {
+          "id": "es-ES:es-ES~APP_ERROR/6026623fc7abb7f8321381e0.wav",
+          "language": "es",
+          "kind": "public-human-minds14",
+          "sha256": "fe136fb968601f43ed0892607104b48c0cf5ae895fce163d08cb0af0881fe6c2",
+          "duration": 7.168,
+          "completed": true,
+          "reference_words": 6,
+          "word_errors": 8,
+          "wer": 1.3333,
+          "seconds": 2.418
+        }
+      ],
+      "completed": 6,
+      "total": 6,
+      "audio_stage_median_seconds": 2.5745,
+      "cpu_limit": 2,
+      "memory_limit_mib": 1536,
+      "memory_peak_bytes": 999239680,
+      "external_calls": 0
+    }
+  },
+  "conclusion": "Parakeet has substantially lower audio-stage latency; per-sample word accuracy is mixed. No production engine switch or human housing acceptance is claimed."
+}

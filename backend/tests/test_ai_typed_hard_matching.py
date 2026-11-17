@@ -58,3 +58,18 @@ def test_semantic_boundaries(case, features, expected):
             projection(features)
         return
     assert (not evaluate_hard_match(plan(case), projection(features))) is expected
+
+
+def test_age_neutral_count_requires_confirmed_capacity_and_available_spots():
+    features = copy.deepcopy([f for f in next(c for c in CASES if c['name'] == 'party')['features']
+                             if f['key'] in {'capacity_total', 'available_spots'}])
+    assert len(features) == 2
+    for f in features:
+        f['typed_value']['value'] = 1
+    compiled = compile_hard_match(intent({'party': {'strength': 'hard', 'value': {'persons': 1}}}), VOCABULARY)
+    assert {r.key for r in compiled.criteria[0].rules} == {'capacity_total', 'available_spots'}
+    assert evaluate_hard_match(compiled, projection(features)) == ()
+    for missing in ['capacity_total', 'available_spots']:
+        assert evaluate_hard_match(compiled, projection([f for f in features if f['key'] != missing])) == ('party',)
+    too_large = compile_hard_match(intent({'party': {'strength': 'hard', 'value': {'persons': 2}}}), VOCABULARY)
+    assert evaluate_hard_match(too_large, projection(features)) == ('party',)
