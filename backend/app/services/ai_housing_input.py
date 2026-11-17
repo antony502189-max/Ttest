@@ -23,6 +23,21 @@ def _fold(value):
     return value.casefold().replace("ё", "е").strip()
 
 
+def _joined_city_codes(aliases, municipalities):
+    # ASR can omit a word boundary in a proper name ("Лалагуна"). Derive
+    # spellings from complete existing names only, preserving every letter.
+    # Include ALL canonical cities when detecting collisions, even cities
+    # excluded from the unique-alias map. Never choose between municipalities.
+    candidates = {}
+    for code, name in municipalities.items():
+        candidates.setdefault(_fold(name).replace(" ", ""), set()).add(code)
+    for alias, code in aliases.items():
+        candidates.setdefault(alias.replace(" ", ""), set()).add(code)
+    return {alias.replace(" ", ""): code for alias, code in aliases.items()
+            if " " in alias and alias.replace(" ", "") not in aliases
+            and len(candidates[alias.replace(" ", "")]) == 1}
+
+
 CITY_CODES = {}
 for _code in MUNICIPALITIES:
     for _alias in unique_municipality_aliases(_code):
@@ -32,7 +47,8 @@ for _code in MUNICIPALITIES:
 CITY_CODES.update({"мадрид": "28079", "барселона": "08019", "валенсия": "46250",
                    "мадриде": "28079", "барселоне": "08019", "валенсии": "46250",
                    "санта крус де тенерифе": "38038", "санта-крус-де-тенерифе": "38038",
-                   "ла лагуна": "38023", "ла-лагуна": "38023"})
+                   "ла лагуна": "38023", "ла-лагуна": "38023", "ла лагуне": "38023", "ла-лагуне": "38023"})
+CITY_CODES.update(_joined_city_codes(CITY_CODES, MUNICIPALITIES))
 CITY_PATTERN = "|".join(re.escape(v) for v in sorted(CITY_CODES, key=len, reverse=True))
 PROVINCES = {v.casefold(): k for k, v in PROVINCE_CODES.items()} | {normalized_municipality(v): k for k, v in PROVINCE_CODES.items()}
 PROVINCE_PATTERN = "|".join(re.escape(v) for v in sorted(PROVINCES, key=len, reverse=True))
@@ -95,8 +111,8 @@ def housing_patch(text, current, vocabulary):
     # Recognize only complete search/politeness prefixes. Remaining words still
     # have to be consumed as typed conditions; no arbitrary prose is discarded.
     prefix = (r"(?:please |пожалуйста |por favor )?(?:find(?: me)?|show(?: me)?|i need|i want|"
-              r"i am looking for|i'm looking for|busco|necesito|quiero alquilar|quiero encontrar|"
-              r"ищу|(?:мне )?(?:нужна|нужен|нужно)|подбери(?:те)?(?: мне)?|"
+              r"i am looking for|i'm looking for|busco|estoy buscando|necesito|quiero alquilar|quiero encontrar|quiero|me gustaría alquilar|"
+              r"(?:я )?ищу|найди(?:те)?(?: мне)?|(?:мне )?(?:нужна|нужен|нужно)|подбери(?:те)?(?: мне)?|"
               r"(?:я )?хочу (?:снять|найти)|покажи|теперь|now|ahora)")
     remaining = re.sub(r"^(?:" + prefix + r"\s+)+", "", remaining)
     changes, removed, amenity_values = {}, set(), []
@@ -182,6 +198,16 @@ def housing_patch(text, current, vocabulary):
                 geography = geography | {"zone_id": matched[1]}
                 # Zone refines the explicitly selected or retained municipality.
                 changes["geography"] = {"strength": strength, "value": geography}
+        if not matched:
+            matched = take(r"(?:for |para |для )?([1-9]|10|una|un) (?:people|persons?|personas?|человек(?:а)?)")
+            if matched:
+                count = 1 if matched[1] in {"un", "una"} else int(matched[1])
+                if "persons" in party_counts and party_counts["persons"] != count:
+                    clarification()
+                party_counts["persons"] = count
+                if party_strength and party_strength != strength:
+                    clarification()
+                party_strength = strength
         if not matched:
             matched = take(r"(?:for |para |для )?([1-9]|10) (adults?|adultos?|взрослых|взрослые|взрослый|взрослого)")
             if matched:
@@ -289,12 +315,29 @@ def housing_patch(text, current, vocabulary):
         strength = "hard"
     if party_counts or relationship:
         previous = current.criteria.party.value.model_dump() if current.criteria.party else {}
-        # A follow-up may change adults/children/relationship individually.
-        # A new party must specify both counts (including explicit zero children).
-        party = previous | party_counts
-        if not {"adults", "children"} <= party.keys():
-            clarification()
-        party["relationship"] = relationship or previous.get("relationship", "unspecified")
+        ages = {k: v for k, v in party_counts.items() if k != "persons"}
+        total = party_counts.get("persons")
+        if total is not None and not ages:
+            if "adults" in previous:
+                # A neutral follow-up cannot erase an already known child or
+                # relationship constraint or guess which age count changed.
+                if previous["adults"] + previous["children"] != total:
+                    clarification()
+                party = previous
+            else:
+                if relationship:
+                    clarification()
+                party = {"persons": total}
+        else:
+            # Complete age-specific refinements may replace a neutral total;
+            # partial ones still need a previously explicit age composition.
+            party = (previous if "adults" in previous else {}) | ages
+            if not {"adults", "children"} <= party.keys():
+                clarification()
+            if total is not None and party["adults"] + party["children"] != total:
+                clarification()
+        if "persons" not in party:
+            party["relationship"] = relationship or previous.get("relationship", "unspecified")
         strength = party_strength or "hard"
         put("party", party)
     if amenity_values:
