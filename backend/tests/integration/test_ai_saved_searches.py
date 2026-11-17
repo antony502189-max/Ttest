@@ -54,6 +54,22 @@ async def saved_result(query, repo, subject, criteria):
     return await repo.save(subject, answer.operation.receipt.result_ref, idempotency_key=uuid4()), answer.operation.receipt.result_ref
 
 
+async def test_total_only_party_has_card_map_saved_and_restored_parity():
+    query, repo, subject, ids, _ = await configured()
+    saved, result_ref = await saved_result(query, repo, subject, {"party": {"strength": "hard", "value": {"persons": 1}}})
+    restored = await repo.get(subject, saved.id)
+    assert restored.intent.criteria.party.value.model_dump() == {"persons": 1}
+    cards = await query.query_result(subject, result_ref, ListingCardSearchRequest(limit=50))
+    markers = await query.map_result(subject, result_ref, ListingMapRequest(north=29, south=27, east=-15, west=-18, zoom=19))
+    card_ids = {item.id for item in cards.cards.items}
+    assert {str(item.id) for item in markers.map.items} == card_ids
+    decisions = [await repo.dry_run(subject, saved.id, listing_id) for listing_id in ids]
+    assert {str(item.listing_id) for item in decisions if item.status == "matched"} == card_ids
+    async with SessionLocal() as conn:
+        assert await conn.scalar(select(func.count()).select_from(AISearchRequest)) == 1
+        assert await conn.scalar(select(func.sum(AIUsageDay.used))) == 1
+
+
 async def test_every_hard_criterion_has_card_map_saved_dryrun_parity_without_extra_debit():
     query, repo, subject, ids, _ = await configured()
     values = {

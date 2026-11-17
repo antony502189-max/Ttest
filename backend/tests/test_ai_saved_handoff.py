@@ -32,6 +32,16 @@ def test_handoff_copies_committed_criteria_without_ownership_or_quota_authority(
     assert set(json.loads(raw)) == {"schema_version", "issuer", "purpose", "result_ref", "intent", "issued_at", "expires_at"}
 
 
+def test_handoff_preserves_total_only_party_without_inventing_age_composition():
+    data = committed().model_dump(mode="json", exclude_none=True)
+    data["intent"]["criteria"]["party"] = {"strength": "hard", "value": {"persons": 1}}
+    original = CommittedIntent.model_validate_json(json.dumps(data))
+    signer = SavedHandoffSigner(b"s" * 32)
+    restored = signer.verify(signer.issue(original, now=1000), now=1001)
+    assert restored.intent.criteria == original.intent.criteria
+    assert restored.intent.criteria.party.value.model_dump() == {"persons": 1}
+
+
 @pytest.mark.parametrize("now,code", [(1300, "EXPIRED"), (1400, "EXPIRED"), (969, "CLOCK_INVALID")])
 def test_expiry_and_clock_are_not_extended_by_retry(now, code):
     signer = SavedHandoffSigner(b"s" * 32)

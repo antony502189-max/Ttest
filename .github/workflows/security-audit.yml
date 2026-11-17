@@ -35,5 +35,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --ignore-scripts
+      - name: Verify pinned picomatch fix and bounded ReDoS regressions
+        run: node scripts/check-picomatch-security.mjs
       - name: Audit build and runtime JavaScript dependencies
         run: npm audit --audit-level=moderate

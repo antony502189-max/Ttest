@@ -4,12 +4,29 @@ import copy
 import pytest
 from sqlalchemy import literal, select
 from sqlalchemy.dialects.postgresql import JSONB
-from typed_match_cases import CASES, edge_cases, plan, projection
+from typed_match_cases import CASES, VOCABULARY, edge_cases, intent, plan, projection
 
 from app.repositories.ai_hard_matching import hard_match_predicate
-from app.services.ai_hard_matching import evaluate_hard_match
+from app.services.ai_hard_matching import compile_hard_match, evaluate_hard_match
 
 pytestmark = pytest.mark.integration
+
+
+def test_age_neutral_headcount_sql_preserves_capacity_and_availability_guards(pg):
+    engine, _ = pg
+    features = copy.deepcopy([f for f in next(c for c in CASES if c['name'] == 'party')['features']
+                             if f['key'] in {'capacity_total', 'available_spots'}])
+    for f in features:
+        f['typed_value']['value'] = 1
+    with engine.connect() as connection:
+        for persons in [1, 2]:
+            compiled = compile_hard_match(intent({'party': {'strength': 'hard', 'value': {'persons': persons}}}), VOCABULARY)
+            for values in [features, features[:1], features[1:], [], features + [features[0]]]:
+                if len(values) <= 2:
+                    expected = not evaluate_hard_match(compiled, projection(values))
+                else:
+                    expected = False
+                assert connection.scalar(select(hard_match_predicate(literal(values, type_=JSONB), compiled))) is expected
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda c: c["name"])

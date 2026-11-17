@@ -11,6 +11,26 @@ from app.services import ai_saved_runtime
 from app.services.ai_erasure_journal import configured_journal
 
 
+def test_rollback_requires_real_total_party_readers_not_comments(tmp_path):
+    root = Path(__file__).parents[2]
+    checker = runpy.run_path(str(root / "deploy/check-ai-saved-runtime.py"))["supports_party_total"]
+    assert checker(root)
+    assert not checker(tmp_path)
+    files = ["backend/app/schemas/ai_search_intent.py", "backend/app/services/ai_hard_matching.py", "src/api/ai-intent.ts"]
+    for name in files:
+        target = tmp_path / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text((root / name).read_text(encoding="utf-8"), encoding="utf-8")
+    assert checker(tmp_path)
+    schema = tmp_path / files[0]
+    original = schema.read_text(encoding="utf-8")
+    schema.write_text(original.replace("PartyTotal", "LegacyParty") + "\n# class PartyTotal: persons: int\n", encoding="utf-8")
+    assert not checker(tmp_path)
+    schema.write_text(original, encoding="utf-8")
+    (tmp_path / files[1]).write_text("# value.headcount\n", encoding="utf-8")
+    assert not checker(tmp_path)
+
+
 def test_primary_key_file_opens_same_journal_without_reinitializing(monkeypatch, tmp_path):
     path, key = tmp_path / "events.sqlite", tmp_path / "journal.key"
     key.write_bytes(base64.b64encode(b"k" * 32))

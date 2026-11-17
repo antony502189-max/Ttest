@@ -1,0 +1,13 @@
+# S4.1 RU/ES speech diagnostic artifacts
+
+Public/synthetic engineering data only. These scripts reproduce the offline prototype, not a production engine. `evaluate.py` and `sealed-semantic.py` emit transcripts of public fixtures into ignored local diagnostics. They have not been approved as a logging path for customer recordings. No raw customer audio or transcripts are included here.
+
+Human data: [PolyAI MINDS-14](https://huggingface.co/datasets/PolyAI/minds14), Daniela Gerz et al., 2021, CC BY 4.0. The exact original Parquet hashes and selected row indices are recorded in the JSON evidence. `extract.mjs` used hyparquet1.33.1 from the official npm package, preserving binary bytes (`utf8:false`). Keep extracted full recordings in an ignored `/fixtures` mount with `manifest.json`; audio and model binaries are not committed.
+
+Model: [NVIDIA Parakeet TDT0.6b v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3), CC BY4.0; ONNX export by k2-fsa/csukuangfj at the recorded revision. Model files and sherpa-onnx2.0.1/core2.0.1 wheels must match `prototype-assets.json` before execution. They are mounted read-only under `/prototype/parakeet-model` and `/prototype/sherpa-python`.
+
+Base image is60a1c713 from `human-comparison.json`. Use `docker run --rm --network none --read-only --cpus 2 --memory 1536m --user 65534:65534 --tmpfs /tmp:size=16m,noexec,nosuid --cap-drop ALL --security-opt no-new-privileges:true`. Mount public fixtures at `/fixtures`, the prototype directory at `/prototype`, and `worker-parakeet.py` over `/app/app/services/ai_local_asr_worker.py`. The unchanged parent transcriber uses its existing Whisper model path as a harness carrier; the prototype explicitly loads the separately pinned Parakeet assets. This is not a production composition or validated engine configuration.
+
+Run human diagnostics with `/opt/voice/bin/python /fixtures/evaluate.py`. For semantic housing diagnostics mount the reviewed `ai_housing_input.py`/`ai_housing_numbers.py` candidate into their matching service paths, then run the app interpreter `python /fixtures/sealed-semantic.py`. The ASR-only Python lacks app HTTPcore dependencies; the initial wrong-interpreter harness failure is retained in the report. Speech inference remains in a fresh child using `/opt/voice/bin/python` and18seconds.
+
+`sealed-semantic.json` preserves the original rejected joined-city transcript, followed by7passing synthetic semantic/silence cases after source repair. General RU/ES human housing accuracy, private-audio lifecycle, final candidate packaging/attestation and released-engine acceptance remain open. Reproduce using the exact current source and recorded fixtures; these experiments do not attest the unchanged live engine.

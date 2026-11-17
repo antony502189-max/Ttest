@@ -12,7 +12,7 @@ from typing import Any, Literal
 
 from ..repositories.ai_search_sessions import IntentVocabulary
 from ..schemas.ai_listing_facts import FactVocabulary, SearchProjection
-from ..schemas.ai_search_intent import SearchIntent
+from ..schemas.ai_search_intent import Party, SearchIntent
 
 Scalar = str | int | bool | None
 
@@ -98,16 +98,16 @@ def compile_hard_match(intent: SearchIntent, vocabulary: FactVocabulary) -> Hard
                      [("unit", "eq", value.unit), ("value", "le", value.value)])
             rules = [rule(name, value.kind, tests)]
         elif name == "party":
-            total = value.adults + value.children
+            total = value.headcount
             # Availability is distinct from physical capacity. Requiring both
             # avoids treating occupied places as available, without consulting
             # legacy roomCapacity/currentResidents defaults.
             rules = [capacity("capacity_total", total), capacity("available_spots", total)]
-            if value.children:
+            if isinstance(value, Party) and value.children:
                 rules.append(policy("children", allowed=("approval_required",)))
-            if value.relationship == "couple":
+            if isinstance(value, Party) and value.relationship == "couple":
                 rules.append(policy("couples", allowed=("approval_required",)))
-            elif value.relationship == "friends":
+            elif isinstance(value, Party) and value.relationship == "friends":
                 # No guessed catalog mapping: a literal reviewed server code is
                 # required. Missing vocabulary is an error, never dropped.
                 if "friends" not in vocabulary.tenant_group_codes:

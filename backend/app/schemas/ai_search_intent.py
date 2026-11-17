@@ -75,11 +75,24 @@ class Party(StrictContract):
     children: Annotated[int, Field(ge=0, le=10)]
     relationship: Literal["couple", "friends", "family", "unspecified"]
 
+    @property
+    def headcount(self) -> int:
+        return self.adults + self.children
+
     @model_validator(mode="after")
     def total(self):
         if self.adults + self.children > 10:
             raise ValueError("party total exceeds supported v1 boundary")
         return self
+
+
+class PartyTotal(StrictContract):
+    """An explicit total with no inferred age composition or relationship."""
+    persons: Annotated[int, Field(ge=1, le=10)]
+
+    @property
+    def headcount(self) -> int:
+        return self.persons
 
 
 class Pet(StrictContract):
@@ -138,7 +151,7 @@ class Criteria(StrictContract):
     budget: Criterion[Money] | None = None
     geography: Criterion[Geography] | None = None
     accommodation: Criterion[Accommodation] | None = None
-    party: Criterion[Party] | None = None
+    party: Criterion[Party | PartyTotal] | None = None
     pets: Criterion[Annotated[tuple[Pet, ...], Field(min_length=1, max_length=10)]] | None = None
     smoking: Criterion[Smoking] | None = None
     furnished: Criterion[bool] | None = None

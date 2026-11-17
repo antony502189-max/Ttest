@@ -618,14 +618,16 @@ async def test_budget_response_explains_confirmed_amount_and_native_display_peri
     (3, 3, 2, None, False),
     (3, 4, 2, None, False),
 ])
-async def test_party_requires_current_available_spots(capacity, residents, spots, fact_residents, expected):
+@pytest.mark.parametrize("age_neutral", [False, True])
+async def test_party_requires_current_available_spots(capacity, residents, spots, fact_residents, expected, age_neutral):
     query, subject, session_id, ids, source_ids = await setup("long")
     listing_id, source_id = ids[1], source_ids[1]
     async with SessionLocal() as session, session.begin():
         await session.execute(update(Listing).where(Listing.id == listing_id).values(room_capacity=None))
         session.add(ListingRoomDetails(listing_id=listing_id, room_capacity_v2=capacity, current_room_residents=residents))
         await session.execute(update(AISearchSession).where(AISearchSession.id == session_id).values(criteria={
-            "party": {"strength": "hard", "value": {"adults": 2, "children": 0, "relationship": "unspecified"}},
+            "party": {"strength": "hard", "value": {"persons": 2} if age_neutral else
+                      {"adults": 2, "children": 0, "relationship": "unspecified"}},
         }))
     fields = {"description": "Synthetic capacity and free-place evidence"}
     async with SessionLocal() as session:
