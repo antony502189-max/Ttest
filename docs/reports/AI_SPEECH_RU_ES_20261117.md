@@ -30,7 +30,7 @@ Initial semantic harness selected the ASR-only Python, which lacks the app's HTT
 
 ## Remaining acceptance
 
-Owner microphone recordings and independent reference text are requested and still missing. Next checks must cover real RU/ES housing speech, numbers and negations, full place names, pauses/noise and sample-level failures. The prototype also needs final engine composition, dependency/security checks, private-audio lifecycle, truncation/completeness policy, immutable packaging and compatible release evidence before switching the live recognizer. Primary authenticated200, signup-email, source/provider, performance and fullS7 gates remain open.
+One owner Russian recording and its independent reference were subsequently supplied; see the owner check below. No Spanish owner recording is required; use independent public human speech for ES. Next checks must cover real RU/ES housing speech, numbers and negations, full place names, pauses/noise and sample-level failures. The prototype also needs final engine composition, dependency/security checks, private-audio lifecycle, truncation/completeness policy, immutable packaging and compatible release evidence before switching the live recognizer. Primary authenticated200, signup-email, source/provider, performance and fullS7 gates remain open.
 
 ## Owner recording and explicit headcount (3.54)
 
@@ -45,3 +45,7 @@ The same owner input passed the corrected current-Small→candidate-parser path 
 Initial diagnostic containers used Docker's json-file stdout logging. The earlier never-written claim was inaccurate: those temporary logs existed until --rm removed the containers. Cleanup was verified; only the3standing pilot services remained. The corrected owner check used --log-driver=none and disabled container swap, with no explicit audio files or retained diagnostic containers. This does not change the site's logging configuration or claim a new production privacy acceptance.
 
 Current local checks:2073backend unitPASS/16SKIP/1268integration deselected;194targeted and39handoff/runtime checksPASS; mypy189files/Ruff/TypeScript/i18nPASS;94Chrome browser casesPASS. The initial local managed-Chromium executable was absent(92setup failures/2pure formatter checks passed); an ignored Chrome launch config fixed the harness, keeping original failure traces. Source761321c4 has13CI successes; the new headcount increment requires its own exact-source CI. Site runtime, budget, keys, identities and saved owner data are unchanged.
+
+## Exact-source security blocker
+
+Source24d65cc2bc60398f15ccc9dcdf695c75323d5432 failed [Security dependency and static audit44152552628](https://github.com/antony502189-max/Ttest/actions/runs/44152552628). Python exact-graph audit and static checks passed; npm audit failed on existing picomatch4.0.7 and its dependent Vite build graph (5high entries, one root advisory). Local full-graph npm audit reproduced the failure. [GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf), updated17November, lists affected versions<=4.0.7 and no patched release; npm latest was4.0.7 at verification. No security allowance, threshold reduction or force-downgrade to Vite6 was applied. Prior source761 CI does not supersede this failed gate. Other exact-source workflows were still finishing when this checkpoint was written. No merge or deployment occurred.
