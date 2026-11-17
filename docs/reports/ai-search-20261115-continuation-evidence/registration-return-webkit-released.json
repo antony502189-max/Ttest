@@ -1,0 +1,17 @@
+{
+  "browser": "webkit",
+  "main": "97803342f7304eff19ce806f7786ad31272b524d",
+  "mode": "released",
+  "queryVoiceRequests": 0,
+  "blockedWrites": [],
+  "pageErrors": [],
+  "actualSignup": false,
+  "actualEmail": false,
+  "ownedResultRestored": true,
+  "signupRoute": "#/registro",
+  "signupReturnMarker": "/?ai=save",
+  "loginReturnMarker": "/?ai=save",
+  "mapStatus": 200,
+  "sameGuest": true,
+  "passed": true
+}

@@ -207,3 +207,51 @@ test('ordinary registration still leads to the profile', async ({page})=>{
   await expect(page.getByRole('link',{name:'Abrir mi perfil',exact:true})).toHaveAttribute('href','#/perfil')
   await expect(page.getByRole('link',{name:'Volver a mi búsqueda',exact:true})).toHaveCount(0)
 })
+
+for(const pending of [false,true]) test(`catalog status recovers automatically without dispatch; pending=${pending}`,async({page})=>{
+  await page.clock.install()
+  await page.addInitScript(()=>{localStorage.setItem('112233:language:v1','es');localStorage.setItem('112233:mobile-onboarding:v1','done')})
+  let ready=pending,statusReads=0
+  const keys:string[]=[]
+  const sid='00000000-0000-4000-8000-000000000091'
+  const session={intent:{schema_version:'ai-search.v1',taxonomy_version:'rental.v1',session_id:sid,version:0,criteria:{rental_mode:{strength:'hard',value:'long'}}},expires_at:'2099-01-01T00:00:00Z'}
+  await page.route('**/*',route=>{
+    const r=route.request(),u=new URL(r.url()),p=u.pathname
+    if(u.hostname!=='127.0.0.1')return route.abort()
+    if(p.startsWith('/ai-pilot/api/')){
+      let value:unknown
+      if(p.endsWith('/private-demo/status')){statusReads++;value={attempts:30,maximum:50,approved:false,halted:true,exhausted:false,catalog_ready:ready,local_housing_available:ready}}
+      else if(p.endsWith('/capabilities'))value={text:true,map:true,voice:true,saved_searches:false}
+      else if(p.endsWith('/quota'))value={remaining:3}
+      else if(p.endsWith('/identity'))value={ready:true}
+      else if(p.endsWith('/sessions')||p.endsWith('/sessions/'+sid))value=session
+      else if(p.endsWith('/query')){
+        keys.push(r.postDataJSON().idempotency_key)
+        if(keys.length===1){ready=false;return route.fulfill({status:503,json:{detail:'SOURCE_COVERAGE_UNAVAILABLE'}})}
+        value={operation:{status:'failed',remaining:3,failure_code:'INTENT_CLARIFICATION_REQUIRED',receipt:null},cards:null}
+      }else throw Error('Unexpected recovery route '+p)
+      return route.fulfill({json:value})
+    }
+    if(p.startsWith('/api/'))return route.fulfill({status:404,json:{}})
+    return route.continue()
+  })
+  await page.goto('/#/');await page.getByRole('button',{name:'También puedes escribir tu búsqueda',exact:true}).click()
+  await page.locator('#ai-search-text').fill('до 600 евро в месяц')
+  if(pending){await page.getByRole('button',{name:'Buscar habitaciones',exact:true}).click();await expect(page.getByRole('button',{name:'Проверить результат попытки',exact:true})).toBeEnabled()}
+  await expect(page.locator('[data-private-demo-status]')).toContainText(/actualiza|actualizando/)
+  const stored=await page.evaluate(()=>sessionStorage.getItem('112233:ai-continuation:v1:public-guest'))
+  const before=statusReads;ready=true;await page.clock.fastForward(5100)
+  await expect(page.locator('[data-private-demo-status]')).toContainText('Busca por voz o texto')
+  expect(statusReads).toBeGreaterThan(before);expect(keys.length).toBe(pending?1:0)
+  expect(await page.evaluate(()=>sessionStorage.getItem('112233:ai-continuation:v1:public-guest'))).toBe(stored)
+  if(pending){await page.getByRole('button',{name:'Проверить результат попытки',exact:true}).click();await expect(page.getByRole('button',{name:'Надиктовать запрос',exact:true})).toBeEnabled();expect(keys.length).toBe(2);expect(keys[0]).toBe(keys[1])}
+  else await expect(page.getByRole('button',{name:'Buscar habitaciones',exact:true})).toBeEnabled()
+  ready=false;await page.evaluate(()=>window.dispatchEvent(new Event('focus')))
+  await expect(page.locator('[data-private-demo-status]')).toContainText('actualizando')
+  await page.getByRole('button',{name:'Cerrar',exact:true}).click()
+  // Radix retains the closing dialog until its exit animation finishes. With
+  // the fake clock installed, finish that animation before testing unmount.
+  await page.clock.runFor(500)
+  await expect(page.locator('[data-private-demo-status]')).toHaveCount(0)
+  const afterClose=statusReads;await page.clock.fastForward(15000);expect(statusReads).toBe(afterClose)
+})

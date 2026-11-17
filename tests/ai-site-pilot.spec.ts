@@ -28,7 +28,7 @@ for (const width of [390, 1440]) for (const state of ['pending', 'approved', 'un
     await expect(page.getByRole('heading', { name: 'Поиск жилья с AI', exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Escribir mi búsqueda', exact: true }).click()
     await expect(page.locator('[data-private-demo-status]')).toContainText(['approved','local'].includes(state) ? 'Busca por voz o texto'
-      : state === 'pending' ? 'no están disponibles temporalmente' : ['stale','local-stale'].includes(state) ? 'se están actualizando' : 'no está disponible temporalmente')
+      : state === 'pending' ? 'no están disponibles temporalmente' : ['stale','local-stale'].includes(state) ? 'Estamos actualizando los anuncios.' : 'no está disponible temporalmente')
     await expect(page.getByLabel('Modo para esta búsqueda', { exact: true })).toHaveValue('long')
     await page.getByLabel('Cuéntanos qué necesitas', { exact: true }).fill('до 600 евро в месяц')
     const submit = page.getByRole('button', { name: 'Buscar habitaciones', exact: true })

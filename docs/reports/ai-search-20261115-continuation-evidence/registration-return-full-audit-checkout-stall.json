@@ -1,0 +1,17 @@
+{
+  "run": 43949978414,
+  "job": 133589560002,
+  "head_sha": "8d762be82c88d0a13dbd47e190a2e61d4043462f",
+  "stalled_step": {
+    "name": "Checkout repository",
+    "status": "in_progress",
+    "conclusion": null,
+    "number": 2,
+    "started_at": "2026-11-16T20:27:36Z",
+    "completed_at": null
+  },
+  "observed_seconds": 690,
+  "reason": "Checkout has made no test progress for at least ten minutes; one infrastructure retry, unchanged source and full workflow",
+  "tests_started": false,
+  "cancel_requested": true
+}

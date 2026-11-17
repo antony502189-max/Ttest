@@ -43,6 +43,24 @@
     "webkit-restore-proof.json": "86d34a53f8648540e0d5c8c814bfe8d4103e5cab0ead4f2aa2c318d544e66ed6",
     "small-browser-seam-captures.json": "d084f12f3896d0fed18198effe32639bb2072d4b6d955782c990c3a734d794d5",
     "small-browser-seam-asr.json": "15753b266fc1266b0a17d4a3570eb9d197cbdff9d54ebd1cad3b87c3d3ebc06e",
-    "registration-return-local.json": "7b33d30a5d261af8d0526fbeb1cb42c034098c83c2e389a86281c70cca223f5a"
+    "registration-return-local.json": "7b33d30a5d261af8d0526fbeb1cb42c034098c83c2e389a86281c70cca223f5a",
+    "registration-return-ci.json": "2ec077d0f57de208b7a218a9c52c405cc41abbda74dcae211ea211db025b063e",
+    "registration-return-primary-release.json": "db87f110621a214df59a9cd4e3ffc4fc02aa52f4920325650cb8d9af50926eb5",
+    "registration-return-ledger.json": "886cede58135184bcd474712023a2c09436fff4f45fdf08be4a7126892cccbdb",
+    "registration-return-live-before.json": "44f02137109bb06e21202566887442ac170ffc25b6feec55a238dfa2fa74f039",
+    "registration-return-live-released.json": "5be353df9e21549c8d4343fe8d2bc59df9cb2093f58db4cce0634c5b58e79569",
+    "registration-return-mail-readiness.json": "343b1eef062fd63edb536b84905db6163a282726c8ed288d985c1c6442bdc09c",
+    "registration-return-full-audit-checkout-stall.json": "e940a0f7c24b9fc7b6d84c915c1a54708fdc228db7747eb5a90ef933fe06c99c",
+    "registration-return-main-ci.json": "84a54e63f13644f4c5f925b958860298e0e652552cd31bafec1438f64fd1d7c9",
+    "registration-return-desktop-visual.json": "7f4f2f23e25b8282a2dba56907170b7ae1e4306c25991632e0d5c99dad30bfaa",
+    "registration-return-live-harness-failed.json": "eec6011d9e2ab79ee49c0fba804879794f83ea0d3bd1eed80fe917fc4ad0415f",
+    "registration-return-firefox-first-failed.json": "ece75d53eb661efe75e737722dc5793deb726d76b757d0a4aaebb0b8416001e3",
+    "registration-return-firefox-photo-before-scroll-failed.json": "eef8e93d62deab945c1ba18ebbc704ea814356a7aac65904063884ec1f64789e",
+    "registration-return-firefox-released.json": "e93646e7d92a406957833bc4e7632704bfc95eeb2e229f768918ba67bf7c3255",
+    "registration-return-webkit-released.json": "404866cf28b2d9fd269cd842deb79141f2d6b0363cccd87d057b34ecb4d82005",
+    "registration-actual-email-request.json": "7a3e367fa2d9f01caa720d107fe293cbe29a2ef194553366867ba4c315bc99f0",
+    "owner-actual-saved-proof.json": "68563b7c8a1c93638b0fff2ca78c056f248ed1433833d9e7a25a0fa4d93932d3",
+    "owner-approved-text-proof.json": "75e4aa58bbdfd9cf5c61cd81fc45b680958bb761d30f4e60b950e754753f706d",
+    "owner-actual-acceptance-summary.json": "154f49993ba75688dad920bafb63b078f198a7614af8d6d4d328be9998e78d22"
   }
 }

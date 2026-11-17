@@ -1,0 +1,60 @@
+{
+  "read_only": true,
+  "owner_redacted": "d4e2a0a02054",
+  "owner_email_verified": true,
+  "owner_active": true,
+  "ai_saved_total": 1,
+  "matching_test_searches": [
+    {
+      "saved_id_redacted": "a94dfe8f8eba",
+      "matcher": "ai.v1",
+      "revision": 1,
+      "enabled": true,
+      "criteria": {
+        "budget": {
+          "value": {
+            "amount": "700",
+            "period": "monthly",
+            "currency": "EUR"
+          },
+          "strength": "hard"
+        },
+        "furnished": {
+          "value": true,
+          "strength": "hard"
+        },
+        "geography": {
+          "value": {
+            "province_code": "38",
+            "municipality_code": "38023"
+          },
+          "strength": "hard"
+        },
+        "rental_mode": {
+          "value": "long",
+          "strength": "hard"
+        },
+        "accommodation": {
+          "value": {
+            "kind": "room"
+          },
+          "strength": "hard"
+        }
+      },
+      "intent_hash": "2d8af943dcb472ec7c0a83c629a1ca891c8d01b97577749ccf737510b1e06a39",
+      "baseline_seen": 1,
+      "currently_eligible_matches": 1,
+      "notifications_for_this_search": 0,
+      "create_receipts": 1,
+      "worker": {
+        "created_at": "2026-11-16T21:40:25.544741+00:00",
+        "next_at": "2026-11-16T21:46:25.123524+00:00",
+        "fence": 1,
+        "lease_active": false
+      }
+    }
+  ],
+  "new_model_calls": 0,
+  "new_search_requests": 0,
+  "server_now": "2026-11-16 21:42:43.168246+00:00"
+}

@@ -1,0 +1,6 @@
+{
+  "smtp_configured": true,
+  "smtp_login_configured": true,
+  "smtp_starttls": true,
+  "smtp_from_configured": true
+}

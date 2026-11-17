@@ -1,0 +1,11 @@
+{
+  "main": "97803342f7304eff19ce806f7786ad31272b524d",
+  "realSignup": true,
+  "emailAddressRedacted": true,
+  "queryVoiceRequests": 0,
+  "pageErrors": [],
+  "mailRequested": false,
+  "registrationStatus": 409,
+  "passed": false,
+  "failure": "AssertionError [ERR_ASSERTION]: REGISTRATION_FAILED_NO_RETRY\n\n409 !== 201\n"
+}

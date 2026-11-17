@@ -1,0 +1,31 @@
+{
+  "browser": "firefox",
+  "main": "97803342f7304eff19ce806f7786ad31272b524d",
+  "mode": "released",
+  "queryVoiceRequests": 0,
+  "blockedWrites": [],
+  "pageErrors": [],
+  "actualSignup": false,
+  "actualEmail": false,
+  "ownedResultRestored": true,
+  "signupRoute": "#/registro",
+  "signupReturnMarker": "/?ai=save",
+  "loginReturnMarker": "/?ai=save",
+  "photoBeforeScroll": [
+    {
+      "loading": "lazy",
+      "complete": false,
+      "width": 0
+    }
+  ],
+  "photoAfterScroll": [
+    {
+      "loading": "lazy",
+      "complete": true,
+      "width": 800
+    }
+  ],
+  "mapStatus": 200,
+  "sameGuest": true,
+  "passed": true
+}

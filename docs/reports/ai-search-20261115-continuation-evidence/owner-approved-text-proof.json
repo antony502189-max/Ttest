@@ -1,0 +1,45 @@
+{
+  "channel": "text",
+  "status": "succeeded",
+  "result_count": 1,
+  "criteria": {
+    "budget": {
+      "value": {
+        "amount": "700",
+        "period": "monthly",
+        "currency": "EUR"
+      },
+      "strength": "hard"
+    },
+    "furnished": {
+      "value": true,
+      "strength": "hard"
+    },
+    "geography": {
+      "value": {
+        "province_code": "38",
+        "municipality_code": "38023"
+      },
+      "strength": "hard"
+    },
+    "rental_mode": {
+      "value": "long",
+      "strength": "hard"
+    },
+    "accommodation": {
+      "value": {
+        "kind": "room"
+      },
+      "strength": "hard"
+    }
+  },
+  "subject_kind": "guest",
+  "madrid_date": "2026-11-16",
+  "used": 1,
+  "reserved": 0,
+  "quota_limit": 3,
+  "subject_requests_today": 1,
+  "owner_authorized_single_new_guest_exception": true,
+  "criteria_identical_to_primary_saved": true,
+  "read_only": true
+}
