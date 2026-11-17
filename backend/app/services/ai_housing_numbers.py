@@ -1,4 +1,4 @@
-"""Russian cardinal forms for typed housing quantities, never a spending approval.
+"""Russian/Spanish cardinal forms for typed quantities, never a spending approval.
 
 Exact whole-phrase lookup only: never extract a number from unknown user text.
 """
@@ -35,6 +35,34 @@ def _forms():
 
 
 AMOUNTS = _forms()
+
+
+def _spanish_forms():
+    # Exact cardinal grammar, bounded to 9999. Keep articles (un/una) out of
+    # global normalization: "piso de un dormitorio" is a housing type.
+    small = ["uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve", "veinte", "veintiuno", "veintidós", "veintitrés", "veinticuatro", "veinticinco", "veintiséis", "veintisiete", "veintiocho", "veintinueve"]
+    names = {i: word for i, word in enumerate(small, 1)}
+    for ten, word in enumerate(["treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"], 3):
+        for one in range(10):
+            names[ten*10+one] = word + (" y " + names[one] if one else "")
+    for hundred, word in enumerate(["ciento", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos", "ochocientos", "novecientos"], 1):
+        for rest in range(100):
+            names[hundred*100+rest] = "cien" if hundred == 1 and rest == 0 else word + (" " + names[rest] if rest else "")
+    for thousand in range(1, 10):
+        prefix = (names[thousand] + " " if thousand > 1 else "") + "mil"
+        for rest in range(1000):
+            names[thousand*1000+rest] = prefix + (" " + names[rest] if rest else "")
+    result = {}
+    for number, words in names.items():
+        result[words] = number
+        if words.endswith("veintiuno"):
+            result[words[:-9] + "veintiún"] = number
+        elif words.endswith(" uno"):
+            result[words[:-3] + "un"] = number
+    return result
+
+
+AMOUNTS.update(_spanish_forms())
 # Speech decoders may separate the two morphemes of Russian hundreds.
 # These exact spellings preserve their numeric meaning; unknown words remain
 # unconsumed and still cause clarification of the entire request.

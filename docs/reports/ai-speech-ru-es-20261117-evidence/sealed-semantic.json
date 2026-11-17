@@ -1,0 +1,215 @@
+{
+  "before-word-boundary-repair": {
+    "prototype": true,
+    "samples": [
+      {
+        "sample": "english.wav",
+        "criteria": {
+          "budget": {
+            "amount": "600",
+            "currency": "EUR",
+            "period": "monthly"
+          },
+          "accommodation": {
+            "kind": "room"
+          }
+        },
+        "passed": true,
+        "seconds": 1.58
+      },
+      {
+        "sample": "russian.wav",
+        "criteria": {
+          "budget": {
+            "amount": "600",
+            "currency": "EUR",
+            "period": "monthly"
+          }
+        },
+        "passed": true,
+        "seconds": 2.893
+      },
+      {
+        "sample": "russian-700-irina.wav",
+        "criteria": {
+          "budget": {
+            "amount": "700",
+            "currency": "EUR",
+            "period": "monthly"
+          }
+        },
+        "passed": true,
+        "seconds": 1.889
+      },
+      {
+        "sample": "russian-700-pavel.wav",
+        "criteria": {
+          "budget": {
+            "amount": "700",
+            "currency": "EUR",
+            "period": "monthly"
+          }
+        },
+        "passed": true,
+        "seconds": 2.062
+      },
+      {
+        "sample": "en-conditions.wav",
+        "criteria": {
+          "budget": {
+            "amount": "700",
+            "currency": "EUR",
+            "period": "monthly"
+          },
+          "accommodation": {
+            "kind": "room"
+          },
+          "furnished": true,
+          "bills_included": true
+        },
+        "passed": true,
+        "seconds": 2.528
+      },
+      {
+        "sample": "ru-composite.wav",
+        "passed": false,
+        "failure": "ProviderFailure",
+        "seconds": 2.133
+      },
+      {
+        "sample": "silence.wav",
+        "passed": true,
+        "seconds": 0.487
+      }
+    ],
+    "passed": false,
+    "memory_peak": 1009254400,
+    "external_calls": 0
+  },
+  "after-word-boundary-repair": {
+    "prototype": true,
+    "samples": [
+      {
+        "sample": "english.wav",
+        "criteria": {
+          "budget": {
+            "amount": "600",
+            "currency": "EUR",
+            "period": "monthly"
+          },
+          "accommodation": {
+            "kind": "room"
+          }
+        },
+        "passed": true,
+        "seconds": 2.354
+      },
+      {
+        "sample": "russian.wav",
+        "criteria": {
+          "budget": {
+            "amount": "600",
+            "currency": "EUR",
+            "period": "monthly"
+          }
+        },
+        "passed": true,
+        "seconds": 1.506
+      },
+      {
+        "sample": "russian-700-irina.wav",
+        "criteria": {
+          "budget": {
+            "amount": "700",
+            "currency": "EUR",
+            "period": "monthly"
+          }
+        },
+        "passed": true,
+        "seconds": 1.673
+      },
+      {
+        "sample": "russian-700-pavel.wav",
+        "criteria": {
+          "budget": {
+            "amount": "700",
+            "currency": "EUR",
+            "period": "monthly"
+          }
+        },
+        "passed": true,
+        "seconds": 1.583
+      },
+      {
+        "sample": "en-conditions.wav",
+        "criteria": {
+          "budget": {
+            "amount": "700",
+            "currency": "EUR",
+            "period": "monthly"
+          },
+          "accommodation": {
+            "kind": "room"
+          },
+          "furnished": true,
+          "bills_included": true
+        },
+        "passed": true,
+        "seconds": 4.021
+      },
+      {
+        "sample": "ru-composite.wav",
+        "criteria": {
+          "budget": {
+            "amount": "700",
+            "currency": "EUR",
+            "period": "monthly"
+          },
+          "geography": {
+            "province_code": "38",
+            "municipality_code": "38023"
+          },
+          "accommodation": {
+            "kind": "room"
+          },
+          "furnished": true
+        },
+        "passed": true,
+        "seconds": 2.436
+      },
+      {
+        "sample": "silence.wav",
+        "passed": true,
+        "seconds": 0.711
+      }
+    ],
+    "passed": true,
+    "memory_peak": 1001852928,
+    "external_calls": 0
+  },
+  "failure-diagnostic": {
+    "prototype": true,
+    "samples": [
+      {
+        "sample": "ru-composite.wav",
+        "passed": false,
+        "failure": "ProviderFailure",
+        "failure_code": "INTENT_CLARIFICATION_REQUIRED",
+        "seconds": 3.597
+      },
+      {
+        "sample": "silence.wav",
+        "passed": true,
+        "seconds": 1.082
+      }
+    ],
+    "passed": false,
+    "memory_peak": 989163520,
+    "external_calls": 0
+  },
+  "observed_public_synthetic_failure": {
+    "transcript": "Комната в Лалагуна, до 700 евро в месяц, с мебелью.",
+    "failure": "INTENT_CLARIFICATION_REQUIRED",
+    "repair": "Derive joined spellings from complete existing city names, keeping all letters and rejecting municipality collisions. No fuzzy spelling correction or missing-name inference."
+  }
+}

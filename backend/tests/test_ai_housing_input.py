@@ -41,6 +41,71 @@ def test_spoken_hundreds_keep_other_conditions(amount, expected):
     assert criteria.accommodation.value.kind == "room" and criteria.furnished.value is True
 
 
+@pytest.mark.parametrize("words,amount", [("setecientos", "700"), ("seiscientos cincuenta", "650"),
+    ("novecientos noventa y nueve", "999"), ("mil", "1000"), ("mil quinientos", "1500"),
+    ("dos mil trescientos veinticinco", "2325"), ("veintiún", "21"),
+    ("ciento un", "101"), ("mil un", "1001"), ("treinta y un", "31")])
+def test_spanish_spoken_budget_retains_whole_request(words, amount):
+    c = housing_patch(f"Busco una habitación en La Laguna hasta {words} euros al mes, amueblada y con gastos incluidos", state(), VOCAB).set
+    assert c.budget.value.amount == amount and c.budget.value.period == "monthly"
+    assert c.geography.value.municipality_code == "38023" and c.accommodation.value.kind == "room"
+    assert c.furnished.value is True and c.bills_included.value is True
+
+
+@pytest.mark.parametrize("words", ["setecientos cincuenta y", "mil millones", "setecientos o seiscientos",
+    "veinte cinco", "ciento cien", "dos mil mil", "setecientos dólares", "setecientos desconocido"])
+def test_spoken_budget_does_not_salvage_incomplete_ambiguous_or_unknown_words(words):
+    before = state()
+    with pytest.raises(ProviderFailure):
+        housing_patch(f"una habitación hasta {words} euros al mes, amueblada", before, VOCAB)
+    assert before.criteria == Criteria()
+
+
+@pytest.mark.parametrize("text", [
+    "Я ищу комнату в Ла Лагуне до семисот евро в месяц с мебелью",
+    "Найди мне комнату в Ла Лагуне до семисот евро в месяц с мебелью",
+    "Quiero una habitación en La Laguna hasta setecientos euros al mes amueblada",
+    "Estoy buscando una habitación en La Laguna hasta setecientos euros al mes amueblada",
+    "Me gustaría alquilar una habitación en La Laguna hasta setecientos euros al mes amueblada",
+])
+def test_natural_spoken_search_prefixes_preserve_all_conditions(text):
+    c = housing_patch(text, state(), VOCAB).set
+    assert c.budget.value.amount == "700" and c.geography.value.municipality_code == "38023"
+    assert c.accommodation.value.kind == "room" and c.furnished.value is True
+    assert c.bills_included is None
+
+
+@pytest.mark.parametrize("text", ["Я ищу комнату для друга с неизвестным условием",
+    "Quiero una habitación pero sin límite de precio", "Estoy buscando una habitación junto a mi trabajo"])
+def test_natural_prefix_never_discards_unknown_tail(text):
+    with pytest.raises(ProviderFailure):
+        housing_patch(text, state(), VOCAB)
+
+
+def test_spoken_number_normalization_preserves_spanish_housing_article():
+    c = housing_patch("piso de un dormitorio hasta mil quinientos euros al mes", state(), VOCAB).set
+    assert c.accommodation.value.kind == "one_bedroom" and c.budget.value.amount == "1500"
+
+
+def test_observed_asr_joined_place_preserves_complete_request():
+    c = housing_patch("Комната в Лалагуна, до 700 евро в месяц, с мебелью.", state(), VOCAB).set
+    assert c.geography.value.municipality_code == "38023"
+    assert c.accommodation.value.kind == "room" and c.furnished.value is True
+    assert c.budget.value.amount == "700" and c.bills_included is None
+
+
+def test_joined_place_collision_never_selects_one_city():
+    from app.services.ai_housing_input import _joined_city_codes
+    # Canonical city 2 is absent from the alias map; it must still block repair.
+    assert "santacruz" not in _joined_city_codes({"santa cruz": "1"}, {"1": "Santa Cruz", "2": "Santacruz"})
+
+
+@pytest.mark.parametrize("place", ["Лалагун", "Лалогуна", "Лагуна"])
+def test_word_boundaries_do_not_correct_missing_or_changed_place_letters(place):
+    with pytest.raises(ProviderFailure):
+        housing_patch(f"комната в {place} до 700 евро в месяц с мебелью", state(), VOCAB)
+
+
 def test_incomplete_recognized_place_never_substitutes_a_municipality():
     with pytest.raises(ProviderFailure):
         housing_patch("комната в Лагуна, до 700 евро в месяц, с мебелью", state(), VOCAB)
