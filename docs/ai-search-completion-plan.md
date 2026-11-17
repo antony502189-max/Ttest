@@ -1,8 +1,17 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.51**, 17 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.52**, 17 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+
+**Сессия3.52 / S4.4,S6 — исправляется stuck catalog-status blocker перед показом.** По screenshot владельца: «объявленияобновляются/черезнесколькоминут» иpendingattempt. Read-only actual status17.11T13:13Z: catalogready/localavailable=true, providerapproved=false/attempts30; timer30min, последнийrefresh13records/0removed/18s/SUCCESS. Точный момент screenshot не привязан кrefresh; backend ужеready. Source подтвердил реальныйUIдефект: проверкаavailability однократная наrefreshKey, поэтому blockedfalse→true→ready переход сервера не снимает зависшее сообщение без пользовательского события. RED browser reproduce послеreadytransition, original failure сохранён.
+
+**Кандидат source-only:** blocked availability GET проверяется через5s, одинinflight/8s timeout, focus/visibilityrecheck иcleanupприunmount. Healthy-состояние не опрашивается таймером. НовыйES/RU/ENтекст сообщает обавтовосстановлении вместо неопределённыхминут. Никаких autoquery/voice/identity/session/reset; pendingkey/payload/continuation иpublication/freshnessguards неизменны.15public+30pilot/voicebrowserPASS, дополнительные2finalcleanupcasesPASS, types/lint/i18n/1077provenancePASS. CI/release кандидата ещёне подтверждены; actualprimary978/isolatedb0 прежние.
+
+**Следующее действие3.52:** exact-source CI/review→compatibleprimaryrelease→проверкаactualavailabilityrecovery без новых businesscalls. Затем прежний обязательный3.51 primaryJWT200/runtime/routing иостальныеquality/data/provider/performance/fullS7gates. Прямой новый screenshot/blocker ипоказчерезчас обосновывают порядок; критерииготовности/квоты/keys/cohortне ослаблять. Userpendingattempt разрешено восстановить только темжеkey, не отправлять новую операторскую попытку и не создаватьguest.
+
+
+**Проверка перед показом17.11 / S4.4,S6:** по новому сроку владельца «показ через час» выполнен только read-only preflight: actual primary/build-info97803342,3timersACTIVE, catalog_ready=true/local_housing_available=true/providerapproved=false. Owner saved snapshot остаётся enabled/revision1, currenteligible1/baselineSeen1, scan fence175/leaseclear/next12:58:38Z, новыхAIalerts0. Никаких новыхquery/voice/guest/paidcalls/deploy. Для показа уже доказан сквозной text→реальнаякарточка/map→existinglogin→Save/активныйrematch; humanmic требует предварительного ручного прогона. Ограниченный13scope иоткрытые auth200/signup-email/provider/data/performance/S7 не скрывать. Основной обязательный следующий increment3.51 (primaryJWT200/runtime/routing) не заменён новымпроектом или competingplan; полный релиз за час не обещан.
 **Сессия3.51 / S4.4,S6 — реальный owner login→составной поиск→Save подтверждён сервером.** Primary97803342/source8d762be8 unchanged; exact-source10SUCCESS/2conditionalSKIP, exact-main97803342 **8SUCCESS**, включаяFullaudit. Regular runner/schema0080/data_maintenance skipped, isolatedb0/image60a1c713 и3active timers прежние. Эта сессия не меняла runtime/source/keys/PG/Redis/journals/cohort.
 
 **Actual owner account:** владелец самостоятельно вошёл черезGoogle вобычномChrome; UIпоказал аккаунт и0сохранённых. Результат другого test-browser guest корректно не перенёсся. После конкретного запроса владелец прямо ответил **«Разрешаю один запрос и сохранение»**: исключение только на1localtext/newguest вегоChrome→явноеSave/in-app, безresetстаройквоты/paidapproval/разрешениядругихзапросов. ComputerUse остановился из-за невозможности надёжно определитьURL; барьерGoogleнеобходился. Владелец сам отправил запрос иSave. IndependentreadonlySQL: ровно1textSUCCESS/count1/newguest used1/reserved0/limit3; primaryактивногоexistingowner(email_verified=true) содержит ровно1ai.v1snapshot/revision1/enabled=true/1createreceipt. Критерии **дословно равны JSONрезультата**: long+room+municipality38023+700EUR/month+furnished, безbills. Primary currenteligible1/baselineSeen1; workerfence1/leasecleared/next_at21:46:25Z послескана. НовыхAIуведомлений0: текущееобъявление уже baseline, новаядоставка незаявлена. Provider30/331800/30 истарыйguest used3/reserved0 сохранены; новаяразрешённаяоперация невыдаётсязаprimaryauth200.
@@ -709,3 +718,9 @@ Offline browser seam не воспроизвёл прежние2clarification fa
 
 ### Изменение маршрута3.51 —17.11.2026
 Прямойответвладельца разрешил ровно1localtext/newguest вегообычномChrome ипоследующееявноеSave/in-appдляactualregisteredacceptance. Исключениеисполнено, старыеguest/ledger/cohort не сбрасывались. Подтверждены нормальныйexistinglogin/immutableSave/scan; auth200/nativeprimary, новыйsignup/SMTP/human/data/provider/performance criteria не исключены и не выданы заPASS.
+
+- **17.11 / S4.4,S6, pre-demo:** проверены текущая сборка, readiness итотжеownerSave без новых операций. Доказанный набордляпоказа сформулирован отдельно от полногоS7; постоянные внешние зависимости не запрошены повторно.
+
+
+### Изменение маршрута3.52 —17.11.2026
+Прямой screenshot владельца перед показом выявил воспроизводимыйS4.4 UIrecoveryblocker при ужеreadybackend. Минимальное автоматическое GET-восстановление availability поставлено перед nativeauth200increment; backendguards/atomicpublication/typedconditions/quota/identity остаютсяпрежними. Source/CI/live отдельно; это не завершениеполногоAI Search.

@@ -10,6 +10,7 @@ const translations: Record<string, Translation> = {
   'Busca tu vivienda con IA': { ru: 'Найдите жильё с AI-поиском', en: 'Find your home with AI search' },
   'Describe el alojamiento, tu presupuesto y las condiciones que necesitas.': { ru: 'Опишите жильё, бюджет и важные для вас условия.', en: 'Describe the home, your budget and the conditions you need.' },
   'Comprobando la búsqueda…': { ru: 'Проверяем доступность поиска…', en: 'Checking search availability…' },
+  'Estamos actualizando los anuncios. La búsqueda se reactivará automáticamente cuando estén listos.': { ru: 'Обновляем объявления. Поиск станет доступен автоматически после обновления.', en: 'We are updating listings. Search will become available automatically when they are ready.' },
   'Los anuncios se están actualizando. Inténtalo de nuevo en unos minutos.': { ru: 'Объявления обновляются. Попробуйте через несколько минут.', en: 'Listings are being updated. Please try again in a few minutes.' },
   'Las nuevas búsquedas no están disponibles temporalmente. Puedes abrir los resultados guardados.': { ru: 'Новые поиски временно недоступны. Можно открыть сохранённые результаты.', en: 'New searches are temporarily unavailable. You can open saved results.' },
   'Busca por voz o texto: tipo de vivienda, presupuesto y comodidades.': { ru: 'Ищите голосом или текстом: тип жилья, бюджет и удобства.', en: 'Search by voice or text: home type, budget and amenities.' },
