@@ -1,0 +1,25 @@
+{
+  "source": "b6b0a8271c86af740fcee46f57dd83731e4f205b",
+  "files": {
+    ".nojekyll": "8a9fcfda5e4c7d7548ca164a47e21e4ea4bd6a4881b86a80d7047f5d85c32921",
+    "advertising-sw.js": "f11293c21c5a1ac949928e18b3c95578fbad4658c936b6b180e817887c286b64",
+    "build-manifest.json": "559f097cdf74586001d629b6db6b46ac071e862f829d89f0124db39723ba49ed",
+    "favicon.svg": "5dd4d0bf02e25c1d6ac359ce90d7006d2babf52015fd1d845a0765e05a9101b1",
+    "index.html": "5c7057a82a20997e2fbc09888ce06d709a9413ebd61b612076aff574c40c483e",
+    "lab-placeholder.svg": "28bc515b00cc2dcd3e9fa33e53d19998c935fdd34f8b1cfeab483d3f84d26324",
+    "legal.css": "fa38d3781b329a0feea1008023e7634545ee5365e3c6190c9a86340fe8bac43b",
+    "top-rocket-active.svg": "ef9933e17bb36ad61c744e60a07b99cd9e176a0b38d6a6b7f4be0c168b63c5a2",
+    "top-rocket-idle.svg": "1d87dfd10adbc799fe694eeca12cafcde0e941f83d0d8cd0ef62caaea4a42018",
+    "assets/ai-pcm-worklet-BFN9yxmr.js": "9bcbcb97117127aacb93e4bc248a9e668404c90836f2f29ea9519106a2d56569",
+    "assets/geist-cyrillic-ext-wght-normal-DjL33-gN.woff2": "2317fa4bb293c9c0b110e18315d529235c47a0ddd3338cea3d8c7955e927899e",
+    "assets/geist-cyrillic-wght-normal-BEAKL7Jp.woff2": "6894439694946a589d157ece003086960a6a4013d74a813dab7602efdb3d8c09",
+    "assets/geist-latin-ext-wght-normal-DC-KSUi6.woff2": "824f485b5d26e2f2da3c2b236132ece1bc8e4e43373452950bb0e40548b4313f",
+    "assets/geist-latin-wght-normal-BgDaEnEv.woff2": "19f9c92546aa300c312235e3125af1b81394d8db9a4bc4a425cd5b641d2d54e1",
+    "assets/geist-vietnamese-wght-normal-6IgcOCM7.woff2": "8fa40e5d248247735eb97a0bd593b8852440430600d6ba01364c31fe0abc1fe1",
+    "assets/index-BJGBoKVQ.css": "aaad039b2571165e28c9f4bf0b35a3de17b9a43596b65e7490e5732123ee6099",
+    "assets/index-CtZmSBSu.js": "85e9a2bf898a6de6b2d9391e7993465b5950c9b6090fb38f7b184d4834b44349",
+    "privacidad/index.html": "d18bf424a2fad1b7dc7a9ddd09c8c8af1dd6e421bbecb694191f7eb5990cf18a",
+    "terminos/index.html": "2fbc03da7d784ad68493b3d16fa276a2fd60fae31afa3fc092682afbdc945986"
+  },
+  "archive_sha256": "b150b539371d5136ac081b2ebf7f0989ad55eebdcc95b93a94eca79520c32074"
+}

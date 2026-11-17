@@ -1,0 +1,12 @@
+{
+  "source": "b6b0a8271c86af740fcee46f57dd83731e4f205b",
+  "image": "sha256:d7bf35aa6325dc3a60df81ba4d69f483470728eea1e96b588eaaa36f808c75e0",
+  "base_proxy_image": "sha256:9af18c4c07e558f0452bc1c93b52eb89b8853759a1ef7fb8133cff2c63ffa0d7",
+  "proxy_config_unchanged": true,
+  "proxy_source": "bf33d106e96c9f92460f059de70e4ab8fc9e975b",
+  "public_access_unchanged": true,
+  "artifact_file_count": 19,
+  "activated": false,
+  "new_business_requests": 0,
+  "all_artifact_hashes_verified": true
+}

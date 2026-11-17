@@ -1,0 +1,23 @@
+{
+  "source": "6025d3f485ac44b8246504f48a08ac49650671ae",
+  "backend_image": "sha256:934708d869283808251aadade8abf4bef9d473a73e9f49a23e98dd1204e7ceaa",
+  "proxy_image": "sha256:d7bf35aa6325dc3a60df81ba4d69f483470728eea1e96b588eaaa36f808c75e0",
+  "proxy_source_unchanged": "bf33d106e96c9f92460f059de70e4ab8fc9e975b",
+  "frontend_source": "b6b0a8271c86af740fcee46f57dd83731e4f205b",
+  "before_attempts": 30,
+  "after_attempts": 30,
+  "journal_resets": 0,
+  "seed": 0,
+  "migrations": 0,
+  "protected_files_unchanged": true,
+  "postgres_redis_unchanged": true,
+  "cohort_sources": 13,
+  "approval_expires_at": "2026-11-15T20:59:59Z",
+  "approval_expired_enforced": true,
+  "local_housing_available": true,
+  "external_provider_enabled": false,
+  "encrypted_backups_authenticated": true,
+  "keys_copied": false,
+  "party_total_reader": true,
+  "new_total_producer": false
+}
