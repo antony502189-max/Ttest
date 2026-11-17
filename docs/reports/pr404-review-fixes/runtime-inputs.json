@@ -532,6 +532,7 @@
     "backend/tests/test_ai_offline_fact_worker.py": "145360f19fc52c44a114c907382c9f821f612a2a",
     "backend/tests/test_ai_parser_regressions.py": "8c3b644d5764b0d5ab76c6f8e63045f81029675c",
     "backend/tests/test_ai_party_count.py": "1fe6cfc214c4c2748252b84ad1f0edcc9485b281",
+    "backend/tests/test_ai_party_total_reader.py": "ab37c0cb32369a094a31688f111717141eedbc03",
     "backend/tests/test_ai_private_demo.py": "d7e01e7996b50d8f6374cfd1dd8a2e3ce5dac0ce",
     "backend/tests/test_ai_provider_privacy.py": "c2842852e2b37cd4bc580a15ea1c2ac025c60928",
     "backend/tests/test_ai_saved_catalog.py": "dc286caf6fa3aeed73f072ef70d0159423c70c11",
