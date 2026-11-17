@@ -1,0 +1,19 @@
+{
+  "source": "b88d7280b6acc6dfcb757bd973bb2e7ddf126c4f",
+  "runtime_python_files": 287,
+  "model_assets_verified": 4,
+  "positive_composites": 4,
+  "atomic_refusals": 4,
+  "engine": "unchanged-small",
+  "activated": false,
+  "business_queries": 0,
+  "external_calls": 0,
+  "candidate_image": "sha256:4388af9a69e406441af549abaa8c14c42fcb64dda4382ab35f554ed90248e6a6",
+  "parent_image": "sha256:7b3fb5810f51978ff70a7753360e35ff38f36410d6e271eef656e696629f8ebc",
+  "network": "none",
+  "docker_logging": "none",
+  "swap": false,
+  "cpu": 2,
+  "memory_mib": 1536,
+  "service_activation": false
+}

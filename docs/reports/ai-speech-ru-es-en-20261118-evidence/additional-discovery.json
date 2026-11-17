@@ -1,0 +1,23 @@
+{
+  "common_phone": {
+    "url": "https://huggingface.co/datasets/pklumpp/CommonPhoneDataset",
+    "revision": "3635a95a34c4d20337f30499e0d9ba0be30fdae3",
+    "license": "CC0-1.0",
+    "parquet_shards": 27,
+    "rows_read": 76307,
+    "columns": [
+      "text",
+      "language",
+      "speaker"
+    ],
+    "audio_columns_read": false,
+    "download": "Bounded partial requests for metadata and selected columns, less than25MB total; not the multi-GB audio dataset.",
+    "limitations": "Narrow housing/rent keyword search, not an exhaustive semantic inventory; six corpus languages, including RU/ES/EN. No additional ASR acceptance is claimed."
+  },
+  "openslr72": {
+    "url": "https://www.openslr.org/72/",
+    "license": "CC-BY-SA-4.0",
+    "read": "Two small public Colombian Spanish text line indexes only; no audio downloaded or evaluated."
+  },
+  "new_positive_supported_rental_audio_selected": 0
+}
