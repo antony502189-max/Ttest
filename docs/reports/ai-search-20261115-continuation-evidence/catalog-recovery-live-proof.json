@@ -1,0 +1,34 @@
+{
+  "expectedMain": "49d7fcc0e93bf364ac0860f469df6842610c215e",
+  "actualSiteBundle": true,
+  "oneAvailabilityResponseIntercepted": true,
+  "backendRefreshTriggered": false,
+  "businessRequests": [],
+  "statusReads": 4,
+  "errors": [],
+  "actualMain": "49d7fcc0e93bf364ac0860f469df6842610c215e",
+  "before": {
+    "attempts": 30,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": true,
+    "approved": false,
+    "catalog_ready": true,
+    "catalog_reason": null,
+    "local_housing_available": true
+  },
+  "after": {
+    "attempts": 30,
+    "maximum": 50,
+    "exhausted": false,
+    "halted": true,
+    "approved": false,
+    "catalog_ready": true,
+    "catalog_reason": null,
+    "local_housing_available": true
+  },
+  "recoveredMs": 5556,
+  "originalResultRetained": true,
+  "sameGuest": true,
+  "passed": true
+}
