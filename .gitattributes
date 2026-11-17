@@ -40,3 +40,5 @@ docs/reports/ai-search-s2-claims-20261105-evidence/** -text whitespace=-blank-at
 docs/reports/pr409-review-20261108-evidence/** -text whitespace=cr-at-eol
 
 docs/reports/pr409-410-review-20261108-evidence/** -text whitespace=cr-at-eol
+
+docs/reports/ai-speech-ru-es-en-20261118-evidence/** -text whitespace=cr-at-eol

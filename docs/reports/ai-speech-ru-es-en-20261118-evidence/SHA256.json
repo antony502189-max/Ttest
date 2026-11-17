@@ -1,5 +1,5 @@
 {
-  "candidate-parser-replay.json": "0c489c8555e8ae5c4007ae4ceff1586edc634bef358538532072e5b9beb6d27e",
+  "candidate-parser-replay.json": "7f2d99daca4a4b67cc14888e7cf5795d6ab4099ce8e677aae7b2d8adf44ee4a6",
   "comparison.json": "cf34aaaf17597b3bd332bae618a5ccf32a598bf2225a4363d2ab085464ec48ac",
   "convert.py": "dbff846113f8316d93a2acc2af3f7b4e0e7de466cf064d8f0013afef22354ce4",
   "converted-manifest.json": "b3ce4804361b72dbc2191d28d87c6ed7cdbece90dbe121a7d3709880dc54b79b",
@@ -15,6 +15,6 @@
   "selection-and-license.json": "859d5b58abe7625edf39d4f1e54b5245f89db8f802032c42311b6c46e1c10d45",
   "stress-manifest.json": "3936a63df82a86b4e243ec759cc2f60c8509c5b6d60cbac20b3b952d74e4d365",
   "stress.py": "a99a5111b7d7fe25b0989b167efcfbc30625fc27d725e4afb7c058e69dbe7933",
-  "validation.json": "84e97d55502e2cb55332d8b81acd3ae4900ae4b2623be607d1d47e544a6b4efe",
+  "validation.json": "9d3cd2f84316e82b87ccc54983302a59882bba70937c9834c73a86d85ad6d073",
   "worker-no-hotwords.py": "64dd703593dd1e0f7e419e3905abc151d23101681a728204354a680edcd481dc"
 }

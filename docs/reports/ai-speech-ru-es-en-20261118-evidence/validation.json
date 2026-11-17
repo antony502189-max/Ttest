@@ -2,7 +2,7 @@
   "schema": "ai-voice-source-validation.v1",
   "source_parent": "db84b9b7",
   "runtime_source_files": {
-    "backend/app/services/ai_housing_input.py": "d5d78fef27d4948b0a5c14d706c97d20fa22dabaf221ac8372118d0f8072e8c8"
+    "backend/app/services/ai_housing_input.py": "85b163491e8f12f1e8dcfe278c94ceb63bb44ca523a9f3af511597821981113b"
   },
   "red": {
     "renter_prefixes": 4,
@@ -32,5 +32,6 @@
     "count": 1080,
     "passed": true,
     "historical_container_acceptance_transferred": false
-  }
+  },
+  "source_hash_format": "Canonical Git blob bytes; backend unit/replay ran on the equivalent Windows checkout."
 }
