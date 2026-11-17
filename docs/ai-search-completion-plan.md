@@ -4,6 +4,8 @@
 
 ## Цель, текущий этап и следующий шаг
 
+**Проверка18.11 / S6:** exact-mainf5ba0c18 теперь8/8workflowsSUCCESS, включая Full audit44163784733 (job134324481068). Прежний pending checkpoint закрыт; новогоdeploy/query/identity/paidcall не было. Ближайшее обязательное действие — S4.1/S4.4 humanRU/ES housing: числа/отрицания/паузы/шум, живойmic→conditions→cards иtime/memory checks. ES — открытые человеческие записи. СменаASRне обязательна: нужен recognizer, прошедший quality/performance/privacy gates; Parakeet ещёне допущен. Data/provider/registration/performance/fullS7 остаютсяOPEN.
+
 **Сессия3.56 / S4.1,S4.4,S6 — исправление RU/ES голосового запроса фактически выпущено.** PR428(readers6025d3f4) иPR427(producerb6b0a827) merged; прежний docsPR426 такжеmerged через включённую историю. У обоих source13actual workflows SUCCESS/2conditionalSKIP; промежуточный1c40 тоже13SUCCESS. Сначала ordinary runner выпустил main4bcb89ec(reader tree идентичен6025), затем mainf5ba0c18(producer tree идентиченb6). ОбаDEPLOY SUCCESS/0080/data_maintenance skipped, post-release delivery/retention ticksSUCCESS. Старая уязвимостьpicomatch устранена проверенным pinnedMITфорком, raw audit0, security gates не ослаблены; исходныеfailed runs сохранены.
 
 **Actual runtime3.56:** primaryf5ba0c18edc4083c6087cbb5648ebe54269d218d; isolated producer app source1c40beec/image7b3fb581, все287Python bytes совпадают сfinalmain; frontend sourceb6/image d7bf35aa. Source1c40 иfinalb6/f5 имеют идентичные app/frontend/package bytes, отличия — retained-reader tests/docs. В образах verified4Small assets/23ASR pins; в работающемbackend повторно сверены287Python hashes и отсутствиеcode/modeloverlays. Новыйtotal-only producer включён после сохранения reader baseline: primary4bcb89ec иpilotimage934708d8. Оба rollback readers проверены до активации, реальный rollback здоровой версии не исполнялся. Nginx proxybf33 config иpublic ingress неизменны; все19staticpilot files проверены, старыхassets нет.
@@ -784,3 +786,5 @@ Offline browser seam не воспроизвёл прежние2clarification fa
 
 ### Версия3.56 —17.11.2026
 Выпуск разбит на expand-readers иproducer, чтобы не отдавать новый сохранённый контракт age-only rollback binary. Ближайшее S4 исправление фактически выпущено после sourceCI/immutable checks, без изменения ASR engine/approval/cohort/квот. Main-wide Fullaudit остаётся отдельным незавершённым gate, fullS7 не объявлен.
+
+18.11 / S6 checkpoint: mainf5 Full auditSUCCESS, полный exact-main набор8SUCCESS. Следующее действие возвращается к existingS4 human voice acceptance; broadmainCI больше не blocker.

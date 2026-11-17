@@ -7,14 +7,13 @@
   "reader_source": "6025d3f485ac44b8246504f48a08ac49650671ae",
   "each_pr_actual_workflows_success": 13,
   "producer_main_status": {
-    "success": 7,
-    "in_progress": 1
+    "success": 8
   },
   "reader_main_status": {
     "success": 7,
     "cancelled": 1
   },
-  "main_full_audit_complete": false,
+  "main_full_audit_complete": true,
   "provider_attempts_before": 30,
   "provider_attempts_after": 30,
   "new_business_queries": 0,
@@ -22,5 +21,6 @@
   "asr_engine_changed": false,
   "new_live_voice_query_executed": false,
   "prior_owner_recording_offline_pass_preserved": true,
-  "full_s7_complete": false
+  "full_s7_complete": false,
+  "main_ci_verified_utc": "2026-11-17T21:33:20.299626+00:00"
 }
