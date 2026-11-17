@@ -1,0 +1,66 @@
+{
+  "sessions": [
+    {
+      "version": 1,
+      "criteria": {
+        "budget": {
+          "value": {
+            "amount": "700",
+            "period": "monthly",
+            "currency": "EUR"
+          },
+          "strength": "hard"
+        },
+        "furnished": {
+          "value": true,
+          "strength": "hard"
+        },
+        "geography": {
+          "value": {
+            "province_code": "38",
+            "municipality_code": "38023"
+          },
+          "strength": "hard"
+        },
+        "rental_mode": {
+          "value": "long",
+          "strength": "hard"
+        },
+        "accommodation": {
+          "value": {
+            "kind": "room"
+          },
+          "strength": "hard"
+        }
+      },
+      "used": 3,
+      "reserved": 0,
+      "operations": [
+        {
+          "channel": "voice",
+          "status": "failed",
+          "failure": "INTENT_CLARIFICATION_REQUIRED",
+          "result_count": null
+        },
+        {
+          "channel": "voice",
+          "status": "failed",
+          "failure": "INTENT_CLARIFICATION_REQUIRED",
+          "result_count": null
+        },
+        {
+          "channel": "voice",
+          "status": "succeeded",
+          "failure": null,
+          "result_count": 1
+        }
+      ]
+    }
+  ],
+  "provider_attempts": 30,
+  "reserved_micro_usd": 331800,
+  "usage_observed": 30,
+  "new_paid_dispatches": 0,
+  "quota_reset": false,
+  "independent_read_only_sql": true
+}

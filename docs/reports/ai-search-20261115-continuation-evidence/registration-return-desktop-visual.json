@@ -1,0 +1,16 @@
+{
+  "main": "97803342f7304eff19ce806f7786ad31272b524d",
+  "requests": [],
+  "language": "ru",
+  "images": [
+    {
+      "complete": true,
+      "width": 800
+    }
+  ],
+  "mapStatus": 200,
+  "ownedResultRestored": true,
+  "queryRequests": 0,
+  "passed": true,
+  "screenshot_sha256": "dd451314844e8601941982487078ecb436747a96cab03860621637ea495adfb8"
+}

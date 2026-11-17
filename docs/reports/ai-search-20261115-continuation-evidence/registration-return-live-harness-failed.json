@@ -1,0 +1,12 @@
+{
+  "main": "97803342f7304eff19ce806f7786ad31272b524d",
+  "mode": "released",
+  "queryVoiceRequests": 0,
+  "blockedWrites": [],
+  "pageErrors": [],
+  "actualSignup": false,
+  "actualEmail": false,
+  "passed": false,
+  "failure": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('heading', { name: '\u041d\u0430\u0439\u0434\u0438\u0442\u0435 \u0436\u0438\u043b\u044c\u0451 \u0441 AI-\u043f\u043e\u0438\u0441\u043a\u043e\u043c', exact: true }) to be visible\u001b[22m\n",
+  "classification": "Harness waited for a background heading hidden by the newly auto-opened modal; corrected by waiting for the dialog; runtime unchanged."
+}

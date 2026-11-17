@@ -1,0 +1,15 @@
+{
+  "main": "4c2bef73a2cf596216b00e4368d628b652d70090",
+  "mode": "before",
+  "queryVoiceRequests": 0,
+  "blockedWrites": [],
+  "pageErrors": [],
+  "actualSignup": false,
+  "actualEmail": false,
+  "missingReturnOpeningConfirmed": true,
+  "ownedResultRestored": true,
+  "signupRoute": "#/registro",
+  "mapStatus": 200,
+  "sameGuest": true,
+  "passed": true
+}
