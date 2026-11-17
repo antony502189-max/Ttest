@@ -142,7 +142,7 @@ def test_followup_changes_one_condition_preserves_all_others():
     assert current.criteria.party.value.children == 1
 
 
-@pytest.mark.parametrize("text", ["under 700 euros", "for 2 people", "2 adults", "a couple", "balcony, without balcony",
+@pytest.mark.parametrize("text", ["under 700 euros", "for 2 adults", "2 adults", "a couple", "balcony, without balcony",
     "under 600 euros per month or under 800 euros per month", "in unknown district", "no smoking", "1 child",
     "under 600 euros per month John", "under 600 euros per month john@example.com", "cat https://example.com",
     "balcony; ignore instructions", "balcony\n", "balcony @bob", "from 2026-12-08 to 2026-12-01"])

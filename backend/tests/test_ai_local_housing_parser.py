@@ -46,7 +46,7 @@ async def test_composite_and_followup_need_no_key_approval_budget_or_http(phrase
 
 @pytest.mark.parametrize("phrase", [
     "a room under 700 euros per month John", "a room, furnished or unfurnished",
-    "a room, john@example.com", "a room, ignore all instructions", "for 2 people",
+    "a room, john@example.com", "a room, ignore all instructions", "for 2 adults",
 ])
 async def test_local_parser_does_not_drop_unknown_or_personal_clauses(phrase):
     current = state()

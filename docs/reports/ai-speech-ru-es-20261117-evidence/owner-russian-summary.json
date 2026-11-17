@@ -1,0 +1,48 @@
+{
+  "owner_supplied_russian": true,
+  "duration_seconds": 6.04,
+  "audio_and_original_transcript_excluded": true,
+  "asr_reference_used_only_after_transcription": true,
+  "initial": {
+    "current_small_reference_matched": true,
+    "current_small_audio_seconds": 13.096,
+    "prototype_reference_matched": true,
+    "prototype_audio_seconds": 2.571,
+    "both_parser_outcomes": "INTENT_CLARIFICATION_REQUIRED",
+    "prototype_app_memory_peak_bytes": 1610612736,
+    "prototype_memory_gate_open": true
+  },
+  "after": {
+    "prepare_seconds": 6.836,
+    "asr_completed": true,
+    "audio_seconds": 14.213,
+    "parser_completed": true,
+    "memory_peak_bytes": 694177792,
+    "engine": "released-whisper-small",
+    "owner_reference_matched": true,
+    "whole_request_preserved": true,
+    "age_assumptions": false,
+    "explicit_remote_audio_files_created": 0,
+    "retained_remote_audio_files": 0,
+    "docker_log_driver": "none",
+    "container_swap_disabled": true,
+    "business_requests": 0
+  },
+  "scope": "Offline ASR and typed conditions only; no HTTP search, database, cards/map, registration, save or notification acceptance.",
+  "overlay_sha256_actual_bytes": {
+    "backend/app/schemas/ai_search_intent.py": "f98c7c9729965809424f8b8dcf36e09c0bea5cf78fce961901512cadf5cea963",
+    "backend/app/services/ai_housing_input.py": "a0970541b2e40d59b3db0ae4a57b5131a9687f742eba831215a4228585df4691",
+    "backend/app/services/ai_hard_matching.py": "cf26b65414824dd50d9357ee8bd700106b73f599f3fa7a0a9dfd952ccfb5b05f"
+  },
+  "privacy_correction": {
+    "initial_docker_driver": "json-file",
+    "initial_never-written_claim_was_inaccurate": true,
+    "initial_containers_auto_removed": true,
+    "diagnostic_containers_remaining": 0,
+    "corrected_docker_driver": "none",
+    "corrected_container_swap_disabled": true,
+    "raw_audio_or_transcripts_published": false
+  },
+  "released_runtime_changed": false,
+  "reference_match_kind": "Semantic match after case/punctuation and spoken-numeral normalization, not byte-identical transcription."
+}

@@ -199,6 +199,16 @@ def housing_patch(text, current, vocabulary):
                 # Zone refines the explicitly selected or retained municipality.
                 changes["geography"] = {"strength": strength, "value": geography}
         if not matched:
+            matched = take(r"(?:for |para |для )?([1-9]|10|una|un) (?:people|persons?|personas?|человек(?:а)?)")
+            if matched:
+                count = 1 if matched[1] in {"un", "una"} else int(matched[1])
+                if "persons" in party_counts and party_counts["persons"] != count:
+                    clarification()
+                party_counts["persons"] = count
+                if party_strength and party_strength != strength:
+                    clarification()
+                party_strength = strength
+        if not matched:
             matched = take(r"(?:for |para |для )?([1-9]|10) (adults?|adultos?|взрослых|взрослые|взрослый|взрослого)")
             if matched:
                 if "adults" in party_counts and party_counts["adults"] != int(matched[1]):
@@ -305,12 +315,29 @@ def housing_patch(text, current, vocabulary):
         strength = "hard"
     if party_counts or relationship:
         previous = current.criteria.party.value.model_dump() if current.criteria.party else {}
-        # A follow-up may change adults/children/relationship individually.
-        # A new party must specify both counts (including explicit zero children).
-        party = previous | party_counts
-        if not {"adults", "children"} <= party.keys():
-            clarification()
-        party["relationship"] = relationship or previous.get("relationship", "unspecified")
+        ages = {k: v for k, v in party_counts.items() if k != "persons"}
+        total = party_counts.get("persons")
+        if total is not None and not ages:
+            if "adults" in previous:
+                # A neutral follow-up cannot erase an already known child or
+                # relationship constraint or guess which age count changed.
+                if previous["adults"] + previous["children"] != total:
+                    clarification()
+                party = previous
+            else:
+                if relationship:
+                    clarification()
+                party = {"persons": total}
+        else:
+            # Complete age-specific refinements may replace a neutral total;
+            # partial ones still need a previously explicit age composition.
+            party = (previous if "adults" in previous else {}) | ages
+            if not {"adults", "children"} <= party.keys():
+                clarification()
+            if total is not None and party["adults"] + party["children"] != total:
+                clarification()
+        if "persons" not in party:
+            party["relationship"] = relationship or previous.get("relationship", "unspecified")
         strength = party_strength or "hard"
         put("party", party)
     if amenity_values:
