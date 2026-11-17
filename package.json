@@ -48,7 +48,8 @@
     "vaul": "^1.1.2"
   },
   "overrides": {
-    "brace-expansion": "5.0.9"
+    "brace-expansion": "5.0.9",
+    "picomatch": "npm:@ryotsu/picomatch@4.0.7-a"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
