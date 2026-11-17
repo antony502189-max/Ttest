@@ -8,6 +8,8 @@
 
 **Кандидат source-only:** blocked availability GET проверяется через5s, одинinflight/8s timeout, focus/visibilityrecheck иcleanupприunmount. Healthy-состояние не опрашивается таймером. НовыйES/RU/ENтекст сообщает обавтовосстановлении вместо неопределённыхминут. Никаких autoquery/voice/identity/session/reset; pendingkey/payload/continuation иpublication/freshnessguards неизменны.15public+30pilot/voicebrowserPASS, дополнительные2finalcleanupcasesPASS, types/lint/i18n/1077provenancePASS. CI/release кандидата ещёне подтверждены; actualprimary978/isolatedb0 прежние.
 
+**CI checkpoint3.52:** source6e750344 frontend44092314702 FAIL:2новыхcleanupassertion до завершенияRadixexit-animation приfakeclock; recovery/no-dispatch прошли. Тест теперь ждётactualunmount после500ms;6localrepetitionsPASS. Defaultlocalbrowser отсутствовал, проверкаповторена установленнымChrome. Runtimeнеизменён; originalFAILсохранён, новыйexact-sourceCIобязателен.
+
 **Следующее действие3.52:** exact-source CI/review→compatibleprimaryrelease→проверкаactualavailabilityrecovery без новых businesscalls. Затем прежний обязательный3.51 primaryJWT200/runtime/routing иостальныеquality/data/provider/performance/fullS7gates. Прямой новый screenshot/blocker ипоказчерезчас обосновывают порядок; критерииготовности/квоты/keys/cohortне ослаблять. Userpendingattempt разрешено восстановить только темжеkey, не отправлять новую операторскую попытку и не создаватьguest.
 
 

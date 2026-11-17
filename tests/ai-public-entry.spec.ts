@@ -249,5 +249,9 @@ for(const pending of [false,true]) test(`catalog status recovers automatically w
   ready=false;await page.evaluate(()=>window.dispatchEvent(new Event('focus')))
   await expect(page.locator('[data-private-demo-status]')).toContainText('actualizando')
   await page.getByRole('button',{name:'Cerrar',exact:true}).click()
+  // Radix retains the closing dialog until its exit animation finishes. With
+  // the fake clock installed, finish that animation before testing unmount.
+  await page.clock.runFor(500)
+  await expect(page.locator('[data-private-demo-status]')).toHaveCount(0)
   const afterClose=statusReads;await page.clock.fastForward(15000);expect(statusReads).toBe(afterClose)
 })
