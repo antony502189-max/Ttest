@@ -1,0 +1,20 @@
+{
+  "candidate-parser-replay.json": "0c489c8555e8ae5c4007ae4ceff1586edc634bef358538532072e5b9beb6d27e",
+  "comparison.json": "cf34aaaf17597b3bd332bae618a5ccf32a598bf2225a4363d2ab085464ec48ac",
+  "convert.py": "dbff846113f8316d93a2acc2af3f7b4e0e7de466cf064d8f0013afef22354ce4",
+  "converted-manifest.json": "b3ce4804361b72dbc2191d28d87c6ed7cdbece90dbe121a7d3709880dc54b79b",
+  "corpus-provenance.json": "0148b3e0a0df1c76b14f468dfeb1663f8fb685ba4c28721f6ded9514204f8e97",
+  "corpus-README.md": "5d7f13a790c3f4de73ec28608570d7a4619bce675f37bdd42af47dfa6bfb0281",
+  "discover.py": "42085110c85bdd23a036ddb12928cdfbf0b4db47c5bd5a2e898143b9ed02f4f9",
+  "evaluate-human.py": "0a8696330d10bc9052ea09c0af5c0c9a9c9f9b9f6a876cd2978b61b5f397e3c2",
+  "evaluate-memory.py": "898a6357533cfeda191891991cca945ca86a73a5fdf78b157a4038f4aca143b2",
+  "fetch-clips.py": "74b50dfbc35522b00cfab97f41fa1b43968605ac5684beb1d1726ab3ae60dff1",
+  "owner-redacted-summary.json": "c9b9c342d9cac6f44826b730ccd20a46bf7b89243d479090054d8537863efe45",
+  "public-manifest.json": "4fe168e116e5a15dbc6c40f7194ccc792e80e160d7842722196c641a7d2b9b46",
+  "README.md": "25b7ac38bf7dcc9bc9964f4913e296a364d975b40df646e1d6ebcb2893e73884",
+  "selection-and-license.json": "859d5b58abe7625edf39d4f1e54b5245f89db8f802032c42311b6c46e1c10d45",
+  "stress-manifest.json": "3936a63df82a86b4e243ec759cc2f60c8509c5b6d60cbac20b3b952d74e4d365",
+  "stress.py": "a99a5111b7d7fe25b0989b167efcfbc30625fc27d725e4afb7c058e69dbe7933",
+  "validation.json": "84e97d55502e2cb55332d8b81acd3ae4900ae4b2623be607d1d47e544a6b4efe",
+  "worker-no-hotwords.py": "64dd703593dd1e0f7e419e3905abc151d23101681a728204354a680edcd481dc"
+}

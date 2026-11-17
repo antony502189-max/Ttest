@@ -1,0 +1,172 @@
+{
+  "whole_public_transcripts_rejected": 33,
+  "source_sha256": "d5d78fef27d4948b0a5c14d706c97d20fa22dabaf221ac8372118d0f8072e8c8",
+  "exact_english_prefixes_accepted": 4,
+  "rows": [
+    {
+      "variant": "released-small",
+      "file": "common_voice_en_18338596.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "released-small",
+      "file": "common_voice_en_5478736.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "released-small",
+      "file": "common_voice_en_18274308.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "released-small",
+      "file": "common_voice_es_18395868.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "released-small",
+      "file": "common_voice_es_20884798.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "released-small",
+      "file": "common_voice_es_19958818.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "released-small",
+      "file": "common_voice_ru_37452149.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "released-small",
+      "file": "common_voice_ru_27710882.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "released-small",
+      "file": "common_voice_ru_18856190.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "small-no-hotwords",
+      "file": "common_voice_en_18338596.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "small-no-hotwords",
+      "file": "common_voice_en_5478736.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "small-no-hotwords",
+      "file": "common_voice_en_18274308.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "small-no-hotwords",
+      "file": "common_voice_es_18395868.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "small-no-hotwords",
+      "file": "common_voice_es_20884798.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "small-no-hotwords",
+      "file": "common_voice_es_19958818.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "small-no-hotwords",
+      "file": "common_voice_ru_37452149.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "small-no-hotwords",
+      "file": "common_voice_ru_27710882.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "small-no-hotwords",
+      "file": "common_voice_ru_18856190.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "small-stress",
+      "file": "common_voice_en_18338596-quiet_20db.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "small-stress",
+      "file": "common_voice_en_18338596-noise_20db_with_pause.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "small-stress",
+      "file": "common_voice_es_18395868-quiet_20db.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "small-stress",
+      "file": "common_voice_es_18395868-noise_20db_with_pause.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "small-stress",
+      "file": "common_voice_ru_37452149-quiet_20db.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "small-stress",
+      "file": "common_voice_ru_37452149-noise_20db_with_pause.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "parakeet-prototype",
+      "file": "common_voice_en_18338596.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "parakeet-prototype",
+      "file": "common_voice_en_5478736.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "parakeet-prototype",
+      "file": "common_voice_en_18274308.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "parakeet-prototype",
+      "file": "common_voice_es_18395868.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "parakeet-prototype",
+      "file": "common_voice_es_20884798.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "parakeet-prototype",
+      "file": "common_voice_es_19958818.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "parakeet-prototype",
+      "file": "common_voice_ru_37452149.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "parakeet-prototype",
+      "file": "common_voice_ru_27710882.wav",
+      "rejected_atomically": true
+    },
+    {
+      "variant": "parakeet-prototype",
+      "file": "common_voice_ru_18856190.wav",
+      "rejected_atomically": true
+    }
+  ]
+}

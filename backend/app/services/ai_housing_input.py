@@ -110,7 +110,8 @@ def housing_patch(text, current, vocabulary):
         clarification()
     # Recognize only complete search/politeness prefixes. Remaining words still
     # have to be consumed as typed conditions; no arbitrary prose is discarded.
-    prefix = (r"(?:please |пожалуйста |por favor )?(?:find(?: me)?|show(?: me)?|i need|i want|"
+    prefix = (r"(?:please |пожалуйста |por favor )?(?:find(?: me)?|show(?: me)?|i need(?: to rent)?|i want(?: to rent)?|"
+              r"i would like to rent|i'd like to rent|"
               r"i am looking for|i'm looking for|busco|estoy buscando|necesito|quiero alquilar|quiero encontrar|quiero|me gustaría alquilar|"
               r"(?:я )?ищу|найди(?:те)?(?: мне)?|(?:мне )?(?:нужна|нужен|нужно)|подбери(?:те)?(?: мне)?|"
               r"(?:я )?хочу (?:снять|найти)|покажи|теперь|now|ahora)")
@@ -241,7 +242,7 @@ def housing_patch(text, current, vocabulary):
                     break
         if not matched:
             for name, words in BOOL_WORDS.items():
-                negative = take(r"(?:without|sin|без) " + _alternatives(words))
+                negative = take(r"(?:without|not|sin|без) " + _alternatives(words))
                 positive = take(r"(?:(?:with|con|с) )?" + _alternatives(words))
                 matched = negative or positive
                 if matched:

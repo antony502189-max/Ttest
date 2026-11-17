@@ -1,0 +1,54 @@
+{
+  "revision": "8262c16bf297c87a9cd88c51997c4758ed7a8ba2",
+  "license_readme_sha256": "5d7f13a790c3f4de73ec28608570d7a4619bce675f37bdd42af47dfa6bfb0281",
+  "artifacts": [
+    {
+      "language": "en",
+      "tar": {
+        "type": "file",
+        "oid": "5e4eb65e1d46606b43fe26a793ba14ba925267b7",
+        "size": 711150592,
+        "lfs": {
+          "oid": "47160ec67fb545f41eba8103b0c0d7035dbb4ca3924043974449c7052c6f4775",
+          "size": 711150592,
+          "pointerSize": 134
+        },
+        "xetHash": "6b2f8afc8888af222626cb5a7a2faa5126c8974951f11f2cba2b8e5247f53069",
+        "path": "audio/en/test/en_test_0.tar"
+      },
+      "test_tsv_sha256": "b4d4db369413fcacacebee7de48e94c96c4f63383d6582e18a9b0856c5c8461a"
+    },
+    {
+      "language": "es",
+      "tar": {
+        "type": "file",
+        "oid": "d518caeaa0e5cf4e8d47d5592623b72f8274e0d4",
+        "size": 749712896,
+        "lfs": {
+          "oid": "16b33afe9c947ef4f1b0f55bcbc899e9024114484c7012cd1e0095df61788416",
+          "size": 749712896,
+          "pointerSize": 134
+        },
+        "xetHash": "5104e4d61513e59ef43f96debb9d0e40109e74c0fe1ea2c27e7341cf0bd1cd69",
+        "path": "audio/es/test/es_test_0.tar"
+      },
+      "test_tsv_sha256": "cb418f5c19b50982c2cb9d7ea266c90123c4b74c8e7cf4250638ab0897d1a4e9"
+    },
+    {
+      "language": "ru",
+      "tar": {
+        "type": "file",
+        "oid": "6698b51417e74d0bc2c570e6b5debb38bc3607cf",
+        "size": 396584448,
+        "lfs": {
+          "oid": "bd978611a35682952455bd0adaced31d2668a29d4fa4e71617c2d5de97eecb80",
+          "size": 396584448,
+          "pointerSize": 134
+        },
+        "xetHash": "75062dce370d6e40bd3cc82b797a223473f6fc31c96e12a614e81e99edbca426",
+        "path": "audio/ru/test/ru_test_0.tar"
+      },
+      "test_tsv_sha256": "15162124bd657adea07695c22508b8bad174c282dcafe2302faaed05645cc59a"
+    }
+  ]
+}

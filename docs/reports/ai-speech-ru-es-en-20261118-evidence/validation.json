@@ -1,0 +1,36 @@
+{
+  "schema": "ai-voice-source-validation.v1",
+  "source_parent": "db84b9b7",
+  "runtime_source_files": {
+    "backend/app/services/ai_housing_input.py": "d5d78fef27d4948b0a5c14d706c97d20fa22dabaf221ac8372118d0f8072e8c8"
+  },
+  "red": {
+    "renter_prefixes": 4,
+    "direct_boolean_negation_and_composite_cases": 8,
+    "unsupported_prefix_guards_already_passed": 10
+  },
+  "unit": {
+    "tests": "2124",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "16",
+    "time": "106.757"
+  },
+  "unit_passed": 2108,
+  "integration_deselected": 1268,
+  "targeted_housing_cases": 97,
+  "ruff": "PASS",
+  "mypy_files": 189,
+  "mypy": "PASS",
+  "git_diff_check": "PASS",
+  "ci": "not_yet_run",
+  "deployment": false,
+  "external_calls": 0,
+  "live_business_queries": 0,
+  "new_identities_resets": 0,
+  "runtime_input_provenance": {
+    "count": 1080,
+    "passed": true,
+    "historical_container_acceptance_transferred": false
+  }
+}
