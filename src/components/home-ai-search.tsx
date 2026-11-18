@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AudioLines, Mic, Search } from 'lucide-react'
-import { useLocation } from 'react-router'
-import { ApiError } from '@/api/client'
+import { useLocation, useNavigate } from 'react-router'
+import { ApiError, type AIAuthority } from '@/api/client'
 import { aiCapabilities, aiCardPage, aiMapCenter, aiResultPage, createAISession, getAIOperation, getAIQuota, getAIResult, getAISession, resetAISession, sendAIMessage, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
 import { aiConditionRows, aiModeLabel, type AICommittedIntent } from '@/api/ai-intent'
 import type { RentalMode } from '@/types'
@@ -22,16 +22,26 @@ import { AIResultMap as PublicAIMap } from '@/lab/ai-synthetic-map'
 import { readAIContinuation, storeAIContinuation } from '@/api/ai-continuation'
 
 const publicAI = import.meta.env.VITE_PUBLIC_AI_BETA === '1'
-const ResultMap = publicAI ? PublicAIMap : AIResultMap
 
 // Keying by identity discards private in-memory conversation on login/logout.
 type AIInputPolicy = { maxLength: number; placeholder: string; hint: string; validate: (text: string) => boolean }
 export function HomeAISearch({ homeMode, initialRentalMode, inputPolicy }: { homeMode: RentalMode; initialRentalMode?: RentalMode; inputPolicy?: AIInputPolicy }) {
   const { currentUser } = useApp()
-  return <AISearchPanel key={currentUser?.id ?? 'guest'} identity={publicAI ? 'public-guest' : currentUser?.id ?? 'guest'} homeMode={homeMode} initialRentalMode={publicAI ? 'long' : initialRentalMode} inputPolicy={publicAI ? pilotInput : inputPolicy} />
+  const location = useLocation()
+  const navigate = useNavigate()
+  const registered = publicAI && import.meta.env.VITE_AI_REGISTERED_SEARCH === '1' && Boolean(currentUser)
+  // Only the explicit registration return opens the former guest snapshot.
+  // It remains read/save-only under that authority, never an auth conversation.
+  const guestReturn = registered && new URLSearchParams(location.search).get('ai') === 'save' && Boolean(readAIContinuation('public-guest'))
+  const authority: AIAuthority | undefined = registered && !guestReturn ? 'registered' : publicAI ? 'public-guest' : undefined
+  const identity = authority === 'registered' ? `registered:${currentUser!.id}` : publicAI ? 'public-guest' : currentUser?.id ?? 'guest'
+  return <AISearchPanel key={`${currentUser?.id ?? 'guest'}:${identity}`} identity={identity} authority={authority} continuationOnly={guestReturn}
+    onRegisteredSearch={() => { const query = new URLSearchParams(location.search); query.delete('ai'); navigate({ pathname: location.pathname, search: query.toString() }, { replace: true }) }}
+    homeMode={homeMode} initialRentalMode={publicAI ? 'long' : initialRentalMode} inputPolicy={publicAI ? pilotInput : inputPolicy} />
 }
 
-function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: { homeMode: RentalMode; identity: string; initialRentalMode?: RentalMode; inputPolicy?: AIInputPolicy }) {
+function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, authority, continuationOnly, onRegisteredSearch }: { homeMode: RentalMode; identity: string; initialRentalMode?: RentalMode; inputPolicy?: AIInputPolicy; authority?: AIAuthority; continuationOnly?: boolean; onRegisteredSearch: () => void }) {
+  const ResultMap = publicAI && authority !== 'registered' ? PublicAIMap : AIResultMap
   const { t } = useI18n()
   const [enabled, setEnabled] = useState(false)
   const [mapEnabled, setMapEnabled] = useState(false)
@@ -53,7 +63,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
   const [resultInvalid, setResultInvalid] = useState(false)
   const [remaining, setRemaining] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
-  const [demoBlocked, setDemoBlocked] = useState(PRIVATE_DEMO)
+  const [demoBlocked, setDemoBlocked] = useState(PRIVATE_DEMO && authority !== 'registered')
   const [demoReason, setDemoReason] = useState(() => t('Comprobando la búsqueda…'))
   const [syncingSession, setSyncingSession] = useState(false)
   const [needsSync, setNeedsSync] = useState(false)
@@ -106,7 +116,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
         let failedOperation = false
         if (saved.operation) {
           operationLocator.current = saved.operation
-          const status = await getAIOperation(saved.operation.key, controller.signal)
+          const status = await getAIOperation(saved.operation.key, controller.signal, authority)
           if (controller.signal.aborted) return
           if (status.idempotency_key !== saved.operation.key) throw new Error('Operation binding mismatch')
           setRemaining(status.remaining)
@@ -126,15 +136,15 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
             setNotice('Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.')
           }
         }
-        const owned = await getAISession(saved.sessionId, controller.signal)
+        const owned = await getAISession(saved.sessionId, controller.signal, authority)
         if (controller.signal.aborted) return
         setSession(owned); setModeChoice('keep'); setNeedsSync(false); setSyncingSession(false)
         if (resultRef) {
-          const committed = await getAIResult(resultRef, controller.signal)
+          const committed = await getAIResult(resultRef, controller.signal, authority)
           if (committed.intent.session_id !== saved.sessionId || committed.result_ref !== resultRef ||
             (receipt && (committed.count !== receipt.count || committed.intent.version !== saved.operation!.expectedVersion + 1)))
             throw new Error('Result session mismatch')
-          const response = await aiResultPage(resultRef, undefined, controller.signal)
+          const response = await aiResultPage(resultRef, undefined, controller.signal, authority)
           if (response.intent_hash !== committed.intent_hash || aiConditionRows(committed.intent, restoreTranslate.current) === null)
             throw new Error('Result binding mismatch')
           if (controller.signal.aborted) return
@@ -166,7 +176,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
       }
     })()
     return () => controller.abort()
-  }, [identity, restoreEpoch])
+  }, [identity, restoreEpoch, authority])
 
   useEffect(() => {
     if (!restoring && !restoreFailed) storeAIContinuation(identity, session && !needsConversation
@@ -176,21 +186,21 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
 
   useEffect(() => {
     const controller = new AbortController()
-    void aiCapabilities(controller.signal).then(value => {
+    void aiCapabilities(controller.signal, authority).then(value => {
       if (!controller.signal.aborted) { setEnabled(value.text === true); setMapEnabled(value.map === true); setVoiceEnabled(value.voice === true); setSaveEnabled(value.save_handoff === true) }
     }).catch(() => { /* Ordinary search stays available when capability lookup fails. */ })
     return () => { controller.abort(); flight.current?.abort(); syncFlight.current?.abort() }
-  }, [])
+  }, [authority])
 
   const ownedSessionId = session?.intent.session_id
   useEffect(() => {
     if (!open || busy) return
     const controller = new AbortController()
-    void getAIQuota(controller.signal).then(quota => {
+    void getAIQuota(controller.signal, authority).then(quota => {
       if (!controller.signal.aborted) setRemaining(quota.remaining)
     }).catch(() => { /* Keep the last authoritative counter if refresh fails. */ })
     return () => controller.abort()
-  }, [open, ownedSessionId, busy])
+  }, [open, ownedSessionId, busy, authority])
 
   // Reuse manual search's legacy gallery recovery without delaying cards or
   // letting a previous response overwrite a later conversational result.
@@ -234,8 +244,8 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
     command.current = attempt
     setChangingSession(true)
     const fresh = attempt.source
-      ? await resetAISession(attempt.source, attempt.key, signal, attempt.mode)
-      : await createAISession(attempt.key, signal, attempt.mode)
+      ? await resetAISession(attempt.source, attempt.key, signal, attempt.mode, authority)
+      : await createAISession(attempt.key, signal, attempt.mode, authority)
     forgetCommand()
     return fresh
   }
@@ -256,7 +266,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
     setSyncingSession(true)
     setNeedsSync(true)
     try {
-      const latest = await getAISession(id, controller.signal)
+      const latest = await getAISession(id, controller.signal, authority)
       if (controller.signal.aborted) return
       setSession(latest)
       setNeedsSync(false)
@@ -271,6 +281,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
   }
 
   async function newConversation() {
+    if (continuationOnly) { onRegisteredSearch(); return }
     if (restoring || restoreFailed || lock.current || pending || syncingSession || needsSync) return
     lock.current = true
     setBusy(true)
@@ -301,6 +312,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
   }
 
   async function submit(audio?: string) {
+    if (continuationOnly) return
     if (restoring || restoreFailed || lock.current || (!pending && !audio && invalidText) || (!pending && (demoBlocked || remaining === 0 || (changingSession && session !== null) || needsConversation || needsSync || syncingSession || (!audio && !text.trim()) || !modeChoice || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))) return
     lock.current = true
     setBusy(true)
@@ -320,7 +332,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
       operationLocator.current ??= { key: message.idempotency_key, expectedVersion: message.expected_version, createdAt: Date.now() }
       storeAIContinuation(identity, { sessionId: message.session_id, operation: operationLocator.current })
       setPending(message)
-      const answer = await sendAIMessage(message, controller.signal)
+      const answer = await sendAIMessage(message, controller.signal, authority)
       setRemaining(answer.operation.remaining)
       if (answer.operation.status === 'running' || answer.operation.status === 'reserved') {
         setNotice('La búsqueda sigue en curso. Consulta de nuevo el mismo intento.')
@@ -333,7 +345,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
       if (answer.operation.status === 'failed') operationLocator.current = null
       if (answer.operation.status === 'succeeded' && answer.operation.receipt && answer.cards) {
         try {
-          const committed = await getAIResult(answer.operation.receipt.result_ref, controller.signal)
+          const committed = await getAIResult(answer.operation.receipt.result_ref, controller.signal, authority)
           if (committed.result_ref !== answer.operation.receipt.result_ref || committed.intent_hash !== answer.cards.intent_hash
             || committed.intent.session_id !== message.session_id || committed.intent.version !== message.expected_version + 1
             || committed.count !== answer.operation.receipt.count) throw new Error('Result binding mismatch')
@@ -420,7 +432,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
     const controller = new AbortController()
     flight.current = controller
     try {
-      const response = await aiResultPage(result.ref, cursor, controller.signal)
+      const response = await aiResultPage(result.ref, cursor, controller.signal, authority)
       if (response.intent_hash !== result.hash) throw new ApiError(409, 'AI_REQUERY_REQUIRED')
       if (!controller.signal.aborted) {
         setResult({ ...result, prices: response.budget_prices ?? [], center: aiMapCenter(response), page: aiCardPage(response) })
@@ -458,14 +470,14 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
     </section>
     <DialogContent className="ai-search-dialog">
       <DialogHeader><DialogTitle>{t('Encuentra tu habitación')}</DialogTitle><DialogDescription>{t('Usamos condiciones confirmadas de los anuncios para buscar opciones.')}</DialogDescription></DialogHeader>
-      <PrivateDemoStatus refreshKey={`${session?.intent.version ?? 0}:${busy}`} onBlocked={setDemoBlocked} onReason={setDemoReason} />
+      {authority !== 'registered' ? <PrivateDemoStatus refreshKey={`${session?.intent.version ?? 0}:${busy}`} onBlocked={setDemoBlocked} onReason={setDemoReason} /> : null}
       {import.meta.env.VITE_AI_CLOSED_LAB ? <p data-ai-lab-mode={import.meta.env.VITE_AI_CLOSED_LAB}>
         {t(import.meta.env.VITE_AI_CLOSED_LAB === 'closed-live-synthetic'
           ? 'Prueba cerrada con modelo real y catálogo simulado. Usa solo las frases sintéticas autorizadas. No envíes datos personales.'
           : 'Prueba cerrada con datos y respuestas simuladas. No envíes datos personales.')}
       </p> : null}
       <label htmlFor="ai-rental-mode">{t('Modo para esta búsqueda')}</label>
-      <select id="ai-rental-mode" value={modeChoice} disabled={recording || busy || restoring || restoreFailed || pending !== null || changingSession}
+      <select id="ai-rental-mode" value={modeChoice} disabled={continuationOnly || recording || busy || restoring || restoreFailed || pending !== null || changingSession}
         onChange={event => setModeChoice(event.target.value as typeof modeChoice)}>
         <option value="" disabled>{t('Elige cómo usar el modo de alquiler')}</option>
         {session ? <option value="keep">{t('Conservar las condiciones actuales de IA')}</option> : null}
@@ -476,13 +488,13 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
       <small>{t('El modo de inicio no cambia una conversación existente. Los demás filtros no se añaden a IA.')}</small>
       {session ? <AIConditions intent={session.intent} title="Condiciones para el próximo mensaje" /> : null}
       <label htmlFor="ai-search-text">{t(result ? '¿Qué quieres cambiar?' : 'Cuéntanos qué necesitas')}</label>
-      <textarea id="ai-search-text" data-i18n-exempt value={text} onChange={event => setText(event.target.value)} disabled={recording || busy || restoring || pending !== null}
+      <textarea id="ai-search-text" data-i18n-exempt value={text} onChange={event => setText(event.target.value)} disabled={continuationOnly || recording || busy || restoring || pending !== null}
         maxLength={inputPolicy?.maxLength ?? 16000} rows={3} autoComplete="off" spellCheck={false} placeholder={t(inputPolicy?.placeholder ?? 'Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
       {inputPolicy ? <p role={invalidText ? 'alert' : undefined} data-i18n-exempt>{t(inputPolicy.hint)}</p> : null}
-      {voiceEnabled ? <AIVoiceInput disabled={busy || restoring || restoreFailed || demoBlocked || pending !== null || changingSession || syncingSession || needsSync || needsConversation || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)}
+      {voiceEnabled ? <AIVoiceInput disabled={continuationOnly || busy || restoring || restoreFailed || demoBlocked || pending !== null || changingSession || syncingSession || needsSync || needsConversation || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)}
         disabledReason={busy ? 'Обрабатываем запрос и ищем варианты…' : demoBlocked ? demoReason : remaining === 0 ? 'Лимит запросов исчерпан. Повторите после его обновления.' : !modeChoice ? 'Выберите режим аренды перед записью.' : restoreFailed ? 'Не удалось восстановить поиск. Повторите восстановление.' : pending ? 'Ответ не подтверждён. Нажмите «Проверить результат попытки» ниже.' : 'Дождитесь завершения текущей операции и синхронизации поиска.'}
         onAudio={audio => void submit(audio)} onRecording={setRecording} /> : null}
-      <Button type="button" className="home-ai-search__action" disabled={recording || busy || restoring || restoreFailed || (!pending && (invalidText || demoBlocked || (changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
+      <Button type="button" className="home-ai-search__action" disabled={continuationOnly || recording || busy || restoring || restoreFailed || (!pending && (invalidText || demoBlocked || (changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
         onClick={() => void submit()}>{PRIVATE_DEMO && pending && !busy ? <span data-i18n-exempt>Проверить результат попытки</span> : t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : result ? 'Actualizar búsqueda' : 'Buscar habitaciones')}</Button>
       {busy && pending ? <Button type="button" variant="outline" onClick={() => {
         flight.current?.abort(); setBusy(false)
@@ -491,7 +503,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
       {restoreFailed ? <Button type="button" variant="outline" disabled={restoring} onClick={() => {
         setRestoring(true); setRestoreFailed(false); setRestoreEpoch(value => value + 1)
       }}>{t('Reintentar sincronización')}</Button> : null}
-      {(session || needsConversation || changingSession) ? <Button type="button" variant="outline" disabled={recording || busy || restoring || restoreFailed || syncingSession || needsSync || pending !== null}
+      {(continuationOnly || session || needsConversation || changingSession) ? <Button type="button" variant="outline" disabled={!continuationOnly && (recording || busy || restoring || restoreFailed || syncingSession || needsSync || pending !== null)}
         onClick={() => void newConversation()}>{t('Iniciar nueva conversación')}</Button> : null}
       {needsSync && session && !restoreFailed ? <Button type="button" variant="outline" disabled={syncingSession || busy}
         onClick={() => void refreshSession(session.intent.session_id, true)}>{t('Reintentar sincronización')}</Button> : null}
@@ -502,7 +514,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
         <p>{t('Solo mostramos opciones con datos verificados recientes. Puede haber fuentes sin verificar; los resultados no cubren todo el mercado.')}</p>
         <p>{t('La lista y el mapa se actualizan por separado. Los anuncios pueden cambiar entre ambas lecturas; el mapa solo muestra la zona visible.')}</p>
         <AIConditions intent={result.committed.intent} title="Condiciones de estos resultados" />
-        {!resultInvalid ? <SaveAIResult key={`${identity}:${result.ref}`} resultRef={result.ref} available={saveEnabled} disabled={busy || changingSession || pending !== null || !pagingAvailable} /> : null}
+        {!resultInvalid ? <SaveAIResult key={`${identity}:${result.ref}`} resultRef={result.ref} authority={authority} available={saveEnabled} disabled={busy || changingSession || pending !== null || !pagingAvailable} /> : null}
         {!resultInvalid ? <>
         <h3>{result.page.total} {t('opciones con condiciones confirmadas')}</h3>
         <p>{t('Los anuncios y su orden pueden cambiar entre páginas. Actualiza la lista para ver cambios desde el principio.')}</p>
@@ -510,7 +522,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy }: {
         {mapEnabled ? <Button type="button" variant="outline" aria-pressed={mapVisible} onClick={() => setMapVisible(value => !value)}>{t(mapVisible ? 'Ver lista' : 'Ver mapa')}</Button> : null}
         {!result.page.total ? <p>{t('No encontramos opciones con todas las condiciones confirmadas. Puedes ajustar tu búsqueda.')}</p> : null}
         {mapVisible ? <ResultMap key={`${result.ref}:${result.hash}`} resultRef={result.ref} intentHash={result.hash} refreshVersion={mapRefreshVersion}
-          center={result.center} total={result.page.total} /> : null}
+          center={result.center} total={result.page.total} authority={authority} /> : null}
         <div className="ai-search-dialog__cards" hidden={mapVisible} style={{ display: mapVisible ? 'none' : undefined }}>{result.page.items.map(listing => {
           const price = result.prices.find(value => value.listing_id === listing.id)
           const periods = { monthly: 'por mes', weekly: 'por semana', nightly: 'por noche' } as const

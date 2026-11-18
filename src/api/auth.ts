@@ -1,4 +1,4 @@
-import { api, setAccessToken } from './client'
+import { api, getSessionGeneration, setAccessToken, withSessionMutation } from './client'
 import type { UserRole } from '@/types'
 import type { RemoteUser } from './users'
 
@@ -24,14 +24,14 @@ function announceAuthReady() {
 }
 
 export async function loginWithPassword(email: string, password: string) {
-  const session = await api<Session>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
+  const session = await withSessionMutation(() => api<Session>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }))
   setAccessToken(session.accessToken)
   rememberSession()
   return session.user
 }
 
 export async function loginWithGoogle(credential: string) {
-  const session = await api<Session>('/auth/google', { method: 'POST', body: JSON.stringify({ credential }) })
+  const session = await withSessionMutation(() => api<Session>('/auth/google', { method: 'POST', body: JSON.stringify({ credential }) }))
   setAccessToken(session.accessToken)
   rememberSession()
   return session.user
@@ -41,7 +41,7 @@ export const selectGoogleRole = (role: 'tenant' | 'host') =>
   api<RemoteUser>('/auth/google/role', { method: 'POST', body: JSON.stringify({ role }) })
 
 export async function registerAccount(input: { name: string; email: string; password: string; role: UserRole }) {
-  const session = await api<Session>('/auth/register', { method: 'POST', body: JSON.stringify(input) })
+  const session = await withSessionMutation(() => api<Session>('/auth/register', { method: 'POST', body: JSON.stringify(input) }))
   setAccessToken(session.accessToken)
   rememberSession()
   return session.user
@@ -54,17 +54,18 @@ export const verifyEmail = (code: string) => api<void>('/auth/email-verification
 export const getEmailVerificationStatus = () => api<{ verified: boolean; email: string }>('/auth/email-verification/status')
 
 export async function hydrateSession() {
+  const generation = getSessionGeneration()
   if (!hasSessionHint()) {
     announceAuthReady()
     return null
   }
   try {
-    const session = await api<Session>('/auth/refresh', { method: 'POST' })
+    const session = await withSessionMutation(() => api<Session>('/auth/refresh', { method: 'POST' }))
+    if (generation !== getSessionGeneration()) return null
     setAccessToken(session.accessToken)
     return session.user
   } catch (error) {
-    forgetSession()
-    setAccessToken(null)
+    if (generation === getSessionGeneration()) { forgetSession(); setAccessToken(null) }
     throw error
   } finally {
     announceAuthReady()
@@ -72,18 +73,16 @@ export async function hydrateSession() {
 }
 
 export async function logoutSession() {
-  if (!hasSessionHint()) {
-    setAccessToken(null)
-    return
-  }
+  // Queue cookie revocation before future logins, then invalidate local
+  // authority synchronously. A slow reply cannot clear a subsequent login.
+  const revocation = hasSessionHint() ? withSessionMutation(() => api<void>('/auth/logout', { method: 'POST' })) : Promise.resolve()
+  setAccessToken(null)
+  forgetSession()
   try {
-    await api<void>('/auth/logout', { method: 'POST' })
+    await revocation
   } catch {
     // Server-side revocation is best-effort during an outage. Local logout is
     // still authoritative, so callers must be allowed to clear UI state and
     // navigate away instead of keeping a stale authenticated screen mounted.
-  } finally {
-    forgetSession()
-    setAccessToken(null)
   }
 }

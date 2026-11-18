@@ -1,0 +1,18 @@
+{
+  "primary": "07ebc1d5ad9b626bdb9e8e03a94126bd25225a66",
+  "previous_primary": "f5ba0c18edc4083c6087cbb5648ebe54269d218d",
+  "regular_runner": "success",
+  "schema": "0080_ai_saved_rematch",
+  "data_maintenance_skipped": true,
+  "delivery_timer": "active",
+  "retention_timer": "active",
+  "post_release_ticks": "success",
+  "isolated_image_unchanged": true,
+  "provider_calls": 0,
+  "calendar_journal_adoption_executed": false,
+  "party_reader_compatibility": true,
+  "party_total_producer_source": true,
+  "english_renter_negation_release": true,
+  "asr_engine_changed": false,
+  "catalog_refresh_timer": "active"
+}

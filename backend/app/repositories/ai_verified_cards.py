@@ -21,7 +21,7 @@ from geoalchemy2 import Geometry
 from geoalchemy2.functions import ST_X, ST_Y
 from sqlalchemy import and_, cast, select, text
 
-from ..models import CatalogState, Listing
+from ..models import CatalogState, ExternalListingSource, Listing
 from ..models.ai_query_proof import AiQueryProof
 from ..schemas.ai_listing_facts import digest
 from ..schemas.ai_search_intent import SearchIntent
@@ -87,11 +87,25 @@ class SourceCoverageUnavailable(ValueError):
 
 
 class VerifiedCardSearch:
-    def __init__(self, pipeline: FactPipeline, sessions: SearchSessions, *, signing_key: bytes):
+    def __init__(self, pipeline: FactPipeline, sessions: SearchSessions, *, signing_key: bytes,
+                 source_ids: tuple[UUID, ...] | None = None):
         if sessions.ledger.sessions is not pipeline.sessions:
             raise ValueError("query and owned sessions must share the same database session factory")
         self.pipeline, self.sessions = pipeline, sessions
         self.cursors = AICardCursors(signing_key)
+        if source_ids is not None and (type(source_ids) is not tuple or not 1 <= len(source_ids) <= 100
+                or any(type(value) is not UUID for value in source_ids) or len(set(source_ids)) != len(source_ids)):
+            raise ValueError("explicit bounded source cohort required")
+        self.source_ids = tuple(sorted(source_ids)) if source_ids is not None else None
+
+    def _base(self, payload):
+        base = apply_search_filters(visible_query(), payload)
+        if self.source_ids is not None:
+            # Anchor membership is re-read in this transaction. All current
+            # authorities still participate in proof checks; no post-page filter.
+            base = base.where(Listing.id.in_(select(ExternalListingSource.canonical_listing_id).where(
+                ExternalListingSource.id.in_(self.source_ids))))
+        return _materialized_candidates(base)
 
     async def search_owned(self, subject: QuotaSubject, session_id: UUID, expected_version: int,
                            payload: ListingCardSearchRequest) -> VerifiedCardResult:
@@ -119,7 +133,7 @@ class VerifiedCardSearch:
             if self.pipeline.operating_policy is not None:
                 # Check coverage independently of the requested constraints:
                 # zero matches is meaningful only with usable source evidence.
-                base = _materialized_candidates(apply_search_filters(visible_query(), payload))
+                base = self._base(payload)
                 covered = base.where(verified_coverage_predicate(self.pipeline, candidate,
                     cohort_scope=_candidate_cohorts(base, self.pipeline)))
                 if not await session.scalar(select(covered.exists())):
@@ -153,12 +167,13 @@ class VerifiedCardSearch:
         context = digest({"subject": [subject.kind, str(subject.id)], "intent": normalized_hash,
             "filters": _cursor_fingerprint(payload), "catalog": catalog,
             "facts": facts, "proofs": proofs, "resolver": self.pipeline.resolver_version,
-            "vocabulary": self.pipeline.vocabulary_hash, "proof_contract": PROOF_CONTRACT_VERSION})
+            "vocabulary": self.pipeline.vocabulary_hash, "proof_contract": PROOF_CONTRACT_VERSION,
+            **({"source_cohort": [str(value) for value in self.source_ids]} if self.source_ids is not None else {})})
         raw_cursor = self.cursors.decode(payload.cursor, context)
         payload = payload.model_copy(update={"cursor": raw_cursor})
         # EXISTS preserves one catalog row per listing and the existing
         # commercial ordering/gallery/redirect pipeline. No post-page filter.
-        base = _materialized_candidates(apply_search_filters(visible_query(), payload))
+        base = self._base(payload)
         filtered = base.where(_verified_intent_predicate(self.pipeline, intent, compiled,
             cohort_scope=_candidate_cohorts(base, self.pipeline)))
         cards = await _search_filtered_cards(session, payload, filtered, _cursor_fingerprint(payload))
@@ -218,7 +233,7 @@ class VerifiedCardSearch:
         await configure_ai_query(session)
         bounded = payload.model_copy(update={"minLatitude": payload.south, "maxLatitude": payload.north,
                                              "minLongitude": payload.west, "maxLongitude": payload.east})
-        base = _materialized_candidates(apply_search_filters(visible_query(), bounded))
+        base = self._base(bounded)
         filtered = base.where(verified_intent_predicate(self.pipeline, intent, cohort_scope=_candidate_cohorts(base, self.pipeline)))
         return VerifiedMapResult(await _search_filtered_map(session, payload, filtered), intent_hash(intent))
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
-import { api } from '@/api/client'
+import { api, type AIAuthority } from '@/api/client'
 import { useApp } from '@/contexts/app-context'
 import { useI18n } from '@/contexts/i18n-context'
 import { Button } from '@/components/ui/button'
@@ -11,7 +11,7 @@ const copy = {
   ru: { save: 'Сохранить поиск и включить уведомления', register: 'Зарегистрироваться, чтобы сохранить поиск', hint: 'После входа вернитесь к этому поиску и нажмите «Сохранить». Уведомления появятся в аккаунте, когда будут новые проверенные совпадения.', saved: 'Поиск сохранён. Уведомления можно приостановить в сохранённых поисках.', busy: 'Сохраняем…', error: 'Не удалось сохранить. Проверьте вход и повторите попытку — новая попытка AI-поиска не спишется.', manage: 'Открыть сохранённые поиски' },
 }
 
-export function SaveAIResult({ resultRef, available, disabled }: { resultRef: string; available: boolean; disabled: boolean }) {
+export function SaveAIResult({ resultRef, available, disabled, authority }: { resultRef: string; available: boolean; disabled: boolean; authority?: AIAuthority }) {
   const { currentUser } = useApp()
   const { language } = useI18n()
   const t = copy[language as keyof typeof copy] ?? copy.es
@@ -37,7 +37,7 @@ export function SaveAIResult({ resultRef, available, disabled }: { resultRef: st
       // Token and typed criteria stay in memory, never local/session storage.
       // The public guest request omits bearer; only the primary save uses it.
       const issued = await api<{ token: string }>(`/ai-search/results/${encodeURIComponent(resultRef)}/save-token`, {
-        method: 'POST', headers: { 'X-AI-Request': '1' }, signal: controller.signal, cache: 'no-store',
+        aiAuthority: authority, method: 'POST', headers: { 'X-AI-Request': '1' }, signal: controller.signal, cache: 'no-store',
       })
       await api('/saved-searches/ai', { method: 'POST', body: JSON.stringify({ token: issued.token }), signal: controller.signal, cache: 'no-store' })
       if (!controller.signal.aborted) setSaved(true)
