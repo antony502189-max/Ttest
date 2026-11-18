@@ -1,0 +1,9 @@
+{
+  "discover-audio.py": "a5216511cf08451554d3b0abdda70f66c7aa8168e0e3c75dd9e77cda6d3deefd",
+  "evaluate-human.py": "4a49f5f0f59735de1f7987d248250105bca6325662c06a52ecf2ee02f7225543",
+  "manifest.json": "af9b73b04d69bab9392b3e35595e26eaadc0e6c1bfc9ebef47508d3a1c10f875",
+  "parser-replay.json": "b9adef9da4082179965bb374d70fef07397c99867543ff208fb18e209c2f3d39",
+  "small-before.jsonl": "704ace98562b2f660ea3df72f09f02f76322e3e54cafdb1a3c7961d3ed65e668",
+  "tatoeba-en-license-results.json": "343cd788a2d7d33bb16d82e6c552c1061d7b7b2f1fe63ad83a54a7a678933fce",
+  "validation.json": "51d01a293d94a72408650bfac14fc6f15c1bef7e095957c8182cb87668edcee3"
+}

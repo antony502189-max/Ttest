@@ -1,0 +1,179 @@
+{
+  "method": "Replay all eleven unchanged Small outputs into repaired parser; not a second ASR run or live query.",
+  "results": [
+    {
+      "file": "fsi7-051.wav",
+      "pcm_sha256": "50e45e130838be1f891e686a337979c14081a6324cae39bc9804fee3492ad678",
+      "expected": {
+        "furnished": false
+      },
+      "reference_parser": {
+        "status": "accepted",
+        "patch": {
+          "schema_version": "ai-search.v1",
+          "session_id": "00000000-0000-0000-0000-000000000001",
+          "expected_version": 0,
+          "set": {
+            "furnished": {
+              "strength": "hard",
+              "value": false
+            }
+          },
+          "remove": []
+        }
+      },
+      "actual_small_transcript_parser": {
+        "status": "accepted",
+        "patch": {
+          "schema_version": "ai-search.v1",
+          "session_id": "00000000-0000-0000-0000-000000000001",
+          "expected_version": 0,
+          "set": {
+            "furnished": {
+              "strength": "hard",
+              "value": false
+            }
+          },
+          "remove": []
+        }
+      }
+    },
+    {
+      "file": "fsi7-052.wav",
+      "pcm_sha256": "02839fb17c4235f230f431ab25a939563a4203fdc6eb70782c97ddd4df0ef348",
+      "expected": {
+        "furnished": false
+      },
+      "reference_parser": {
+        "status": "accepted",
+        "patch": {
+          "schema_version": "ai-search.v1",
+          "session_id": "00000000-0000-0000-0000-000000000001",
+          "expected_version": 0,
+          "set": {
+            "furnished": {
+              "strength": "hard",
+              "value": false
+            }
+          },
+          "remove": []
+        }
+      },
+      "actual_small_transcript_parser": {
+        "status": "accepted",
+        "patch": {
+          "schema_version": "ai-search.v1",
+          "session_id": "00000000-0000-0000-0000-000000000001",
+          "expected_version": 0,
+          "set": {
+            "furnished": {
+              "strength": "hard",
+              "value": false
+            }
+          },
+          "remove": []
+        }
+      }
+    },
+    {
+      "file": "fsi7-053.wav",
+      "pcm_sha256": "0141ce1066bd1c20c9e0c5ec60ad1bc6a9c542d5ba3626ee34f349893aac5ce9",
+      "expected": "clarification",
+      "reference_parser": {
+        "status": "clarification"
+      },
+      "actual_small_transcript_parser": {
+        "status": "clarification"
+      }
+    },
+    {
+      "file": "fsi7-054.wav",
+      "pcm_sha256": "1374f87fbc77f4530e4eb6968a3df9178786ad822777c1f5842687b3026f75cc",
+      "expected": "clarification",
+      "reference_parser": {
+        "status": "clarification"
+      },
+      "actual_small_transcript_parser": {
+        "status": "clarification"
+      }
+    },
+    {
+      "file": "fsi7-055.wav",
+      "pcm_sha256": "f070f130e7975b7fd5013139e5adf2c3a38695cd3e6497cb5aa24c650c67d391",
+      "expected": "clarification",
+      "reference_parser": {
+        "status": "clarification"
+      },
+      "actual_small_transcript_parser": {
+        "status": "clarification"
+      }
+    },
+    {
+      "file": "fsi7-056.wav",
+      "pcm_sha256": "fc08cfd4da54e43aac96af1948ffc65e14b61c78d6a13234f5d48b9765b8a197",
+      "expected": "clarification",
+      "reference_parser": {
+        "status": "clarification"
+      },
+      "actual_small_transcript_parser": {
+        "status": "clarification"
+      }
+    },
+    {
+      "file": "fsi7-057.wav",
+      "pcm_sha256": "714f3b663b2137bd8787c041fa22b78e6acdf0f221e6a7d95265a1e407d4b3c5",
+      "expected": "clarification",
+      "reference_parser": {
+        "status": "clarification"
+      },
+      "actual_small_transcript_parser": {
+        "status": "clarification"
+      }
+    },
+    {
+      "file": "fsi7-060.wav",
+      "pcm_sha256": "9bc06c1dbf68da741058ac17879161812d970c173479394f2197b6bd051ed509",
+      "expected": "clarification",
+      "reference_parser": {
+        "status": "clarification"
+      },
+      "actual_small_transcript_parser": {
+        "status": "clarification"
+      }
+    },
+    {
+      "file": "fsi7-061.wav",
+      "pcm_sha256": "af21bb18471cd2b8314108b18119e1e3077b8a038831173c494727c47248c300",
+      "expected": "clarification",
+      "reference_parser": {
+        "status": "clarification"
+      },
+      "actual_small_transcript_parser": {
+        "status": "clarification"
+      }
+    },
+    {
+      "file": "fsi7-062.wav",
+      "pcm_sha256": "f50ecdba80ef68bb0557c27c511ab99fea4f2396501f2e0d2ae044d338b9c073",
+      "expected": "clarification",
+      "reference_parser": {
+        "status": "clarification"
+      },
+      "actual_small_transcript_parser": {
+        "status": "clarification"
+      }
+    },
+    {
+      "file": "fsi7-063.wav",
+      "pcm_sha256": "969f821254af644839b6433e39b7d11f944691459fc2e09baff04eb26d3523c9",
+      "expected": "clarification",
+      "reference_parser": {
+        "status": "clarification"
+      },
+      "actual_small_transcript_parser": {
+        "status": "clarification"
+      }
+    }
+  ],
+  "all_expected": true
+}

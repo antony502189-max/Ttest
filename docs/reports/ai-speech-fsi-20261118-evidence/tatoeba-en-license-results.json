@@ -1,0 +1,41 @@
+{
+  "pages": 6,
+  "rows": 547,
+  "has_next": false,
+  "redistributable": [
+    {
+      "id": 13013049,
+      "text": "He's looking for a double room.",
+      "text_license": "CC BY 2.0 FR",
+      "owner": "rul",
+      "audios": [
+        {
+          "id": 1285615,
+          "created": "2026-09-26T05:43:41+00:00",
+          "author": "rul",
+          "license": "CC BY 4.0",
+          "attribution_url": "https://tatoeba.org/user/profile/rul",
+          "download_url": "https://api.tatoeba.org/v1/audio/1285615/file",
+          "modified": "2026-09-26T05:43:41+00:00"
+        }
+      ]
+    },
+    {
+      "id": 293230,
+      "text": "He rented a room on the top floor in order to enjoy a good view.",
+      "text_license": "CC BY 2.0 FR",
+      "owner": "CK",
+      "audios": [
+        {
+          "id": 1047763,
+          "created": "2022-06-19T23:45:35+00:00",
+          "author": "Auride",
+          "license": "CC BY-SA 4.0",
+          "attribution_url": "https://tatoeba.org/user/profile/Auride",
+          "download_url": "https://api.tatoeba.org/v1/audio/1047763/file",
+          "modified": "2022-06-19T23:45:35+00:00"
+        }
+      ]
+    }
+  ]
+}
