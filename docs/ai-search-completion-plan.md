@@ -1,8 +1,15 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.62**, 18 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.63**, 18 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+
+**S4.4 actual owner acceptance3.63:** владелец прямо разрешил один local text query + explicitSave в текущем аккаунте. В обычном Chrome отправлен ровно один запрос «Комната в Ла-Лагуне до 700 евро в месяц, с мебелью». UI показал long/room/municipality38023/700EUR-month/furnished=true, один вариант с подтверждённой ценой550EUR/month, лимит200→199. После прокрутки и одного фактического Save UI подтвердил: «Поиск сохранён. Уведомления можно приостановить в сохранённых поисках». Первый clickSave за пределами окна отклонён до действия; повтор после свежего screenshot/scroll. Новых accounts/guest/quota reset/provider approvals не создавали, bearer/cookie не экспортированы. Это реальная UI-приёмка account debit и Save, serverSQL equality/новый rematch/notification delivery отдельно ещё не проверены.
+
+**Остановка computer-use3.63:** попытка проверить reload остановлена Windows browser URL policy: инструмент не смог достаточно уверенно определить текущий URL. После сообщения запрета никаких browser input/retry/bypass не выполнялось. Reload/reopen не объявлены PASS. Exact-main5cb последний actual срез7SUCCESS/Fullaudit running.
+
+**Следующее действие3.63:** независимо read-only проверить native account request/ledger/result и сохранённый snapshot/rematch на сервере, не отправляя второй businessquery; получить final exact-main audit. Reload/reopen проверить только после восстановления безопасного browser-control либо вручную владельцем. Затем прежние human voice/A9 locale/realmic/p95/signup-email/новая notification/data/provider/performance/S7 gates. Одно-query разрешение3.63 использовано; не распространять его на следующие queries. Полное завершение клиенту не объявлено.
+
 
 **S4.4/S6 actual checkpoint3.62:** PR432 final source `f9fef02e66512909ac35f03bc8f7aa60aa400250` прошёл13actual workflows SUCCESS/2conditionalSKIP; realPG account200→199/replay иsource scope tests PASS. Первый fixture .test FAIL сохранён, исправлен только reserved domain; отменённый combined job повторён адресно без ослабления assertions. Ordinary merge main `5cb1503a8b5649377f3f722d26a6a0933f0b5bbf` имеет идентичное source tree. Exact-main на последнем срезе7SUCCESS/Fullaudit running, не объявлен полностью проверенным.
 
@@ -856,3 +863,6 @@ Offline browser seam не воспроизвёл прежние2clarification fa
 
 ### Версии3.60–3.62 —18.11.2026 / S4.1,S4.4,S6
 3.60: реальные полные FSI Spanish utterances выявили furniture-negative parser gap, исправлен с сохранением отказов. 3.61: native account composition/source tests/default-off pairing подготовлены. 3.62: финальный source CI, полный cold composition и ordinary actual release завершены; owner UI200 подтверждён без businessquery. Маршрут A1–A12 сохранён. Выпуск выполнен по проверенному final source13SUCCESS + идентичному merge tree + full composition; широкий exact-main audit учитывается отдельно, остаётсяOPEN доactualSUCCESS. Старые ключи, guest/account identities, квоты/journals/cohort/provider approval не сбрасываются. Следующий обязательный acceptance и external gates не заменены новыми улучшениями.
+
+### Версия3.63 —18.11.2026 / S4.4 actual owner query + Save
+Выполнено новое явное ограниченное разрешение владельца:1native account text request иSave, UI200→199/1card550/сохранениеPASS. URL-policy остановила следующий reload check; барьер не обходился, этот пункт остаётсяOPEN. Остальной основной маршрут и gates сохранены.

@@ -1,0 +1,25 @@
+{
+  "method": "Normal existing owner Chrome/account, Windows Computer Use; direct UI observations only.",
+  "explicit_user_authorization": "one local text query and explicit Save",
+  "business_queries_sent": 1,
+  "quota_before": 200,
+  "quota_after": 199,
+  "result_count": 1,
+  "verified_monthly_price_eur": 550,
+  "criteria_observed": {
+    "mode": "long",
+    "accommodation": "room",
+    "municipality_code": "38023",
+    "budget_eur_per_month": 700,
+    "furnished": true
+  },
+  "save_confirmation_observed": true,
+  "notification_delivery_observed": false,
+  "server_sql_verified": false,
+  "reload_verified": false,
+  "computer_use_stopped": "Browser URL could not be determined with enough confidence; no further browser input or bypass.",
+  "new_identities": 0,
+  "quota_reset": false,
+  "credentials_exported": false,
+  "full_ai_search_complete": false
+}
