@@ -1,0 +1,18 @@
+{
+  "retained_setup_failures": [
+    {
+      "step": "initial Dockerfile",
+      "failure": "FROM sha256:<local image ID> was interpreted as a registry repository reference and failed metadata resolution. No candidate was built or activated."
+    },
+    {
+      "step": "premature probe",
+      "failure": "No candidate image existed; Docker rejected the run. It did not execute inference or a business query."
+    },
+    {
+      "step": "first shell guard attempt",
+      "failure": "PowerShell expanded an intended remote command substitution locally; the absent local Docker socket caused failure before remote build. No secrets were printed. Replaced with an argument-array Python orchestrator, not a quoted shell expression."
+    }
+  ],
+  "successful_correction": "Verify exact existing parent image ID, assign a task-owned cached parent tag, build with pull=false/network=none, then independently probe the successful candidate by immutable image ID.",
+  "application_or_asr_change_due_to_harness_fixes": false
+}

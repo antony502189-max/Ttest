@@ -1,0 +1,880 @@
+{
+  "schema": "ai-human-speech-diagnostic.v1",
+  "image": "sha256:7b3fb5810f51978ff70a7753360e35ff38f36410d6e271eef656e696629f8ebc",
+  "cpu": 2,
+  "memory_mib": 1536,
+  "swap": false,
+  "docker_logging": "none",
+  "network": "none",
+  "variants": {
+    "released-small": {
+      "samples": [
+        {
+          "file": "common_voice_en_18338596.wav",
+          "language": "en",
+          "duration": 5.616,
+          "reference": "He earned extra money by renting a room in his house to a lodger",
+          "pcm_sha256": "379135840913a402aff2cb179e4e612ee2272e13e461540bccdc1bd422dc582d",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 9.638,
+          "asr_completed": true,
+          "transcript": "He earned extra money by renting a room in his house to a larger",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 14,
+          "word_errors": 1,
+          "wer": 0.0714,
+          "audio_seconds": 8.973,
+          "memory_peak_bytes": 1193496576
+        },
+        {
+          "file": "common_voice_en_5478736.wav",
+          "language": "en",
+          "duration": 5.064,
+          "reference": "I need to pay rent and keep the doors open.",
+          "pcm_sha256": "8d01ac12e5b13be0774f772764af7e3e8289227ab864b8c3d34339434376e5aa",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.76,
+          "asr_completed": true,
+          "transcript": "I need to pay rent and keep the door open.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 10,
+          "word_errors": 1,
+          "wer": 0.1,
+          "audio_seconds": 8.261,
+          "memory_peak_bytes": 1220354048
+        },
+        {
+          "file": "common_voice_en_18274308.wav",
+          "language": "en",
+          "duration": 3.336,
+          "reference": "The tenant always paid his rent on time.",
+          "pcm_sha256": "a1a2f0e9dd73ff858dcdd8425d239b9dcefedac3e7d0ffe72d7c93f091c89aec",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.225,
+          "asr_completed": true,
+          "transcript": "La Tener always paid his rent on time.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 8,
+          "word_errors": 2,
+          "wer": 0.25,
+          "audio_seconds": 10.222,
+          "memory_peak_bytes": 1220468736
+        },
+        {
+          "file": "common_voice_es_18395868.wav",
+          "language": "es",
+          "duration": 3.336,
+          "reference": "A ver cuando ordenas la habitación.",
+          "pcm_sha256": "b5b4fdd48187d96c831f44ea8d9bc87569ccb17c6fb10af1c97ad65170b702bc",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.499,
+          "asr_completed": true,
+          "transcript": "A ver cuándo ordenas la habitación",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 6,
+          "word_errors": 1,
+          "wer": 0.1667,
+          "audio_seconds": 11.065,
+          "memory_peak_bytes": 1220771840
+        },
+        {
+          "file": "common_voice_es_20884798.wav",
+          "language": "es",
+          "duration": 5.424,
+          "reference": "Consideraba que toda habitación debería permitir ver el cielo.",
+          "pcm_sha256": "d8ba740b467344f05bee28730fdb17646d3499a485d37afda1794e3634afabd8",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.651,
+          "asr_completed": true,
+          "transcript": "consideraba que toda habitación debería permitir ver el cielo.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 9,
+          "word_errors": 0,
+          "wer": 0.0,
+          "audio_seconds": 10.006,
+          "memory_peak_bytes": 1220771840
+        },
+        {
+          "file": "common_voice_es_19958818.wav",
+          "language": "es",
+          "duration": 8.424,
+          "reference": "Más allá de este núcleo había dos dormitorios dispuestos eficientemente.",
+          "pcm_sha256": "10f7252e9c91f7f5249c1ebfd499375750717138696c3af79fa07bd4810aa55a",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 4.464,
+          "asr_completed": true,
+          "transcript": "más allá de este núcleo había tonos dormitorios dispuestos eficientemente.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 10,
+          "word_errors": 1,
+          "wer": 0.1,
+          "audio_seconds": 10.083,
+          "memory_peak_bytes": 1220964352
+        },
+        {
+          "file": "common_voice_ru_37452149.wav",
+          "language": "ru",
+          "duration": 5.22,
+          "reference": "Вскоре я выздоровел и мог перебраться на мою квартиру.",
+          "pcm_sha256": "a26c97755532d35f68e194ac652252e859827ce1553fcd48b0093368f08b1b12",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.858,
+          "asr_completed": true,
+          "transcript": "Вскоре я выздоровел и мог перебраться на мою квартиру.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 9,
+          "word_errors": 0,
+          "wer": 0.0,
+          "audio_seconds": 9.377,
+          "memory_peak_bytes": 1220964352
+        },
+        {
+          "file": "common_voice_ru_27710882.wav",
+          "language": "ru",
+          "duration": 4.32,
+          "reference": "– Какую тебе квартиру? Оставайся у меня.",
+          "pcm_sha256": "9f7a944d691264c7d3fd8f35ebbca4d31616f686c63277f2d3bdf6720bdc4cbf",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.702,
+          "asr_completed": true,
+          "transcript": "Какую тебе квартиру? Оставайся у меня.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 6,
+          "word_errors": 0,
+          "wer": 0.0,
+          "audio_seconds": 15.899,
+          "memory_peak_bytes": 1221169152
+        },
+        {
+          "file": "common_voice_ru_18856190.wav",
+          "language": "ru",
+          "duration": 4.752,
+          "reference": "И ты оставил ее утром одну… в квартире?",
+          "pcm_sha256": "2480a3e09927a03de07e1e99fc716c90471daf41ba4a8cad291ea93bbf03ffac",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 4.231,
+          "asr_completed": true,
+          "transcript": "и ты оставил ее утром одну в квартире.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 8,
+          "word_errors": 0,
+          "wer": 0.0,
+          "audio_seconds": 13.23,
+          "memory_peak_bytes": 1221169152
+        }
+      ],
+      "summary": {
+        "samples": 9,
+        "asr_completed": 9,
+        "memory_peak_bytes": 1221169152,
+        "memory_swap_max": "0",
+        "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "external_calls": 0,
+        "live_business_queries": 0
+      },
+      "audio_stage_range_seconds": [
+        8.261,
+        15.899
+      ],
+      "word_errors": 6,
+      "reference_words": 80
+    },
+    "small-no-hotwords": {
+      "samples": [
+        {
+          "file": "common_voice_en_18338596.wav",
+          "language": "en",
+          "duration": 5.616,
+          "reference": "He earned extra money by renting a room in his house to a lodger",
+          "pcm_sha256": "379135840913a402aff2cb179e4e612ee2272e13e461540bccdc1bd422dc582d",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 6.227,
+          "asr_completed": true,
+          "transcript": "He earned extra money by renting a room in his house to a larger",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 14,
+          "word_errors": 1,
+          "wer": 0.0714,
+          "audio_seconds": 9.881,
+          "memory_peak_bytes": 705294336
+        },
+        {
+          "file": "common_voice_en_5478736.wav",
+          "language": "en",
+          "duration": 5.064,
+          "reference": "I need to pay rent and keep the doors open.",
+          "pcm_sha256": "8d01ac12e5b13be0774f772764af7e3e8289227ab864b8c3d34339434376e5aa",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.273,
+          "asr_completed": true,
+          "transcript": "I need to pay rent and keep the door open.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 10,
+          "word_errors": 1,
+          "wer": 0.1,
+          "audio_seconds": 8.907,
+          "memory_peak_bytes": 705843200
+        },
+        {
+          "file": "common_voice_en_18274308.wav",
+          "language": "en",
+          "duration": 3.336,
+          "reference": "The tenant always paid his rent on time.",
+          "pcm_sha256": "a1a2f0e9dd73ff858dcdd8425d239b9dcefedac3e7d0ffe72d7c93f091c89aec",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.726,
+          "asr_completed": true,
+          "transcript": "The tanner always paid his rent on time.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 8,
+          "word_errors": 1,
+          "wer": 0.125,
+          "audio_seconds": 9.09,
+          "memory_peak_bytes": 705916928
+        },
+        {
+          "file": "common_voice_es_18395868.wav",
+          "language": "es",
+          "duration": 3.336,
+          "reference": "A ver cuando ordenas la habitación.",
+          "pcm_sha256": "b5b4fdd48187d96c831f44ea8d9bc87569ccb17c6fb10af1c97ad65170b702bc",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.694,
+          "asr_completed": true,
+          "transcript": "a ver cuando ordenas la habitación",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 6,
+          "word_errors": 0,
+          "wer": 0.0,
+          "audio_seconds": 8.33,
+          "memory_peak_bytes": 705953792
+        },
+        {
+          "file": "common_voice_es_20884798.wav",
+          "language": "es",
+          "duration": 5.424,
+          "reference": "Consideraba que toda habitación debería permitir ver el cielo.",
+          "pcm_sha256": "d8ba740b467344f05bee28730fdb17646d3499a485d37afda1794e3634afabd8",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.525,
+          "asr_completed": true,
+          "transcript": "consideraba que toda habitación debería permitir ver el cielo.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 9,
+          "word_errors": 0,
+          "wer": 0.0,
+          "audio_seconds": 9.154,
+          "memory_peak_bytes": 705982464
+        },
+        {
+          "file": "common_voice_es_19958818.wav",
+          "language": "es",
+          "duration": 8.424,
+          "reference": "Más allá de este núcleo había dos dormitorios dispuestos eficientemente.",
+          "pcm_sha256": "10f7252e9c91f7f5249c1ebfd499375750717138696c3af79fa07bd4810aa55a",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.491,
+          "asr_completed": true,
+          "transcript": "más allá de este núcleo había tonos dormitorios dispuestos eficientemente.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 10,
+          "word_errors": 1,
+          "wer": 0.1,
+          "audio_seconds": 11.284,
+          "memory_peak_bytes": 706129920
+        },
+        {
+          "file": "common_voice_ru_37452149.wav",
+          "language": "ru",
+          "duration": 5.22,
+          "reference": "Вскоре я выздоровел и мог перебраться на мою квартиру.",
+          "pcm_sha256": "a26c97755532d35f68e194ac652252e859827ce1553fcd48b0093368f08b1b12",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.75,
+          "asr_completed": true,
+          "transcript": "Скорее я выздоровел и мог перебраться на мою квартиру.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 9,
+          "word_errors": 1,
+          "wer": 0.1111,
+          "audio_seconds": 7.881,
+          "memory_peak_bytes": 706162688
+        },
+        {
+          "file": "common_voice_ru_27710882.wav",
+          "language": "ru",
+          "duration": 4.32,
+          "reference": "– Какую тебе квартиру? Оставайся у меня.",
+          "pcm_sha256": "9f7a944d691264c7d3fd8f35ebbca4d31616f686c63277f2d3bdf6720bdc4cbf",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.579,
+          "asr_completed": true,
+          "transcript": "Какую тебе квартиру? Оставайся у меня.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 6,
+          "word_errors": 0,
+          "wer": 0.0,
+          "audio_seconds": 7.529,
+          "memory_peak_bytes": 706162688
+        },
+        {
+          "file": "common_voice_ru_18856190.wav",
+          "language": "ru",
+          "duration": 4.752,
+          "reference": "И ты оставил ее утром одну… в квартире?",
+          "pcm_sha256": "2480a3e09927a03de07e1e99fc716c90471daf41ba4a8cad291ea93bbf03ffac",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 4.105,
+          "asr_completed": true,
+          "transcript": "и ты оставил ее утром одну в квартире",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 8,
+          "word_errors": 0,
+          "wer": 0.0,
+          "audio_seconds": 7.436,
+          "memory_peak_bytes": 706187264
+        }
+      ],
+      "summary": {
+        "samples": 9,
+        "asr_completed": 9,
+        "memory_peak_bytes": 706187264,
+        "memory_swap_max": "0",
+        "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "external_calls": 0,
+        "live_business_queries": 0
+      },
+      "audio_stage_range_seconds": [
+        7.436,
+        11.284
+      ],
+      "word_errors": 5,
+      "reference_words": 80
+    },
+    "small-stress": {
+      "samples": [
+        {
+          "file": "common_voice_en_18338596-quiet_20db.wav",
+          "language": "en",
+          "duration": 5.616,
+          "reference": "He earned extra money by renting a room in his house to a lodger",
+          "pcm_sha256": "33cdfffa1d0a4269f0329d1db60244f547626968b0104a3caaa2e2379ed83e5d",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.753,
+          "asr_completed": true,
+          "transcript": "He earned extra money by renting a room in his house to a larger",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 14,
+          "word_errors": 1,
+          "wer": 0.0714,
+          "audio_seconds": 7.787,
+          "memory_peak_bytes": 705794048
+        },
+        {
+          "file": "common_voice_en_18338596-noise_20db_with_pause.wav",
+          "language": "en",
+          "duration": 7.116,
+          "reference": "He earned extra money by renting a room in his house to a lodger",
+          "pcm_sha256": "e83bb43e539d8baf7875dc433b81bf83dec6d4dea94d8e00a951375bd47fca71",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.573,
+          "asr_completed": true,
+          "transcript": "He earned extra money by renting a room in his house to a larger",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 14,
+          "word_errors": 1,
+          "wer": 0.0714,
+          "audio_seconds": 7.52,
+          "memory_peak_bytes": 706080768
+        },
+        {
+          "file": "common_voice_es_18395868-quiet_20db.wav",
+          "language": "es",
+          "duration": 3.336,
+          "reference": "A ver cuando ordenas la habitación.",
+          "pcm_sha256": "9a68f66575dc50351c233e450f8440bf669b4cfb0c5e7223236e2fd3bb982053",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 4.923,
+          "asr_completed": true,
+          "transcript": "a ver cuando ordenas la habitación",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 6,
+          "word_errors": 0,
+          "wer": 0.0,
+          "audio_seconds": 7.844,
+          "memory_peak_bytes": 706080768
+        },
+        {
+          "file": "common_voice_es_18395868-noise_20db_with_pause.wav",
+          "language": "es",
+          "duration": 4.836,
+          "reference": "A ver cuando ordenas la habitación.",
+          "pcm_sha256": "31284285112ef873672e1a3cb04ecf95ec9a2ba137cfd4da3e6915e218a590ad",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.495,
+          "asr_completed": true,
+          "transcript": "a ver cuándo ordenas la habitación",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 6,
+          "word_errors": 1,
+          "wer": 0.1667,
+          "audio_seconds": 8.528,
+          "memory_peak_bytes": 706142208
+        },
+        {
+          "file": "common_voice_ru_37452149-quiet_20db.wav",
+          "language": "ru",
+          "duration": 5.22,
+          "reference": "Вскоре я выздоровел и мог перебраться на мою квартиру.",
+          "pcm_sha256": "bd8830d93cf4b3b91df0e51876ae66d1e1050cf5872ef65c70c9aafa8f0d7d74",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.339,
+          "asr_completed": true,
+          "transcript": "Вскоре я выздоровел и мог перебраться на мою квартиру.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 9,
+          "word_errors": 0,
+          "wer": 0.0,
+          "audio_seconds": 8.825,
+          "memory_peak_bytes": 706142208
+        },
+        {
+          "file": "common_voice_ru_37452149-noise_20db_with_pause.wav",
+          "language": "ru",
+          "duration": 6.72,
+          "reference": "Вскоре я выздоровел и мог перебраться на мою квартиру.",
+          "pcm_sha256": "a58e7d469c6cb68cfe5fa7d68c8d07b7d40efd91ad403a2b0c9413856e5c8928",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 3.533,
+          "asr_completed": true,
+          "transcript": "Скорее я выздоровел и мог перебраться на мою квартиру",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 9,
+          "word_errors": 1,
+          "wer": 0.1111,
+          "audio_seconds": 9.985,
+          "memory_peak_bytes": 706285568
+        }
+      ],
+      "summary": {
+        "samples": 6,
+        "asr_completed": 6,
+        "memory_peak_bytes": 706285568,
+        "memory_swap_max": "0",
+        "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "external_calls": 0,
+        "live_business_queries": 0
+      },
+      "audio_stage_range_seconds": [
+        7.52,
+        9.985
+      ],
+      "word_errors": 4,
+      "reference_words": 58
+    },
+    "parakeet-prototype": {
+      "samples": [
+        {
+          "file": "common_voice_en_18338596.wav",
+          "language": "en",
+          "duration": 5.616,
+          "reference": "He earned extra money by renting a room in his house to a lodger",
+          "pcm_sha256": "379135840913a402aff2cb179e4e612ee2272e13e461540bccdc1bd422dc582d",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 7.862,
+          "asr_completed": true,
+          "transcript": "He earned extra money by renting a room in his house to a lodger.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 14,
+          "word_errors": 0,
+          "wer": 0.0,
+          "audio_seconds": 1.599,
+          "sampled_memory_maxima_bytes": {
+            "anon": 995205120,
+            "file": 22040576,
+            "kernel": 5558272,
+            "current": 1023332352
+          },
+          "memory_peak_bytes": 1023336448
+        },
+        {
+          "file": "common_voice_en_5478736.wav",
+          "language": "en",
+          "duration": 5.064,
+          "reference": "I need to pay rent and keep the doors open.",
+          "pcm_sha256": "8d01ac12e5b13be0774f772764af7e3e8289227ab864b8c3d34339434376e5aa",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 7.862,
+          "asr_completed": true,
+          "transcript": "I need to pay rent and keep the door open.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 10,
+          "word_errors": 1,
+          "wer": 0.1,
+          "audio_seconds": 1.761,
+          "sampled_memory_maxima_bytes": {
+            "anon": 995205120,
+            "file": 22040576,
+            "kernel": 5611520,
+            "current": 1023332352
+          },
+          "memory_peak_bytes": 1023336448
+        },
+        {
+          "file": "common_voice_en_18274308.wav",
+          "language": "en",
+          "duration": 3.336,
+          "reference": "The tenant always paid his rent on time.",
+          "pcm_sha256": "a1a2f0e9dd73ff858dcdd8425d239b9dcefedac3e7d0ffe72d7c93f091c89aec",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 7.068,
+          "asr_completed": true,
+          "transcript": "Lieutenant always paid his rent on time.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 8,
+          "word_errors": 2,
+          "wer": 0.25,
+          "audio_seconds": 1.229,
+          "sampled_memory_maxima_bytes": {
+            "anon": 995205120,
+            "file": 22040576,
+            "kernel": 5636096,
+            "current": 1023332352
+          },
+          "memory_peak_bytes": 1023336448
+        },
+        {
+          "file": "common_voice_es_18395868.wav",
+          "language": "es",
+          "duration": 3.336,
+          "reference": "A ver cuando ordenas la habitación.",
+          "pcm_sha256": "b5b4fdd48187d96c831f44ea8d9bc87569ccb17c6fb10af1c97ad65170b702bc",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 8.068,
+          "asr_completed": true,
+          "transcript": "A ver cuando ordenas la habitación.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 6,
+          "word_errors": 0,
+          "wer": 0.0,
+          "audio_seconds": 1.266,
+          "sampled_memory_maxima_bytes": {
+            "anon": 995205120,
+            "file": 22040576,
+            "kernel": 5718016,
+            "current": 1023332352
+          },
+          "memory_peak_bytes": 1023336448
+        },
+        {
+          "file": "common_voice_es_20884798.wav",
+          "language": "es",
+          "duration": 5.424,
+          "reference": "Consideraba que toda habitación debería permitir ver el cielo.",
+          "pcm_sha256": "d8ba740b467344f05bee28730fdb17646d3499a485d37afda1794e3634afabd8",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 7.09,
+          "asr_completed": true,
+          "transcript": "Consideraba que toda habitación debería permitir ver el cielo.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 9,
+          "word_errors": 0,
+          "wer": 0.0,
+          "audio_seconds": 1.524,
+          "sampled_memory_maxima_bytes": {
+            "anon": 995205120,
+            "file": 22040576,
+            "kernel": 5824512,
+            "current": 1023332352
+          },
+          "memory_peak_bytes": 1023336448
+        },
+        {
+          "file": "common_voice_es_19958818.wav",
+          "language": "es",
+          "duration": 8.424,
+          "reference": "Más allá de este núcleo había dos dormitorios dispuestos eficientemente.",
+          "pcm_sha256": "10f7252e9c91f7f5249c1ebfd499375750717138696c3af79fa07bd4810aa55a",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 7.464,
+          "asr_completed": true,
+          "transcript": "Más allá de este núcleo, había dos dormitorios dispuestos eficientemente.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 10,
+          "word_errors": 0,
+          "wer": 0.0,
+          "audio_seconds": 2.321,
+          "sampled_memory_maxima_bytes": {
+            "anon": 1021812736,
+            "file": 22040576,
+            "kernel": 5935104,
+            "current": 1050562560
+          },
+          "memory_peak_bytes": 1050562560
+        },
+        {
+          "file": "common_voice_ru_37452149.wav",
+          "language": "ru",
+          "duration": 5.22,
+          "reference": "Вскоре я выздоровел и мог перебраться на мою квартиру.",
+          "pcm_sha256": "a26c97755532d35f68e194ac652252e859827ce1553fcd48b0093368f08b1b12",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 8.28,
+          "asr_completed": true,
+          "transcript": "Вскоре я выздоровел и мог перебраться на мою квартиру.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 9,
+          "word_errors": 0,
+          "wer": 0.0,
+          "audio_seconds": 2.094,
+          "sampled_memory_maxima_bytes": {
+            "anon": 1021812736,
+            "file": 22040576,
+            "kernel": 5947392,
+            "current": 1050562560
+          },
+          "memory_peak_bytes": 1050562560
+        },
+        {
+          "file": "common_voice_ru_27710882.wav",
+          "language": "ru",
+          "duration": 4.32,
+          "reference": "– Какую тебе квартиру? Оставайся у меня.",
+          "pcm_sha256": "9f7a944d691264c7d3fd8f35ebbca4d31616f686c63277f2d3bdf6720bdc4cbf",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 7.838,
+          "asr_completed": true,
+          "transcript": "Какую тебе квартиру? Оставайся у меня.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 6,
+          "word_errors": 0,
+          "wer": 0.0,
+          "audio_seconds": 1.292,
+          "sampled_memory_maxima_bytes": {
+            "anon": 1021812736,
+            "file": 22040576,
+            "kernel": 6012928,
+            "current": 1050562560
+          },
+          "memory_peak_bytes": 1050562560
+        },
+        {
+          "file": "common_voice_ru_18856190.wav",
+          "language": "ru",
+          "duration": 4.752,
+          "reference": "И ты оставил ее утром одну… в квартире?",
+          "pcm_sha256": "2480a3e09927a03de07e1e99fc716c90471daf41ba4a8cad291ea93bbf03ffac",
+          "expected": "reject_unsupported_narrative",
+          "reference_parser": {
+            "status": "clarification"
+          },
+          "prepare_seconds": 7.393,
+          "asr_completed": true,
+          "transcript": "И ты оставил ее утром одно в квартире.",
+          "transcript_parser": {
+            "status": "clarification"
+          },
+          "reference_words": 8,
+          "word_errors": 1,
+          "wer": 0.125,
+          "audio_seconds": 1.563,
+          "sampled_memory_maxima_bytes": {
+            "anon": 1021812736,
+            "file": 22040576,
+            "kernel": 6103040,
+            "current": 1050562560
+          },
+          "memory_peak_bytes": 1050562560
+        }
+      ],
+      "summary": {
+        "sampled_memory_maxima_bytes": {
+          "anon": 1021812736,
+          "file": 22040576,
+          "kernel": 6103040,
+          "current": 1050562560
+        },
+        "samples": 9,
+        "asr_completed": 9,
+        "memory_peak_bytes": 1050562560,
+        "memory_swap_max": "0",
+        "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "external_calls": 0,
+        "live_business_queries": 0
+      },
+      "audio_stage_range_seconds": [
+        1.229,
+        2.321
+      ],
+      "word_errors": 4,
+      "reference_words": 80
+    }
+  },
+  "release_changed": false,
+  "acceptance": {
+    "human_positive_housing": false,
+    "cross_browser": false,
+    "latency_p95": false,
+    "full_memory_composition": false
+  }
+}

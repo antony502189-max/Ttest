@@ -1,0 +1,20 @@
+{
+  "source": "1c40beec6b028ba8ebc8326e283d273614ea947f",
+  "tree": "b29047a2e2bad7fa44431863fc807f2657171285",
+  "role": "producer",
+  "image": "sha256:7b3fb5810f51978ff70a7753360e35ff38f36410d6e271eef656e696629f8ebc",
+  "parent_image": "sha256:60a1c713382876c6c7aa62a422d5707a0b204ec2bb02f77e81ca4f52e162e6bb",
+  "checks": {
+    "runtime_python_files": 287,
+    "model_assets_verified": true,
+    "retained_readers": true,
+    "producer_enabled": true,
+    "new_business_requests": 0
+  },
+  "voice_pins_verified": 23,
+  "network": "none",
+  "logging": "none",
+  "container_swap": false,
+  "activated": false,
+  "provider_calls": 0
+}

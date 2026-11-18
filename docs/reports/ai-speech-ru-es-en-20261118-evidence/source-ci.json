@@ -1,0 +1,138 @@
+{
+  "source": "b88d7280b6acc6dfcb757bd973bb2e7ddf126c4f",
+  "observed_at_utc": "2026-11-17T22:28:16.278Z",
+  "scope": "Exact source PR workflows; this is not a deployed-release assertion.",
+  "workflow_runs": [
+    {
+      "id": 44187907498,
+      "name": "Capacity smoke safeguards",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 2428,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187907498/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187907498/logs",
+      "workflow_id": 327741226
+    },
+    {
+      "id": 44187905854,
+      "name": "AI parser data foundation",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 169,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187905854/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187905854/logs",
+      "workflow_id": 395458276
+    },
+    {
+      "id": 44187906054,
+      "name": "AI Search private frontend",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 217,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187906054/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187906054/logs",
+      "workflow_id": 398043415
+    },
+    {
+      "id": 44187906332,
+      "name": "Full audit",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 2485,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187906332/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187906332/logs",
+      "workflow_id": 327410770
+    },
+    {
+      "id": 44187906160,
+      "name": "AI Search combined facts quota sessions",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 237,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187906160/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187906160/logs",
+      "workflow_id": 397222892
+    },
+    {
+      "id": 44187905927,
+      "name": "Audit Source Snapshot",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 2484,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187905927/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187905927/logs",
+      "workflow_id": 322219639
+    },
+    {
+      "id": 44187905936,
+      "name": "Security dependency and static audit",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 425,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187905936/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187905936/logs",
+      "workflow_id": 385578941
+    },
+    {
+      "id": 44187905829,
+      "name": "AI local voice without outbound audio",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 72,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187905829/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187905829/logs",
+      "workflow_id": 411467578
+    },
+    {
+      "id": 44187906095,
+      "name": "AI pilot sealed proxy boundary",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 75,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187906095/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187906095/logs",
+      "workflow_id": 411391118
+    },
+    {
+      "id": 44187905995,
+      "name": "AI Search backend quota and sessions",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 206,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187905995/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187905995/logs",
+      "workflow_id": 397135806
+    },
+    {
+      "id": 44187905781,
+      "name": "Payment audit",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 359,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187905781/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187905781/logs",
+      "workflow_id": 384332231
+    },
+    {
+      "id": 44187906110,
+      "name": "Mobile validation",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 2526,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187906110/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187906110/logs",
+      "workflow_id": 320688877
+    },
+    {
+      "id": 44187906132,
+      "name": "Production audit",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 2385,
+      "jobs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187906132/jobs",
+      "logs_url": "https://api.github.com/repos/antony502189-max/Ttest/actions/runs/44187906132/logs",
+      "workflow_id": 326195212
+    }
+  ],
+  "success": 13
+}

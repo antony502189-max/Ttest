@@ -17,6 +17,54 @@ def state(criteria=None):
                         version=0, criteria=Criteria.model_validate(criteria or {}))
 
 
+@pytest.mark.parametrize("prefix", ["I need to rent", "I want to rent", "I would like to rent", "I'd like to rent"])
+def test_english_renter_prefix_preserves_complete_conditions(prefix):
+    # Public text seed: Tatoeba sentence 2258804, _undertoad, CC BY 2.0 FR.
+    # Its separately licensed audio is not an ASR fixture.
+    c = housing_patch(f"{prefix} a room in Madrid under 700 euros per month, not furnished, without balcony, for 1 person",
+                      state(), VOCAB).set
+    assert c.accommodation.value.kind == "room"
+    assert c.geography.value.municipality_code == "28079"
+    assert c.budget.value.amount == "700" and c.budget.value.period == "monthly"
+    assert c.furnished.value is False
+    assert c.balcony.value is False
+    assert c.party.value.model_dump() == {"persons": 1}
+
+
+@pytest.mark.parametrize("text", [
+    "I need to rent out a room", "I don't need to rent a room", "I needed to rent a room",
+    "I need to rent a room or a studio", "I need to rent a room, not in Madrid",
+    "I need to rent a room under 700 dollars per month", "I need to rent a room near my office",
+    "I need to rent a room under 700 euros per month, not furnished, but only on Tuesdays",
+    "He needs to rent a room", "I need to pay rent and keep the doors open.",
+])
+def test_english_renter_prefix_never_discards_unsupported_conditions(text):
+    before = state({"bills_included": {"strength": "hard", "value": True}})
+    snapshot = before.model_dump()
+    with pytest.raises(ProviderFailure):
+        housing_patch(text, before, VOCAB)
+    assert before.model_dump() == snapshot
+
+
+@pytest.mark.parametrize("text,name", [("not furnished", "furnished"), ("not bills included", "bills_included"),
+                                       ("not balcony", "balcony"), ("not terrace", "terrace")])
+def test_explicit_english_boolean_negation_is_a_hard_false_not_removal(text, name):
+    before = state({"party": {"strength": "hard", "value": {"persons": 2}}})
+    patch = housing_patch(text, before, VOCAB)
+    assert patch.remove == ()
+    after = apply_patch(before, patch)
+    assert getattr(after.criteria, name).value is False
+    assert getattr(after.criteria, name).strength == "hard"
+    assert after.criteria.party == before.criteria.party
+
+
+@pytest.mark.parametrize("text", ["not necessarily furnished", "not without furnished", "not not furnished",
+                                  "not furnished or furnished", "not furnished, furnished", "not near Madrid"])
+def test_boolean_negation_still_rejects_qualifiers_conflicts_and_unknowns(text):
+    with pytest.raises(ProviderFailure):
+        housing_patch(text, state(), VOCAB)
+
+
 @pytest.mark.parametrize("text", [
     "ищу комнату в Мадрид до 700 евро в месяц, 2 взрослых, 1 ребенок, семья, с мебелью, коммунальные включены, с балконом, с кошкой, депозит до 1 месяца, на 6 месяцев",
     "a room in Madrid under 700 euros per month, 2 adults, 1 child, family, furnished, bills included, balcony, cat, deposit up to 1 month, for 6 months",

@@ -1,0 +1,49 @@
+{
+  "schema": "ai-voice-source-validation.v1",
+  "source_parent": "db84b9b7",
+  "runtime_source_files": {
+    "backend/app/services/ai_housing_input.py": "85b163491e8f12f1e8dcfe278c94ceb63bb44ca523a9f3af511597821981113b"
+  },
+  "red": {
+    "renter_prefixes": 4,
+    "direct_boolean_negation_and_composite_cases": 8,
+    "unsupported_prefix_guards_already_passed": 10
+  },
+  "unit": {
+    "tests": "2124",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "16",
+    "time": "106.757"
+  },
+  "unit_passed": 2108,
+  "integration_deselected": 1268,
+  "targeted_housing_cases": 97,
+  "ruff": "PASS",
+  "mypy_files": 189,
+  "mypy": "PASS",
+  "git_diff_check": "PASS",
+  "ci": {
+    "source": "b88d7280b6acc6dfcb757bd973bb2e7ddf126c4f",
+    "actual_workflows_success": 13,
+    "evidence": "source-ci.json",
+    "later_documentation_head_checked_separately": true
+  },
+  "deployment": false,
+  "external_calls": 0,
+  "live_business_queries": 0,
+  "new_identities_resets": 0,
+  "runtime_input_provenance": {
+    "count": 1080,
+    "passed": true,
+    "historical_container_acceptance_transferred": false
+  },
+  "source_hash_format": "Canonical Git blob bytes; backend unit/replay ran on the equivalent Windows checkout.",
+  "immutable_candidate": {
+    "image": "sha256:4388af9a69e406441af549abaa8c14c42fcb64dda4382ab35f554ed90248e6a6",
+    "runtime_python_files_match": 287,
+    "model_assets_match": 4,
+    "activated": false
+  },
+  "pull_request": "https://github.com/antony502189-max/Ttest/pull/430"
+}
