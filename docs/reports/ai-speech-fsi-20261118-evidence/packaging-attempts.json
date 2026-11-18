@@ -1,0 +1,7 @@
+{
+  "initial": "archive guard rejected the harmless root backend directory before build; no activation",
+  "correction": "explicitly allow the directory itself, retain child-prefix/non-link/path confinement checks",
+  "image": "sha256:22f55c50e495d87c948b30f7028e5bd5de98c016898d9f0bd2bcd02f20620c31",
+  "source": "2ff238c5dd8187592557c800dc93204863fdfd88",
+  "activated": false
+}

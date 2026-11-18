@@ -1,4 +1,4 @@
-import { api } from '@/api/client'
+import { api, type AIAuthority } from '@/api/client'
 import { toCardListing, type ListingCardDto, type ListingCardPage, type ListingMapMarker } from '@/api/listings'
 import type { AICommittedIntent, AIIntent } from '@/api/ai-intent'
 import type { RentalMode } from '@/types'
@@ -17,35 +17,35 @@ export type AIExecution = {
 }
 
 const headers = { 'X-AI-Request': '1' }
-export const aiCapabilities = (signal: AbortSignal) => api<AICapabilities>('/ai-search/capabilities', { signal, cache: 'no-store' })
-export async function createAISession(key: string, signal: AbortSignal, rentalMode?: RentalMode) {
+export const aiCapabilities = (signal: AbortSignal, authority?: AIAuthority) => api<AICapabilities>('/ai-search/capabilities', { aiAuthority: authority, signal, cache: 'no-store' })
+export async function createAISession(key: string, signal: AbortSignal, rentalMode?: RentalMode, authority?: AIAuthority) {
   // Establish ownership before any session transaction can commit. Lost
   // bootstrap responses cannot strand a session behind a missing cookie.
-  await api('/ai-search/identity', { method: 'POST', headers, signal, cache: 'no-store' })
-  return api<AISession>('/ai-search/sessions', { method: 'POST', headers,
+  await api('/ai-search/identity', { aiAuthority: authority, method: 'POST', headers, signal, cache: 'no-store' })
+  return api<AISession>('/ai-search/sessions', { aiAuthority: authority, method: 'POST', headers,
     body: JSON.stringify({ idempotency_key: key, ...(rentalMode ? { rental_mode: rentalMode } : {}) }), signal, cache: 'no-store' })
 }
-export const resetAISession = (session: AISession, key: string, signal: AbortSignal, rentalMode?: RentalMode) => api<AISession>(`/ai-search/sessions/${encodeURIComponent(session.intent.session_id)}/reset`, {
-  method: 'POST', headers, body: JSON.stringify({ expected_version: session.intent.version, idempotency_key: key, ...(rentalMode ? { rental_mode: rentalMode } : {}) }), signal, cache: 'no-store',
+export const resetAISession = (session: AISession, key: string, signal: AbortSignal, rentalMode?: RentalMode, authority?: AIAuthority) => api<AISession>(`/ai-search/sessions/${encodeURIComponent(session.intent.session_id)}/reset`, {
+  aiAuthority: authority, method: 'POST', headers, body: JSON.stringify({ expected_version: session.intent.version, idempotency_key: key, ...(rentalMode ? { rental_mode: rentalMode } : {}) }), signal, cache: 'no-store',
 })
-export const getAISession = (id: string, signal: AbortSignal) => api<AISession>(`/ai-search/sessions/${encodeURIComponent(id)}`, { signal, cache: 'no-store' })
-export const getAIResult = (ref: string, signal: AbortSignal) => api<AICommittedIntent>(`/ai-search/results/${encodeURIComponent(ref)}`, { signal, cache: 'no-store' })
-export const getAIQuota = (signal: AbortSignal) => api<{ remaining: number }>('/ai-search/quota', { signal, cache: 'no-store' })
-export const getAIOperation = (key: string, signal: AbortSignal) => api<AIExecution['operation'] & { idempotency_key: string }>(`/ai-search/operations/${encodeURIComponent(key)}`, { signal, cache: 'no-store' })
-export const sendAIMessage = (message: AIMessage, signal: AbortSignal) => api<AIExecution>(message.audio_base64 ? '/ai-search/voice' : '/ai-search/query', {
-  method: 'POST', headers, body: JSON.stringify(message.audio_base64
+export const getAISession = (id: string, signal: AbortSignal, authority?: AIAuthority) => api<AISession>(`/ai-search/sessions/${encodeURIComponent(id)}`, { aiAuthority: authority, signal, cache: 'no-store' })
+export const getAIResult = (ref: string, signal: AbortSignal, authority?: AIAuthority) => api<AICommittedIntent>(`/ai-search/results/${encodeURIComponent(ref)}`, { aiAuthority: authority, signal, cache: 'no-store' })
+export const getAIQuota = (signal: AbortSignal, authority?: AIAuthority) => api<{ remaining: number }>('/ai-search/quota', { aiAuthority: authority, signal, cache: 'no-store' })
+export const getAIOperation = (key: string, signal: AbortSignal, authority?: AIAuthority) => api<AIExecution['operation'] & { idempotency_key: string }>(`/ai-search/operations/${encodeURIComponent(key)}`, { aiAuthority: authority, signal, cache: 'no-store' })
+export const sendAIMessage = (message: AIMessage, signal: AbortSignal, authority?: AIAuthority) => api<AIExecution>(message.audio_base64 ? '/ai-search/voice' : '/ai-search/query', {
+  aiAuthority: authority, method: 'POST', headers, body: JSON.stringify(message.audio_base64
     ? { idempotency_key: message.idempotency_key, session_id: message.session_id, expected_version: message.expected_version,
       audio_base64: message.audio_base64, media_type: 'audio/wav', search: { limit: 6 } }
     : { ...message, search: { limit: 6 } }), signal, cache: 'no-store', timeoutMs: message.audio_base64 ? 28000 : 15000,
 })
-export async function aiResultPage(ref: string, cursor: string | undefined, signal: AbortSignal) {
+export async function aiResultPage(ref: string, cursor: string | undefined, signal: AbortSignal, authority?: AIAuthority) {
   return api<CardResponse>(`/ai-search/results/${encodeURIComponent(ref)}/cards`, {
-    method: 'POST', headers, body: JSON.stringify({ search: { limit: 6, cursor } }), signal, cache: 'no-store',
+    aiAuthority: authority, method: 'POST', headers, body: JSON.stringify({ search: { limit: 6, cursor } }), signal, cache: 'no-store',
   })
 }
-export const aiResultMap = (ref: string, viewport: { north: number; south: number; east: number; west: number; zoom: number }, signal: AbortSignal) =>
+export const aiResultMap = (ref: string, viewport: { north: number; south: number; east: number; west: number; zoom: number }, signal: AbortSignal, authority?: AIAuthority) =>
   api<{ map: { items: ListingMapMarker[] }; intent_hash: string }>(`/ai-search/results/${encodeURIComponent(ref)}/map`, {
-    method: 'POST', headers, body: JSON.stringify({ search: viewport }), signal, cache: 'no-store',
+    aiAuthority: authority, method: 'POST', headers, body: JSON.stringify({ search: viewport }), signal, cache: 'no-store',
   })
 export function aiCardPage(response: CardResponse): ListingCardPage {
   const seen = new Set<string>()

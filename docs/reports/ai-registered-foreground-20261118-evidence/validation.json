@@ -1,0 +1,40 @@
+{
+  "source_state": "pre-commit working tree; exact-head CI and actual native release tracked separately",
+  "unit_passed": 2144,
+  "unit_skipped": 16,
+  "integration_deselected": 1270,
+  "ruff": "pass",
+  "mypy_app_files": 190,
+  "typescript": "pass",
+  "lint": "pass with existing unrelated warnings",
+  "native_browser": {
+    "startTime": "2026-11-18T18:32:32.620Z",
+    "duration": 32279.139000000003,
+    "expected": 9,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "native_browser_names": [
+    "native account 390px text: 200, owned replay and explicit save",
+    "native account 390px voice: 200, owned replay and explicit save",
+    "native account 1440px text: 200, owned replay and explicit save",
+    "native account 1440px voice: 200, owned replay and explicit save",
+    "explicit guest return 390px stays read/save-only, then starts native scope",
+    "explicit guest return 1440px stays read/save-only, then starts native scope",
+    "an old 401 refresh cannot overwrite a new login or retry its account request",
+    "logout invalidates native authority immediately and its delayed reply preserves a later login",
+    "a new login waits for cookie revocation so its refresh cookie survives"
+  ],
+  "existing_public_browser_passed": 15,
+  "existing_ai_browser_passed": 94,
+  "initial_existing_ai_attempt": "bundled Chromium absent; interrupted and rerun with installed Chrome through owned config override, unchanged assertions",
+  "real_postgis_new_scope_and_account_tests": "pending exact-head CI",
+  "actual_native_account_200": "not yet released or observed",
+  "asr_engine_changed": false,
+  "new_native_keys_created": 0,
+  "configuration_activated": false,
+  "provider_calls": 0,
+  "new_live_business_queries": 0,
+  "identity_or_quota_resets": 0
+}

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { aiResultMap } from '@/api/ai-search'
 import type { ListingMapMarker } from '@/api/listings'
+import type { AIAuthority } from '@/api/client'
 
 // Coordinate renderer for the lab and bounded real-data beta. No fixture markers.
-export function AIResultMap({ resultRef, intentHash, refreshVersion, center, total }: {
-  resultRef: string; intentHash: string; refreshVersion: number; center?: { lat: number; lng: number }; total: number
+export function AIResultMap({ resultRef, intentHash, refreshVersion, center, total, authority }: {
+  resultRef: string; intentHash: string; refreshVersion: number; center?: { lat: number; lng: number }; total: number; authority?: AIAuthority
 }) {
   const [markers, setMarkers] = useState<ListingMapMarker[]>([])
   const [error, setError] = useState('')
@@ -26,13 +27,13 @@ export function AIResultMap({ resultRef, intentHash, refreshVersion, center, tot
   useEffect(() => {
     const controller = new AbortController()
     setLoaded(false); setMarkers([]); setError(''); setSelected('')
-    void aiResultMap(resultRef, { north: south + span, south, east: west + span, west, zoom }, controller.signal)
+    void aiResultMap(resultRef, { north: south + span, south, east: west + span, west, zoom }, controller.signal, authority)
       .then(response => {
         if (response.intent_hash !== intentHash) throw new Error('Intent mismatch')
         if (!controller.signal.aborted) { setMarkers(response.map.items); setLoaded(true) }
       }).catch(() => { if (!controller.signal.aborted) setError('Не удалось прочитать verified map API') })
     return () => controller.abort()
-  }, [resultRef, intentHash, refreshVersion, retryVersion, zoom, span, west, south])
+  }, [resultRef, intentHash, refreshVersion, retryVersion, zoom, span, west, south, authority])
   return <section aria-label="Локальная координатная карта" data-i18n-exempt>
     <p>Локальная координатная сетка, без внешних тайлов</p>
     <button type="button" style={{ padding: '.4rem .7rem', border: '1px solid #657558', borderRadius: '.5rem' }}

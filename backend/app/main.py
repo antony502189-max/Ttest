@@ -452,3 +452,7 @@ app.include_router(uploads_router, prefix="/api/v1")
 from .services.ai_saved_runtime import install_saved_runtime
 
 install_saved_runtime(app, SessionLocal)
+
+from .services.ai_registered_runtime import install_registered_runtime
+
+install_registered_runtime(app, SessionLocal)

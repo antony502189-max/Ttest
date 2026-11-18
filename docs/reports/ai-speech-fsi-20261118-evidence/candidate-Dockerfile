@@ -1,0 +1,8 @@
+FROM ttest-ai-local-housing:fsi-parent-4388af9a
+LABEL io.opencontainers.image.revision="2ff238c5dd8187592557c800dc93204863fdfd88"
+USER root
+COPY --chown=999:999 backend/app /app/app
+COPY --chown=999:999 backend/demo /app/demo
+COPY --chown=999:999 backend/pilot /app/pilot
+COPY --chown=999:999 backend/alembic /app/alembic
+USER 999:999

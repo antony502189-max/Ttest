@@ -4,6 +4,7 @@ The deployment supplies its separately reviewed parser and data policy. No lab
 fixtures, provider credentials, outbound approval or migrations are inferred here.
 """
 from contextlib import asynccontextmanager
+from uuid import UUID
 
 from fastapi import FastAPI
 from sqlalchemy import text
@@ -29,7 +30,7 @@ def assemble_text_runtime(*, pipeline: FactPipeline, parser: IntentPatchParser,
                           session_policy: SessionPolicy, guests: GuestTokens,
                           cursor_key: bytes, http_policy: AIHTTPPolicy,
                           origins: frozenset[str], max_body_bytes: int,
-                          execution_seconds: float) -> AISearchRuntime:
+                          execution_seconds: float, source_ids: tuple[UUID, ...] | None = None) -> AISearchRuntime:
     """Connect the existing UI API, durable quota, parser and verified SQL reads.
 
     Construction does no database/Redis/provider IO and does not modify app.main.
@@ -46,7 +47,7 @@ def assemble_text_runtime(*, pipeline: FactPipeline, parser: IntentPatchParser,
     sessions = SearchSessions(QuotaLedger(pipeline.sessions, lease_policy), session_policy,
         IntentVocabulary(vocabulary.amenity_codes, vocabulary.catalog_other_codes,
                          vocabulary.municipality_zones), require_auth_owner=True)
-    cards = VerifiedCardSearch(pipeline, sessions, signing_key=cursor_key)
+    cards = VerifiedCardSearch(pipeline, sessions, signing_key=cursor_key, source_ids=source_ids)
     execution = TextSearchExecution(sessions, parser, OperatingAttemptGate(limiter), cards,
                                     total_budget_seconds=execution_seconds)
     return AISearchRuntime(sessions, cards, execution, guests, OperatingHTTPGate(limiter),

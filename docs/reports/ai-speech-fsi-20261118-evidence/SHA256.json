@@ -1,9 +1,17 @@
 {
+  "candidate-build-remote.py": "8d507ddd703d1b192186b91bcb043a24c42d9333b5cbfe2fc71e6f0c71eacf9a",
+  "candidate-Dockerfile": "cf684281699cf67a72c369c10eef50c9709b5911d04751d90e79da01f4296f77",
+  "candidate-input-manifest.json": "2f8ee2cbd03c46b4d3cba1eb0d2537185d4b0ce2ba5ee1062e7ee0a823030699",
+  "candidate-probe-proof.json": "853830495abbf70af2609d859762877ea9847e8f113d6822c4b825253089738a",
+  "candidate-probe.py": "7f4df334b932b2774daa25e54f0b84d989f0f036eacc432689bebf17716b910c",
+  "candidate-small-after.jsonl": "17a6d3ffa9af521c37f47272a800d4597122932a47402755e334f12a86e3a1c4",
   "discover-audio.py": "a5216511cf08451554d3b0abdda70f66c7aa8168e0e3c75dd9e77cda6d3deefd",
   "evaluate-human.py": "4a49f5f0f59735de1f7987d248250105bca6325662c06a52ecf2ee02f7225543",
   "manifest.json": "af9b73b04d69bab9392b3e35595e26eaadc0e6c1bfc9ebef47508d3a1c10f875",
+  "packaging-attempts.json": "90fcd6915fe9ae9ba2ed515f6019263dd2d479f4dffcbdf933881eab544e88bb",
   "parser-replay.json": "b9adef9da4082179965bb374d70fef07397c99867543ff208fb18e209c2f3d39",
   "small-before.jsonl": "704ace98562b2f660ea3df72f09f02f76322e3e54cafdb1a3c7961d3ed65e668",
+  "source-ci.json": "921a01f914fdf2f6fb2e3a2445a61bd9b25723ad2db2b5d7f864e8057c28130a",
   "tatoeba-en-license-results.json": "343cd788a2d7d33bb16d82e6c552c1061d7b7b2f1fe63ad83a54a7a678933fce",
   "validation.json": "51d01a293d94a72408650bfac14fc6f15c1bef7e095957c8182cb87668edcee3"
 }

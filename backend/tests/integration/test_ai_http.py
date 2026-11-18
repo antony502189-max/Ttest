@@ -251,6 +251,33 @@ def message(session_id, version):
             "text": "PRIVATE_SYNTHETIC_INPUT", "search": {"limit": 1}}
 
 
+async def test_native_auth_only_uses_real_account_200_and_preserves_replay_and_owner_boundary(active, register_user, monkeypatch):
+    from dataclasses import replace
+    runtime, parser, _ = active
+    monkeypatch.setattr(app.state, "ai_search_runtime", replace(runtime, auth_only=True))
+    async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as client:
+        anonymous = await client.post("/api/v1/ai-search/identity")
+        assert anonymous.status_code == 401 and "set-cookie" not in anonymous.headers
+        token, _ = await register_user(client, email="native-foreground@example.org")
+        auth = {"Authorization": "Bearer " + token}
+        quota = await client.get("/api/v1/ai-search/quota", headers=auth)
+        assert quota.status_code == 200 and quota.json()["limit"] == quota.json()["remaining"] == 200
+        created = await client.post("/api/v1/ai-search/sessions", headers=auth)
+        assert created.status_code == 200 and "set-cookie" not in created.headers
+        sid = created.json()["intent"]["session_id"]
+        payload = message(sid, 0)
+        first = await client.post("/api/v1/ai-search/query", headers=auth, json=payload)
+        assert first.status_code == 200 and first.json()["operation"]["remaining"] == 199
+        again = await client.post("/api/v1/ai-search/query", headers=auth, json=payload)
+        assert again.status_code == 200 and again.json()["operation"] == first.json()["operation"] and parser.calls == 1
+        # Cookie-only callers cannot read this account's operation or bootstrap
+        # a guest in the primary database after logout.
+        client.cookies.set("ai_search_guest", "old-guest-token")
+        denied = await client.get("/api/v1/ai-search/operations/" + payload["idempotency_key"])
+        assert denied.status_code == 401 and "set-cookie" not in denied.headers
+        assert (await client.get("/api/v1/ai-search/quota", headers=auth)).json()["remaining"] == 199
+
+
 async def test_guest_cookie_three_messages_replay_reset_paging_and_owner_isolation(active):
     _, parser, _ = active
     async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as first, AsyncClient(

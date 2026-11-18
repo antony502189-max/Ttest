@@ -1,4 +1,4 @@
-"""Disabled-by-default HTTP boundary; application never constructs its runtime."""
+"""Disabled-by-default HTTP boundary; explicit application composition required."""
 import asyncio
 import base64
 import hashlib
@@ -54,8 +54,11 @@ class AISearchRuntime:
     policy: AIHTTPPolicy
     voice: VoiceSearchExecution | None = None
     saved_handoff: SavedHandoffSigner | None = None
+    auth_only: bool = False
 
     def __post_init__(self):
+        if type(self.auth_only) is not bool:
+            raise TypeError("explicit authentication policy required")
         if not isinstance(self.policy, AIHTTPPolicy):
             raise TypeError("explicit HTTP policy required")
         if type(self.max_body_bytes) is not int or not 1024 <= self.max_body_bytes <= 1_048_576:
@@ -257,6 +260,8 @@ async def subject(request: Request, response: Response, active: AISearchRuntime 
             owner = QuotaSubject(kind="auth", id=user.id)
             await active.http_gate.check(active.guests.ip_key(f"{owner.kind}:{owner.id}", purpose="ai-read-subject"))
             return owner
+    if active.auth_only:
+        raise HTTPException(401, "AI_REGISTERED_USER_REQUIRED")
     # Strict guest cookies are supported only behind a same-origin UI/API
     # reverse proxy. Cross-origin bearer clients retain explicit CORS support.
     origin = request.headers.get("origin")

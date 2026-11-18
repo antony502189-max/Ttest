@@ -1,6 +1,17 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '/api/v1').replace(/\/$/, '')
 let accessToken: string | null = null
+let sessionGeneration = 0
 let refreshPromise: Promise<boolean> | null = null
+let sessionMutation: Promise<unknown> = Promise.resolve()
+
+// Cookie mutations must arrive in order too: a late logout/refresh response
+// must not replace the cookie installed by a subsequent successful login.
+export function withSessionMutation<T>(work: () => Promise<T>): Promise<T> {
+  const result = sessionMutation.then(work, work)
+  sessionMutation = result.then(() => undefined, () => undefined)
+  return result
+}
+const sessionMutations = new Set(['/auth/login', '/auth/register', '/auth/google', '/auth/logout', '/auth/refresh'])
 
 export class ApiError extends Error {
   status: number
@@ -21,11 +32,13 @@ function validationFieldErrors(detail: ValidationDetail[] | undefined) {
   return fields
 }
 
-export function setAccessToken(token: string | null) { accessToken = token }
+export function setAccessToken(token: string | null) { sessionGeneration++; accessToken = token }
+export function getSessionGeneration() { return sessionGeneration }
 export async function fetchAuthenticatedMedia(path: string): Promise<Blob> {
+  const generation = sessionGeneration
   const url = resolveApiUrl(path)
   let response = await fetch(url, { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, credentials: 'include' })
-  if (response.status === 401 && accessToken && await refresh()) {
+  if (response.status === 401 && accessToken && generation === sessionGeneration && await refresh() && generation === sessionGeneration) {
     response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, credentials: 'include' })
   }
   if (!response.ok) throw new ApiError(response.status, 'No se pudo cargar la imagen.')
@@ -46,6 +59,7 @@ export function resolveApiUrl(path: string) {
 }
 
 async function performRefresh() {
+  const generation = sessionGeneration
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), 15_000)
   try {
@@ -53,14 +67,15 @@ async function performRefresh() {
       method: 'POST', credentials: 'include', signal: controller.signal,
     })
     if (!response.ok) {
-      accessToken = null
+      if (generation === sessionGeneration) accessToken = null
       return false
     }
     const body = await response.json() as { accessToken: string }
+    if (generation !== sessionGeneration) return false
     accessToken = body.accessToken
     return true
   } catch {
-    accessToken = null
+    if (generation === sessionGeneration) accessToken = null
     return false
   } finally {
     window.clearTimeout(timeout)
@@ -69,25 +84,29 @@ async function performRefresh() {
 
 function refresh() {
   if (!refreshPromise) {
-    refreshPromise = performRefresh().finally(() => { refreshPromise = null })
+    refreshPromise = withSessionMutation(performRefresh).finally(() => { refreshPromise = null })
   }
   return refreshPromise
 }
 
-type ApiRequestInit = RequestInit & { timeoutMs?: number }
+export type AIAuthority = 'public-guest' | 'registered'
+type ApiRequestInit = RequestInit & { timeoutMs?: number; aiAuthority?: AIAuthority }
 
 export async function api<T>(path: string, init: ApiRequestInit = {}, retried = false): Promise<T> {
   const controller = new AbortController()
-  const { timeoutMs = 15_000, ...requestInit } = init
+  const { timeoutMs = 15_000, aiAuthority, ...requestInit } = init
   const timeout = timeoutMs > 0 ? window.setTimeout(() => controller.abort(), timeoutMs) : undefined
   const abort = () => controller.abort()
   requestInit.signal?.addEventListener('abort', abort, { once: true })
   if (requestInit.signal?.aborted) controller.abort()
   try {
     const headers = new Headers(requestInit.headers)
-    const publicAIRequest = import.meta.env.VITE_PUBLIC_AI_BETA === '1' && path.startsWith('/ai-search/')
+    if (aiAuthority === 'registered' && !accessToken) throw new ApiError(401, 'Authentication required', {}, 'AI_REGISTERED_USER_REQUIRED')
+    const publicAIRequest = path.startsWith('/ai-search/') && (aiAuthority === 'public-guest'
+      || (import.meta.env.VITE_PUBLIC_AI_BETA === '1' && aiAuthority !== 'registered'))
     if (publicAIRequest) headers.delete('Authorization')
     const requestHadAccessToken = !publicAIRequest && Boolean(accessToken)
+    const requestGeneration = sessionGeneration
     if (accessToken && !publicAIRequest) headers.set('Authorization', `Bearer ${accessToken}`)
     if (requestInit.body && !headers.has('Content-Type') && !(requestInit.body instanceof FormData)) headers.set('Content-Type', 'application/json')
     if (path.startsWith('/ai-search/') && import.meta.env.VITE_AI_CLOSED_LAB) {
@@ -120,7 +139,8 @@ export async function api<T>(path: string, init: ApiRequestInit = {}, retried = 
     // mechanism for anonymous requests. Session hydration explicitly calls the
     // refresh endpoint on page load; requests made after logout must not revive
     // a cookie-only session merely because some endpoint returned 401.
-    if (response.status === 401 && requestHadAccessToken && path !== '/auth/refresh' && !retried && await refresh()) return api<T>(path, init, true)
+    if (response.status === 401 && requestHadAccessToken && !sessionMutations.has(path) && !retried
+      && requestGeneration === sessionGeneration && await refresh() && requestGeneration === sessionGeneration) return api<T>(path, init, true)
     if (!response.ok) {
       const body = await response.json().catch(() => ({})) as {
         detail?: string | ValidationDetail[] | { code?: string; message?: string; fieldErrors?: Record<string, string> }
@@ -159,16 +179,20 @@ export async function api<T>(path: string, init: ApiRequestInit = {}, retried = 
 
 export async function apiBlob(path: string, init: ApiRequestInit = {}, retried = false): Promise<Blob> {
   const controller = new AbortController()
-  const { timeoutMs = 15_000, ...requestInit } = init
+  const { timeoutMs = 15_000, aiAuthority, ...requestInit } = init
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
   try {
     const headers = new Headers(requestInit.headers)
-    const publicAIRequest = import.meta.env.VITE_PUBLIC_AI_BETA === '1' && path.startsWith('/ai-search/')
+    if (aiAuthority === 'registered' && !accessToken) throw new ApiError(401, 'Authentication required', {}, 'AI_REGISTERED_USER_REQUIRED')
+    const publicAIRequest = path.startsWith('/ai-search/') && (aiAuthority === 'public-guest'
+      || (import.meta.env.VITE_PUBLIC_AI_BETA === '1' && aiAuthority !== 'registered'))
     if (publicAIRequest) headers.delete('Authorization')
     const requestHadAccessToken = !publicAIRequest && Boolean(accessToken)
+    const requestGeneration = sessionGeneration
     if (accessToken && !publicAIRequest) headers.set('Authorization', `Bearer ${accessToken}`)
     const response = await fetch(`${publicAIRequest ? '/ai-pilot/api/v1' : API_BASE_URL}${path}`, { ...requestInit, headers, credentials: 'include', signal: requestInit.signal ?? controller.signal })
-    if (response.status === 401 && requestHadAccessToken && path !== '/auth/refresh' && !retried && await refresh()) {
+    if (response.status === 401 && requestHadAccessToken && !sessionMutations.has(path) && !retried
+      && requestGeneration === sessionGeneration && await refresh() && requestGeneration === sessionGeneration) {
       return apiBlob(path, init, true)
     }
     if (!response.ok) {

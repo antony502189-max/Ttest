@@ -167,6 +167,43 @@ async def setup(rental_mode, *, price=None, vocabulary=None, count=4, positions=
     return query, subject, owned.intent.session_id, ids, source_ids
 
 
+async def test_explicit_foreground_cohort_filters_before_coverage_count_limit_map_and_cursor():
+    from app.repositories.ai_verified_cards import SourceCoverageUnavailable
+    from app.schemas.listings import ListingMapRequest
+    from app.services.ai_card_cursors import InvalidAICursor
+    from app.services.ai_fact_quality import FactQualityPolicy
+    query, subject, session_id, ids, sources = await setup("long")
+    scoped = VerifiedCardSearch(query.pipeline, query.sessions, signing_key=b"s" * 32, source_ids=tuple(sources[1:3]))
+    payload = ListingCardSearchRequest(limit=1)
+    first = await scoped.search_owned(subject, session_id, 1, payload)
+    assert first.cards.total == 2 and len(first.cards.items) == 1 and first.cards.nextCursor
+    assert first.cards.items[0].id in {str(value) for value in ids[1:3]}
+    second = await scoped.search_owned(subject, session_id, 1, payload.model_copy(update={"cursor": first.cards.nextCursor}))
+    assert {first.cards.items[0].id, second.cards.items[0].id} == {str(value) for value in ids[1:3]}
+    bounds = ListingMapRequest(north=28.5, south=27.5, east=-16.6, west=-16.9, zoom=14)
+    assert {item.id for item in (await scoped.map_owned(subject, session_id, 1, bounds)).map.items} == {str(value) for value in ids[1:3]}
+    narrower = VerifiedCardSearch(query.pipeline, query.sessions, signing_key=b"s" * 32, source_ids=(sources[1],))
+    with pytest.raises(InvalidAICursor):
+        await narrower.search_owned(subject, session_id, 1, payload.model_copy(update={"cursor": first.cards.nextCursor}))
+    # An otherwise eligible listing with current facts is not admitted through
+    # its missing configured anchor. This is SQL population scope, not a filter
+    # applied after cards/count/map or a wider synthetic-source admission.
+    absent = VerifiedCardSearch(query.pipeline, query.sessions, signing_key=b"s" * 32, source_ids=(uuid4(),))
+    assert (await absent.search_owned(subject, session_id, 1, payload)).cards.total == 0
+    assert not (await absent.map_owned(subject, session_id, 1, bounds)).map.items
+    query.pipeline.operating_policy = FactQualityPolicy(price_max_age_seconds=86400,
+        policy_max_age_seconds=86400, evidence_retention_seconds=604800)
+    async with SessionLocal.begin() as connection:
+        await connection.execute(update(Listing).values(is_external=True))
+    for listing_id in ids:
+        assert await QueryProofs(query.pipeline).prepare(listing_id)
+    current = (await query.sessions.get(subject, session_id)).intent
+    candidate = current.model_copy(update={"version": 2})
+    assert (await scoped.query_candidate(subject, current, candidate, payload)).cards.total == 2
+    with pytest.raises(SourceCoverageUnavailable):
+        await absent.query_candidate(subject, current, candidate, payload)
+
+
 @pytest.mark.parametrize("rental_mode", ["long", "holiday"])
 async def test_existing_cards_top_gallery_and_both_cursor_directions(rental_mode, monkeypatch):
     from app.repositories import ai_verified_cards

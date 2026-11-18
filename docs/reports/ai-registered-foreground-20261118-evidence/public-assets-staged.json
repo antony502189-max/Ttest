@@ -1,0 +1,21 @@
+{
+  "schema": "ai-registered-public-assets.v1",
+  "source_image": "sha256:4388af9a69e406441af549abaa8c14c42fcb64dda4382ab35f554ed90248e6a6",
+  "file_count": 9096,
+  "file_manifest_sha256": "d8f5dc9f5d607aec18a33521856984b64080715409923ee4ab594ec973b9dd75",
+  "archive_sha256": "8f84fa072fb63401a156d56e5b981b91ae04e632febb0f738db3cbc56e26995c",
+  "model_files": {
+    "model.bin": "3e305921506d8872816023e4c273e75d2419fb89b24da97b4fe7bce14170d671",
+    "vocabulary.txt": "34ce3fe1c5041027b3f8d42912270993f986dbc4bb34cf27f951e34a1e453913",
+    "config.json": "b55496ac7940a7ae47d2c01eab40edfd8701feec1229d9cce3b40014383fb828",
+    "tokenizer.json": "fb7b63191e9bb045082c79fd742a3106a12c99513ab30df4a0d47fa6cb6fd0ab"
+  },
+  "model_revision": "536b0662742c02347bc0e980a01041f333bce120",
+  "models": 1,
+  "engine": "unchanged-small",
+  "keys_created": 0,
+  "configuration_changes": 0,
+  "activated": false,
+  "external_calls": 0,
+  "private_audio_inputs": 0
+}
