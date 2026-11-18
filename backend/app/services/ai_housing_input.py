@@ -103,7 +103,10 @@ def housing_patch(text, current, vocabulary):
     if (type(text) is not str or not 1 <= len(text) <= 2000
             or any(ord(c) < 32 for c in text)):
         raise ProviderFailure("INTENT_UNSUPPORTED")
-    remaining = _fold(text).rstrip(".!?").strip()
+    remaining = _fold(text)
+    if remaining.startswith("¿") and remaining.endswith("?"):
+        remaining = remaining[1:]
+    remaining = remaining.rstrip(".!?").strip()
     remaining = NUMBER_PATTERN.sub(lambda m: str(NUMBERS[m[0]]), remaining)
     # Reject alternatives rather than choosing one side or weakening a hard rule.
     if re.search(r"\b(?:or|или|либо|o)\b", remaining):
@@ -243,6 +246,8 @@ def housing_patch(text, current, vocabulary):
         if not matched:
             for name, words in BOOL_WORDS.items():
                 negative = take(r"(?:without|not|sin|без) " + _alternatives(words))
+                if name == "furnished":
+                    negative = negative or take(r"sin muebles|sin amueblar|unfurnished|without furniture")
                 positive = take(r"(?:(?:with|con|с) )?" + _alternatives(words))
                 matched = negative or positive
                 if matched:

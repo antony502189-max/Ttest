@@ -65,6 +65,31 @@ def test_boolean_negation_still_rejects_qualifiers_conflicts_and_unknowns(text):
         housing_patch(text, state(), VOCAB)
 
 
+@pytest.mark.parametrize("text", ["sin muebles", "¿Sin muebles?", "sin amueblar", "unfurnished", "without furniture"])
+def test_furniture_absence_is_explicit_false_and_preserves_committed_conditions(text):
+    before = state({"furnished": {"strength": "hard", "value": True},
+                    "party": {"strength": "hard", "value": {"persons": 2}},
+                    "budget": {"strength": "hard", "value": {"amount": "700", "currency": "EUR", "period": "monthly"}}})
+    patch = housing_patch(text, before, VOCAB)
+    after = apply_patch(before, patch)
+    assert patch.remove == ()
+    assert after.criteria.furnished.value is False and after.criteria.furnished.strength == "hard"
+    assert after.criteria.party == before.criteria.party
+    assert after.criteria.budget == before.criteria.budget
+
+
+@pytest.mark.parametrize("text", ["sin muebles, amueblado", "unfurnished, furnished", "not unfurnished",
+                                  "without furniture or furnished", "sin muebles salvo la cocina",
+                                  "furniture", "muebles", "No, amueblado.",
+                                  "Doscientos, sin incluir luz, agua ni gas.", "¿Cuánto al mes?"])
+def test_furniture_phrases_never_drop_qualifiers_or_contextual_negation(text):
+    before = state({"furnished": {"strength": "hard", "value": True}})
+    snapshot = before.model_dump()
+    with pytest.raises(ProviderFailure):
+        housing_patch(text, before, VOCAB)
+    assert before.model_dump() == snapshot
+
+
 @pytest.mark.parametrize("text", [
     "ищу комнату в Мадрид до 700 евро в месяц, 2 взрослых, 1 ребенок, семья, с мебелью, коммунальные включены, с балконом, с кошкой, депозит до 1 месяца, на 6 месяцев",
     "a room in Madrid under 700 euros per month, 2 adults, 1 child, family, furnished, bills included, balcony, cat, deposit up to 1 month, for 6 months",

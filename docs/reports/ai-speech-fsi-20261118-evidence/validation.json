@@ -1,0 +1,21 @@
+{
+  "housing_tests": 112,
+  "unit_passed": 2123,
+  "unit_skipped": 16,
+  "integration_deselected": 1268,
+  "ruff": "pass",
+  "mypy_files": 191,
+  "red_before_repair": {
+    "failed": 5,
+    "passed": 10
+  },
+  "external_calls": 0,
+  "live_business_queries": 0,
+  "guest_or_quota_resets": 0,
+  "small_asr_completed": 11,
+  "furniture_request_turns": 2,
+  "independent_furniture_speakers_not_established": true,
+  "asr_errors_preserved": true,
+  "parakeet_discovery_peak_bytes": 1610612736,
+  "parakeet_accepted_for_release": false
+}
