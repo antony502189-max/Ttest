@@ -258,7 +258,7 @@ async def test_native_auth_only_uses_real_account_200_and_preserves_replay_and_o
     async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as client:
         anonymous = await client.post("/api/v1/ai-search/identity")
         assert anonymous.status_code == 401 and "set-cookie" not in anonymous.headers
-        token, _ = await register_user(client, email="native-foreground@example.test")
+        token, _ = await register_user(client, email="native-foreground@example.org")
         auth = {"Authorization": "Bearer " + token}
         quota = await client.get("/api/v1/ai-search/quota", headers=auth)
         assert quota.status_code == 200 and quota.json()["limit"] == quota.json()["remaining"] == 200

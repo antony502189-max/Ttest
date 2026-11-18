@@ -1,0 +1,12 @@
+{
+  "source": "7fd50cfebf8b791bcc4a65290f439e652ea4a2e9",
+  "run": 44372708771,
+  "job": 135043527960,
+  "step": "Existing card query and verified AI paging on full PostGIS schema",
+  "result": {"failed": 1, "passed": 108, "skipped": 1},
+  "failure": "New synthetic registration fixture used reserved .test email domain; actual EmailStr validation correctly returned422 before registration.",
+  "correction": "Use example.org, matching existing real-registration fixtures. Preserve email validation and all account200/replay/ownership assertions.",
+  "application_runtime_changed_by_correction": false,
+  "rerun_required": true,
+  "actual_native_release": false
+}
