@@ -1,0 +1,18 @@
+{
+  "primary": "dcadba27a078962c88380dfdac3cd25529be3948",
+  "previous_primary": "07ebc1d5ad9b626bdb9e8e03a94126bd25225a66",
+  "regular_runner": "success",
+  "schema": "0080_ai_saved_rematch",
+  "data_maintenance_skipped": true,
+  "delivery_timer": "active",
+  "retention_timer": "active",
+  "post_release_ticks": "success",
+  "isolated_image_unchanged": true,
+  "provider_calls": 0,
+  "calendar_journal_adoption_executed": false,
+  "party_reader_compatibility": true,
+  "party_total_producer_source": true,
+  "furniture_negation_release": true,
+  "asr_engine_changed": false,
+  "catalog_refresh_timer": "active"
+}

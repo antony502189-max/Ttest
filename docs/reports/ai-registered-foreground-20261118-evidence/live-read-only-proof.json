@@ -1,0 +1,18 @@
+{
+  "primary": "5cb1503a8b5649377f3f722d26a6a0933f0b5bbf",
+  "source": "f9fef02e66512909ac35f03bc8f7aa60aa400250",
+  "primary_python_files_verified": 271,
+  "primary_backend_image": "sha256:c5c7ad79fddad4c6b44a3bd2568fa32111c9f13c3fb6f7289fb9feaf3ce64ffb",
+  "pilot_image": "sha256:22f55c50e495d87c948b30f7028e5bd5de98c016898d9f0bd2bcd02f20620c31",
+  "native_resources_verified": true,
+  "runtime_code_overlays": false,
+  "https_read_only_endpoints": 5,
+  "native_and_guest_voice_save_capabilities": true,
+  "provider_attempts": 30,
+  "expired_approval_enforced": true,
+  "all_three_timers_active": true,
+  "new_business_queries": 0,
+  "new_identities": 0,
+  "actual_owner_quota_observed": false,
+  "full_ai_search_complete": false
+}

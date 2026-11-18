@@ -1,0 +1,29 @@
+{
+  "primary": "5cb1503a8b5649377f3f722d26a6a0933f0b5bbf",
+  "source": "f9fef02e66512909ac35f03bc8f7aa60aa400250",
+  "previous_primary": "dcadba27a078962c88380dfdac3cd25529be3948",
+  "regular_runner": "success",
+  "native_mode": "local-housing-accounts.v1",
+  "frontend_flag": "1",
+  "resources": {
+    "cpus": 2,
+    "memory": 1610612736,
+    "swap": 0
+  },
+  "model_files_verified": 4,
+  "public_asset_files_verified": 9096,
+  "existing_keys_cohort_approval_unchanged": true,
+  "native_keys_promoted_from_existing_staging": true,
+  "native_keys_reset": false,
+  "backup_authenticated_and_decrypted_round_trip": true,
+  "all_three_timers_active": true,
+  "post_release_ticks": "success",
+  "primary_postgres_redis_minio_unchanged": true,
+  "schema_unchanged": "0080_ai_saved_rematch",
+  "data_maintenance_skipped": true,
+  "new_identities": 0,
+  "new_business_queries": 0,
+  "provider_calls": 0,
+  "actual_owner_quota_observed": false,
+  "full_ai_search_complete": false
+}
