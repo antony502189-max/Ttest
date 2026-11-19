@@ -27,3 +27,14 @@ TypeScript, production build, bundle security и lint/i18n PASS (существ�
 ## Выпуск
 
 На момент подготовки документа production primary5cb1503a, exact-main9/9CI PASS; прежние защищённые ключи/квоты/cohort и три maintenance timers сохранены. Финальный SHA этого исправляющего пакета и фактические post-release проверки добавляются после ordinary release. Не выдавать подготовленный пакет за уже выпущенный.
+
+
+## Фактический выпуск завершён
+
+19 ноября выпущен primary `db4f202c68bb9543ddd8a13a13252e97e27302e6` ([PR433](https://github.com/antony502189-max/Ttest/pull/433)); source `cee775293c36ae0561af0a3440ad090dac0f57f6`. Все10actual source workflows SUCCESS,2conditional SKIP. По решению немедленной передачи merge начат при9SUCCESS иrunning неизменённом backend-production; его PASS получен впоследствии. Source иmerge trees идентичны.
+
+Ordinary runner SUCCESS/schema0080/data maintenanceSKIPPED. Проверены271Python Git blobs, protected configuration/keys/cohort/approval, прежние PG/Redis/MinIO иnative resource caps;3timersACTIVE/postticksSUCCESS. Pilot backend неизменён/provider30/newqueries0/newidentities0/reset0.
+
+Actual served assets прошли ES/RU/EN390px open/reload/translated-controls checks без JavaScript ошибок; screenshots просмотрены, обрезаний/наложений нет. Все API probes подставлены локально, поэтому это не новая приёмка owneraccount или микрофона. Exact-main push CI последний срез5SUCCESS/3running, не объявлен all-green. [Доказательства](ai-search-delivery-20261119-evidence/SHA256.json).
+
+Рабочая версия и инструкция готовы к передаче владельцем заказчику в явно описанных выше границах. Полная unrestricted-AI/data/performance сертификация не заявляется. Сообщения заказчику от имени владельца не отправлялись.

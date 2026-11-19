@@ -1,0 +1,14 @@
+{
+  "source": "cee775293c36ae0561af0a3440ad090dac0f57f6",
+  "merge": "db4f202c68bb9543ddd8a13a13252e97e27302e6",
+  "source_merge_tree": "6b28a2a7c1439c442b8636346842b459d42db3c9",
+  "reviews": 0,
+  "open_review_threads": 0,
+  "self_review": "Only translations/voice UI text and relevant assertions; no recording/authority/SQL/quota/ASR/provider algorithm changed. Existing backend app diff empty.",
+  "release_decision": "Owner prioritizes immediate delivery with known limitations. 9 source workflows passed at merge; unrelated backend-production workflow remained in progress, not counted as PASS. Subsequently all 10 actual source workflows succeeded. Ordinary merge without bypass; regular deployment retained protected state.",
+  "served_ui_visual_review": "ES/RU/EN 390x900 screenshots inspected: readable, translated controls, no clipping/overlap.",
+  "main_push_ci": "5 succeeded, 3 in progress at final checkpoint; not claimed completed.",
+  "new_live_business_queries": 0,
+  "private_owner_audio_used": false,
+  "full_A1_A12_certification": false
+}

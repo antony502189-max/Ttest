@@ -1,8 +1,15 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.65**, 19 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.66**, 19 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+
+**Фактическая передача3.66 —19.11.2026 / S4.4,S6:** завершающий пакет [PR433](https://github.com/antony502189-max/Ttest/pull/433) выпущен на https://app.112233.es/. Actual primary`db4f202c68bb9543ddd8a13a13252e97e27302e6`, source`cee775293c36ae0561af0a3440ad090dac0f57f6`, одинаковое tree`6b28a2a7c1439c442b8636346842b459d42db3c9`. Source10actualworkflowsSUCCESS/2conditionalSKIP, reviews/threads0/selfreviewPASS. По прямому приоритету владельца merge/release начат при9SUCCESS иещёrunning неизменённомbackend-production; этот run не выдавался заPASS, затем фактически10/10SUCCESS. Ordinarymerge/runner безbypass, schema0080/data maintenanceSKIPPED,271actualPythonGitblobhashesPASS, protectedprod.env/old+nativekeys/cohort/approval иPG/Redis/MinIO неизменны; native2CPU/1536MiB/swap0 сохранены, postticksSUCCESS/all3timersACTIVE. Isolatedpilot22f55c50 прежний, provider30/expiredapprovalfalse, новыхquery/identity/reset0.
+
+**Итог3.66:** actualservedHTML/assets ES/RU/EN,390px, opening/reload translatedcontrols PASS, JavaScripterrors0; screenshots визуально проверены. Весь API этих UI probes перехвачен локально: не owneraccount reload/realmic/provider acceptance. Ранее разрешённые owner1nativequery/result550/200→199/explicitSave теперь подтверждены сервером:criteriaexact, durableledger1, savedenabled/rematchrunning. Краткая [инструкция](AI_SEARCH_USER_GUIDE.md) и[пакет передачи с известными ограничениями](reports/AI_SEARCH_DELIVERY_20261119.md) готовы. Scopeтекущей рабочейверсии выпущен; полное выполнение A1–A12/широкийкаталог/внешняяLLM/performance/email/humanmic/p95 не объявлено готовым. Exact-main db4pushCI на последнем срезе5SUCCESS/3running, sourceготовность/actualrelease/mainCI разделены.
+
+**Следующее действие3.66:** передать владельцу рабочую ссылку иинструкцию. Текущий запрошенный patch/release/handover завершён; не запускать новый research/corpus/нагрузочный цикл какусловиеэтойпередачи. Продолжение широких S2/S3/S5/S7 ивнешнихдопусков — отдельное последующее решение, статусы не подменятьPASS. Прежниеspending/outbound/largebenchmark/query/reset ограничения сохраняются; последнийодно-queryдопуск использован. При следующей status-сверке получитьfinalmainCI безbusinesscalls.
+
 
 **Прямое поручение3.65 —19.11.2026 / S4.4,S6,S7:** владелец требует сейчас закончить финальные штрихи и выпустить рабочую версию, допускает мелкие недоработки. Не повторять доказанную приёмку без причины и не задерживать текущий выпуск новыми расширениями. Завершается существующий путь text/voice/cards/map/account/Save/in-app; материальные ограничения (cohort13/local grammar/provider-off, human p95/capacity/signup-email) явно указаны в [пакете передачи](reports/AI_SEARCH_DELIVERY_20261119.md), не переименованы в PASS полногоA1–A12. Платный provider/новые queries/identity reset не разрешены этим поручением.
 
@@ -884,3 +891,6 @@ Exact-main5cb9actualCI SUCCESS, pendingFullaudit закрыт. Остаток с
 
 ### Изменение маршрута3.65 —19.11.2026 / немедленная передача версии
 Прямая инструкция владельца: закончить финальные штрихи и выпустить существующую рабочую версию с известными ограничениями. Причина — просроченный дедлайн; влияние — текущий patch/release/инструкция перед дальнейшим расширением, без повторения прошлых tests или новых synthetic deliverables. ПолныеA1–A12/provider/data/performance доказательства не выдуманы и не объявлены пройденными.
+
+### Версия3.66 —19.11.2026 / delivery completed in the stated scope
+По прямому поручению владельца финальные voice/i18n исправления фактически выпущены обычным runner; ссылка, инструкция и явные известные ограничения подготовлены.9passing/sourcebackendproductionpending приmerge отражён честно, затем10actualsourceSUCCESS. ПолныеS2/S3/S5/S7 не переименованы в выполненные; новаяresearch/benchmarkработа не задерживает эту передачу.

@@ -1,0 +1,37 @@
+{
+  "method": "Actual deployed HTML/assets; all API traffic locally fulfilled. Not owner-account reload or live microphone acceptance.",
+  "rows": [
+    {
+      "language": "es",
+      "served_build": "db4f202c68bb9543ddd8a13a13252e97e27302e6",
+      "voice_controls_translated": true,
+      "reload": true,
+      "all_api_requests_intercepted": 13,
+      "live_api_requests": 0,
+      "queries": 0,
+      "page_errors": 0
+    },
+    {
+      "language": "ru",
+      "served_build": "db4f202c68bb9543ddd8a13a13252e97e27302e6",
+      "voice_controls_translated": true,
+      "reload": true,
+      "all_api_requests_intercepted": 16,
+      "live_api_requests": 0,
+      "queries": 0,
+      "page_errors": 0
+    },
+    {
+      "language": "en",
+      "served_build": "db4f202c68bb9543ddd8a13a13252e97e27302e6",
+      "voice_controls_translated": true,
+      "reload": true,
+      "all_api_requests_intercepted": 13,
+      "live_api_requests": 0,
+      "queries": 0,
+      "page_errors": 0
+    }
+  ],
+  "new_live_queries": 0,
+  "new_live_identities": 0
+}

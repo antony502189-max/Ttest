@@ -1,0 +1,27 @@
+{
+  "primary": "db4f202c68bb9543ddd8a13a13252e97e27302e6",
+  "source": "cee775293c36ae0561af0a3440ad090dac0f57f6",
+  "previous_primary": "5cb1503a8b5649377f3f722d26a6a0933f0b5bbf",
+  "ordinary_runner": "success",
+  "backend_application_unchanged": true,
+  "primary_git_files_verified": 271,
+  "schema": "0080_ai_saved_rematch",
+  "data_maintenance_skipped": true,
+  "protected_config_keys_cohort_approval_unchanged": true,
+  "postgres_redis_minio_unchanged": true,
+  "native_resource_caps_verified": true,
+  "pilot_image_unchanged": true,
+  "all_three_timers_active": true,
+  "post_ticks": "success",
+  "public_build_verified": true,
+  "native_guest_text_voice_save_capabilities": true,
+  "provider_attempts": 30,
+  "new_queries": 0,
+  "new_identities": 0,
+  "quota_reset": false,
+  "source_success_workflows": 9,
+  "source_pending_workflows": [
+    "Production audit"
+  ],
+  "full_A1_A12_certification": false
+}
