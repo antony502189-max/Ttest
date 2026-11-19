@@ -1,0 +1,244 @@
+{
+  "full_primary_lifespan": true,
+  "runtime_python_files_verified": 288,
+  "primary_database_and_redis_connected": true,
+  "existing_journal_replayed": true,
+  "native_account_only": true,
+  "shared_session_card_voice_authority": true,
+  "cohort_sources": 13,
+  "startup_seconds": 13.386,
+  "startup_memory": {
+    "peak": 1304756224,
+    "current": 1024081920,
+    "stat": {
+      "anon": 449953792,
+      "file": 566648832,
+      "kernel": 7020544
+    },
+    "events": {
+      "low": "0",
+      "high": "0",
+      "max": "0",
+      "oom": "0",
+      "oom_kill": "0",
+      "oom_group_kill": "0"
+    },
+    "swap_max": "0",
+    "swap_current": 0,
+    "swap_peak": "0"
+  },
+  "public_audio_results": [
+    {
+      "corpus": "cv",
+      "file": "common_voice_ru_37452149.wav",
+      "language": "ru",
+      "pcm_sha256": "a26c97755532d35f68e194ac652252e859827ce1553fcd48b0093368f08b1b12",
+      "public_transcript": "\u0412\u0441\u043a\u043e\u0440\u0435 \u044f \u0432\u044b\u0437\u0434\u043e\u0440\u043e\u0432\u0435\u043b \u0438 \u043c\u043e\u0433 \u043f\u0435\u0440\u0435\u0431\u0440\u0430\u0442\u044c\u0441\u044f \u043d\u0430 \u043c\u043e\u044e \u043a\u0432\u0430\u0440\u0442\u0438\u0440\u0443.",
+      "parser": "clarification",
+      "audio_seconds": 8.004,
+      "memory": {
+        "peak": 1304756224,
+        "current": 728834048,
+        "stat": {
+          "anon": 132050944,
+          "file": 591065088,
+          "kernel": 5558272
+        },
+        "events": {
+          "low": "0",
+          "high": "0",
+          "max": "0",
+          "oom": "0",
+          "oom_kill": "0",
+          "oom_group_kill": "0"
+        },
+        "swap_max": "0",
+        "swap_current": 0,
+        "swap_peak": "0"
+      }
+    },
+    {
+      "corpus": "cv",
+      "file": "common_voice_es_18395868.wav",
+      "language": "es",
+      "pcm_sha256": "b5b4fdd48187d96c831f44ea8d9bc87569ccb17c6fb10af1c97ad65170b702bc",
+      "public_transcript": "A ver cu\u00e1ndo ordenas la habitaci\u00f3n",
+      "parser": "clarification",
+      "audio_seconds": 7.456,
+      "memory": {
+        "peak": 1341677568,
+        "current": 729276416,
+        "stat": {
+          "anon": 132050944,
+          "file": 591175680,
+          "kernel": 5677056
+        },
+        "events": {
+          "low": "0",
+          "high": "0",
+          "max": "0",
+          "oom": "0",
+          "oom_kill": "0",
+          "oom_group_kill": "0"
+        },
+        "swap_max": "0",
+        "swap_current": 0,
+        "swap_peak": "0"
+      }
+    },
+    {
+      "corpus": "cv",
+      "file": "common_voice_en_18338596.wav",
+      "language": "en",
+      "pcm_sha256": "379135840913a402aff2cb179e4e612ee2272e13e461540bccdc1bd422dc582d",
+      "public_transcript": "He earned extra money by renting a room in his house to a larger",
+      "parser": "clarification",
+      "audio_seconds": 8.571,
+      "memory": {
+        "peak": 1342029824,
+        "current": 729231360,
+        "stat": {
+          "anon": 132050944,
+          "file": 591355904,
+          "kernel": 5734400
+        },
+        "events": {
+          "low": "0",
+          "high": "0",
+          "max": "0",
+          "oom": "0",
+          "oom_kill": "0",
+          "oom_group_kill": "0"
+        },
+        "swap_max": "0",
+        "swap_current": 0,
+        "swap_peak": "0"
+      }
+    },
+    {
+      "corpus": "fsi",
+      "file": "fsi7-051.wav",
+      "language": "es",
+      "pcm_sha256": "50e45e130838be1f891e686a337979c14081a6324cae39bc9804fee3492ad678",
+      "public_transcript": "sin muebles.",
+      "parser": "furnished_false",
+      "audio_seconds": 6.726,
+      "memory": {
+        "peak": 1342029824,
+        "current": 729260032,
+        "stat": {
+          "anon": 132050944,
+          "file": 591405056,
+          "kernel": 5787648
+        },
+        "events": {
+          "low": "0",
+          "high": "0",
+          "max": "0",
+          "oom": "0",
+          "oom_kill": "0",
+          "oom_group_kill": "0"
+        },
+        "swap_max": "0",
+        "swap_current": 0,
+        "swap_peak": "0"
+      }
+    },
+    {
+      "corpus": "fsi",
+      "file": "fsi7-053.wav",
+      "language": "es",
+      "pcm_sha256": "0141ce1066bd1c20c9e0c5ec60ad1bc6a9c542d5ba3626ee34f349893aac5ce9",
+      "public_transcript": "No. Ha mueblado.",
+      "parser": "clarification",
+      "audio_seconds": 6.981,
+      "memory": {
+        "peak": 1342029824,
+        "current": 729751552,
+        "stat": {
+          "anon": 132050944,
+          "file": 591470592,
+          "kernel": 5865472
+        },
+        "events": {
+          "low": "0",
+          "high": "0",
+          "max": "0",
+          "oom": "0",
+          "oom_kill": "0",
+          "oom_group_kill": "0"
+        },
+        "swap_max": "0",
+        "swap_current": 0,
+        "swap_peak": "0"
+      }
+    },
+    {
+      "corpus": "fsi",
+      "file": "fsi7-057.wav",
+      "language": "es",
+      "pcm_sha256": "714f3b663b2137bd8787c041fa22b78e6acdf0f221e6a7d95265a1e407d4b3c5",
+      "public_transcript": "200 sin incluir luz, agua ni gas.",
+      "parser": "clarification",
+      "audio_seconds": 7.891,
+      "memory": {
+        "peak": 1342234624,
+        "current": 729759744,
+        "stat": {
+          "anon": 132050944,
+          "file": 591593472,
+          "kernel": 5951488
+        },
+        "events": {
+          "low": "0",
+          "high": "0",
+          "max": "0",
+          "oom": "0",
+          "oom_kill": "0",
+          "oom_group_kill": "0"
+        },
+        "swap_max": "0",
+        "swap_current": 0,
+        "swap_peak": "0"
+      }
+    }
+  ],
+  "final_memory": {
+    "peak": 1342234624,
+    "current": 729681920,
+    "stat": {
+      "anon": 132050944,
+      "file": 591593472,
+      "kernel": 5943296
+    },
+    "events": {
+      "low": "0",
+      "high": "0",
+      "max": "0",
+      "oom": "0",
+      "oom_kill": "0",
+      "oom_group_kill": "0"
+    },
+    "swap_max": "0",
+    "swap_current": 0,
+    "swap_peak": "0"
+  },
+  "scope": "cold owned ASR files after per-file fadvise; not a whole-host cold boot or browser p95",
+  "private_audio_inputs": 0,
+  "owner_or_guest_identities_created": 0,
+  "http_business_queries": 0,
+  "provider_calls": 0,
+  "full_ai_search_complete": false,
+  "source": "f9fef02e66512909ac35f03bc8f7aa60aa400250",
+  "candidate_image": "sha256:3f3bf21d587d1f40cccca95892e9253c4b113c347876ffa58c05aa10a5438a5a",
+  "production_configuration_unchanged": true,
+  "protected_keys_cohort_approval_unchanged": true,
+  "existing_primary_container_unchanged": true,
+  "new_native_key_pair_created": true,
+  "native_keys_reset": false,
+  "existing_keys_copied": false,
+  "public_asset_files_verified": 9096,
+  "native_keys_staged_only": true,
+  "external_network": false,
+  "activated": false
+}

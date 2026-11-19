@@ -1,0 +1,12 @@
+{
+  "method": "Existing normal Chrome profile; navigate normal root and open text dialog using Windows Computer Use. Read-only UI observation, no credentials/cookies exported.",
+  "observed": "Осталось поисков на сегодня: 200",
+  "remaining": 200,
+  "explicit_guest_save_return": false,
+  "typed_query": false,
+  "business_queries": 0,
+  "new_identities": 0,
+  "quota_reset": false,
+  "actual_account_debit_verified": false,
+  "private_screenshot_archived": false
+}

@@ -380,10 +380,10 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
         setNotice(answer.clarification ? questions[answer.clarification]
           : code === 'INTENT_CLARIFICATION_REQUIRED' ? 'Aclara la ubicación, el presupuesto o los requisitos antes de continuar.'
           : code === 'INTENT_NO_CHANGE' ? 'La petición no cambia los criterios. Añade un requisito nuevo.'
-          : code === 'INTENT_UNSUPPORTED' ? (message.audio_base64 ? 'Не удалось разобрать условия из записи. Повторите или введите запрос текстом. Поиск не списан.' : questions.unsupported)
-          : code === 'SOURCE_COVERAGE_UNAVAILABLE' ? (inputPolicy ? 'В текущем каталоге недостаточно свежих подтверждённых данных для всех этих условий. Это не означает, что подходящего жилья нет. Предыдущие условия сохранены, поиск не списан. Измените запрос или используйте обычные фильтры.' : 'No hay fuentes verificadas recientes disponibles. Prueba la búsqueda con filtros.')
-          : code === 'ASR_FAILURE' ? 'Не удалось распознать запись. Повторите или введите запрос текстом. Поиск не списан.'
-          : code === 'VOICE_CAPACITY_LIMIT' ? 'Сервер распознавания занят. Повторите запись позже. Поиск не списан.'
+          : code === 'INTENT_UNSUPPORTED' ? (message.audio_base64 ? 'No pudimos interpretar las condiciones de la grabación. Repite o escribe tu búsqueda. No se ha descontado ninguna búsqueda.' : questions.unsupported)
+          : code === 'SOURCE_COVERAGE_UNAVAILABLE' ? (inputPolicy ? 'El catálogo actual no tiene suficientes datos verificados recientes para todas estas condiciones. Esto no significa que no exista una vivienda adecuada. Conservamos las condiciones anteriores y no descontamos ninguna búsqueda. Cambia tu búsqueda o usa los filtros.' : 'No hay fuentes verificadas recientes disponibles. Prueba la búsqueda con filtros.')
+          : code === 'ASR_FAILURE' ? 'No pudimos transcribir la grabación. Repite o escribe tu búsqueda. No se ha descontado ninguna búsqueda.'
+          : code === 'VOICE_CAPACITY_LIMIT' ? 'El servidor de voz está ocupado. Repite la grabación más tarde. No se ha descontado ninguna búsqueda.'
           : code === 'SESSION_VERSION_CONFLICT'
           ? 'La búsqueda cambió. Revisa tu texto antes de enviarlo de nuevo.'
           : 'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.')
@@ -411,7 +411,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
         operationLocator.current = null
         // HTTP body/schema rejection happens before operation reservation.
         setPending(null)
-        setNotice(error.status === 400 ? 'Запись отклонена до начала поиска. Запишите запрос заново или введите текст. Поиск не списан.'
+        setNotice(error.status === 400 ? 'La grabación se rechazó antes de iniciar la búsqueda. Graba de nuevo o escribe tu búsqueda. No se ha descontado ninguna búsqueda.'
           : 'Acorta o revisa el texto antes de enviarlo de nuevo.')
       } else if (command.current) {
         if (unavailable(error)) lostConversation()
@@ -492,7 +492,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
         maxLength={inputPolicy?.maxLength ?? 16000} rows={3} autoComplete="off" spellCheck={false} placeholder={t(inputPolicy?.placeholder ?? 'Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
       {inputPolicy ? <p role={invalidText ? 'alert' : undefined} data-i18n-exempt>{t(inputPolicy.hint)}</p> : null}
       {voiceEnabled ? <AIVoiceInput disabled={continuationOnly || busy || restoring || restoreFailed || demoBlocked || pending !== null || changingSession || syncingSession || needsSync || needsConversation || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)}
-        disabledReason={busy ? 'Обрабатываем запрос и ищем варианты…' : demoBlocked ? demoReason : remaining === 0 ? 'Лимит запросов исчерпан. Повторите после его обновления.' : !modeChoice ? 'Выберите режим аренды перед записью.' : restoreFailed ? 'Не удалось восстановить поиск. Повторите восстановление.' : pending ? 'Ответ не подтверждён. Нажмите «Проверить результат попытки» ниже.' : 'Дождитесь завершения текущей операции и синхронизации поиска.'}
+        disabledReason={t(busy ? 'Procesando tu búsqueda y buscando opciones…' : demoBlocked ? demoReason : remaining === 0 ? 'Has agotado tus búsquedas. Inténtalo cuando se renueve el límite.' : !modeChoice ? 'Elige el modo de alquiler antes de grabar.' : restoreFailed ? 'No pudimos recuperar la búsqueda. Reintenta la recuperación.' : pending ? 'El resultado no está confirmado. Pulsa «Comprobar el mismo intento» abajo.' : 'Espera a que termine la operación y se sincronice la búsqueda.')}
         onAudio={audio => void submit(audio)} onRecording={setRecording} /> : null}
       <Button type="button" className="home-ai-search__action" disabled={continuationOnly || recording || busy || restoring || restoreFailed || (!pending && (invalidText || demoBlocked || (changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
         onClick={() => void submit()}>{PRIVATE_DEMO && pending && !busy ? <span data-i18n-exempt>Проверить результат попытки</span> : t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : result ? 'Actualizar búsqueda' : 'Buscar habitaciones')}</Button>

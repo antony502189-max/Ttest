@@ -1,0 +1,110 @@
+{
+  "read_only": true,
+  "native_owner_requests": 1,
+  "request_status": "succeeded",
+  "result_count": 1,
+  "quota_used": 1,
+  "quota_reserved": 0,
+  "quota_limit": 200,
+  "quota_date": "2026-11-18",
+  "saved_matches_result_exactly": true,
+  "matching_enabled_saved_searches": 2,
+  "ai_saved_total": 2,
+  "matching_test_searches": [
+    {
+      "matcher": "ai.v1",
+      "revision": 1,
+      "enabled": true,
+      "criteria": {
+        "budget": {
+          "value": {
+            "amount": "700",
+            "period": "monthly",
+            "currency": "EUR"
+          },
+          "strength": "hard"
+        },
+        "furnished": {
+          "value": true,
+          "strength": "hard"
+        },
+        "geography": {
+          "value": {
+            "province_code": "38",
+            "municipality_code": "38023"
+          },
+          "strength": "hard"
+        },
+        "rental_mode": {
+          "value": "long",
+          "strength": "hard"
+        },
+        "accommodation": {
+          "value": {
+            "kind": "room"
+          },
+          "strength": "hard"
+        }
+      },
+      "baseline_seen": 1,
+      "currently_eligible_matches": 1,
+      "notifications_for_this_search": 0,
+      "create_receipts": 1,
+      "worker": {
+        "created_at": "2026-11-16T21:40:25.544741+00:00",
+        "next_at": "2026-11-19T18:10:45.705995+00:00",
+        "fence": 771,
+        "lease_active": false
+      }
+    },
+    {
+      "matcher": "ai.v1",
+      "revision": 1,
+      "enabled": true,
+      "criteria": {
+        "budget": {
+          "value": {
+            "amount": "700",
+            "period": "monthly",
+            "currency": "EUR"
+          },
+          "strength": "hard"
+        },
+        "furnished": {
+          "value": true,
+          "strength": "hard"
+        },
+        "geography": {
+          "value": {
+            "province_code": "38",
+            "municipality_code": "38023"
+          },
+          "strength": "hard"
+        },
+        "rental_mode": {
+          "value": "long",
+          "strength": "hard"
+        },
+        "accommodation": {
+          "value": {
+            "kind": "room"
+          },
+          "strength": "hard"
+        }
+      },
+      "baseline_seen": 1,
+      "currently_eligible_matches": 1,
+      "notifications_for_this_search": 0,
+      "create_receipts": 1,
+      "worker": {
+        "created_at": "2026-11-18T20:25:10.643081+00:00",
+        "next_at": "2026-11-19T18:13:48.697077+00:00",
+        "fence": 248,
+        "lease_active": false
+      }
+    }
+  ],
+  "new_model_calls": 0,
+  "new_search_requests": 0,
+  "server_now": "2026-11-19 18:09:32.495740+00:00"
+}
