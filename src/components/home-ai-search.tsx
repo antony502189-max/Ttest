@@ -411,7 +411,10 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
         operationLocator.current = null
         // HTTP body/schema rejection happens before operation reservation.
         setPending(null)
-        setNotice(error.status === 400 ? 'La grabación se rechazó antes de iniciar la búsqueda. Graba de nuevo o escribe tu búsqueda. No se ha descontado ninguna búsqueda.'
+        setNotice(audio || pending?.audio_base64
+          ? error.status === 413
+            ? 'La grabación supera el tamaño permitido. Graba hasta 15 segundos o escribe tu búsqueda. No se ha descontado ninguna búsqueda.'
+            : 'La grabación se rechazó antes de iniciar la búsqueda. Graba de nuevo o escribe tu búsqueda. No se ha descontado ninguna búsqueda.'
           : 'Acorta o revisa el texto antes de enviarlo de nuevo.')
       } else if (command.current) {
         if (unavailable(error)) lostConversation()

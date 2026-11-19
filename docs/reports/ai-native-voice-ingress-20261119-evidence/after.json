@@ -1,0 +1,46 @@
+{
+  "method": "Exact production nginx config, network-none container, loopback200 upstream stub.",
+  "nginx_image": "sha256:9dddc15930268d589304d3d435d8c6830787f94a002ada12387451036dc50001",
+  "cases": [
+    {
+      "case": "whole-5s-pcm-wav",
+      "body_bytes": 213587,
+      "expected_http": 200,
+      "actual_http": 200
+    },
+    {
+      "case": "whole-7s-pcm-wav",
+      "body_bytes": 298923,
+      "expected_http": 200,
+      "actual_http": 200
+    },
+    {
+      "case": "whole-15s-pcm-wav",
+      "body_bytes": 640255,
+      "expected_http": 200,
+      "actual_http": 200
+    },
+    {
+      "case": "voice-exact-boundary",
+      "body_bytes": 650000,
+      "expected_http": 200,
+      "actual_http": 200
+    },
+    {
+      "case": "voice-over-boundary",
+      "body_bytes": 650001,
+      "expected_http": 413,
+      "actual_http": 413
+    },
+    {
+      "case": "ordinary-api-bound-unchanged",
+      "body_bytes": 300000,
+      "expected_http": 413,
+      "actual_http": 413
+    }
+  ],
+  "all_passed": true,
+  "live_queries": 0,
+  "identities": 0,
+  "asr_calls": 0
+}
