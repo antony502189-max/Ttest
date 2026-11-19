@@ -5,6 +5,28 @@ const sid = '00000000-0000-4000-8000-000000000021', ref = '00000000-0000-4000-80
 const guestSid = '00000000-0000-4000-8000-000000000031', guestRef = '00000000-0000-4000-8000-000000000032'
 const user = { id: userId, name: 'Native Account', email: 'synthetic@example.test', role: 'tenant', initials: 'NA', phone: '', whatsapp: '', telegram: '', about: '', showPhone: false, showWhatsApp: false, emailVerified: true }
 
+for (const locale of [
+  { language: 'es', open: 'También puedes escribir tu búsqueda', mic: 'Dictar búsqueda', recording: 'Grabando…', cancel: 'Cancelar grabación', denied: 'Permite el acceso al micrófono en el navegador o escribe tu búsqueda.' },
+  { language: 'ru', open: 'Также можно написать запрос', mic: 'Надиктовать запрос', recording: 'Идёт запись…', cancel: 'Отменить запись', denied: 'Разрешите доступ к микрофону в браузере или введите запрос текстом.' },
+  { language: 'en', open: 'You can also type your search', mic: 'Dictate search', recording: 'Recording…', cancel: 'Cancel recording', denied: 'Allow microphone access in your browser or type your search.' },
+]) test(`native voice ${locale.language}: translated controls, cancellation and permission recovery without a query`, async ({ page }) => {
+  const state = await surface(page)
+  await page.addInitScript(language => localStorage.setItem('112233:language:v1', language), locale.language)
+  await page.goto('/#/')
+  await page.getByRole('button', { name: locale.open, exact: true }).click()
+  const mic = page.getByRole('button', { name: locale.mic, exact: true })
+  await mic.click()
+  await expect(page.getByText(locale.recording, { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: locale.cancel, exact: true }).click()
+  await expect(mic).toBeEnabled()
+  await page.evaluate(() => { navigator.mediaDevices.getUserMedia = async () => { throw new DOMException('denied', 'NotAllowedError') } })
+  await mic.click()
+  await expect(page.getByRole('alert')).toHaveText(locale.denied)
+  await expect(mic).toBeEnabled()
+  expect(state.queries).toBe(0)
+  expect(state.nativeCreates).toBe(0)
+})
+
 async function surface(page: Page, guestReturn = false) {
   await page.addInitScript(({ guestReturn, guestSid, guestRef }) => {
     localStorage.setItem('112233:language:v1', 'es')
@@ -67,10 +89,10 @@ for (const width of [390, 1440]) for (const channel of ['text', 'voice']) test(`
     await page.locator('#ai-search-text').fill('a room under 700 euros per month, unfurnished')
     await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
   } else {
-    await page.getByRole('button', { name: 'Надиктовать запрос', exact: true }).click()
-    await expect(page.getByText('Идёт запись…', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Dictar búsqueda', exact: true }).click()
+    await expect(page.getByText('Grabando…', { exact: true })).toBeVisible()
     await page.waitForTimeout(300)
-    await page.getByRole('button', { name: 'Остановить и искать', exact: true }).click()
+    await page.getByRole('button', { name: 'Detener y buscar', exact: true }).click()
   }
   await expect(page.getByText('Búsquedas disponibles hoy: 199', { exact: true })).toBeVisible()
   await expect(page.getByText('700 EUR / mes', { exact: true }).first()).toBeVisible()

@@ -1,8 +1,15 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.64**, 19 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.65**, 19 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+
+**Прямое поручение3.65 —19.11.2026 / S4.4,S6,S7:** владелец требует сейчас закончить финальные штрихи и выпустить рабочую версию, допускает мелкие недоработки. Не повторять доказанную приёмку без причины и не задерживать текущий выпуск новыми расширениями. Завершается существующий путь text/voice/cards/map/account/Save/in-app; материальные ограничения (cohort13/local grammar/provider-off, human p95/capacity/signup-email) явно указаны в [пакете передачи](reports/AI_SEARCH_DELIVERY_20261119.md), не переименованы в PASS полногоA1–A12. Платный provider/новые queries/identity reset не разрешены этим поручением.
+
+**Проверки3.65:** независимый read-only server proof: ровно1native owner text succeeded/result1/used1/reserved0/limit200 за18.11; оба сохранённых snapshot enabled, criteria точно равны result criteria, `_decode` подтверждает их собственные подписи, rematch worker нового snapshot fence248/lease clear/baseline1/currenteligible1. Notifications0: прежнее объявление baseline, новая доставка не имитировалась. Первоначальная ошибочная проверка равенства hash разных identity исправлена в harness, product Save не менялся. Последние визуальные дефекты исправлены: voicecontrols/states/errors/disabled reasons иcoverage/pagination теперьES/RU/EN. Types/build/bundle/lint/i18nPASS; native12/public15PASS; pilot29PASS+1старыйRUassertionFAIL, корректныйESfulltext assertion targeted1PASS. Existing cold/backend rules не менялись, новыхbusinessqueries0.
+
+**Следующее действие3.65:** self-review иexact-sourceCI финальногоfrontendпакета → ordinary production release при сохранении nativeflags/ASR/key/cohort/journal/PG/Redis/timers → проверитьactualSHA/servedbundle/readonlycapabilities ипередать ссылку+инструкцию+короткиеизвестныеограничения. Это следующая конкретная доставка, не новый конкурирующий roadmap. Усложнения/расширениеcorpus/data/provider/performance не добавлять перед этим выпуском; обязательные ещёнепройденныеgates честно остаютсяоткрытыми для полногоA1–A12.
+
 
 **Статус3.64 —19.11.2026 / S6,S7:** по запросу владельца сверены оставшиеся обязательные задачи, без новой реализации/queries/deploy. Read-only GitHub API подтвердил exact-main5cb1503a:9/9actual workflows SUCCESS, включая Fullaudit и External source contract audit. Прежний pending Fullaudit закрыт; это не capacity/data/human/fullS7 acceptance. [Final CI evidence](reports/ai-registered-foreground-20261118-evidence/main-ci-final.json).
 
@@ -874,3 +881,6 @@ Offline browser seam не воспроизвёл прежние2clarification fa
 
 ### Версия3.64 —19.11.2026 / status audit
 Exact-main5cb9actualCI SUCCESS, pendingFullaudit закрыт. Остаток сверён с обязательными S2–S7/A1–A12, без нового конкурирующего плана или снятия внешних ограничений. Следующее действие3.63 сохранено.
+
+### Изменение маршрута3.65 —19.11.2026 / немедленная передача версии
+Прямая инструкция владельца: закончить финальные штрихи и выпустить существующую рабочую версию с известными ограничениями. Причина — просроченный дедлайн; влияние — текущий patch/release/инструкция перед дальнейшим расширением, без повторения прошлых tests или новых synthetic deliverables. ПолныеA1–A12/provider/data/performance доказательства не выдуманы и не объявлены пройденными.

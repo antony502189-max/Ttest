@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '@/contexts/i18n-context'
 import workletUrl from './ai-pcm-worklet.js?url&no-inline'
 
 type Recording = { context: AudioContext; stream: MediaStream; node?: AudioWorkletNode; chunks: Float32Array[]; samples: number; timer?: number }
@@ -33,6 +34,7 @@ export function pcmWav(chunks: Float32Array[], rate: number): string {
 }
 
 export function AIVoiceInput({ disabled, disabledReason, onAudio, onRecording }: { disabled: boolean; disabledReason?: string; onAudio: (audio: string) => void; onRecording: (value: boolean) => void }) {
+  const { t } = useI18n()
   const reasonId = useId()
   const [state, setState] = useState<'idle' | 'permission' | 'recording'>('idle')
   const [notice, setNotice] = useState('')
@@ -65,7 +67,7 @@ export function AIVoiceInput({ disabled, disabledReason, onAudio, onRecording }:
     setState('idle')
     if (send && value) {
       try { onAudio(pcmWav(value.chunks, value.context.sampleRate)) }
-      catch { setNotice('Запись слишком короткая. Повторите или введите запрос текстом.') }
+      catch { setNotice('La grabación es demasiado corta. Repite o escribe tu búsqueda.') }
     }
   }
   async function start() {
@@ -101,17 +103,17 @@ export function AIVoiceInput({ disabled, disabledReason, onAudio, onRecording }:
       if (!mounted.current || generation.current !== ticket) return
       cleanup(); setState('idle')
       setNotice(error instanceof DOMException && error.name === 'NotAllowedError'
-        ? 'Разрешите доступ к микрофону в браузере или введите запрос текстом.'
-        : 'Микрофон недоступен. Введите запрос текстом.')
+        ? 'Permite el acceso al micrófono en el navegador o escribe tu búsqueda.'
+        : 'El micrófono no está disponible. Escribe tu búsqueda.')
     }
   }
-  return <div data-i18n-exempt>
-    <p>Голос: до 15 секунд. Аудио обрабатывается на нашем сервере без сохранения. После остановки поиск начнётся автоматически.</p>
-    {state === 'idle' ? <Button type="button" variant="outline" disabled={disabled} aria-describedby={disabled && disabledReason ? reasonId : undefined} onClick={() => void start()}>Надиктовать запрос</Button>
-      : <><p role="status">{state === 'permission' ? 'Ожидаем доступ к микрофону…' : 'Идёт запись…'}</p>
-        <Button type="button" disabled={state !== 'recording'} onClick={() => stop(true)}>Остановить и искать</Button>
-        <Button type="button" variant="outline" onClick={() => stop(false)}>Отменить запись</Button></>}
+  return <div>
+    <p>{t('Voz: hasta 15 segundos. Procesamos el audio en nuestro servidor sin guardarlo. Al detener la grabación, la búsqueda comienza automáticamente.')}</p>
+    {state === 'idle' ? <Button type="button" variant="outline" disabled={disabled} aria-describedby={disabled && disabledReason ? reasonId : undefined} onClick={() => void start()}>{t('Dictar búsqueda')}</Button>
+      : <><p role="status">{t(state === 'permission' ? 'Esperando acceso al micrófono…' : 'Grabando…')}</p>
+        <Button type="button" disabled={state !== 'recording'} onClick={() => stop(true)}>{t('Detener y buscar')}</Button>
+        <Button type="button" variant="outline" onClick={() => stop(false)}>{t('Cancelar grabación')}</Button></>}
     {disabled && disabledReason && state === 'idle' ? <p id={reasonId} role="status" data-voice-unavailable>{disabledReason}</p> : null}
-    {notice ? <p role="alert">{notice}</p> : null}
+    {notice ? <p role="alert">{t(notice)}</p> : null}
   </div>
 }

@@ -1,0 +1,17 @@
+{
+  "native_browser_passed": 12,
+  "public_browser_passed": 15,
+  "pilot_voice_first_passed": 29,
+  "pilot_voice_first_failed": 1,
+  "failure": "Old Russian permission-denied assertion expected after Spanish localization; corrected to exact Spanish full message.",
+  "corrected_case_passed": 1,
+  "types": "pass",
+  "production_build": "pass",
+  "bundle_security": "pass",
+  "lint_i18n": "pass_with_existing_unrelated_warnings",
+  "backend_application_changed": false,
+  "new_business_queries": 0,
+  "provider_calls": 0,
+  "new_identities": 0,
+  "asr_changed": false
+}

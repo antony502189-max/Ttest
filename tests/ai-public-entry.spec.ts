@@ -50,7 +50,7 @@ for (const width of [390, 1440]) for (const ready of [true, false]) {
     await expect(voice).toHaveCSS('background-color','rgb(201, 255, 39)')
     await page.screenshot({path:`output/ai-home-public-${width}-${ready}.png`,fullPage:true})
     await voice.click()
-    await expect(page.getByRole('button',{name:'Надиктовать запрос',exact:true})).toBeVisible()
+    await expect(page.getByRole('button',{name:'Dictar búsqueda',exact:true})).toBeVisible()
     await page.locator('#ai-search-text').fill('')
     const submit = page.getByRole('button',{name:'Buscar habitaciones',exact:true})
     await expect(submit).toBeDisabled()
@@ -244,7 +244,7 @@ for(const pending of [false,true]) test(`catalog status recovers automatically w
   await expect(page.locator('[data-private-demo-status]')).toContainText('Busca por voz o texto')
   expect(statusReads).toBeGreaterThan(before);expect(keys.length).toBe(pending?1:0)
   expect(await page.evaluate(()=>sessionStorage.getItem('112233:ai-continuation:v1:public-guest'))).toBe(stored)
-  if(pending){await page.getByRole('button',{name:'Проверить результат попытки',exact:true}).click();await expect(page.getByRole('button',{name:'Надиктовать запрос',exact:true})).toBeEnabled();expect(keys.length).toBe(2);expect(keys[0]).toBe(keys[1])}
+  if(pending){await page.getByRole('button',{name:'Проверить результат попытки',exact:true}).click();await expect(page.getByRole('button',{name:'Dictar búsqueda',exact:true})).toBeEnabled();expect(keys.length).toBe(2);expect(keys[0]).toBe(keys[1])}
   else await expect(page.getByRole('button',{name:'Buscar habitaciones',exact:true})).toBeEnabled()
   ready=false;await page.evaluate(()=>window.dispatchEvent(new Event('focus')))
   await expect(page.locator('[data-private-demo-status]')).toContainText('actualizando')
