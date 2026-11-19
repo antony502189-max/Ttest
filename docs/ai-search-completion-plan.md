@@ -1,8 +1,13 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.63**, 18 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.64**, 19 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+
+**Статус3.64 —19.11.2026 / S6,S7:** по запросу владельца сверены оставшиеся обязательные задачи, без новой реализации/queries/deploy. Read-only GitHub API подтвердил exact-main5cb1503a:9/9actual workflows SUCCESS, включая Fullaudit и External source contract audit. Прежний pending Fullaudit закрыт; это не capacity/data/human/fullS7 acceptance. [Final CI evidence](reports/ai-registered-foreground-20261118-evidence/main-ci-final.json).
+
+**Остаток3.64:** S2 рабочий каталог/покрытие/постоянное обновление за пределами13scope; S3 полноценное понимание свободных ES/RU/EN запросов и разрешённая provider/account/data configuration; S4 human housing voice/realmic/locale, server-side native query/saved/rematch verification, reload, actual signup-email иноваяnotification delivery; S5 заявленная latency/нагрузка/стабильность; S6 постоянная эксплуатационная сертификация иS7 итоговаяA1–A12 приёмка/наблюдение/инструкция. Код сохранения/уведомлений в13scope уже работает; не представлять эти пункты как отсутствие реализации. Следующее действие прежнее3.63: read-only native ledger/result/snapshot/rematch evidence без второго businessquery; затем human voice/A9. Ограничения spending/outbound/largebenchmarks/reset сохраняются.
+
 
 **S4.4 actual owner acceptance3.63:** владелец прямо разрешил один local text query + explicitSave в текущем аккаунте. В обычном Chrome отправлен ровно один запрос «Комната в Ла-Лагуне до 700 евро в месяц, с мебелью». UI показал long/room/municipality38023/700EUR-month/furnished=true, один вариант с подтверждённой ценой550EUR/month, лимит200→199. После прокрутки и одного фактического Save UI подтвердил: «Поиск сохранён. Уведомления можно приостановить в сохранённых поисках». Первый clickSave за пределами окна отклонён до действия; повтор после свежего screenshot/scroll. Новых accounts/guest/quota reset/provider approvals не создавали, bearer/cookie не экспортированы. Это реальная UI-приёмка account debit и Save, serverSQL equality/новый rematch/notification delivery отдельно ещё не проверены.
 
@@ -866,3 +871,6 @@ Offline browser seam не воспроизвёл прежние2clarification fa
 
 ### Версия3.63 —18.11.2026 / S4.4 actual owner query + Save
 Выполнено новое явное ограниченное разрешение владельца:1native account text request иSave, UI200→199/1card550/сохранениеPASS. URL-policy остановила следующий reload check; барьер не обходился, этот пункт остаётсяOPEN. Остальной основной маршрут и gates сохранены.
+
+### Версия3.64 —19.11.2026 / status audit
+Exact-main5cb9actualCI SUCCESS, pendingFullaudit закрыт. Остаток сверён с обязательными S2–S7/A1–A12, без нового конкурирующего плана или снятия внешних ограничений. Следующее действие3.63 сохранено.
