@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test'
 
-for(const width of [390,1440]) for(const detail of ['AI_REQUEST_INVALID','OTHER_BAD_REQUEST']) test(`voice ${width}px 400 ${detail} respects the exact pre-reservation contract`,async({page})=>{
+for(const width of [390,1440]) for(const detail of ['AI_REQUEST_INVALID','OTHER_BAD_REQUEST','VOICE_BODY_TOO_LARGE']) test(`voice ${width}px rejection ${detail} respects the exact pre-reservation contract`,async({page})=>{
   await page.setViewportSize({width,height:1000})
   const sid='00000000-0000-4000-8000-000000000041'
   let uploads=0,operationReads=0
   const session={intent:{schema_version:'ai-search.v1',taxonomy_version:'rental.v1',session_id:sid,version:0,criteria:{rental_mode:{strength:'hard',value:'long'}}},expires_at:'2099-01-01T00:00:00Z'}
   await page.route('**/ai-pilot/api/**',async route=>{
     const path=new URL(route.request().url()).pathname
-    if(path.endsWith('/voice')){uploads++;return route.fulfill({status:400,json:{detail}})}
+    if(path.endsWith('/voice')){uploads++;return route.fulfill({status:detail==='VOICE_BODY_TOO_LARGE'?413:400,json:{detail}})}
     if(path.includes('/operations/'))operationReads++
     const value=path.endsWith('/private-demo/status')?{attempts:9,maximum:50,approved:true,halted:false,exhausted:false,catalog_ready:true}
       :path.endsWith('/capabilities')?{text:true,map:true,voice:true,saved_searches:false}
@@ -21,7 +21,8 @@ for(const width of [390,1440]) for(const detail of ['AI_REQUEST_INVALID','OTHER_
   await mic.click();await expect(page.getByText('Grabando…',{exact:true})).toBeVisible()
   await page.waitForTimeout(300)
   await page.getByRole('button',{name:'Detener y buscar',exact:true}).click()
-  if(detail==='AI_REQUEST_INVALID'){
+  if(detail==='AI_REQUEST_INVALID'||detail==='VOICE_BODY_TOO_LARGE'){
+    if(detail==='VOICE_BODY_TOO_LARGE')await expect(page.getByRole('status').filter({hasText:'La grabación supera el tamaño permitido.'})).toBeVisible()
     await expect(mic).toBeEnabled()
     await expect(page.getByRole('button',{name:'Проверить результат попытки',exact:true})).toHaveCount(0)
     await page.reload()

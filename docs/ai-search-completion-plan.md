@@ -1,8 +1,15 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.66**, 19 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.67**, 19 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+
+**Incident3.67 —19.11.2026 / S4.1,S4.4,A6:** владелец сообщил, что голос после записи ничего не делает. Read-only primary owner ledger не содержит новогоvoice request, isolated recent10min0; normalChrome показывает «Сократите или проверьте текст перед повторной отправкой», лимит200. Это pre-reservation failure, не доказательство ASR/parser failure. Найден конкретный production ingress gap: primarynginx наследует256k, тогда как полный15sPCM/base64JSON640255bytes. Вexact-production-nginx network-nonefixture сloopbackstub old5s200/7s413/15s413/650000413; после scopedAI650000 все6casesPASS,650001413 иordinaryAPI300k413 сохранены. Ранниеfixturestartupfail отroot-only config permissions устранены копированием с644, какDockerfile; stub204 сменён на200 дляоднозначнойwget readiness, не выданызаproductfailures.
+
+**Исправление3.67:** толькоAI ingress650000bytes, не global256k; voice413/422 теперьсообщаютобaudio вместоошибкиtext, state/квоты/replayguards неослаблены.6targetedbrowserrejection/mobile/desktopPASS, TypeScript/lint/i18n/provenance1084PASS, backend/ASR/keys/cohort/provider не менялись. Реальныйnginxbody regression добавлен вproduction-config CI: прежние mockedAPI browserchecks не проверяли этотшов. Прежнее заявление оготовностиголосапоэтимchecks недостаточно, incident открыт доactualreleaseproof.
+
+**Следующее действие3.67:** immutablefrontend-only mitigation сexactoldimage/config guards и6realNginxfixturePASS, безперезапускаbackend/statefulservices; затем sourceCI/review/ordinarymainrelease тогожеfix+ошибкиUI. Actualvoicequery не запускать вместо владельца/не сбрасывать квоты. После выпуска сообщитьвладельцуо конкретном исправлении, actualASR/semantic human acceptance не объявлять пройденной поgatewaytest.
+
 
 **Фактическая передача3.66 —19.11.2026 / S4.4,S6:** завершающий пакет [PR433](https://github.com/antony502189-max/Ttest/pull/433) выпущен на https://app.112233.es/. Actual primary`db4f202c68bb9543ddd8a13a13252e97e27302e6`, source`cee775293c36ae0561af0a3440ad090dac0f57f6`, одинаковое tree`6b28a2a7c1439c442b8636346842b459d42db3c9`. Source10actualworkflowsSUCCESS/2conditionalSKIP, reviews/threads0/selfreviewPASS. По прямому приоритету владельца merge/release начат при9SUCCESS иещёrunning неизменённомbackend-production; этот run не выдавался заPASS, затем фактически10/10SUCCESS. Ordinarymerge/runner безbypass, schema0080/data maintenanceSKIPPED,271actualPythonGitblobhashesPASS, protectedprod.env/old+nativekeys/cohort/approval иPG/Redis/MinIO неизменны; native2CPU/1536MiB/swap0 сохранены, postticksSUCCESS/all3timersACTIVE. Isolatedpilot22f55c50 прежний, provider30/expiredapprovalfalse, новыхquery/identity/reset0.
 
@@ -897,3 +904,6 @@ Exact-main5cb9actualCI SUCCESS, pendingFullaudit закрыт. Остаток с
 
 ### Уточнение19.11 / S3,S4.4 — запросы о животных
 По вопросу владельца выполнены4offline parser probes на неизменённом source: «Комната с собакой» и«с собакой» →hard pets/dog/count1; «Можно ли с домашними животными?» и«Комната с домашними животными» →clarification_required. Это проверка grammar, не наличие подходящих объявлений и не site businessquery. Код/release/квоты не менялись. Общая разговорная формулировка остаётся известным ограничением; следующая задача текущей доставки3.66 не заменяется новой реализацией без поручения.
+
+### Изменение маршрута3.67 —19.11.2026 / реальный voice incident
+Новый прямой сигнал владельца ставит подтверждённый gateway blocker перед дальнейшей передачей/улучшениями. Исправляется пропущенный primary256k→AI650000 transport seam сrealNginx regressions; no provider/newquery/identity/reset. Source-ready/mock PASS не заменяют фактическое устранение incident.
