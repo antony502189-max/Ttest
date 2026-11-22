@@ -90,7 +90,7 @@ test('mobile reference panel, private text, zero confirmed results and followup 
     await route.fulfill({ json: { operation: { status: 'succeeded', remaining: 3 - version, receipt: { result_ref: ref, count: 0 } }, cards: cards() } })
   })
   await page.goto('/#/')
-  await expect(page.getByRole('button', { name: 'Escribir mi búsqueda' })).toHaveCSS('background-color', 'rgb(201, 255, 39)')
+  await expect(page.getByRole('button', { name: 'Escribir mi búsqueda' })).toHaveCSS('background-color', 'rgb(228, 251, 95)')
   await page.getByRole('button', { name: 'Escribir mi búsqueda' }).click()
   if (await page.getByLabel('Modo para esta búsqueda').inputValue() === '') await page.getByLabel('Modo para esta búsqueda').selectOption('none')
   await page.getByLabel('Cuéntanos qué necesitas').fill(requestText)
