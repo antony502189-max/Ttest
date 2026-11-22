@@ -47,12 +47,20 @@ for (const width of [390, 1440]) for (const ready of [true, false]) {
     await expect(manual).toBeVisible()
     const voice = page.getByRole('button', {name:'Buscar con mi voz',exact:true})
     await expect(voice).toBeVisible()
-    await expect(voice).toHaveCSS('background-color','rgb(201, 255, 39)')
+    const siteLime = await voice.evaluate(node => {
+      const sample = document.createElement('span')
+      sample.style.color = 'var(--market-lime)'
+      node.append(sample)
+      const color = getComputedStyle(sample).color
+      sample.remove()
+      return color
+    })
+    await expect(voice).toHaveCSS('background-color', siteLime)
     await page.screenshot({path:`output/ai-home-public-${width}-${ready}.png`,fullPage:true})
     await voice.click()
     await expect(page.getByRole('button',{name:'Dictar búsqueda',exact:true})).toBeVisible()
     await page.locator('#ai-search-text').fill('')
-    const submit = page.getByRole('button',{name:'Buscar habitaciones',exact:true})
+    const submit = page.getByRole('button',{name:'Buscar vivienda',exact:true})
     await expect(submit).toBeDisabled()
     await page.locator('#ai-search-text').fill('до 600 евро в месяц')
     if (ready) {
@@ -117,7 +125,7 @@ for (const width of [390, 1440]) {
     await page.evaluate(async () => { const client = await import('/src/api/client.ts'); client.setAccessToken('synthetic-primary-token') })
     await page.getByRole('button', { name: 'También puedes escribir tu búsqueda', exact: true }).click()
     await page.locator('#ai-search-text').fill('sin muebles')
-    await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+    await page.getByRole('button', { name: 'Buscar vivienda', exact: true }).click()
     const save = page.getByRole('button', { name: 'Guardar búsqueda y activar avisos', exact: true })
     await expect(save).toBeVisible()
     await save.click()
@@ -237,15 +245,15 @@ for(const pending of [false,true]) test(`catalog status recovers automatically w
   })
   await page.goto('/#/');await page.getByRole('button',{name:'También puedes escribir tu búsqueda',exact:true}).click()
   await page.locator('#ai-search-text').fill('до 600 евро в месяц')
-  if(pending){await page.getByRole('button',{name:'Buscar habitaciones',exact:true}).click();await expect(page.getByRole('button',{name:'Проверить результат попытки',exact:true})).toBeEnabled()}
+  if(pending){await page.getByRole('button',{name:'Buscar vivienda',exact:true}).click();await expect(page.getByRole('button',{name:'Comprobar el mismo intento',exact:true})).toBeEnabled()}
   await expect(page.locator('[data-private-demo-status]')).toContainText(/actualiza|actualizando/)
   const stored=await page.evaluate(()=>sessionStorage.getItem('112233:ai-continuation:v1:public-guest'))
   const before=statusReads;ready=true;await page.clock.fastForward(5100)
   await expect(page.locator('[data-private-demo-status]')).toContainText('Busca por voz o texto')
   expect(statusReads).toBeGreaterThan(before);expect(keys.length).toBe(pending?1:0)
   expect(await page.evaluate(()=>sessionStorage.getItem('112233:ai-continuation:v1:public-guest'))).toBe(stored)
-  if(pending){await page.getByRole('button',{name:'Проверить результат попытки',exact:true}).click();await expect(page.getByRole('button',{name:'Dictar búsqueda',exact:true})).toBeEnabled();expect(keys.length).toBe(2);expect(keys[0]).toBe(keys[1])}
-  else await expect(page.getByRole('button',{name:'Buscar habitaciones',exact:true})).toBeEnabled()
+  if(pending){await page.getByRole('button',{name:'Comprobar el mismo intento',exact:true}).click();await expect(page.getByRole('button',{name:'Dictar búsqueda',exact:true})).toBeEnabled();expect(keys.length).toBe(2);expect(keys[0]).toBe(keys[1])}
+  else await expect(page.getByRole('button',{name:'Buscar vivienda',exact:true})).toBeEnabled()
   ready=false;await page.evaluate(()=>window.dispatchEvent(new Event('focus')))
   await expect(page.locator('[data-private-demo-status]')).toContainText('actualizando')
   await page.getByRole('button',{name:'Cerrar',exact:true}).click()
