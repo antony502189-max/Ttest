@@ -488,7 +488,9 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
           ? 'Escribe o dicta los requisitos de tu próxima vivienda.'
           : 'Usamos condiciones confirmadas de los anuncios para buscar opciones.')}</DialogDescription>
       </DialogHeader>
-      {authority !== 'registered' ? <PrivateDemoStatus refreshKey={`${session?.intent.version ?? 0}:${busy}`} onBlocked={setDemoBlocked} onReason={setDemoReason} /> : null}
+      {authority !== 'registered' && PRIVATE_DEMO ? <div hidden={publicAI && !demoBlocked}>
+        <PrivateDemoStatus refreshKey={`${session?.intent.version ?? 0}:${busy}`} onBlocked={setDemoBlocked} onReason={setDemoReason} />
+      </div> : null}
       {import.meta.env.VITE_AI_CLOSED_LAB ? <p data-ai-lab-mode={import.meta.env.VITE_AI_CLOSED_LAB}>
         {t(import.meta.env.VITE_AI_CLOSED_LAB === 'closed-live-synthetic'
           ? 'Prueba cerrada con modelo real y catálogo simulado. Usa solo las frases sintéticas autorizadas. No envíes datos personales.'
@@ -503,14 +505,14 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
         <option value={homeMode === 'long' ? 'holiday' : 'long'}>{t('Modo de alquiler')}: {aiModeLabel(homeMode === 'long' ? 'holiday' : 'long', t)}</option>
         <option value="none">{t(session ? 'Nueva conversación sin limitar el modo' : 'Sin limitar el modo de alquiler')}</option>
       </select>
-      <small>{t('El modo de inicio no cambia una conversación existente. Los demás filtros no se añaden a IA.')}</small>
+      {(!publicAI || session) ? <small>{t('El modo de inicio no cambia una conversación existente. Los demás filtros no se añaden a IA.')}</small> : null}
       {session ? <AIConditions intent={session.intent} title="Condiciones para el próximo mensaje" /> : null}
       <label htmlFor="ai-search-text">{t(result ? '¿Qué quieres cambiar?' : 'Cuéntanos qué necesitas')}</label>
       <textarea id="ai-search-text" ref={textInput} data-i18n-exempt value={text} onChange={event => setText(event.target.value)} disabled={textDisabled}
         aria-describedby={showGuide ? 'ai-search-guide-title' : undefined}
         maxLength={inputPolicy?.maxLength ?? 16000} rows={3} autoComplete="off" spellCheck={false}
         placeholder={example ?? t(inputPolicy?.placeholder ?? 'Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
-      {inputPolicy ? <p role={invalidText ? 'alert' : undefined} data-i18n-exempt>{t(invalidText || !publicAI ? inputPolicy.hint : 'Evita incluir datos personales o de contacto.')}</p> : null}
+      {inputPolicy ? <small role={invalidText ? 'alert' : undefined} data-i18n-exempt>{t(invalidText || !publicAI ? inputPolicy.hint : 'Evita incluir datos personales o de contacto.')}</small> : null}
       {voiceEnabled ? <AIVoiceInput disabled={continuationOnly || busy || restoring || restoreFailed || demoBlocked || pending !== null || changingSession || syncingSession || needsSync || needsConversation || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)}
         disabledReason={t(busy ? 'Procesando tu búsqueda y buscando opciones…' : demoBlocked ? demoReason : remaining === 0 ? 'Has agotado tus búsquedas. Inténtalo cuando se renueve el límite.' : !modeChoice ? 'Elige el modo de alquiler antes de grabar.' : restoreFailed ? 'No pudimos recuperar la búsqueda. Reintenta la recuperación.' : pending ? 'El resultado no está confirmado. Pulsa «Comprobar el mismo intento» abajo.' : 'Espera a que termine la operación y se sincronice la búsqueda.')}
         onAudio={audio => void submit(audio)} onRecording={setRecording} /> : null}
