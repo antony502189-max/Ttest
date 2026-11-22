@@ -6,14 +6,25 @@ const guestSid = '00000000-0000-4000-8000-000000000031', guestRef = '00000000-00
 const user = { id: userId, name: 'Native Account', email: 'synthetic@example.test', role: 'tenant', initials: 'NA', phone: '', whatsapp: '', telegram: '', about: '', showPhone: false, showWhatsApp: false, emailVerified: true }
 
 for (const locale of [
-  { language: 'es', open: 'También puedes escribir tu búsqueda', mic: 'Dictar búsqueda', recording: 'Grabando…', cancel: 'Cancelar grabación', denied: 'Permite el acceso al micrófono en el navegador o escribe tu búsqueda.' },
-  { language: 'ru', open: 'Также можно написать запрос', mic: 'Надиктовать запрос', recording: 'Идёт запись…', cancel: 'Отменить запись', denied: 'Разрешите доступ к микрофону в браузере или введите запрос текстом.' },
-  { language: 'en', open: 'You can also type your search', mic: 'Dictate search', recording: 'Recording…', cancel: 'Cancel recording', denied: 'Allow microphone access in your browser or type your search.' },
-]) test(`native voice ${locale.language}: translated controls, cancellation and permission recovery without a query`, async ({ page }) => {
-  const state = await surface(page)
-  await page.addInitScript(language => localStorage.setItem('112233:language:v1', language), locale.language)
+  { language: 'es', open: 'También puedes escribir tu búsqueda', mic: 'Dictar búsqueda', recording: 'Grabando…', cancel: 'Cancelar grabación', denied: 'Permite el acceso al micrófono en el navegador o escribe tu búsqueda.', guide: 'Qué puedes indicar', useExample: 'Usar este ejemplo', close: 'Cerrar', nightly: 'Estudio en Madrid hasta 70 euros por noche, amueblado' },
+  { language: 'ru', open: 'Также можно написать запрос', mic: 'Надиктовать запрос', recording: 'Идёт запись…', cancel: 'Отменить запись', denied: 'Разрешите доступ к микрофону в браузере или введите запрос текстом.', guide: 'Что можно указать', useExample: 'Подставить пример', close: 'Закрыть', nightly: 'Студия в Мадриде до 70 евро за ночь, с мебелью' },
+  { language: 'en', open: 'You can also type your search', mic: 'Dictate search', recording: 'Recording…', cancel: 'Cancel recording', denied: 'Allow microphone access in your browser or type your search.', guide: 'What you can include', useExample: 'Use this example', close: 'Close', nightly: 'A studio in Madrid under 70 euros per night, furnished' },
+]) test(`native search ${locale.language}: mobile guidance, examples and microphone recovery without a query`, async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 })
+  const state = await surface(page, false, locale.language)
   await page.goto('/#/')
   await page.getByRole('button', { name: locale.open, exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  const guide = dialog.getByRole('region', { name: locale.guide })
+  await expect(guide).toBeVisible()
+  await expect(guide.locator('dt')).toHaveCount(4)
+  await expect(dialog.getByRole('button', { name: locale.close, exact: true })).toBeVisible()
+  await dialog.locator('#ai-rental-mode').selectOption('holiday')
+  await guide.getByRole('button', { name: locale.useExample, exact: true }).click()
+  const draft = dialog.locator('#ai-search-text')
+  await expect(draft).toHaveValue(locale.nightly)
+  await expect(draft).toBeFocused()
+  expect(await dialog.evaluate(node => node.scrollWidth)).toBe(await dialog.evaluate(node => node.clientWidth))
   const mic = page.getByRole('button', { name: locale.mic, exact: true })
   await mic.click()
   await expect(page.getByText(locale.recording, { exact: true })).toBeVisible()
@@ -27,13 +38,13 @@ for (const locale of [
   expect(state.nativeCreates).toBe(0)
 })
 
-async function surface(page: Page, guestReturn = false) {
-  await page.addInitScript(({ guestReturn, guestSid, guestRef }) => {
-    localStorage.setItem('112233:language:v1', 'es')
+async function surface(page: Page, guestReturn = false, language = 'es') {
+  await page.addInitScript(({ guestReturn, guestSid, guestRef, language }) => {
+    localStorage.setItem('112233:language:v1', language)
     localStorage.setItem('112233:mobile-onboarding:v1', 'done')
     localStorage.setItem('112233:has-session', '1')
     if (guestReturn) sessionStorage.setItem('112233:ai-continuation:v1:public-guest', JSON.stringify({ sessionId: guestSid, resultRef: guestRef }))
-  }, { guestReturn, guestSid, guestRef })
+  }, { guestReturn, guestSid, guestRef, language })
   const state = { queries: 0, saves: 0, guestIssues: 0, nativeIssues: 0, nativeCreates: 0, nativeCapabilities: 0, nativeMapReads: 0 }
   const intent = (guest = false) => ({ schema_version: 'ai-search.v1', taxonomy_version: 'rental.v1', session_id: guest ? guestSid : sid,
     version: guest ? 1 : state.queries, criteria: { rental_mode: { strength: 'hard', value: 'long' },
@@ -87,7 +98,7 @@ for (const width of [390, 1440]) for (const channel of ['text', 'voice']) test(`
   await expect(page.getByText('Búsquedas disponibles hoy: 200', { exact: true })).toBeVisible()
   if (channel === 'text') {
     await page.locator('#ai-search-text').fill('a room under 700 euros per month, unfurnished')
-    await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
+    await page.getByRole('button', { name: 'Buscar vivienda', exact: true }).click()
   } else {
     await page.getByRole('button', { name: 'Dictar búsqueda', exact: true }).click()
     await expect(page.getByText('Grabando…', { exact: true })).toBeVisible()

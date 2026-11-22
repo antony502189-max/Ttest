@@ -6,6 +6,22 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  '¿Qué vivienda buscas?': { ru: 'Какое жильё вы ищете?', en: 'What kind of home are you looking for?' },
+  'Escribe o dicta los requisitos de tu próxima vivienda.': { ru: 'Напишите или скажите, где хотите жить и какие условия вам важны.', en: 'Type or say where you want to live and what you need.' },
+  'Qué puedes indicar': { ru: 'Что можно указать', en: 'What you can include' },
+  'Lugar y vivienda': { ru: 'Место и тип жилья', en: 'Location and home type' },
+  'Municipio o provincia. Habitación, habitación compartida, estudio o piso de un dormitorio.': { ru: 'Город или провинция. Комната, место в комнате, студия или квартира с одной спальней.', en: 'A city or province. A room, a shared room, a studio or a one-bedroom apartment.' },
+  'Precio y fechas': { ru: 'Цена и сроки', en: 'Price and dates' },
+  'Presupuesto mensual, semanal o por noche. Fianza, fechas y duración de la estancia.': { ru: 'Бюджет на месяц, неделю или ночь. Залог, даты и длительность аренды.', en: 'A monthly, weekly or nightly budget. Deposit, dates and length of stay.' },
+  'Quién se muda': { ru: 'Кто будет жить', en: 'Who is moving in' },
+  'Número de personas. Para mascotas, indica perro o gato y cuántos.': { ru: 'Число жильцов. Если едете с животными, укажите, сколько у вас собак или кошек.', en: 'Number of people. For pets, specify how many dogs or cats you have.' },
+  'Equipamiento y gastos': { ru: 'Удобства и расходы', en: 'Amenities and bills' },
+  'Muebles, gastos incluidos, balcón, terraza, wifi o aparcamiento.': { ru: 'Мебель, включённые коммунальные расходы, балкон, терраса, Wi-Fi или парковка.', en: 'Furniture, included bills, a balcony, a terrace, Wi-Fi or parking.' },
+  'Evita incluir datos personales o de contacto.': { ru: 'Не указывайте личные данные и контакты.', en: 'Keep personal and contact details out of your search.' },
+  'Usar este ejemplo': { ru: 'Подставить пример', en: 'Use this example' },
+  'Una habitación en Madrid hasta 700 euros al mes, amueblada y con gastos incluidos': { ru: 'Комната в Мадриде до 700 евро в месяц, с мебелью и включёнными счетами', en: 'A room in Madrid under 700 euros per month, furnished and with bills included' },
+  'Estudio en Madrid hasta 70 euros por noche, amueblado': { ru: 'Студия в Мадриде до 70 евро за ночь, с мебелью', en: 'A studio in Madrid under 70 euros per night, furnished' },
+  'Buscar vivienda': { ru: 'Найти жильё', en: 'Find housing' },
   'La grabación supera el tamaño permitido. Graba hasta 15 segundos o escribe tu búsqueda. No se ha descontado ninguna búsqueda.': { ru: 'Запись превышает допустимый размер. Запишите до 15 секунд или введите запрос текстом. Поиск не списан.', en: 'The recording exceeds the size limit. Record up to 15 seconds or type your search. No search was charged.' },
   "No pudimos interpretar las condiciones de la grabación. Repite o escribe tu búsqueda. No se ha descontado ninguna búsqueda.": {"ru": "Не удалось разобрать условия из записи. Повторите или введите запрос текстом. Поиск не списан.", "en": "We could not interpret the recorded conditions. Try again or type your search. No search was charged."},
   "El catálogo actual no tiene suficientes datos verificados recientes para todas estas condiciones. Esto no significa que no exista una vivienda adecuada. Conservamos las condiciones anteriores y no descontamos ninguna búsqueda. Cambia tu búsqueda o usa los filtros.": {"ru": "В текущем каталоге недостаточно свежих подтверждённых данных для всех этих условий. Это не означает, что подходящего жилья нет. Предыдущие условия сохранены, поиск не списан. Измените запрос или используйте обычные фильтры.", "en": "The current catalog does not have enough recently verified data for all these conditions. This does not mean no suitable home exists. Previous conditions are preserved and no search was charged. Change your search or use the filters."},

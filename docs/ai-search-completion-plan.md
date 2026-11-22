@@ -1,8 +1,14 @@
 # AI Search на 112233.es — единый план завершения
 
-Версия **3.67**, 19 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
+Версия **3.70**, 22 ноября 2026. Этот файл определяет порядок оставшихся работ и хранит прогресс. Технические документы и отчёты ниже служат основаниями, а не конкурирующими планами.
 
 ## Цель, текущий этап и следующий шаг
+
+**3.70 — 22.11.2026 / S4.4, S6:** владелец выбрал макет с подсказкой под полем и поручил адаптировать его к сайту и выпустить. В публичном меню показываем поддерживаемые условия, пример для выбранного режима аренды и подстановку без отправки. Меню берёт язык из настроек сайта (ES/RU/EN) и использует общую палитру. Проверки браузера включают 320 px и все три языка. Следующий шаг для этой работы — точные проверки PR, штатный выпуск и проверка отданной сайтом сборки.
+
+**Доказательства 3.70:** локально прошли 12 native и 15 public браузерных сценариев и шесть разборов показанных в меню фраз. На сборке проверены Edge 1440 px и WebKit 390 px, включая язык меню, подстановку примера и закрытие. В GitHub Payment audit обнаружена истёкшая фиксированная дата в существующей фикстуре бесплатного активного баннера. Часы браузера зафиксированы внутри срока баннера, исходная проверка активного статуса сохранена, целевой тест прошёл.
+
+**Открытый S3/A1:** после выпуска исправления голосового входа в main `8ecd7f03` отдельно воспроизведено, что общие «квартиры» и «с животными» требуют уточнения. Подсказка называет поддерживаемые типы жилья и вид животного. Следующее действие S3/A1 — типизированное расширение семантики без произвольного сужения запроса, с проверкой поиска и чтения сохранённых критериев. Остальные критерии S0–S7 продолжают действовать.
 
 **Incident3.67 —19.11.2026 / S4.1,S4.4,A6:** владелец сообщил, что голос после записи ничего не делает. Read-only primary owner ledger не содержит новогоvoice request, isolated recent10min0; normalChrome показывает «Сократите или проверьте текст перед повторной отправкой», лимит200. Это pre-reservation failure, не доказательство ASR/parser failure. Найден конкретный production ingress gap: primarynginx наследует256k, тогда как полный15sPCM/base64JSON640255bytes. Вexact-production-nginx network-nonefixture сloopbackstub old5s200/7s413/15s413/650000413; после scopedAI650000 все6casesPASS,650001413 иordinaryAPI300k413 сохранены. Ранниеfixturestartupfail отroot-only config permissions устранены копированием с644, какDockerfile; stub204 сменён на200 дляоднозначнойwget readiness, не выданызаproductfailures.
 
@@ -682,6 +688,7 @@ Source3.14: application `54d3a28d149e15c3d252db1ba05d4e710532769d`, [draft PR411
 
 | Дата | Версия/этап | Выполнено и доказательство | Следующий шаг |
 | --- | --- | --- | --- |
+| 2026-11-22 | 3.70 / S4.4, S6 | По прямому запросу владельца макет с подсказкой перенесён в штатный интерфейс AI Search. Добавлены ES/RU/EN, пример с учётом режима аренды и проверки узкого экрана. | Выпустить после проверок и сверить версию на сайте. Пробел S3/A1 отслеживается отдельно. |
 | 2026-11-18 | 3.58 / S4.1,S4.4 | 9CC0humanRU/ES/EN +6derivedstress; Small/no-hotwords/Parakeet comparisons, 33candidate whole-transcript refusals; owner one recording ×2engines×3variants typedconditions6/6, swap0/max0/OOM0 with importedapp, not lifespan. Englishprefix/negation RED→GREEN;2108unit/97housing/mypy189/RuffPASS; sourceb88PR43013CI SUCCESS; candidate4388/287Python/4modelhashPASS, inactive | ReviewPR430, отдельныйCIevidencehead, затем freelyreusable humanpositivehousing иcoldcomposition/completeness/privacy; previouslivefailures/fullS7 OPEN |
 | 2026-11-17 | 3.56 / S4.1,S4.4,S6 | 428→427 merged; compatiblebaseline4b/934 retained; actualprimaryf5/pilot1c40-image7b/frontendb6-d7,287activehash/5HTTPS PASS,3timersACTIVE,provider30→30; обаsource13CI SUCCESS, mainf5 Fullauditpending | Итогmain audit, затем humanRU/ES housing иASRmemory/completeness/private-audio gates; fullS7 OPEN |
 | 2026-11-17 | 3.55 / S4.1,S4.4,S6 | Existing picomatch blocker: pinned published MIT fix reviewed,10files match source, registry/provenance verified; original8timeouts→50attack+19compatibility PASS; raw npm audit0 | Build/browser/exact-source CI и совместимое packaging перед activation; S7 OPEN |

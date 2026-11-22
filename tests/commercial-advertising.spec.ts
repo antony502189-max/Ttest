@@ -21,6 +21,7 @@ async function expectDecodedImage(locator: import('@playwright/test').Locator) {
 }
 
 test('admin creates a complimentary banner directly from moderation without checkout', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-23T10:00:00Z'))
   await page.addInitScript(() => localStorage.setItem('112233:session:v1', JSON.stringify('admin-demo')))
   let ad: Record<string, unknown> | null = null
   let checkouts = 0
@@ -29,7 +30,7 @@ test('admin creates a complimentary banner directly from moderation without chec
     if (route.request().method() === 'GET') return route.fulfill({ json: [] })
     ad = { ...route.request().postDataJSON(), id: adId, ownerUserId: 'admin-demo',
       imageUrl: `/api/v1/media/${assetId}`, status: 'active', paymentStatus: 'waived',
-      placement: 'homepage_bottom', createdAt: new Date().toISOString(),
+      placement: 'homepage_bottom', createdAt: '2026-10-22T10:00:00Z',
       startsAt: '2026-10-22T10:00:00Z', endsAt: '2026-11-22T10:00:00Z', moderationNote: null }
     return route.fulfill({ status: 201, json: ad })
   })
