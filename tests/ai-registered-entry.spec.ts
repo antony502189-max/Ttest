@@ -6,9 +6,9 @@ const guestSid = '00000000-0000-4000-8000-000000000031', guestRef = '00000000-00
 const user = { id: userId, name: 'Native Account', email: 'synthetic@example.test', role: 'tenant', initials: 'NA', phone: '', whatsapp: '', telegram: '', about: '', showPhone: false, showWhatsApp: false, emailVerified: true }
 
 for (const locale of [
-  { language: 'es', open: 'También puedes escribir tu búsqueda', mic: 'Dictar búsqueda', recording: 'Grabando…', cancel: 'Cancelar grabación', denied: 'Permite el acceso al micrófono en el navegador o escribe tu búsqueda.', guide: 'Qué puedes indicar', useExample: 'Usar este ejemplo', close: 'Cerrar', nightly: 'Estudio en Madrid hasta 70 euros por noche, amueblado' },
-  { language: 'ru', open: 'Также можно написать запрос', mic: 'Надиктовать запрос', recording: 'Идёт запись…', cancel: 'Отменить запись', denied: 'Разрешите доступ к микрофону в браузере или введите запрос текстом.', guide: 'Что можно указать', useExample: 'Подставить пример', close: 'Закрыть', nightly: 'Студия в Мадриде до 70 евро за ночь, с мебелью' },
-  { language: 'en', open: 'You can also type your search', mic: 'Dictate search', recording: 'Recording…', cancel: 'Cancel recording', denied: 'Allow microphone access in your browser or type your search.', guide: 'What you can include', useExample: 'Use this example', close: 'Close', nightly: 'A studio in Madrid under 70 euros per night, furnished' },
+  { language: 'es', open: 'También puedes escribir tu búsqueda', mic: 'Buscar vivienda', textAction: 'Buscar por texto', dictate: 'Dictar búsqueda', recording: 'Grabando…', cancel: 'Cancelar grabación', denied: 'Permite el acceso al micrófono en el navegador o escribe tu búsqueda.', guide: 'Qué puedes indicar', useExample: 'Usar este ejemplo', close: 'Cerrar', nightly: 'Estudio en Madrid hasta 70 euros por noche, amueblado' },
+  { language: 'ru', open: 'Также можно написать запрос', mic: 'Найти жильё', textAction: 'Искать по тексту', dictate: 'Надиктовать запрос', recording: 'Идёт запись…', cancel: 'Отменить запись', denied: 'Разрешите доступ к микрофону в браузере или введите запрос текстом.', guide: 'Что можно указать', useExample: 'Подставить пример', close: 'Закрыть', nightly: 'Студия в Мадриде до 70 евро за ночь, с мебелью' },
+  { language: 'en', open: 'You can also type your search', mic: 'Find housing', textAction: 'Search by text', dictate: 'Dictate search', recording: 'Recording…', cancel: 'Cancel recording', denied: 'Allow microphone access in your browser or type your search.', guide: 'What you can include', useExample: 'Use this example', close: 'Close', nightly: 'A studio in Madrid under 70 euros per night, furnished' },
 ]) test(`native search ${locale.language}: mobile guidance, examples and microphone recovery without a query`, async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 700 })
   const state = await surface(page, false, locale.language)
@@ -25,9 +25,14 @@ for (const locale of [
   await expect(draft).toHaveValue(locale.nightly)
   await expect(draft).toBeFocused()
   expect(await dialog.evaluate(node => node.scrollWidth)).toBe(await dialog.evaluate(node => node.clientWidth))
-  const mic = page.getByRole('button', { name: locale.mic, exact: true })
+  await expect(dialog.getByRole('button', { name: locale.dictate, exact: true })).toHaveCount(0)
+  await expect(dialog.getByRole('button', { name: locale.textAction, exact: true })).toBeEnabled()
+  await draft.clear()
+  const mic = dialog.getByRole('button', { name: locale.mic, exact: true })
   await mic.click()
   await expect(page.getByText(locale.recording, { exact: true })).toBeVisible()
+  await expect(dialog.locator('#ai-rental-mode')).toHaveValue('holiday')
+  await expect(draft).toBeDisabled()
   await page.getByRole('button', { name: locale.cancel, exact: true }).click()
   await expect(mic).toBeEnabled()
   await page.evaluate(() => { navigator.mediaDevices.getUserMedia = async () => { throw new DOMException('denied', 'NotAllowedError') } })
@@ -91,6 +96,8 @@ async function surface(page: Page, guestReturn = false, language = 'es') {
 
 for (const width of [390, 1440]) for (const channel of ['text', 'voice']) test(`native account ${width}px ${channel}: 200, owned replay and explicit save`, async ({ page }) => {
   await page.setViewportSize({ width, height: 1000 })
+  const autoStop = channel === 'voice' && width === 1440
+  if (autoStop) await page.clock.install()
   const state = await surface(page)
   await page.goto('/#/')
   await expect.poll(() => state.nativeCapabilities).toBeGreaterThan(0)
@@ -98,12 +105,13 @@ for (const width of [390, 1440]) for (const channel of ['text', 'voice']) test(`
   await expect(page.getByText('Búsquedas disponibles hoy: 200', { exact: true })).toBeVisible()
   if (channel === 'text') {
     await page.locator('#ai-search-text').fill('a room under 700 euros per month, unfurnished')
-    await page.getByRole('button', { name: 'Buscar vivienda', exact: true }).click()
+    await page.getByRole('button', { name: 'Buscar por texto', exact: true }).click()
   } else {
-    await page.getByRole('button', { name: 'Dictar búsqueda', exact: true }).click()
+    await page.getByRole('button', { name: 'Buscar vivienda', exact: true }).click()
     await expect(page.getByText('Grabando…', { exact: true })).toBeVisible()
     await page.waitForTimeout(300)
-    await page.getByRole('button', { name: 'Detener y buscar', exact: true }).click()
+    if (autoStop) await page.clock.fastForward(15000)
+    else await page.getByRole('button', { name: 'Detener y buscar', exact: true }).click()
   }
   await expect(page.getByText('Búsquedas disponibles hoy: 199', { exact: true })).toBeVisible()
   await expect(page.getByText('700 EUR / mes', { exact: true }).first()).toBeVisible()

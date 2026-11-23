@@ -460,6 +460,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
   const showGuide = publicAI && !continuationOnly && !result
   const inputLocked = continuationOnly || recording || busy || restoring
   const textDisabled = inputLocked || pending !== null
+  const primaryVoice = publicAI && voiceEnabled && !continuationOnly && !busy && !pending && !text.trim()
   const example = showGuide ? t(modeChoice === 'holiday' || (modeChoice === 'keep' && session?.intent.criteria.rental_mode?.value === 'holiday')
     ? 'Estudio en Madrid hasta 70 euros por noche, amueblado'
     : 'Una habitación en Madrid hasta 700 euros al mes, amueblada y con gastos incluidos') : undefined
@@ -513,11 +514,11 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
         maxLength={inputPolicy?.maxLength ?? 16000} rows={3} autoComplete="off" spellCheck={false}
         placeholder={example ?? t(inputPolicy?.placeholder ?? 'Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
       {inputPolicy ? <small role={invalidText ? 'alert' : undefined} data-i18n-exempt>{t(invalidText || !publicAI ? inputPolicy.hint : 'Evita incluir datos personales o de contacto.')}</small> : null}
-      {voiceEnabled ? <AIVoiceInput disabled={continuationOnly || busy || restoring || restoreFailed || demoBlocked || pending !== null || changingSession || syncingSession || needsSync || needsConversation || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)}
+      {voiceEnabled && (!publicAI || primaryVoice) ? <AIVoiceInput primary={primaryVoice} disabled={continuationOnly || busy || restoring || restoreFailed || demoBlocked || pending !== null || changingSession || syncingSession || needsSync || needsConversation || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)}
         disabledReason={t(busy ? 'Procesando tu búsqueda y buscando opciones…' : demoBlocked ? demoReason : remaining === 0 ? 'Has agotado tus búsquedas. Inténtalo cuando se renueve el límite.' : !modeChoice ? 'Elige el modo de alquiler antes de grabar.' : restoreFailed ? 'No pudimos recuperar la búsqueda. Reintenta la recuperación.' : pending ? 'El resultado no está confirmado. Pulsa «Comprobar el mismo intento» abajo.' : 'Espera a que termine la operación y se sincronice la búsqueda.')}
-        onAudio={audio => void submit(audio)} onRecording={setRecording} /> : null}
-      <Button type="button" className="home-ai-search__action" disabled={inputLocked || restoreFailed || (!pending && (invalidText || demoBlocked || (changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
-        onClick={() => void submit()}>{!publicAI && PRIVATE_DEMO && pending && !busy ? <span data-i18n-exempt>Проверить результат попытки</span> : t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : result ? 'Actualizar búsqueda' : publicAI ? 'Buscar vivienda' : 'Buscar habitaciones')}</Button>
+        onAudio={audio => { if (open) void submit(audio) }} onRecording={setRecording} /> : null}
+      {!primaryVoice ? <Button type="button" className="home-ai-search__action" disabled={inputLocked || restoreFailed || (!pending && (invalidText || demoBlocked || (changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
+        onClick={() => void submit()}>{!publicAI && PRIVATE_DEMO && pending && !busy ? <span data-i18n-exempt>Проверить результат попытки</span> : t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : result ? 'Actualizar búsqueda' : publicAI ? 'Buscar por texto' : 'Buscar habitaciones')}</Button> : null}
       {showGuide && example ? <section className="ai-search-guide" aria-labelledby="ai-search-guide-title">
         <h3 id="ai-search-guide-title">{t('Qué puedes indicar')}</h3>
         <dl>
