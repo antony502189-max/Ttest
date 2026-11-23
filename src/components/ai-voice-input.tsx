@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { Mic } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/contexts/i18n-context'
 import workletUrl from './ai-pcm-worklet.js?url&no-inline'
@@ -33,7 +34,7 @@ export function pcmWav(chunks: Float32Array[], rate: number): string {
   return btoa(binary)
 }
 
-export function AIVoiceInput({ disabled, disabledReason, onAudio, onRecording }: { disabled: boolean; disabledReason?: string; onAudio: (audio: string) => void; onRecording: (value: boolean) => void }) {
+export function AIVoiceInput({ disabled, disabledReason, primary, onAudio, onRecording }: { disabled: boolean; disabledReason?: string; primary?: boolean; onAudio: (audio: string) => void; onRecording: (value: boolean) => void }) {
   const { t } = useI18n()
   const reasonId = useId()
   const [state, setState] = useState<'idle' | 'permission' | 'recording'>('idle')
@@ -41,7 +42,9 @@ export function AIVoiceInput({ disabled, disabledReason, onAudio, onRecording }:
   const owned = useRef<Recording | null>(null)
   const generation = useRef(0)
   const mounted = useRef(true)
+  const audioCallback = useRef(onAudio)
   const recordingCallback = useRef(onRecording)
+  audioCallback.current = onAudio
   recordingCallback.current = onRecording
   function cleanup() {
     const value = owned.current
@@ -66,7 +69,7 @@ export function AIVoiceInput({ disabled, disabledReason, onAudio, onRecording }:
     const value = cleanup()
     setState('idle')
     if (send && value) {
-      try { onAudio(pcmWav(value.chunks, value.context.sampleRate)) }
+      try { audioCallback.current(pcmWav(value.chunks, value.context.sampleRate)) }
       catch { setNotice('La grabación es demasiado corta. Repite o escribe tu búsqueda.') }
     }
   }
@@ -109,7 +112,10 @@ export function AIVoiceInput({ disabled, disabledReason, onAudio, onRecording }:
   }
   return <div>
     <p>{t('Voz: hasta 15 segundos. Procesamos el audio en nuestro servidor sin guardarlo. Al detener la grabación, la búsqueda comienza automáticamente.')}</p>
-    {state === 'idle' ? <Button type="button" variant="outline" disabled={disabled} aria-describedby={disabled && disabledReason ? reasonId : undefined} onClick={() => void start()}>{t('Dictar búsqueda')}</Button>
+    {state === 'idle' ? <Button type="button" variant={primary ? 'default' : 'outline'} className={primary ? 'home-ai-search__action' : undefined}
+      disabled={disabled} aria-describedby={disabled && disabledReason ? reasonId : undefined} onClick={() => void start()}>
+      {primary ? <Mic aria-hidden="true" /> : null}{t(primary ? 'Buscar vivienda' : 'Dictar búsqueda')}
+    </Button>
       : <><p role="status">{t(state === 'permission' ? 'Esperando acceso al micrófono…' : 'Grabando…')}</p>
         <Button type="button" disabled={state !== 'recording'} onClick={() => stop(true)}>{t('Detener y buscar')}</Button>
         <Button type="button" variant="outline" onClick={() => stop(false)}>{t('Cancelar grabación')}</Button></>}
