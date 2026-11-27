@@ -6,6 +6,10 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'o': { ru: 'или', en: 'or' },
+  'Isla de Tenerife': { ru: 'Остров Тенерифе', en: 'Island of Tenerife' },
+  'Piso o estudio completo': { ru: 'Отдельная квартира или студия', en: 'Entire apartment or studio' },
+  'Se admiten mascotas': { ru: 'Можно с животными', en: 'Pets allowed' },
   "Indica si el presupuesto es por noche, semana o mes.": { ru: "Укажите, за какой период бюджет: за ночь, неделю или месяц.", en: "Specify whether your budget is per night, week or month." },
   "Indica un presupuesto válido en euros por noche, semana o mes.": { ru: "Укажите сумму бюджета в евро за ночь, неделю или месяц.", en: "Enter a valid budget in euros per night, week or month." },
   "Indica si buscas alquiler vacacional o de larga duración.": { ru: "Укажите, какой нужен режим: для отдыха или для жизни.", en: "Specify whether you need a holiday rental or a long-term rental." },

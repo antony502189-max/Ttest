@@ -12,7 +12,8 @@ from typing import Any, Literal
 
 from ..repositories.ai_search_sessions import IntentVocabulary
 from ..schemas.ai_listing_facts import FactVocabulary, SearchProjection
-from ..schemas.ai_search_intent import Party, SearchIntent
+from ..schemas.ai_search_intent import GeneralPetPermission, Party, SearchIntent
+from ..spain_islands import ISLAND_MUNICIPALITIES
 
 Scalar = str | int | bool | None
 
@@ -20,8 +21,8 @@ Scalar = str | int | bool | None
 @dataclass(frozen=True)
 class ValueTest:
     field: str
-    operator: Literal["eq", "le", "ge"]
-    value: Scalar
+    operator: Literal["eq", "le", "ge", "in"]
+    value: Scalar | tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -83,11 +84,17 @@ def compile_hard_match(intent: SearchIntent, vocabulary: FactVocabulary) -> Hard
         elif name == "rental_mode":
             rules = [scalar(name, "category", "value", value)]
         elif name == "accommodation":
-            rules = [rule(name, "category", [("value", "eq", value.kind),
-                                             ("catalog_code", "eq", value.catalog_code)])]
+            kinds = set(value.alternatives or (value.kind,))
+            if "apartment" in kinds:
+                kinds.remove("apartment")
+                kinds.update(("studio", "one_bedroom"))
+            kind_test = ("value", "in", tuple(sorted(kinds))) if len(kinds) > 1 else ("value", "eq", kinds.pop())
+            rules = [rule(name, "category", [kind_test, ("catalog_code", "eq", value.catalog_code)])]
         elif name == "geography":
             tests = [(field, "eq", getattr(value, field)) for field in
                      ("province_code", "municipality_code", "zone_id") if getattr(value, field) is not None]
+            if value.island:
+                tests.append(("municipality_code", "in", ISLAND_MUNICIPALITIES[value.island]))
             rules = [rule(name, "geography", tests)]
         elif name == "budget":
             rules = [rule("price", "money", [("currency", "eq", value.currency),
@@ -114,6 +121,10 @@ def compile_hard_match(intent: SearchIntent, vocabulary: FactVocabulary) -> Hard
                     raise ValueError("friends tenant-group vocabulary is not configured")
                 rules.append(policy("tenant_groups", scopes=(("tenant_group", ("friends",)),),
                                     allowed=("tenant_group", "approval_required")))
+        elif name == "pets" and isinstance(value, GeneralPetPermission):
+            # Require a single unqualified policy. Scoped evidence cannot
+            # establish general permission or override a competing rule.
+            rules = [rule(name, "policy", [("allowed", "eq", True)], allowed=("approval_required",))]
         elif name == "pets":
             for pet in value:
                 scopes = (("species", (None, pet.species)),
@@ -184,6 +195,8 @@ def evaluate_hard_match(plan: HardMatchPlan, projection: SearchProjection) -> tu
             if test.field == "amount":
                 actual, expected = Decimal(str(actual)), Decimal(str(expected))
             if test.operator == "eq" and actual != expected:
+                return False
+            if test.operator == "in" and actual not in expected:
                 return False
             if test.operator == "le" and (actual is None or actual > expected):
                 return False

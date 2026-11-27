@@ -7,6 +7,7 @@ from uuid import UUID
 
 from pydantic import Field, field_validator, model_validator
 
+from ..spain_islands import ISLAND_MUNICIPALITIES
 from ..spain_municipalities import MUNICIPALITIES
 from ..spain_provinces import PROVINCE_CODES
 from .ai_search_quota import StrictContract
@@ -45,6 +46,7 @@ class Geography(StrictContract):
     province_code: Annotated[str, Field(pattern=r"^[0-9]{2}$")]
     municipality_code: Annotated[str, Field(pattern=r"^[0-9]{5}$")] | None = None
     zone_id: Code | None = None
+    island: Literal["tenerife"] | None = None
 
     @model_validator(mode="after")
     def local_identity(self):
@@ -56,17 +58,30 @@ class Geography(StrictContract):
             raise ValueError("municipality does not belong to province")
         if self.zone_id is not None and self.municipality_code is None:
             raise ValueError("zone requires a municipality")
+        if self.island is not None and (
+            not ISLAND_MUNICIPALITIES[self.island][0].startswith(self.province_code)
+            or self.municipality_code is not None
+        ):
+            raise ValueError("island requires its province and is a separate geographic scope")
         return self
 
 
+AccommodationKind = Literal["room", "shared_room", "studio", "one_bedroom", "apartment"]
+
+
 class Accommodation(StrictContract):
-    kind: Literal["room", "shared_room", "studio", "one_bedroom", "catalog_other"]
+    kind: AccommodationKind | Literal["catalog_other", "any_of"]
     catalog_code: Code | None = None
+    alternatives: Annotated[tuple[AccommodationKind, ...], Field(min_length=2, max_length=5)] | None = None
 
     @model_validator(mode="after")
     def catalog_identity(self):
         if (self.kind == "catalog_other") != (self.catalog_code is not None):
             raise ValueError("only catalog_other requires catalog_code")
+        if (self.kind == "any_of") != (self.alternatives is not None):
+            raise ValueError("only any_of requires accommodation alternatives")
+        if self.alternatives is not None and self.alternatives != tuple(sorted(set(self.alternatives))):
+            raise ValueError("accommodation alternatives must be unique and sorted")
         return self
 
 
@@ -99,6 +114,10 @@ class Pet(StrictContract):
     species: Literal["dog", "cat", "other"]
     size: Literal["small", "medium", "large", "unspecified"]
     count: Annotated[int, Field(ge=1, le=10)]
+
+
+class GeneralPetPermission(StrictContract):
+    kind: Literal["general_permission"]
 
 
 class Smoking(StrictContract):
@@ -152,7 +171,7 @@ class Criteria(StrictContract):
     geography: Criterion[Geography] | None = None
     accommodation: Criterion[Accommodation] | None = None
     party: Criterion[Party | PartyTotal] | None = None
-    pets: Criterion[Annotated[tuple[Pet, ...], Field(min_length=1, max_length=10)]] | None = None
+    pets: Criterion[Annotated[tuple[Pet, ...], Field(min_length=1, max_length=10)] | GeneralPetPermission] | None = None
     smoking: Criterion[Smoking] | None = None
     furnished: Criterion[bool] | None = None
     bills_included: Criterion[bool] | None = None
@@ -169,7 +188,7 @@ class Criteria(StrictContract):
             raise ValueError("null does not remove a criterion; use remove")
         if self.amenities and len(set(self.amenities.value)) != len(self.amenities.value):
             raise ValueError("duplicate amenities")
-        if self.pets:
+        if self.pets and isinstance(self.pets.value, tuple):
             pets = self.pets.value
             if len({(pet.species, pet.size) for pet in pets}) != len(pets) or sum(p.count for p in pets) > 10:
                 raise ValueError("duplicate pet scopes or unsupported pet count")

@@ -1,5 +1,6 @@
 """Execute the shared full typed plan in PostgreSQL; no provider/catalog access."""
 import copy
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import literal, select
@@ -10,6 +11,67 @@ from app.repositories.ai_hard_matching import hard_match_predicate
 from app.services.ai_hard_matching import compile_hard_match, evaluate_hard_match
 
 pytestmark = pytest.mark.integration
+
+
+def test_housing_alternatives_share_one_budget_and_one_result_set(pg):
+    engine, _ = pg
+    compiled = compile_hard_match(intent({
+        "accommodation": {"strength": "hard", "value": {"kind": "any_of", "alternatives": ["room", "studio"]}},
+        "budget": {"strength": "hard", "value": {"amount": "600", "currency": "EUR", "period": "monthly"}},
+    }), VOCABULARY)
+    category = next(case for case in CASES if case["name"] == "accommodation")["features"][0]
+    budget = next(case for case in CASES if case["name"] == "budget")["features"][0]
+    with engine.connect() as connection:
+        for kind, amount, matches in [
+            ("room", "600", True), ("studio", "550", True), ("one_bedroom", "500", False), ("studio", "601", False),
+        ]:
+            features = [
+                {**category, "typed_value": {"kind": "category", "value": kind}},
+                {**budget, "typed_value": {**budget["typed_value"], "amount": amount}},
+            ]
+            assert (not evaluate_hard_match(compiled, projection(features))) is matches
+            assert connection.scalar(select(hard_match_predicate(literal(features, type_=JSONB), compiled))) is matches
+
+
+def test_apartment_island_and_general_pet_permission_use_verified_facts(pg):
+    engine, _ = pg
+    request = intent({
+        "accommodation": {"strength": "hard", "value": {"kind": "apartment"}},
+        "geography": {"strength": "hard", "value": {"province_code": "38", "island": "tenerife"}},
+        "pets": {"strength": "hard", "value": {"kind": "general_permission"}},
+    })
+    compiled = compile_hard_match(request, VOCABULARY)
+
+    def fact(key, value, qualifiers=None, status="explicit_allow"):
+        return {"key": key, "qualifiers": qualifiers or {}, "status": status, "typed_value": value,
+                "supporting_fact_ids": [str(uuid4())]}
+
+    apartment = fact("accommodation", {"kind": "category", "value": "one_bedroom"})
+    studio = fact("accommodation", {"kind": "category", "value": "studio"})
+    room = fact("accommodation", {"kind": "category", "value": "room"})
+    tenerife = fact("geography", {"kind": "geography", "province_code": "38", "municipality_code": "38001"})
+    la_palma = fact("geography", {"kind": "geography", "province_code": "38", "municipality_code": "38037"})
+    province_only = fact("geography", {"kind": "geography", "province_code": "38"})
+    allowed = fact("pets", {"kind": "policy", "allowed": True})
+    scoped = fact("pets", {"kind": "policy", "allowed": True}, {"species": "dog"})
+    approval = fact("pets", None, {"approval_required": True}, "conditional")
+    denied = fact("pets", {"kind": "policy", "allowed": False}, {"species": "cat"}, "explicit_deny")
+
+    with engine.connect() as connection:
+        for features, matches, covered in [
+            ([apartment, tenerife, allowed], True, True),
+            ([studio, tenerife, allowed], True, True),
+            ([room, tenerife, allowed], False, True),
+            ([apartment, la_palma, allowed], False, True),
+            ([apartment, province_only, allowed], False, False),
+            ([apartment, tenerife, scoped], False, False),
+            ([apartment, tenerife, approval], False, False),
+            ([apartment, tenerife, allowed, denied], False, False),
+        ]:
+            assert (not evaluate_hard_match(compiled, projection(features))) is matches
+            value = literal(features, type_=JSONB)
+            assert connection.scalar(select(hard_match_predicate(value, compiled))) is matches
+            assert connection.scalar(select(hard_match_predicate(value, compiled, coverage=True))) is covered
 
 
 def test_age_neutral_headcount_sql_preserves_capacity_and_availability_guards(pg):

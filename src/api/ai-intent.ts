@@ -6,13 +6,15 @@ const provinceNames: Record<string, string> = provinces
 const municipalityNames: Record<string, string> = municipalities.municipalities
 
 type Criterion<T> = { strength: 'hard' | 'soft'; value: T }
+const accommodationLabels = { room: 'Habitación', shared_room: 'Habitación compartida', studio: 'Estudio', one_bedroom: 'Un dormitorio', apartment: 'Piso o estudio completo' }
+type AccommodationKind = keyof typeof accommodationLabels
 export type AICriteria = {
   rental_mode?: Criterion<RentalMode>
   budget?: Criterion<{ amount: string; currency: 'EUR'; period: 'monthly' | 'nightly' | 'weekly' }>
-  geography?: Criterion<{ province_code: string; municipality_code?: string; zone_id?: string }>
-  accommodation?: Criterion<{ kind: 'room' | 'shared_room' | 'studio' | 'one_bedroom' | 'catalog_other'; catalog_code?: string }>
+  geography?: Criterion<{ province_code: string; municipality_code?: string; zone_id?: string; island?: 'tenerife' }>
+  accommodation?: Criterion<{ kind: AccommodationKind | 'catalog_other' | 'any_of'; catalog_code?: string; alternatives?: AccommodationKind[] }>
   party?: Criterion<{ persons: number } | { adults: number; children: number; relationship: 'couple' | 'friends' | 'family' | 'unspecified' }>
-  pets?: Criterion<{ species: 'dog' | 'cat' | 'other'; size: 'small' | 'medium' | 'large' | 'unspecified'; count: number }[]>
+  pets?: Criterion<{ species: 'dog' | 'cat' | 'other'; size: 'small' | 'medium' | 'large' | 'unspecified'; count: number }[] | { kind: 'general_permission' }>
   smoking?: Criterion<{ scope: 'indoors' | 'outdoors' | 'balcony' | 'terrace' }>
   furnished?: Criterion<boolean>
   bills_included?: Criterion<boolean>
@@ -72,8 +74,12 @@ export function aiConditionRows(intent: AIIntent, t: Translate): ConditionRow[] 
         return ['Presupuesto máximo', `${money(v.amount)} EUR / ${choice(v.period, { monthly: 'mes', nightly: 'noche', weekly: 'semana' }, t)}`]
       },
       geography: value => {
-        const v = object(value, ['province_code'], ['municipality_code', 'zone_id'])
+        const v = object(value, ['province_code'], ['municipality_code', 'zone_id', 'island'])
         const province = provinceNames[code(v.province_code, /^\d{2}$/)]; check(province)
+        if (v.island !== undefined) {
+          check(v.island === 'tenerife' && v.province_code === '38' && v.municipality_code === undefined && v.zone_id === undefined)
+          return ['Ubicación', t('Isla de Tenerife')]
+        }
         const parts = [province]
         if (v.municipality_code !== undefined) {
           const municipality = code(v.municipality_code, /^\d{5}$/); check(municipality.startsWith(String(v.province_code)))
@@ -85,9 +91,15 @@ export function aiConditionRows(intent: AIIntent, t: Translate): ConditionRow[] 
         return ['Ubicación', parts.join(' · ')]
       },
       accommodation: value => {
-        const v = object(value, ['kind'], ['catalog_code'])
-        const label = choice(v.kind, { room: 'Habitación', shared_room: 'Habitación compartida', studio: 'Estudio', one_bedroom: 'Un dormitorio', catalog_other: 'Código de alojamiento' }, t)
+        const v = object(value, ['kind'], ['catalog_code', 'alternatives'])
         check((v.kind === 'catalog_other') === (v.catalog_code !== undefined))
+        check((v.kind === 'any_of') === (v.alternatives !== undefined))
+        if (v.kind === 'any_of') {
+          const alternatives = list(v.alternatives, 5)
+          check(alternatives.length >= 2 && new Set(alternatives).size === alternatives.length)
+          return ['Alojamiento', alternatives.map(kind => choice(kind, accommodationLabels, t)).join(` ${t('o')} `)]
+        }
+        const label = choice(v.kind, { ...accommodationLabels, catalog_other: 'Código de alojamiento' }, t)
         return ['Alojamiento', v.kind === 'catalog_other' ? `${label}: ${code(v.catalog_code)}` : label]
       },
       party: value => {
@@ -100,6 +112,10 @@ export function aiConditionRows(intent: AIIntent, t: Translate): ConditionRow[] 
         return ['Personas', `${t('Adultos')}: ${adults} · ${t('Niños')}: ${children} · ${choice(v.relationship, { couple: 'Pareja', friends: 'Amigos', family: 'Familia', unspecified: 'Sin especificar' }, t)}`]
       },
       pets: value => {
+        if (!Array.isArray(value)) {
+          check(object(value, ['kind']).kind === 'general_permission')
+          return ['Mascotas', t('Se admiten mascotas')]
+        }
         const pets = list(value, 10), scopes = new Set<string>(); let count = 0
         const values = pets.map(pet => {
           const v = object(pet, ['species', 'size', 'count']); const scope = `${v.species}:${v.size}`

@@ -65,7 +65,10 @@ def classify(plan: HardMatchPlan, projection: SearchProjection | None, *,
             if fact.status in {"conditional", "conflict"}:
                 reasons.add(fact.status)
                 continue
-            if fact.status not in {"explicit_allow", "explicit_deny"}:
+            if fact.status not in {"explicit_allow", "explicit_deny"} or any(
+                test.operator == "in" and getattr(fact.typed_value, test.field, None) is None
+                for test in rule.tests
+            ):
                 reasons.add("unknown")
                 continue
             # Reuse the matcher for scope/qualifier/kind coverage. A denial is
