@@ -13,6 +13,26 @@ from app.services.ai_hard_matching import compile_hard_match, evaluate_hard_matc
 pytestmark = pytest.mark.integration
 
 
+def test_housing_alternatives_share_one_budget_and_one_result_set(pg):
+    engine, _ = pg
+    compiled = compile_hard_match(intent({
+        "accommodation": {"strength": "hard", "value": {"kind": "any_of", "alternatives": ["room", "studio"]}},
+        "budget": {"strength": "hard", "value": {"amount": "600", "currency": "EUR", "period": "monthly"}},
+    }), VOCABULARY)
+    category = next(case for case in CASES if case["name"] == "accommodation")["features"][0]
+    budget = next(case for case in CASES if case["name"] == "budget")["features"][0]
+    with engine.connect() as connection:
+        for kind, amount, matches in [
+            ("room", "600", True), ("studio", "550", True), ("one_bedroom", "500", False), ("studio", "601", False),
+        ]:
+            features = [
+                {**category, "typed_value": {"kind": "category", "value": kind}},
+                {**budget, "typed_value": {**budget["typed_value"], "amount": amount}},
+            ]
+            assert (not evaluate_hard_match(compiled, projection(features))) is matches
+            assert connection.scalar(select(hard_match_predicate(literal(features, type_=JSONB), compiled))) is matches
+
+
 def test_apartment_island_and_general_pet_permission_use_verified_facts(pg):
     engine, _ = pg
     request = intent({

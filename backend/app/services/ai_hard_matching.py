@@ -84,8 +84,11 @@ def compile_hard_match(intent: SearchIntent, vocabulary: FactVocabulary) -> Hard
         elif name == "rental_mode":
             rules = [scalar(name, "category", "value", value)]
         elif name == "accommodation":
-            kind_test = ("value", "in", ("studio", "one_bedroom")) if value.kind == "apartment" else (
-                "value", "eq", value.kind)
+            kinds = set(value.alternatives or (value.kind,))
+            if "apartment" in kinds:
+                kinds.remove("apartment")
+                kinds.update(("studio", "one_bedroom"))
+            kind_test = ("value", "in", tuple(sorted(kinds))) if len(kinds) > 1 else ("value", "eq", kinds.pop())
             rules = [rule(name, "category", [kind_test, ("catalog_code", "eq", value.catalog_code)])]
         elif name == "geography":
             tests = [(field, "eq", getattr(value, field)) for field in
