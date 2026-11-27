@@ -24,7 +24,7 @@ from ..schemas.ai_search_quota import (
     StrictContract,
 )
 from ..schemas.listings import ListingCardSearchRequest
-from .ai_deepseek_intent import ProviderFailure
+from .ai_deepseek_intent import intent_failure_code
 from .ai_http_policy import HTTP_DEADLINE
 from .ai_local_asr import LocalASRBusy
 from .ai_observability import (
@@ -213,9 +213,7 @@ class VoiceSearchExecution:
         except Exception as error:  # noqa: BLE001 - no raw audio/transcript/provider/SQL export
             if isinstance(error, LocalASRBusy):
                 phase = FailureCode.VOICE_CAPACITY_LIMIT
-            if isinstance(error, ProviderFailure) and str(error) in {
-                "INTENT_CLARIFICATION_REQUIRED", "INTENT_NO_CHANGE", "INTENT_UNSUPPORTED"}:
-                phase = FailureCode(str(error))
+            phase = intent_failure_code(error) or phase
             if isinstance(error, SourceCoverageUnavailable):
                 phase = FailureCode.SOURCE_COVERAGE_UNAVAILABLE
             if isinstance(error, (SessionError, AIAttemptRejected)) and error.code in {code.value for code in FailureCode}:

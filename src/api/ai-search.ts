@@ -12,7 +12,7 @@ export type AIExecution = {
   operation: { status: 'reserved' | 'running' | 'succeeded' | 'failed'; failure_code: string | null; remaining: number; receipt: { result_ref: string; count: number } | null }
   cards_error?: string | null
   result_unavailable?: boolean
-  clarification?: 'budget_period' | 'rental_mode' | 'balcony_requirement' | 'location' | 'dates' | 'unsupported' | null
+  clarification?: { reason: string } | string | null
   cards: CardResponse | null
 }
 

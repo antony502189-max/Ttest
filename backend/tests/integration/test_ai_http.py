@@ -94,7 +94,9 @@ async def active(monkeypatch):
     value = AISearchRuntime(query.sessions, query, TextSearchExecution(query.sessions, parser, Gate(), query),
         GuestTokens(key=b"synthetic-http-guest-key-not-secret32", policy=GuestPolicy(ttl_seconds=600)),
         gate, frozenset({"https://testserver"}), 131_072, AIHTTPPolicy(10, 5, (), "https://testserver"))
-    monkeypatch.setattr(app.state, "ai_search_runtime", value, raising=False)
+    # State stores dynamic attributes in a mapping. Patch the mapping so
+    # pytest restores the fixture even when a test replaces the runtime again.
+    monkeypatch.setitem(app.state._state, "ai_search_runtime", value)
     return value, parser, gate
 
 
@@ -141,7 +143,7 @@ async def test_local_compound_voice_refinement_and_missing_coverage_keep_real_ht
     voice = VoiceSearchExecution(sessions, asr, parser, execution.attempts, cards,
         VoicePolicy(media_types=("audio/wav",), max_audio_bytes=480044, max_transcript_bytes=8000,
             asr_budget_seconds=1.0, intent_budget_seconds=1.0, total_budget_seconds=5.0))
-    monkeypatch.setattr(app.state, "ai_search_runtime", replace(runtime, execution=execution, cards=cards, voice=voice), raising=False)
+    monkeypatch.setitem(app.state._state, "ai_search_runtime", replace(runtime, execution=execution, cards=cards, voice=voice))
     audio = io.BytesIO()
     with wave.open(audio, "wb") as wav:
         wav.setparams((1, 2, 16000, 0, "NONE", "not compressed"))
@@ -151,6 +153,17 @@ async def test_local_compound_voice_refinement_and_missing_coverage_keep_real_ht
         created = await client.post("/api/v1/ai-search/sessions", json={"rental_mode": "long"})
         assert created.status_code == 200, created.text
         sid = created.json()["intent"]["session_id"]
+        invalid = {"idempotency_key": str(uuid4()), "session_id": sid, "expected_version": 0,
+            "text": "комната до 700 евро"}
+        for replay in (False, True):
+            rejected = await client.post("/api/v1/ai-search/query", json=invalid)
+            assert rejected.status_code == 200
+            assert rejected.json()["clarification"] == {"reason": "budget_period"}
+            assert rejected.json()["operation"]["failure_code"] == "CLARIFY_BUDGET_PERIOD"
+            assert rejected.json()["replay"] is replay
+        rejected_quota = (await client.get("/api/v1/ai-search/quota")).json()
+        assert rejected_quota["used"] == rejected_quota["reserved"] == 0
+        assert (await client.get(f"/api/v1/ai-search/sessions/{sid}")).json()["intent"]["version"] == 0
         payload = {"idempotency_key": str(uuid4()), "session_id": sid, "expected_version": 0,
             "media_type": "audio/wav", "audio_base64": base64.b64encode(audio.getvalue()).decode(), "search": {"limit": 6}}
         first = await client.post("/api/v1/ai-search/voice", json=payload)
@@ -194,7 +207,7 @@ async def test_voice_http_one_debit_owned_replay_and_media_rejection(active, mon
         asr_budget_seconds=1.0, intent_budget_seconds=1.0, total_budget_seconds=5.0)
     configured = replace(runtime, voice=VoiceSearchExecution(runtime.sessions, asr, parser,
         runtime.execution.attempts, runtime.cards, policy))
-    monkeypatch.setattr(app.state, "ai_search_runtime", configured)
+    monkeypatch.setitem(app.state._state, "ai_search_runtime", configured)
     buffer = io.BytesIO()
     with wave.open(buffer, "wb") as wav:
         wav.setparams((1, 2, 16000, 0, "NONE", "not compressed"))
@@ -266,7 +279,7 @@ def message(session_id, version):
 async def test_native_auth_only_uses_real_account_200_and_preserves_replay_and_owner_boundary(active, register_user, monkeypatch):
     from dataclasses import replace
     runtime, parser, _ = active
-    monkeypatch.setattr(app.state, "ai_search_runtime", replace(runtime, auth_only=True))
+    monkeypatch.setitem(app.state._state, "ai_search_runtime", replace(runtime, auth_only=True))
     async with AsyncClient(transport=ASGITransport(app), base_url="https://testserver", headers=HEADERS) as client:
         anonymous = await client.post("/api/v1/ai-search/identity")
         assert anonymous.status_code == 401 and "set-cookie" not in anonymous.headers

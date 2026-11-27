@@ -6,7 +6,7 @@ import pytest
 
 from app.repositories.ai_search_sessions import IntentVocabulary
 from app.schemas.ai_search_intent import Criteria, SearchIntent, apply_patch
-from app.services.ai_deepseek_intent import ProviderFailure
+from app.services.ai_deepseek_intent import IntentClarificationRequired, ProviderFailure, intent_failure_code
 from app.services.ai_housing_input import HousingGate, housing_patch, validate_housing_result
 
 VOCAB = IntentVocabulary(frozenset({"wifi", "parking", "lift", "internet", "air_conditioning"}), frozenset(), frozenset())
@@ -43,6 +43,32 @@ def test_english_renter_prefix_never_discards_unsupported_conditions(text):
     snapshot = before.model_dump()
     with pytest.raises(ProviderFailure):
         housing_patch(text, before, VOCAB)
+    assert before.model_dump() == snapshot
+
+
+@pytest.mark.parametrize(("text", "reason"), [
+    ("комната до 700 евро", "budget_period"),
+    ("habitación hasta 700 euros", "budget_period"),
+    ("a room under 700 dollars per month", "budget"),
+    ("комната в Неведомске", "location"),
+    ("квартиры до 700 евро в месяц", "accommodation"),
+    ("комната с возможностью проживания с животными", "pets"),
+    ("una habitación con mascotas", "pets"),
+    ("a room or a studio", "alternatives"),
+    ("amueblado, sin muebles", "conflict"),
+    ("from 2027-02-31 to 2027-03-05", "dates"),
+    ("from 2027-02-15 to 2027-02-01", "dates"),
+    ("fianza hasta 1.5 meses", "deposit"),
+    ("for 12 people", "party"),
+    ("a room with a swimming pool", "unsupported"),
+])
+def test_rejected_criteria_have_a_stable_reason_and_leave_intent_unchanged(text, reason):
+    before = state({"furnished": {"strength": "hard", "value": False}})
+    snapshot = before.model_dump()
+    with pytest.raises(IntentClarificationRequired) as captured:
+        housing_patch(text, before, VOCAB)
+    assert captured.value.clarification.reason == reason
+    assert intent_failure_code(captured.value) == "CLARIFY_" + reason.upper()
     assert before.model_dump() == snapshot
 
 

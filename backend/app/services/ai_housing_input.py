@@ -8,15 +8,18 @@ import json
 import re
 from decimal import Decimal
 
-from ..schemas.ai_search_intent import IntentPatch, apply_patch
+from pydantic import ValidationError
+
+from ..schemas.ai_clarification import ClarificationReason
+from ..schemas.ai_search_intent import Dates, IntentPatch, apply_patch
 from ..spain_municipalities import MUNICIPALITIES, normalized_municipality, unique_municipality_aliases
 from ..spain_provinces import PROVINCE_CODES
-from .ai_deepseek_intent import OutboundIntentInput, ProviderFailure, _criteria_state
+from .ai_deepseek_intent import IntentClarificationRequired, OutboundIntentInput, ProviderFailure, _criteria_state
 from .ai_housing_numbers import AMOUNTS
 
 
-def clarification():
-    raise ProviderFailure("INTENT_CLARIFICATION_REQUIRED")
+def clarification(reason: ClarificationReason = "unsupported"):
+    raise IntentClarificationRequired(reason)
 
 
 def _fold(value):
@@ -78,6 +81,8 @@ PERIODS = {"monthly": ("per month", "/month", "al mes", "/mes", "в месяц",
 NUMBERS = AMOUNTS | {word: i for i, word in enumerate(["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"])}
 NUMBERS.update({word: i for i, word in enumerate(["cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez"])})
 NUMBERS.update({"ноль": 0, "двое": 2, "два": 2, "две": 2, "одна": 1, "одной": 1, "одним": 1})
+BUDGET_PREFIX = r"(?:under|up to|budget up to|hasta|menos de|до|бюджет до|не дороже)"
+BUDGET_AMOUNT = r"(?:€\s*)?([1-9][0-9]{0,5}(?:[.,][0-9]{1,2})?)(?: ?(?:euros?|eur|евро|€))?"
 NUMBER_PATTERN = re.compile(r"(?<![\w-])(?:" + "|".join(re.escape(v) for v in sorted(NUMBERS, key=len, reverse=True)) + r")(?![\w-])")
 AMENITIES = {"wifi": ("wifi", "wi-fi", "вайфай"), "internet": ("internet", "интернет", "интернетом"),
              "parking": ("parking", "aparcamiento", "парковка", "парковкой"),
@@ -98,6 +103,26 @@ def _alternatives(words):
     return "(?:" + "|".join(re.escape(v) for v in sorted(words, key=len, reverse=True)) + ")"
 
 
+def _unrecognized_reason(clause: str) -> ClarificationReason:
+    if re.match(BUDGET_PREFIX + r"\s+" + BUDGET_AMOUNT + r"(?=$|\s*[,;])", clause):
+        return "budget_period"
+    if re.match(BUDGET_PREFIX + r"\b|(?:budget|presupuesto|бюджет)\b", clause):
+        return "budget"
+    if re.match(r"(?:(?:a|un|una) )?(?:apartments?|flats?|pisos?|apartamentos?|квартир[ауы]?|дом|villas?|casas?)\b", clause):
+        return "accommodation"
+    if re.match(r"(?:(?:with|con|с) )?(?:pets?|mascotas?|animals?|(?:возможностью (?:проживания|жить) с )?(?:домашними )?животными|животных)\b", clause):
+        return "pets"
+    if re.match(r"(?:(?:from|del|с) )?\d{4}-|(?:from|del|с) \d|(?:dates?|fechas|даты)\b", clause):
+        return "dates"
+    if re.match(r"(?:in|en|в|province|provincia|провинци[яи]|zone|district|район[е]?|zona)\b", clause):
+        return "location"
+    if re.match(r"(?:deposit|fianza|депозит)\b", clause):
+        return "deposit"
+    if re.match(r"(?:(?:for|para|для) )?\d+ (?:people|persons?|personas?|человек(?:а)?|adults?|adultos?|взрослых|children|детей)\b", clause):
+        return "party"
+    return "unsupported"
+
+
 def housing_patch(text, current, vocabulary):
     """Parse all clauses atomically; unrelated committed criteria survive patching."""
     if (type(text) is not str or not 1 <= len(text) <= 2000
@@ -110,7 +135,7 @@ def housing_patch(text, current, vocabulary):
     remaining = NUMBER_PATTERN.sub(lambda m: str(NUMBERS[m[0]]), remaining)
     # Reject alternatives rather than choosing one side or weakening a hard rule.
     if re.search(r"\b(?:or|или|либо|o)\b", remaining):
-        clarification()
+        clarification("alternatives")
     # Recognize only complete search/politeness prefixes. Remaining words still
     # have to be consumed as typed conditions; no arbitrary prose is discarded.
     prefix = (r"(?:please |пожалуйста |por favor )?(?:find(?: me)?|show(?: me)?|i need(?: to rent)?|i want(?: to rent)?|"
@@ -130,7 +155,12 @@ def housing_patch(text, current, vocabulary):
     def put(name, value):
         criterion = {"strength": strength, "value": value}
         if name in removed or (name in changes and changes[name] != criterion):
-            clarification()
+            clarification("conflict")
+        if name == "dates":
+            try:
+                Dates.model_validate(value)
+            except ValidationError:
+                clarification("dates")
         changes[name] = criterion
 
     def take(pattern):
@@ -159,7 +189,7 @@ def housing_patch(text, current, vocabulary):
                 matched = take(_alternatives(words) + r" (?:is not necessary|не обязателен|не обязательна|не нужен|не нужна)")
             if matched:
                 if name in changes:
-                    clarification()
+                    clarification("conflict")
                 removed.add(name)
                 break
         if matched:
@@ -180,7 +210,7 @@ def housing_patch(text, current, vocabulary):
         if not matched:
             # Period must be explicit. No monthly/nightly conversion or mode inference.
             for period, words in PERIODS.items():
-                matched = take(r"(?:under|up to|budget up to|hasta|menos de|до|бюджет до|не дороже) (?:€\s*)?([1-9][0-9]{0,5}(?:[.,][0-9]{1,2})?)(?: ?(?:euros?|eur|евро|€))?\s*" + _alternatives(words))
+                matched = take(BUDGET_PREFIX + " " + BUDGET_AMOUNT + r"\s*" + _alternatives(words))
                 if matched:
                     put("budget", {"amount": matched[1].replace(",", "."), "currency": "EUR", "period": period})
                     break
@@ -198,7 +228,7 @@ def housing_patch(text, current, vocabulary):
             if matched:
                 geography = changes.get("geography", {}).get("value") or (current.criteria.geography.value.model_dump(exclude_none=True) if current.criteria.geography else {})
                 if (geography.get("municipality_code"), matched[1]) not in vocabulary.zones:
-                    clarification()
+                    clarification("location")
                 geography = geography | {"zone_id": matched[1]}
                 # Zone refines the explicitly selected or retained municipality.
                 changes["geography"] = {"strength": strength, "value": geography}
@@ -207,28 +237,28 @@ def housing_patch(text, current, vocabulary):
             if matched:
                 count = 1 if matched[1] in {"un", "una"} else int(matched[1])
                 if "persons" in party_counts and party_counts["persons"] != count:
-                    clarification()
+                    clarification("party")
                 party_counts["persons"] = count
                 if party_strength and party_strength != strength:
-                    clarification()
+                    clarification("party")
                 party_strength = strength
         if not matched:
             matched = take(r"(?:for |para |для )?([1-9]|10) (adults?|adultos?|взрослых|взрослые|взрослый|взрослого)")
             if matched:
                 if "adults" in party_counts and party_counts["adults"] != int(matched[1]):
-                    clarification()
+                    clarification("party")
                 party_counts["adults"] = int(matched[1])
                 if party_strength and party_strength != strength:
-                    clarification()
+                    clarification("party")
                 party_strength = strength
         if not matched:
             matched = take(r"(0|[1-9]|10) (children|child|niños?|ninos?|детей|ребенок|ребенка)")
             if matched:
                 if "children" in party_counts and party_counts["children"] != int(matched[1]):
-                    clarification()
+                    clarification("party")
                 party_counts["children"] = int(matched[1])
                 if party_strength and party_strength != strength:
-                    clarification()
+                    clarification("party")
                 party_strength = strength
         if not matched:
             for rel, words in {"couple": ("a couple", "couple", "pareja", "пара", "пары"),
@@ -237,10 +267,10 @@ def housing_patch(text, current, vocabulary):
                 matched = take(_alternatives(words))
                 if matched:
                     if relationship and relationship != rel:
-                        clarification()
+                        clarification("party")
                     relationship = rel
                     if party_strength and party_strength != strength:
-                        clarification()
+                        clarification("party")
                     party_strength = strength
                     break
         if not matched:
@@ -258,10 +288,10 @@ def housing_patch(text, current, vocabulary):
                 matched = take(r"(?:(?:with|con|с) )?" + _alternatives(words))
                 if matched:
                     if code not in vocabulary.amenity_codes:
-                        clarification()
+                        clarification("amenities")
                     amenity_values.append(code)
                     if amenity_strength and amenity_strength != strength:
-                        clarification()
+                        clarification("conflict")
                     amenity_strength = strength
                     break
         if not matched:
@@ -273,7 +303,7 @@ def housing_patch(text, current, vocabulary):
                 elif Decimal(amount) == int(Decimal(amount)):
                     put("deposit", {"kind": "quantity", "value": int(Decimal(amount)), "unit": "months"})
                 else:
-                    clarification()
+                    clarification("deposit")
         if not matched:
             date_part = r"([0-9]{1,2}) (?:de )?(" + MONTH_PATTERN + r") (?:de )?([0-9]{4})"
             matched = take(r"(?:from|с|del) " + date_part + r" (?:to|до|по|al) " + date_part)
@@ -296,11 +326,11 @@ def housing_patch(text, current, vocabulary):
                     size = {"маленькой": "small", "средней": "medium", "большой": "large"}.get(matched[2], matched[2]) or "unspecified"
                     pet = {"species": species, "size": size, "count": int(matched[1] or 1)}
                     if (species, size) in named_pets and named_pets[species, size] != pet:
-                        clarification()
+                        clarification("conflict")
                     named_pets[species, size] = pet
                     previous = changes.get("pets", {}).get("value", [p.model_dump() for p in current.criteria.pets.value] if current.criteria.pets else [])
                     if "pets" in removed:
-                        clarification()
+                        clarification("conflict")
                     # A new species does not erase an existing other pet. A
                     # named species/size updates its own count only.
                     previous = [p for p in previous if (p["species"], p["size"]) != (species, size)]
@@ -316,7 +346,7 @@ def housing_patch(text, current, vocabulary):
                     put("smoking", {"scope": scope})
                     break
         if not matched:
-            clarification()
+            clarification(_unrecognized_reason(remaining))
         remaining = remaining[matched.end():]
         strength = "hard"
     if party_counts or relationship:
@@ -328,20 +358,20 @@ def housing_patch(text, current, vocabulary):
                 # A neutral follow-up cannot erase an already known child or
                 # relationship constraint or guess which age count changed.
                 if previous["adults"] + previous["children"] != total:
-                    clarification()
+                    clarification("party")
                 party = previous
             else:
                 if relationship:
-                    clarification()
+                    clarification("party")
                 party = {"persons": total}
         else:
             # Complete age-specific refinements may replace a neutral total;
             # partial ones still need a previously explicit age composition.
             party = (previous if "adults" in previous else {}) | ages
             if not {"adults", "children"} <= party.keys():
-                clarification()
+                clarification("party")
             if total is not None and party["adults"] + party["children"] != total:
-                clarification()
+                clarification("party")
         if "persons" not in party:
             party["relationship"] = relationship or previous.get("relationship", "unspecified")
         strength = party_strength or "hard"

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { useI18n } from '@/contexts/i18n-context'
 import workletUrl from './ai-pcm-worklet.js?url&no-inline'
 
-type Recording = { context: AudioContext; stream: MediaStream; node?: AudioWorkletNode; chunks: Float32Array[]; samples: number; timer?: number }
+type Recording = { context: AudioContext; stream: MediaStream; node?: AudioWorkletNode; chunks: Float32Array[]; samples: number; timer?: number; onTrackEnded: () => void }
 
 // One canonical 16kHz mono PCM WAV. No compressed or remote media input.
 export function pcmWav(chunks: Float32Array[], rate: number): string {
@@ -52,7 +52,10 @@ export function AIVoiceInput({ disabled, disabledReason, primary, review, hasDra
     if (value) {
       window.clearTimeout(value.timer)
       if (value.node) { value.node.port.onmessage = null; value.node.disconnect() }
-      value.stream.getTracks().forEach(track => track.stop())
+      for (const track of value.stream.getTracks()) {
+        track.removeEventListener('ended', value.onTrackEnded)
+        track.stop()
+      }
       void value.context.close().catch(() => {})
     }
     recordingCallback.current(false)
@@ -83,8 +86,14 @@ export function AIVoiceInput({ disabled, disabledReason, primary, review, hasDra
       stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }, video: false })
       if (!mounted.current || generation.current !== ticket) { stream.getTracks().forEach(track => track.stop()); return }
       const context = new AudioContext()
-      const value: Recording = { context, stream, chunks: [], samples: 0 }
+      const value: Recording = { context, stream, chunks: [], samples: 0, onTrackEnded: () => {
+        if (owned.current !== value) return
+        stop(false)
+        setNotice('Se interrumpió el acceso al micrófono. Vuelve a conectarlo y graba de nuevo.')
+      } }
       owned.current = value
+      for (const track of stream.getAudioTracks()) track.addEventListener('ended', value.onTrackEnded, { once: true })
+      if (stream.getAudioTracks().every(track => track.readyState === 'ended')) { value.onTrackEnded(); return }
       await context.audioWorklet.addModule(workletUrl)
       if (!mounted.current || generation.current !== ticket) return
       const node = new AudioWorkletNode(context, 'ai-pcm-recorder')
