@@ -51,16 +51,18 @@ def test_english_renter_prefix_never_discards_unsupported_conditions(text):
     ("habitación hasta 700 euros", "budget_period"),
     ("a room under 700 dollars per month", "budget"),
     ("комната в Неведомске", "location"),
-    ("квартиры до 700 евро в месяц", "accommodation"),
-    ("комната с возможностью проживания с животными", "pets"),
-    ("una habitación con mascotas", "pets"),
+    ("квартиру с двумя спальнями до 700 евро в месяц", "accommodation"),
+    ("комната с животными экзотических видов", "unsupported"),
+    ("a room with pets requiring approval", "unsupported"),
     ("a room or a studio", "alternatives"),
     ("amueblado, sin muebles", "conflict"),
     ("from 2027-02-31 to 2027-03-05", "dates"),
     ("from 2027-02-15 to 2027-02-01", "dates"),
     ("fianza hasta 1.5 meses", "deposit"),
     ("for 12 people", "party"),
-    ("a room with a swimming pool", "unsupported"),
+    ("a room with a swimming pool", "amenities"),
+    ("комната рядом с морем", "location"),
+    ("комната за 500 евро", "budget"),
 ])
 def test_rejected_criteria_have_a_stable_reason_and_leave_intent_unchanged(text, reason):
     before = state({"furnished": {"strength": "hard", "value": False}})

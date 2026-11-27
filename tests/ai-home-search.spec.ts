@@ -95,7 +95,7 @@ test('mobile reference panel, private text, zero confirmed results and followup 
   if (await page.getByLabel('Modo para esta búsqueda').inputValue() === '') await page.getByLabel('Modo para esta búsqueda').selectOption('none')
   await page.getByLabel('Cuéntanos qué necesitas').fill(requestText)
   await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
-  await expect(page.getByText('No encontramos opciones con todas las condiciones confirmadas.', { exact: false })).toBeVisible()
+  await expect(page.getByText('No hay anuncios verificados que cumplan todas las condiciones.', { exact: false })).toBeVisible()
   await expect(page.getByText('Búsquedas disponibles hoy: 2')).toBeVisible()
   await page.getByLabel('¿Qué quieres cambiar?').fill('Y con balcón')
   await page.getByRole('button', { name: 'Actualizar búsqueda', exact: true }).click()
@@ -589,6 +589,10 @@ test('lost seeded reset acknowledgement preserves mode and command key until del
   await page.route(`**/api/v1/ai-search/sessions/${sid}`, route => route.fulfill({ json: snapshot(1) }))
   await page.route('**/api/v1/ai-search/query', route => {
     messages++
+    if (messages === 2) {
+      expect(route.request().postDataJSON()).toMatchObject({ text: 'Con balcón', session_id: 'new-session', expected_version: 0 })
+      return route.fulfill({ json: { operation: { status: 'failed', remaining: 2, failure_code: 'CLARIFY_LOCATION', receipt: null }, cards: null } })
+    }
     return route.fulfill({ json: { operation: { status: 'succeeded', remaining: 2, receipt: { result_ref: ref, count: 0 } }, cards: cards() } })
   })
   await page.route(`**/api/v1/ai-search/sessions/${sid}/reset`, route => {
@@ -606,16 +610,15 @@ test('lost seeded reset acknowledgement preserves mode and command key until del
   await page.getByLabel('Modo para esta búsqueda').selectOption('long')
   await page.locator('#ai-search-text').fill('Con balcón')
   await page.getByRole('button', { name: 'Actualizar búsqueda', exact: true }).click()
-  await expect(page.getByText('No se pudo iniciar una nueva conversación.', { exact: false })).toBeVisible()
+  await expect(page.getByText('No pudimos iniciar la búsqueda.', { exact: false })).toBeVisible()
   await expect(page.getByLabel('Modo para esta búsqueda')).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Actualizar búsqueda', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Iniciar nueva conversación' })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Actualizar resultados sin gastar una búsqueda' })).toBeDisabled()
-  await page.getByRole('button', { name: 'Iniciar nueva conversación' }).click()
-  await expect(page.getByText('Nueva conversación lista.', { exact: false })).toBeVisible()
+  await page.getByRole('button', { name: 'Actualizar búsqueda', exact: true }).click()
+  await expect.poll(() => messages).toBe(2)
   expect(attempts).toEqual([expect.objectContaining({ rental_mode: 'long', expected_version: 1, idempotency_key: expect.any(String) }), attempts[0]])
   await expect(page.locator('#ai-search-text')).toHaveValue('Con balcón')
-  await expect(page.getByLabel('Modo para esta búsqueda')).toHaveValue('')
-  expect(messages).toBe(1)
+  expect(messages).toBe(2)
 })
 
 for (const [language, title, requirements, preferences, negative] of [
@@ -856,7 +859,7 @@ test('expired create failure keeps draft and zero quota refreshes on reopen with
   await page.getByRole('button', { name: 'Buscar habitaciones', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Iniciar nueva conversación' })).toBeEnabled()
   await page.getByRole('button', { name: 'Iniciar nueva conversación' }).click()
-  await expect(page.getByText('No se pudo iniciar una nueva conversación.', { exact: false })).toBeVisible()
+  await expect(page.getByText('No pudimos iniciar el diálogo.', { exact: false })).toBeVisible()
   await expect(page.locator('#ai-search-text')).toHaveValue(requestText)
   await page.getByRole('button', { name: 'Volver a los filtros' }).click()
   remaining = 3
@@ -1031,7 +1034,7 @@ test('lost reset acknowledgement blocks old paging and preserves the lifecycle k
   await expect(reset).toBeEnabled()
   await page.locator('#ai-search-text').fill('Con balcón')
   await reset.click()
-  await expect(page.getByText('No se pudo iniciar una nueva conversación.', { exact: false })).toBeVisible()
+  await expect(page.getByText('No pudimos iniciar el diálogo.', { exact: false })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Siguiente', exact: true })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Actualizar búsqueda', exact: true })).toBeDisabled()
   await reset.click()

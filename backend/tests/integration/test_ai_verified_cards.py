@@ -94,7 +94,7 @@ async def test_missing_fact_population_fails_closed_without_quota_debit():
         assert await session.scalar(select(func.count()).select_from(AIUsageDay)) == 0
 
 
-async def setup(rental_mode, *, price=None, vocabulary=None, count=4, positions=None):
+async def setup(rental_mode, *, price=None, vocabulary=None, count=4, positions=None, housing=None):
     vocabulary = vocabulary or FactVocabulary(amenity_codes=frozenset(), catalog_other_codes=frozenset(),
                                              tenant_group_codes=frozenset(), municipality_zones=frozenset())
     pipeline = FactPipeline(SessionLocal, FactQueuePolicy(lease_seconds=60, max_attempts=2, retry_delay_seconds=1),
@@ -153,18 +153,45 @@ async def setup(rental_mode, *, price=None, vocabulary=None, count=4, positions=
             "facts": [{"fact_id": uuid4(), "key": "pets", "status": "explicit_allow" if i else "explicit_deny",
                 "typed_value": {"kind": "policy", "allowed": bool(i)}, "qualifiers": {}, "origin": "source_text",
                 "evidence": [{"field": "description", "quote": description, "start": 0, "end": len(description)}]}]})
-        if price is not None:
+        def add_fact(key, value):
             from app.schemas.ai_listing_facts import FactObservation
             batch.facts.append(FactObservation.model_validate({
-                "fact_id": uuid4(), "key": "price", "status": "explicit_allow",
-                "typed_value": {"kind": "money", "amount": str(price), "currency": "EUR", "period": "monthly"},
+                "fact_id": uuid4(), "key": key, "status": "explicit_allow", "typed_value": value,
                 "qualifiers": {}, "origin": "source_text",
                 "evidence": [{"field": "description", "quote": description, "start": 0, "end": len(description)}],
             }))
+        if price is not None:
+            add_fact("price", {"kind": "money", "amount": str(price), "currency": "EUR", "period": "monthly"})
+        if housing is not None:
+            category, municipality = housing[i]
+            add_fact("accommodation", {"kind": "category", "value": category})
+            add_fact("geography", {"kind": "geography", "province_code": municipality[:2], "municipality_code": municipality})
         await pipeline.complete(claim, batch, {"description": description})
         assert await QueryProofs(pipeline).prepare(ids[i])
     query = VerifiedCardSearch(pipeline, sessions, signing_key=b"synthetic-cards-key-not-a-secret32")
     return query, subject, owned.intent.session_id, ids, source_ids
+
+
+async def test_customer_transcript_filters_verified_cards_after_intent_roundtrip():
+    from app.schemas.ai_search_intent import SearchIntent, apply_patch
+    from app.services.ai_housing_input import housing_patch
+
+    query, subject, session_id, ids, _ = await setup("long", price=650, housing=[
+        ("one_bedroom", "38001"), ("studio", "38038"), ("room", "38001"), ("one_bedroom", "38037"),
+    ])
+    version = (await query.sessions.get(subject, session_id)).intent.version
+    # Start this scenario with a blank set of criteria, as for a new dialogue.
+    async with SessionLocal.begin() as connection:
+        await connection.execute(update(AISearchSession).where(AISearchSession.id == session_id).values(criteria={}))
+    current = (await query.sessions.get(subject, session_id)).intent
+    phrase = "Найти квартиру до 700 евро в месяц на Tenerife"
+    candidate = apply_patch(current, housing_patch(phrase, current, query.sessions.vocabulary))
+    assert candidate.version == version + 1
+    restored = SearchIntent.model_validate_json(candidate.model_dump_json(exclude_none=True))
+    assert restored == candidate
+    result = await query.query_candidate(subject, current, restored, ListingCardSearchRequest())
+    assert result.cards.total == 2
+    assert {card.id for card in result.cards.items} == {str(ids[0]), str(ids[1])}
 
 
 async def test_explicit_foreground_cohort_filters_before_coverage_count_limit_map_and_cursor():

@@ -233,6 +233,33 @@ async def test_clarification_is_terminal_replayable_and_free_without_partial_int
     assert await store.get(subject, snapshot.intent.session_id) == snapshot
 
 
+async def test_missing_period_then_corrected_customer_transcript(store, pg):
+    from pilot.entry import LocalHousingParser
+
+    async def readiness():
+        return {"catalog_ready": True}
+
+    subject, snapshot, _, gate, query, _ = await configured(store)
+    service = TextSearchExecution(store, LocalHousingParser(readiness, store.vocabulary), gate, query)
+    payload = ListingCardSearchRequest()
+    incomplete = "Найти квартиру на Тенерифе до 700 евро"
+    attempt = operation(snapshot, incomplete)
+    failed = await service.execute(subject, attempt, incomplete, payload)
+    assert failed.operation.failure_code == "CLARIFY_BUDGET_PERIOD"
+    assert await usage(pg, subject) == (0, 0) and query.calls == 0
+    assert await store.get(subject, snapshot.intent.session_id) == snapshot
+    replay = await service.execute(subject, attempt, incomplete, payload)
+    assert replay.replay and replay.clarification == failed.clarification
+
+    corrected = "Найти квартиру до 700 евро в месяц на Tenerife"
+    completed = await service.execute(subject, operation(snapshot, corrected), corrected, payload)
+    assert completed.operation.receipt.count == 3
+    assert query.calls == 1 and await usage(pg, subject) == (1, 0)
+    result = await store.result(subject, completed.operation.receipt.result_ref)
+    assert result.intent.criteria.accommodation.value.kind == "apartment"
+    assert result.intent.criteria.geography.value.island == "tenerife"
+
+
 async def test_corrected_full_request_binds_question_owner_session_and_version(store, pg):
     from unittest.mock import AsyncMock
     subject, snapshot, parser, _gate, query, service = await configured(store)

@@ -117,6 +117,35 @@ test('microphone disconnect cancels capture and a new recording can be submitted
   expect(state.queries).toBe(1)
 })
 
+test('Russian voice search retries a failed session start and keeps the apartment request', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 850 })
+  const state = await surface(page, false, 'ru')
+  state.transcript = 'Найти квартиру до 700 евро в месяц на Tenerife'
+  state.apartmentRequest = true
+  state.failNextCreate = true
+  await page.goto('/#/')
+  await page.getByRole('button', { name: 'Искать голосом', exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('button', { name: 'Записать запрос', exact: true }).click()
+  await expect(dialog.getByText('Идёт запись…', { exact: true })).toBeVisible()
+  await page.waitForTimeout(300)
+  await dialog.getByRole('button', { name: 'Завершить запись', exact: true }).click()
+  const draft = dialog.getByRole('textbox', { name: 'Текст записи' })
+  await expect(draft).toHaveValue(state.transcript)
+  const search = dialog.getByRole('button', { name: 'Поиск', exact: true })
+  await search.click()
+  await expect(dialog.getByText('Не удалось запустить поиск. Текст сохранён на экране. Нажмите «Поиск», чтобы повторить попытку.')).toBeVisible()
+  await expect(draft).toHaveValue(state.transcript)
+  expect(state.queries).toBe(0)
+  await search.click()
+  await expect(dialog.getByText('Остров Тенерифе', { exact: true }).first()).toBeVisible()
+  await expect(dialog.getByText('Отдельная квартира или студия', { exact: true }).first()).toBeVisible()
+  await expect(dialog.getByText('Среди проверенных объявлений нет подходящих по всем условиям.', { exact: false })).toBeVisible()
+  expect(state.sessionCommands).toHaveLength(2)
+  expect(state.sessionCommands[1]).toEqual(state.sessionCommands[0])
+  expect(state.queries).toBe(1)
+})
+
 async function surface(page: Page, guestReturn = false, language = 'es') {
   await page.addInitScript(({ guestReturn, guestSid, guestRef, language }) => {
     localStorage.setItem('112233:language:v1', language)
@@ -124,10 +153,11 @@ async function surface(page: Page, guestReturn = false, language = 'es') {
     localStorage.setItem('112233:has-session', '1')
     if (guestReturn) sessionStorage.setItem('112233:ai-continuation:v1:public-guest', JSON.stringify({ sessionId: guestSid, resultRef: guestRef }))
   }, { guestReturn, guestSid, guestRef, language })
-  const state = { queries: 0, saves: 0, guestIssues: 0, nativeIssues: 0, nativeCreates: 0, nativeCapabilities: 0, nativeMapReads: 0, transcriptions: 0, failTranscription: false, clarifyBudget: false, transcript: 'a room under 700 euros per month' }
+  const state = { queries: 0, saves: 0, guestIssues: 0, nativeIssues: 0, nativeCreates: 0, nativeCapabilities: 0, nativeMapReads: 0, transcriptions: 0, failTranscription: false, clarifyBudget: false, transcript: 'a room under 700 euros per month', apartmentRequest: false, failNextCreate: false, sessionCommands: [] as unknown[] }
   const intent = (guest = false) => ({ schema_version: 'ai-search.v1', taxonomy_version: 'rental.v1', session_id: guest ? guestSid : sid,
     version: guest ? 1 : state.queries, criteria: { rental_mode: { strength: 'hard', value: 'long' },
-      ...(guest || state.queries ? { budget: { strength: 'hard', value: { amount: '700', currency: 'EUR', period: 'monthly' } }, furnished: { strength: 'hard', value: false } } : {}) } })
+      ...(guest || state.queries ? { budget: { strength: 'hard', value: { amount: '700', currency: 'EUR', period: 'monthly' } }, furnished: { strength: 'hard', value: false } } : {}),
+      ...(state.apartmentRequest && state.queries ? { geography: { strength: 'hard', value: { province_code: '38', island: 'tenerife' } }, accommodation: { strength: 'hard', value: { kind: 'apartment' } } } : {}) } })
   await page.route('**/*', route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname
     if (url.hostname !== '127.0.0.1') return route.abort()
@@ -146,7 +176,16 @@ async function surface(page: Page, guestReturn = false, language = 'es') {
       if (path.endsWith('/capabilities')) { if (!guest) state.nativeCapabilities++; value = { text: true, map: true, voice: true, saved_searches: false, save_handoff: true } }
       else if (path.endsWith('/quota')) value = { limit: guest ? 3 : 200, remaining: guest ? 0 : 200 - state.queries }
       else if (path.endsWith('/identity')) { expect(guest).toBe(false); value = { ready: true } }
-      else if (path.endsWith('/sessions')) { expect(guest).toBe(false); state.nativeCreates++; value = { intent: intent(), expires_at: '2099-01-01T00:00:00Z' } }
+      else if (path.endsWith('/sessions')) {
+        expect(guest).toBe(false)
+        state.nativeCreates++
+        state.sessionCommands.push(request.postDataJSON())
+        if (state.failNextCreate) {
+          state.failNextCreate = false
+          return route.fulfill({ status: 503, json: { detail: 'AI_SERVICE_UNAVAILABLE' } })
+        }
+        value = { intent: intent(), expires_at: '2099-01-01T00:00:00Z' }
+      }
       else if (path.endsWith('/voice')) {
         expect(guest).toBe(false)
         const audio = request.postDataJSON()
@@ -163,7 +202,7 @@ async function surface(page: Page, guestReturn = false, language = 'es') {
           return route.fulfill({ json: { operation: { status: 'failed', remaining: 200, failure_code: 'CLARIFY_BUDGET_PERIOD', receipt: null },
             clarification: { reason: 'budget_period' }, cards: null } })
         }
-        expect(request.postDataJSON().text).toBe('a room under 700 euros per month, unfurnished')
+        expect(request.postDataJSON().text).toBe(state.apartmentRequest ? state.transcript : 'a room under 700 euros per month, unfurnished')
         state.queries++
         value = { operation: { status: 'succeeded', remaining: 199, receipt: { result_ref: ref, count: 0 } }, cards: { cards: { items: [], total: 0, nextCursor: null, previousCursor: null }, intent_hash: 'native-hash' } }
       } else if (path.endsWith('/sessions/' + (guest ? guestSid : sid))) value = { intent: intent(guest), expires_at: '2099-01-01T00:00:00Z' }
