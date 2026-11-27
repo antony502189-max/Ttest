@@ -20,7 +20,7 @@ from app.repositories.ai_search_sessions import IntentVocabulary, SearchSessions
 from app.repositories.ai_verified_cards import VerifiedCardSearch
 from app.repositories.listings import search_public_cards
 from app.schemas.ai_fact_pipeline import FactQueuePolicy, SourceInput
-from app.schemas.ai_listing_facts import FactBatch, FactVocabulary, digest
+from app.schemas.ai_listing_facts import FactBatch, FactObservation, FactVocabulary, digest
 from app.schemas.ai_search_quota import LeasePolicy, QuotaSubject
 from app.schemas.listings import ListingCardSearchRequest
 from app.services.ai_card_cursors import InvalidAICursor
@@ -153,19 +153,18 @@ async def setup(rental_mode, *, price=None, vocabulary=None, count=4, positions=
             "facts": [{"fact_id": uuid4(), "key": "pets", "status": "explicit_allow" if i else "explicit_deny",
                 "typed_value": {"kind": "policy", "allowed": bool(i)}, "qualifiers": {}, "origin": "source_text",
                 "evidence": [{"field": "description", "quote": description, "start": 0, "end": len(description)}]}]})
-        def add_fact(key, value):
-            from app.schemas.ai_listing_facts import FactObservation
-            batch.facts.append(FactObservation.model_validate({
-                "fact_id": uuid4(), "key": key, "status": "explicit_allow", "typed_value": value,
-                "qualifiers": {}, "origin": "source_text",
-                "evidence": [{"field": "description", "quote": description, "start": 0, "end": len(description)}],
-            }))
+        typed_facts = {}
         if price is not None:
-            add_fact("price", {"kind": "money", "amount": str(price), "currency": "EUR", "period": "monthly"})
+            typed_facts["price"] = {"kind": "money", "amount": str(price), "currency": "EUR", "period": "monthly"}
         if housing is not None:
             category, municipality = housing[i]
-            add_fact("accommodation", {"kind": "category", "value": category})
-            add_fact("geography", {"kind": "geography", "province_code": municipality[:2], "municipality_code": municipality})
+            typed_facts["accommodation"] = {"kind": "category", "value": category}
+            typed_facts["geography"] = {"kind": "geography", "province_code": municipality[:2], "municipality_code": municipality}
+        batch.facts.extend(FactObservation.model_validate({
+            "fact_id": uuid4(), "key": key, "status": "explicit_allow", "typed_value": value,
+            "qualifiers": {}, "origin": "source_text",
+            "evidence": [{"field": "description", "quote": description, "start": 0, "end": len(description)}],
+        }) for key, value in typed_facts.items())
         await pipeline.complete(claim, batch, {"description": description})
         assert await QueryProofs(pipeline).prepare(ids[i])
     query = VerifiedCardSearch(pipeline, sessions, signing_key=b"synthetic-cards-key-not-a-secret32")
