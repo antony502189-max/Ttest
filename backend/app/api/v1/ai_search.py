@@ -296,8 +296,9 @@ async def capabilities(request: Request):
     # Configuration advertisement only, never a dependency-health probe.
     active = isinstance(getattr(request.app.state, "ai_search_runtime", None), AISearchRuntime)
     configured = getattr(request.app.state, "ai_search_runtime", None)
-    return {"text": active, "map": active, "budget_suggestions": active, "voice": isinstance(configured, AISearchRuntime) and configured.voice is not None,
-        "saved_searches": False, "save_handoff": isinstance(configured, AISearchRuntime) and configured.saved_handoff is not None}
+    return {"text": active, "map": active, "voice": isinstance(configured, AISearchRuntime) and configured.voice is not None,
+        "saved_searches": False, "save_handoff": isinstance(configured, AISearchRuntime) and configured.saved_handoff is not None,
+        **({"budget_suggestions": True} if active else {})}
 
 
 @router.post("/identity")

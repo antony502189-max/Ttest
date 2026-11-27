@@ -56,7 +56,7 @@ def test_voice_400_is_only_pre_execution_validation_and_execution_valueerror_sta
 
 def test_http_api_is_disabled_without_database_provider_or_runtime():
     with TestClient(app) as client:
-        assert client.get("/api/v1/ai-search/capabilities").json() == {"text": False, "map": False, "budget_suggestions": False, "voice": False, "saved_searches": False, "save_handoff": False}
+        assert client.get("/api/v1/ai-search/capabilities").json() == {"text": False, "map": False, "voice": False, "saved_searches": False, "save_handoff": False}
         result = client.post("/api/v1/ai-search/sessions")
         assert result.status_code == 503 and result.json() == {"detail": "AI_SEARCH_DISABLED"}
         assert result.headers["cache-control"] == "no-store"
