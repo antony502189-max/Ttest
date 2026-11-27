@@ -34,7 +34,7 @@ export function pcmWav(chunks: Float32Array[], rate: number): string {
   return btoa(binary)
 }
 
-export function AIVoiceInput({ disabled, disabledReason, primary, onAudio, onRecording }: { disabled: boolean; disabledReason?: string; primary?: boolean; onAudio: (audio: string) => void; onRecording: (value: boolean) => void }) {
+export function AIVoiceInput({ disabled, disabledReason, primary, review, hasDraft, onAudio, onRecording }: { disabled: boolean; disabledReason?: string; primary?: boolean; review?: boolean; hasDraft?: boolean; onAudio: (audio: string) => void; onRecording: (value: boolean) => void }) {
   const { t } = useI18n()
   const reasonId = useId()
   const [state, setState] = useState<'idle' | 'permission' | 'recording'>('idle')
@@ -70,7 +70,7 @@ export function AIVoiceInput({ disabled, disabledReason, primary, onAudio, onRec
     setState('idle')
     if (send && value) {
       try { audioCallback.current(pcmWav(value.chunks, value.context.sampleRate)) }
-      catch { setNotice('La grabación es demasiado corta. Repite o escribe tu búsqueda.') }
+      catch { setNotice(review ? 'La grabación es demasiado corta. Graba de nuevo.' : 'La grabación es demasiado corta. Repite o escribe tu búsqueda.') }
     }
   }
   async function start() {
@@ -106,18 +106,18 @@ export function AIVoiceInput({ disabled, disabledReason, primary, onAudio, onRec
       if (!mounted.current || generation.current !== ticket) return
       cleanup(); setState('idle')
       setNotice(error instanceof DOMException && error.name === 'NotAllowedError'
-        ? 'Permite el acceso al micrófono en el navegador o escribe tu búsqueda.'
-        : 'El micrófono no está disponible. Escribe tu búsqueda.')
+        ? review ? 'Permite el acceso al micrófono en el navegador.' : 'Permite el acceso al micrófono en el navegador o escribe tu búsqueda.'
+        : review ? 'El micrófono no está disponible.' : 'El micrófono no está disponible. Escribe tu búsqueda.')
     }
   }
   return <div>
-    <p>{t('Voz: hasta 15 segundos. Procesamos el audio en nuestro servidor sin guardarlo. Al detener la grabación, la búsqueda comienza automáticamente.')}</p>
+    <p>{t(review ? 'Graba hasta 15 segundos. El audio se procesa en el servidor sin guardarlo.' : 'Voz: hasta 15 segundos. Procesamos el audio en nuestro servidor sin guardarlo. Al detener la grabación, la búsqueda comienza automáticamente.')}</p>
     {state === 'idle' ? <Button type="button" variant={primary ? 'default' : 'outline'} className={primary ? 'home-ai-search__action' : undefined}
       disabled={disabled} aria-describedby={disabled && disabledReason ? reasonId : undefined} onClick={() => void start()}>
-      {primary ? <Mic aria-hidden="true" /> : null}{t(primary ? 'Buscar vivienda' : 'Dictar búsqueda')}
+      {primary ? <Mic aria-hidden="true" /> : null}{t(review ? (hasDraft ? 'Volver a grabar' : 'Grabar búsqueda') : primary ? 'Buscar vivienda' : 'Dictar búsqueda')}
     </Button>
       : <><p role="status">{t(state === 'permission' ? 'Esperando acceso al micrófono…' : 'Grabando…')}</p>
-        <Button type="button" disabled={state !== 'recording'} onClick={() => stop(true)}>{t('Detener y buscar')}</Button>
+        <Button type="button" disabled={state !== 'recording'} onClick={() => stop(true)}>{t(review ? 'Terminar grabación' : 'Detener y buscar')}</Button>
         <Button type="button" variant="outline" onClick={() => stop(false)}>{t('Cancelar grabación')}</Button></>}
     {disabled && disabledReason && state === 'idle' ? <p id={reasonId} role="status" data-voice-unavailable>{disabledReason}</p> : null}
     {notice ? <p role="alert">{t(notice)}</p> : null}

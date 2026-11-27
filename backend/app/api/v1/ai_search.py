@@ -24,7 +24,7 @@ from ...schemas.listings import ListingCardSearchRequest, ListingMapRequest
 from ...services.ai_card_cursors import InvalidAICursor
 from ...services.ai_guest_tokens import GuestTokens, InvalidGuestToken
 from ...services.ai_http_policy import HTTP_DEADLINE, AIHTTPPolicy
-from ...services.ai_local_asr import validate_pcm
+from ...services.ai_local_asr import LocalASRBusy, validate_pcm
 from ...services.ai_operating_limits import AI_IP_KEY
 from ...services.ai_saved_handoff import SavedHandoffSigner
 from ...services.ai_search_attempts import AIAttemptRejected
@@ -350,17 +350,25 @@ async def message(payload: MessageBody, active: AISearchRuntime = Depends(runtim
     return jsonable_encoder(await active.execution.execute(owner, operation, payload.text, payload.search.to_request()))
 
 
-class VoiceBody(APIBody):
+class VoiceAudio(APIBody):
+    media_type: Literal["audio/wav"]
+    audio_base64: Annotated[StrictStr, Field(min_length=60, max_length=640_100)] = Field(repr=False)
+
+
+class VoiceBody(VoiceAudio):
     idempotency_key: UUID
     session_id: UUID
     expected_version: Annotated[int, Field(strict=True, ge=0, le=2_147_483_647)]
-    media_type: Literal["audio/wav"]
-    audio_base64: Annotated[StrictStr, Field(min_length=60, max_length=640_100)] = Field(repr=False)
     search: AICardView = Field(default_factory=AICardView)
 
 
+class VoiceDraftBody(VoiceAudio):
+    transcribe_only: Literal[True]
+
+
 @router.post("/voice")
-async def voice_message(payload: VoiceBody, active: AISearchRuntime = Depends(runtime), owner: QuotaSubject = Depends(subject)):
+async def voice_message(payload: VoiceBody | VoiceDraftBody, active: AISearchRuntime = Depends(runtime),
+                        owner: QuotaSubject = Depends(subject)):
     if active.voice is None:
         raise HTTPException(503, "AI_VOICE_DISABLED")
     try:
@@ -368,6 +376,13 @@ async def voice_message(payload: VoiceBody, active: AISearchRuntime = Depends(ru
         validate_pcm(audio)
     except ValueError:
         raise HTTPException(400,'AI_REQUEST_INVALID') from None
+    if isinstance(payload, VoiceDraftBody):
+        try:
+            return {"transcript": await active.voice.transcribe(owner, audio, payload.media_type)}
+        except LocalASRBusy:
+            raise HTTPException(429, "VOICE_CAPACITY_LIMIT") from None
+        except ValueError:
+            raise HTTPException(422, "ASR_FAILURE") from None
     return jsonable_encoder(await active.voice.execute(owner, payload.idempotency_key, payload.session_id,
         payload.expected_version, audio, payload.media_type, payload.search.to_request()))
 

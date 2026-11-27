@@ -6,6 +6,20 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'Di dónde quieres vivir y qué necesitas.': { ru: 'Скажите, где хотите жить и какие условия вам важны.', en: 'Say where you want to live and what you need.' },
+  'Grabar búsqueda': { ru: 'Записать запрос', en: 'Record search' },
+  'Volver a grabar': { ru: 'Записать заново', en: 'Record again' },
+  'Terminar grabación': { ru: 'Завершить запись', en: 'Finish recording' },
+  'Graba hasta 15 segundos. El audio se procesa en el servidor sin guardarlo.': { ru: 'Запись до 15 секунд. Аудио обрабатывается на сервере без сохранения.', en: 'Record up to 15 seconds. Audio is processed on the server without being stored.' },
+  'Transcribiendo la grabación…': { ru: 'Распознаём запись…', en: 'Transcribing your recording…' },
+  'Texto de la grabación': { ru: 'Текст записи', en: 'Transcript' },
+  'Permite el acceso al micrófono en el navegador.': { ru: 'Разрешите доступ к микрофону в браузере.', en: 'Allow microphone access in your browser.' },
+  'El micrófono no está disponible.': { ru: 'Микрофон недоступен.', en: 'The microphone is unavailable.' },
+  'La grabación es demasiado corta. Graba de nuevo.': { ru: 'Запись слишком короткая. Запишите запрос заново.', en: 'The recording is too short. Record again.' },
+  'No pudimos transcribir la grabación. Graba de nuevo.': { ru: 'Не удалось распознать речь. Запишите запрос заново.', en: 'We could not transcribe the recording. Record again.' },
+  'La grabación no está disponible temporalmente.': { ru: 'Запись временно недоступна.', en: 'Recording is temporarily unavailable.' },
+  'Revisa el texto antes de buscar.': { ru: 'Проверьте текст запроса перед поиском.', en: 'Check the text before searching.' },
+  'Revisa tu solicitud e inténtalo de nuevo.': { ru: 'Уточните запрос и попробуйте снова.', en: 'Clarify your request and try again.' },
   '¿Qué vivienda buscas?': { ru: 'Какое жильё вы ищете?', en: 'What kind of home are you looking for?' },
   'Escribe o dicta los requisitos de tu próxima vivienda.': { ru: 'Напишите или скажите, где хотите жить и какие условия вам важны.', en: 'Type or say where you want to live and what you need.' },
   'Qué puedes indicar': { ru: 'Что можно указать', en: 'What you can include' },

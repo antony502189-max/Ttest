@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 
 from pydantic import Field, model_validator
 
+from ..repositories.ai_search_quota import QuotaError
 from ..repositories.ai_search_sessions import SearchSessions, SessionError, intent_hash
 from ..repositories.ai_verified_cards import SourceCoverageUnavailable
 from ..schemas.ai_clarification import IntentClarification
@@ -88,6 +89,35 @@ class VoiceSearchExecution:
         if self.policy.total_budget_seconds >= self.ledger.policy.running_seconds:
             raise ValueError("voice deadline must leave time within the running lease for finalize")
 
+    def validate_audio(self, audio: bytes, media_type: AudioMedia) -> None:
+        if type(audio) is not bytes or not 0 < len(audio) <= self.policy.max_audio_bytes:
+            raise ValueError("VOICE_AUDIO_INVALID")
+        if media_type not in self.policy.media_types:
+            raise ValueError("VOICE_MEDIA_INVALID")
+
+    async def _transcript(self, audio: bytes, media_type: AudioMedia) -> str:
+        with VOICE_ASR_SECONDS.time():
+            transcript = await _bounded(lambda: self.asr.transcribe(audio, media_type), self.policy.asr_budget_seconds)
+        if (type(transcript) is not str or not transcript.strip() or len(transcript) > 16_384
+                or len(transcript.encode()) > self.policy.max_transcript_bytes):
+            raise ValueError("VOICE_TRANSCRIPT_INVALID")
+        return transcript
+
+    async def transcribe(self, subject: QuotaSubject, audio: bytes, media_type: AudioMedia) -> str:
+        """Return a draft under the existing inference limits, without opening a search operation."""
+        self.validate_audio(audio, media_type)
+        deadline = asyncio.get_running_loop().time() + self.policy.total_budget_seconds
+        http_deadline = HTTP_DEADLINE.get()
+        if http_deadline is not None:
+            deadline = min(deadline, http_deadline)
+        slots = getattr(self.attempts, "inference", None)
+        async with asyncio.timeout_at(deadline):
+            async with slots(subject, deadline=deadline) if slots else nullcontext():
+                await self.attempts.check(subject)
+                if (await self.ledger.daily_status(subject)).remaining <= 0:
+                    raise QuotaError("QUOTA_EXHAUSTED")
+                return (await self._transcript(audio, media_type)).strip()
+
     async def execute(self, subject: QuotaSubject, key: UUID, session_id: UUID, version: int,
                       audio: bytes, media_type: AudioMedia, payload: ListingCardSearchRequest) -> SearchExecution:
         # Include pool/reserve/claim, replay reads, cleanup and atomic finalize
@@ -116,10 +146,7 @@ class VoiceSearchExecution:
                        audio: bytes, media_type: AudioMedia, payload: ListingCardSearchRequest,
                        deadline: float) -> SearchExecution:
         subject = QuotaSubject.model_validate(subject.model_dump())
-        if type(audio) is not bytes or not 0 < len(audio) <= self.policy.max_audio_bytes:
-            raise ValueError("VOICE_AUDIO_INVALID")
-        if media_type not in self.policy.media_types:
-            raise ValueError("VOICE_MEDIA_INVALID")
+        self.validate_audio(audio, media_type)
         payload = ListingCardSearchRequest.model_validate(payload.model_dump())
         if payload.cursor is not None:
             raise ValueError("a new voice message must not carry a paging cursor")
@@ -161,11 +188,7 @@ class VoiceSearchExecution:
                 if asyncio.get_running_loop().time() >= deadline:
                     raise TimeoutError
                 phase = FailureCode.ASR_FAILURE
-                with VOICE_ASR_SECONDS.time():
-                    transcript = await _bounded(lambda: self.asr.transcribe(audio, media_type), self.policy.asr_budget_seconds)
-                if (type(transcript) is not str or not transcript.strip() or len(transcript) > 16_384
-                        or len(transcript.encode()) > self.policy.max_transcript_bytes):
-                    raise ValueError("VOICE_TRANSCRIPT_INVALID")
+                transcript = await self._transcript(audio, media_type)
                 phase = FailureCode.LLM_FAILURE
                 with VOICE_PARSER_SECONDS.time():
                     patch = await _bounded(lambda: self.parser.parse(transcript, current), self.policy.intent_budget_seconds)

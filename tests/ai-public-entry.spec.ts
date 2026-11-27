@@ -1,4 +1,12 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+async function recordDraft(page: Page) {
+  await page.getByRole('button', { name: 'Grabar búsqueda', exact: true }).click()
+  await expect(page.getByText('Grabando…', { exact: true })).toBeVisible()
+  await page.waitForTimeout(300)
+  await page.getByRole('button', { name: 'Terminar grabación', exact: true }).click()
+  await expect(page.locator('#ai-search-text')).toHaveValue('пример голосового запроса')
+}
 
 for (const width of [390, 1440]) for (const ready of [true, false]) {
   test(`public home ${width}px ready=${ready}: bounded guest API and unchanged manual controls`, async ({ page }) => {
@@ -9,7 +17,7 @@ for (const width of [390, 1440]) for (const ready of [true, false]) {
     })
     const sid = '00000000-0000-4000-8000-000000000001'
     const ref = '00000000-0000-4000-8000-000000000002'
-    let calls = 0, version = 0
+    let calls = 0, version = 0, transcriptions = 0
     const intent = () => ({ schema_version: 'ai-search.v1', taxonomy_version: 'rental.v1', session_id: sid, version,
       criteria: { rental_mode: { strength: 'hard', value: 'long' }, ...(version ? {budget:{strength:'hard',value:{amount:'600',currency:'EUR',period:'monthly'}}} : {}) } })
     const paths: string[] = []
@@ -25,7 +33,16 @@ for (const width of [390, 1440]) for (const ready of [true, false]) {
         else if (path.endsWith('/capabilities')) value = {text:true,map:true,voice:true,saved_searches:false}
         else if (path.endsWith('/identity')) value = {ready:true}
         else if (path.endsWith('/quota')) value = {remaining:3-calls}
-        else if (path.endsWith('/sessions')) {
+        else if (path.endsWith('/voice')) {
+          expect(ready).toBe(true)
+          const body = request.postDataJSON()
+          expect(Object.keys(body).sort()).toEqual(['audio_base64', 'media_type', 'transcribe_only'])
+          expect(body.transcribe_only).toBe(true)
+          expect(body.media_type).toBe('audio/wav')
+          expect(Buffer.from(body.audio_base64, 'base64').subarray(0, 4).toString()).toBe('RIFF')
+          transcriptions++
+          value = { transcript: 'пример голосового запроса' }
+        } else if (path.endsWith('/sessions')) {
           expect(request.postDataJSON().rental_mode).toBe('long')
           value = {intent:intent(),expires_at:'2099-01-01T00:00:00Z'}
         } else if (path.endsWith('/query')) {
@@ -59,21 +76,28 @@ for (const width of [390, 1440]) for (const ready of [true, false]) {
     await page.screenshot({path:`output/ai-home-public-${width}-${ready}.png`,fullPage:true})
     await voice.click()
     await expect(page.getByRole('button',{name:'Dictar búsqueda',exact:true})).toHaveCount(0)
-    const findHousing = page.getByRole('button',{name:'Buscar vivienda',exact:true})
+    const findHousing = page.getByRole('button',{name:'Grabar búsqueda',exact:true})
     if (ready) await expect(findHousing).toBeEnabled()
     else await expect(findHousing).toBeDisabled()
-    await page.locator('#ai-search-text').fill('до 600 евро в месяц')
+    const draft = page.locator('#ai-search-text')
     const submit = page.getByRole('button',{name:'Buscar por texto',exact:true})
+    await expect(draft).toHaveCount(0)
+    await expect(submit).toHaveCount(0)
     if (ready) {
+      await recordDraft(page)
+      expect(transcriptions).toBe(1)
+      expect(calls).toBe(0)
+      expect(paths).not.toContain('/ai-pilot/api/v1/ai-search/sessions')
+      await draft.fill('до 600 евро в месяц')
       await expect(submit).toBeEnabled()
       await submit.click()
       await expect(page.getByText('600 EUR / mes',{exact:true}).first()).toBeVisible()
       expect(calls).toBe(1)
       await page.reload()
-      await page.getByRole('button',{name:'También puedes escribir tu búsqueda',exact:true}).click()
+      await page.getByRole('button',{name:'Buscar con mi voz',exact:true}).click()
       await expect(page.getByText('600 EUR / mes',{exact:true}).first()).toBeVisible()
       expect(calls).toBe(1)
-    } else await expect(submit).toBeDisabled()
+    } else expect(transcriptions).toBe(0)
     expect(paths).toContain('/ai-pilot/api/v1/private-demo/status')
   })
 }
@@ -111,6 +135,7 @@ for (const width of [390, 1440]) {
         else if (path.endsWith('/capabilities')) value = { text: true, map: true, voice: true, saved_searches: false, save_handoff: true }
         else if (path.endsWith('/identity')) value = { ready: true }
         else if (path.endsWith('/quota')) value = { remaining: 3 - calls }
+        else if (path.endsWith('/voice')) value = { transcript: 'пример голосового запроса' }
         else if (path.endsWith('/sessions')) value = { intent: intent(), expires_at: '2099-01-01T00:00:00Z' }
         else if (path.endsWith('/sessions/' + sid)) value = { intent: intent(), expires_at: '2099-01-01T00:00:00Z' }
         else if (path.endsWith('/query')) { calls++; value = { operation: { status: 'succeeded', remaining: 2, receipt: { result_ref: ref, count: 0 } }, cards: { cards: { items: [], total: 0, nextCursor: null, previousCursor: null }, intent_hash: 'frozen-hash' } } }
@@ -124,7 +149,8 @@ for (const width of [390, 1440]) {
     })
     await page.goto('/#/')
     await page.evaluate(async () => { const client = await import('/src/api/client.ts'); client.setAccessToken('synthetic-primary-token') })
-    await page.getByRole('button', { name: 'También puedes escribir tu búsqueda', exact: true }).click()
+    await page.getByRole('button', { name: 'Buscar con mi voz', exact: true }).click()
+    await recordDraft(page)
     await page.locator('#ai-search-text').fill('sin muebles')
     await page.getByRole('button', { name: 'Buscar por texto', exact: true }).click()
     const save = page.getByRole('button', { name: 'Guardar búsqueda y activar avisos', exact: true })
@@ -174,7 +200,7 @@ for (const width of [390, 1440]) for (const flow of ["register", "login", "login
     return route.continue()
   })
   await page.goto('/#/')
-  await page.getByRole('button',{name:'También puedes escribir tu búsqueda',exact:true}).click()
+  await page.getByRole('button',{name:'Buscar con mi voz',exact:true}).click()
   await page.getByRole('link',{name:'Regístrate para guardar esta búsqueda',exact:true}).click()
   if (flow !== 'register') {
     await page.getByRole('link',{name:'Accede',exact:true}).click()
@@ -233,6 +259,7 @@ for(const pending of [false,true]) test(`catalog status recovers automatically w
       else if(p.endsWith('/capabilities'))value={text:true,map:true,voice:true,saved_searches:false}
       else if(p.endsWith('/quota'))value={remaining:3}
       else if(p.endsWith('/identity'))value={ready:true}
+      else if(p.endsWith('/voice'))value={transcript:'пример голосового запроса'}
       else if(p.endsWith('/sessions')||p.endsWith('/sessions/'+sid))value=session
       else if(p.endsWith('/query')){
         keys.push(r.postDataJSON().idempotency_key)
@@ -244,9 +271,8 @@ for(const pending of [false,true]) test(`catalog status recovers automatically w
     if(p.startsWith('/api/'))return route.fulfill({status:404,json:{}})
     return route.continue()
   })
-  await page.goto('/#/');await page.getByRole('button',{name:'También puedes escribir tu búsqueda',exact:true}).click()
-  await page.locator('#ai-search-text').fill('до 600 евро в месяц')
-  if(pending){await page.getByRole('button',{name:'Buscar por texto',exact:true}).click();await expect(page.getByRole('button',{name:'Comprobar el mismo intento',exact:true})).toBeEnabled()}
+  await page.goto('/#/');await page.getByRole('button',{name:'Buscar con mi voz',exact:true}).click()
+  if(pending){await recordDraft(page); await page.locator('#ai-search-text').fill('до 600 евро в месяц'); await page.getByRole('button',{name:'Buscar por texto',exact:true}).click();await expect(page.getByRole('button',{name:'Comprobar el mismo intento',exact:true})).toBeEnabled()}
   await expect(page.locator('[data-private-demo-status]')).toContainText(/actualiza|actualizando/)
   const stored=await page.evaluate(()=>sessionStorage.getItem('112233:ai-continuation:v1:public-guest'))
   const before=statusReads;ready=true;await page.clock.fastForward(5100)
@@ -258,9 +284,9 @@ for(const pending of [false,true]) test(`catalog status recovers automatically w
     await expect.poll(() => keys.length).toBe(2)
     expect(keys[0]).toBe(keys[1])
   }
-  await expect(page.getByRole('button',{name:'Buscar por texto',exact:true})).toBeEnabled()
-  await page.locator('#ai-search-text').clear()
-  await expect(page.getByRole('button',{name:'Buscar vivienda',exact:true})).toBeEnabled()
+  if (pending) await expect(page.getByRole('button',{name:'Buscar por texto',exact:true})).toBeEnabled()
+  else await expect(page.locator('#ai-search-text')).toHaveCount(0)
+  await expect(page.getByRole('button',{name:pending ? 'Volver a grabar' : 'Grabar búsqueda',exact:true})).toBeEnabled()
   ready=false;await page.evaluate(()=>window.dispatchEvent(new Event('focus')))
   await expect(page.locator('[data-private-demo-status]')).toContainText('actualizando')
   await page.getByRole('button',{name:'Cerrar',exact:true}).click()
