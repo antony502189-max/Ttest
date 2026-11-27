@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AudioLines, Mic, Search, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router'
 import { ApiError, type AIAuthority } from '@/api/client'
-import { aiCapabilities, aiCardPage, aiMapCenter, aiResultPage, createAISession, getAIOperation, getAIQuota, getAIResult, getAISession, resetAISession, sendAIMessage, transcribeAIVoice, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
+import { aiBudgetSuggestions, aiCapabilities, aiCardPage, aiMapCenter, aiResultPage, createAISession, getAIOperation, getAIQuota, getAIResult, getAISession, resetAISession, sendAIMessage, transcribeAIVoice, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
 import { aiConditionRows, aiModeLabel, type AICommittedIntent } from '@/api/ai-intent'
 import type { RentalMode } from '@/types'
 import { AIConditions } from '@/components/ai-conditions'
@@ -27,10 +27,10 @@ const clarificationMessages: Readonly<Record<string, string>> = {
   rental_mode: 'Indica si buscas alquiler vacacional o de larga duración.',
   balcony_requirement: 'Aclara si necesitas un balcón privado o te sirve una terraza compartida.',
   location: 'Indica un municipio, una provincia de España o toda la isla de Tenerife.',
-  dates: 'Indica fechas válidas. La salida debe ser posterior a la entrada.',
+  dates: 'Comprueba que la salida sea posterior a la entrada y que el número de noches coincida con las fechas.',
   accommodation: 'Indica si buscas una habitación, una plaza en habitación compartida, un estudio o un piso. Si necesitas un dormitorio, indícalo.',
   pets: 'Para buscar con mascotas, indica cuántos perros o gatos vivirán contigo.',
-  alternatives: 'Elige una sola opción para cada condición. La búsqueda no admite alternativas.',
+  alternatives: 'Puedes combinar tipos de vivienda con «o». Para otras condiciones, indica una sola opción.',
   conflict: 'Hay condiciones contradictorias. Revisa cuáles quieres mantener.',
   deposit: 'Indica la fianza en euros o en meses completos.',
   party: 'Revisa cuántas personas vivirán allí. Si indicas adultos y niños, los números deben coincidir con el total.',
@@ -47,6 +47,7 @@ function clarificationNotice(code: string | null, clarification?: { reason: stri
 }
 
 const coverageNotice = 'El catálogo de IA no tiene datos verificados suficientes para comprobar todas tus condiciones. Prueba con un requisito menos o consulta los anuncios con los filtros. No descontamos ninguna búsqueda.'
+const pricePeriods = { monthly: 'por mes', weekly: 'por semana', nightly: 'por noche' } as const
 
 const publicAI = import.meta.env.VITE_PUBLIC_AI_BETA === '1'
 
@@ -74,6 +75,8 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
   const [mapEnabled, setMapEnabled] = useState(false)
   const [voiceEnabled, setVoiceEnabled] = useState(false)
   const [saveEnabled, setSaveEnabled] = useState(false)
+  const [budgetSuggestionsEnabled, setBudgetSuggestionsEnabled] = useState(false)
+  const [budgetSuggestions, setBudgetSuggestions] = useState<{ ref: string; items: ListingCardPage['items']; prices: AIBudgetPrice[] } | null>(null)
   const [recording, setRecording] = useState(false)
   const [mapVisible, setMapVisible] = useState(false)
   const [mapRefreshVersion, setMapRefreshVersion] = useState(0)
@@ -219,10 +222,29 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
   useEffect(() => {
     const controller = new AbortController()
     void aiCapabilities(controller.signal, authority).then(value => {
-      if (!controller.signal.aborted) { setEnabled(value.text === true); setMapEnabled(value.map === true); setVoiceEnabled(value.voice === true); setSaveEnabled(value.save_handoff === true) }
+      if (!controller.signal.aborted) {
+        setEnabled(value.text === true); setMapEnabled(value.map === true); setVoiceEnabled(value.voice === true)
+        setSaveEnabled(value.save_handoff === true); setBudgetSuggestionsEnabled(value.budget_suggestions === true)
+      }
     }).catch(() => { /* Ordinary search stays available when capability lookup fails. */ })
     return () => { controller.abort(); flight.current?.abort(); syncFlight.current?.abort(); transcription.current?.abort() }
   }, [authority])
+
+  const budget = result?.committed.intent.criteria.budget
+  const suggestionRef = open && budgetSuggestionsEnabled && pagingAvailable && !resultInvalid
+    && result?.page.total === 0 && budget?.strength === 'hard' ? result.ref : undefined
+  const resultHash = result?.hash
+  useEffect(() => {
+    setBudgetSuggestions(null)
+    if (!suggestionRef || !resultHash) return
+    const controller = new AbortController()
+    void aiBudgetSuggestions(suggestionRef, controller.signal, authority).then(response => {
+      if (!controller.signal.aborted && response?.intent_hash === resultHash) {
+        setBudgetSuggestions({ ref: suggestionRef, items: aiCardPage(response).items, prices: response.budget_prices ?? [] })
+      }
+    }).catch(() => { /* The verified exact results remain available. */ })
+    return () => controller.abort()
+  }, [authority, resultHash, suggestionRef, mapRefreshVersion])
 
   const ownedSessionId = session?.intent.session_id
   useEffect(() => {
@@ -648,9 +670,8 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
           center={result.center} total={result.page.total} authority={authority} /> : null}
         <div className="ai-search-dialog__cards" hidden={mapVisible} style={{ display: mapVisible ? 'none' : undefined }}>{result.page.items.map(listing => {
           const price = result.prices.find(value => value.listing_id === listing.id)
-          const periods = { monthly: 'por mes', weekly: 'por semana', nightly: 'por noche' } as const
           return <div key={listing.id} className="ai-search-dialog__card">
-            {price && periods[price.matched_period] ? <p>{t('Precio confirmado para tu presupuesto')}: {price.matched_amount} € {t(periods[price.matched_period])}</p> : null}
+            {price && pricePeriods[price.matched_period] ? <p>{t('Precio confirmado para tu presupuesto')}: {price.matched_amount} € {t(pricePeriods[price.matched_period])}</p> : null}
             <PropertyCard listing={listing} />
           </div>
         })}</div>
@@ -659,6 +680,18 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
           <Button type="button" variant="outline" disabled={busy || changingSession || pending !== null || !pagingAvailable || !result.page.previousCursor} onClick={() => void page(result.page.previousCursor!)}>{t('Anterior')}</Button>
           <Button type="button" variant="outline" disabled={busy || changingSession || pending !== null || !pagingAvailable || !result.page.nextCursor} onClick={() => void page(result.page.nextCursor!)}>{t('Siguiente')}</Button>
         </nav>
+      </section> : null}
+      {budgetSuggestions && budgetSuggestions.ref === suggestionRef && budget && !mapVisible && budgetSuggestions.items.length > 0 ? <section aria-label={t('Opciones por encima del presupuesto')}>
+        <h3>{t('Opciones por encima del presupuesto')}</h3>
+        <div className="ai-search-dialog__cards">{budgetSuggestions.items.map(listing => {
+          const price = budgetSuggestions.prices.find(value => value.listing_id === listing.id)
+          const difference = (price?.matched_amount ?? 0) - Number(budget.value.amount)
+          if (!price || price.matched_period !== budget.value.period || difference <= 0) return null
+          return <div key={listing.id} className="ai-search-dialog__card">
+            <p>{price.matched_amount} € {t(pricePeriods[price.matched_period])} · {t('Por encima del presupuesto')}: +{Number(difference.toFixed(2))} €</p>
+            <PropertyCard listing={listing} />
+          </div>
+        })}</div>
       </section> : null}
       {!publicAI ? <Button type="button" variant="ghost" onClick={() => changeDialog(false)}>{t('Volver a los filtros')}</Button> : null}
     </DialogContent>

@@ -33,7 +33,7 @@ def test_english_renter_prefix_preserves_complete_conditions(prefix):
 
 @pytest.mark.parametrize("text", [
     "I need to rent out a room", "I don't need to rent a room", "I needed to rent a room",
-    "I need to rent a room or a studio", "I need to rent a room, not in Madrid",
+    "I need to rent a room or an unsupported dwelling", "I need to rent a room, not in Madrid",
     "I need to rent a room under 700 dollars per month", "I need to rent a room near my office",
     "I need to rent a room under 700 euros per month, not furnished, but only on Tuesdays",
     "He needs to rent a room", "I need to pay rent and keep the doors open.",
@@ -54,7 +54,8 @@ def test_english_renter_prefix_never_discards_unsupported_conditions(text):
     ("квартиру с двумя спальнями до 700 евро в месяц", "accommodation"),
     ("комната с животными экзотических видов", "unsupported"),
     ("a room with pets requiring approval", "unsupported"),
-    ("a room or a studio", "alternatives"),
+    ("a room in Madrid or a studio in Barcelona", "alternatives"),
+    ("habitacion hasta 400 o 500 euros al mes", "alternatives"),
     ("amueblado, sin muebles", "conflict"),
     ("from 2027-02-31 to 2027-03-05", "dates"),
     ("from 2027-02-15 to 2027-02-01", "dates"),
@@ -72,6 +73,28 @@ def test_rejected_criteria_have_a_stable_reason_and_leave_intent_unchanged(text,
     assert captured.value.clarification.reason == reason
     assert intent_failure_code(captured.value) == "CLARIFY_" + reason.upper()
     assert before.model_dump() == snapshot
+
+
+@pytest.mark.parametrize("text", [
+    "Комната или студия до 600 евро в месяц",
+    "Can I rent a studio or a room for up to 600 euros per month?",
+    "Una habitación o un estudio, máximo 600 euros al mes",
+])
+def test_housing_alternatives_share_the_same_budget(text):
+    result = housing_patch(text, state(), VOCAB).set
+    assert result.accommodation.value.kind == "any_of"
+    assert result.accommodation.value.alternatives == ("room", "studio")
+    assert result.budget.value.amount == "600"
+    assert result.budget.value.period == "monthly"
+
+
+def test_dates_conflict_has_actionable_reason_after_followup():
+    current = state()
+    current = apply_patch(current, housing_patch("studio in Madrid, from 2026-12-02 to 2026-12-06", current, VOCAB))
+    with pytest.raises(IntentClarificationRequired) as captured:
+        housing_patch("for 5 nights", current, VOCAB)
+    assert captured.value.clarification.reason == "dates"
+    assert housing_patch("for 4 nights", current, VOCAB).set.stay.value.value == 4
 
 
 @pytest.mark.parametrize("text,name", [("not furnished", "furnished"), ("not bills included", "bills_included"),

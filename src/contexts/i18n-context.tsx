@@ -7,6 +7,10 @@ type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
   'o': { ru: 'или', en: 'or' },
+  'Comprueba que la salida sea posterior a la entrada y que el número de noches coincida con las fechas.': { ru: 'Проверьте даты: выезд должен быть позже заезда, а число ночей должно совпадать с датами.', en: 'Check that check-out is after check-in and the number of nights matches the dates.' },
+  'Puedes combinar tipos de vivienda con «o». Para otras condiciones, indica una sola opción.': { ru: 'Можно искать несколько типов жилья через «или». Для других условий укажите один вариант.', en: 'You can combine housing types with “or”. Choose one option for other conditions.' },
+  'Opciones por encima del presupuesto': { ru: 'Варианты чуть выше бюджета', en: 'Options slightly over budget' },
+  'Por encima del presupuesto': { ru: 'Сверх бюджета', en: 'Over budget' },
   'Isla de Tenerife': { ru: 'Остров Тенерифе', en: 'Island of Tenerife' },
   'Piso o estudio completo': { ru: 'Отдельная квартира или студия', en: 'Entire apartment or studio' },
   'Se admiten mascotas': { ru: 'Можно с животными', en: 'Pets allowed' },

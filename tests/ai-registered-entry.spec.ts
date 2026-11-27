@@ -141,9 +141,14 @@ test('Russian voice search retries a failed session start and keeps the apartmen
   await expect(dialog.getByText('Остров Тенерифе', { exact: true }).first()).toBeVisible()
   await expect(dialog.getByText('Отдельная квартира или студия', { exact: true }).first()).toBeVisible()
   await expect(dialog.getByText('Среди проверенных объявлений нет подходящих по всем условиям.', { exact: false })).toBeVisible()
+  const nearby = dialog.getByRole('region', { name: 'Варианты чуть выше бюджета' })
+  await expect(nearby.getByText('720 € в месяц · Сверх бюджета: +20 €')).toBeVisible()
+  await expect(nearby.getByText('Test Tenerife studio')).toBeVisible()
+  await expect(dialog.getByRole('region', { name: 'Подтверждённые результаты' }).getByText('Test Tenerife studio')).toHaveCount(0)
   expect(state.sessionCommands).toHaveLength(2)
   expect(state.sessionCommands[1]).toEqual(state.sessionCommands[0])
   expect(state.queries).toBe(1)
+  expect(state.suggestionReads).toBe(1)
 })
 
 async function surface(page: Page, guestReturn = false, language = 'es') {
@@ -153,7 +158,7 @@ async function surface(page: Page, guestReturn = false, language = 'es') {
     localStorage.setItem('112233:has-session', '1')
     if (guestReturn) sessionStorage.setItem('112233:ai-continuation:v1:public-guest', JSON.stringify({ sessionId: guestSid, resultRef: guestRef }))
   }, { guestReturn, guestSid, guestRef, language })
-  const state = { queries: 0, saves: 0, guestIssues: 0, nativeIssues: 0, nativeCreates: 0, nativeCapabilities: 0, nativeMapReads: 0, transcriptions: 0, failTranscription: false, clarifyBudget: false, transcript: 'a room under 700 euros per month', apartmentRequest: false, failNextCreate: false, sessionCommands: [] as unknown[] }
+  const state = { queries: 0, saves: 0, guestIssues: 0, nativeIssues: 0, nativeCreates: 0, nativeCapabilities: 0, nativeMapReads: 0, transcriptions: 0, failTranscription: false, clarifyBudget: false, transcript: 'a room under 700 euros per month', apartmentRequest: false, failNextCreate: false, sessionCommands: [] as unknown[], suggestionReads: 0 }
   const intent = (guest = false) => ({ schema_version: 'ai-search.v1', taxonomy_version: 'rental.v1', session_id: guest ? guestSid : sid,
     version: guest ? 1 : state.queries, criteria: { rental_mode: { strength: 'hard', value: 'long' },
       ...(guest || state.queries ? { budget: { strength: 'hard', value: { amount: '700', currency: 'EUR', period: 'monthly' } }, furnished: { strength: 'hard', value: false } } : {}),
@@ -173,7 +178,7 @@ async function surface(page: Page, guestReturn = false, language = 'es') {
       expect(request.headers().authorization).toBe(guest ? undefined : 'Bearer native-account-token')
       const currentRef = guest ? guestRef : ref
       let value: unknown
-      if (path.endsWith('/capabilities')) { if (!guest) state.nativeCapabilities++; value = { text: true, map: true, voice: true, saved_searches: false, save_handoff: true } }
+      if (path.endsWith('/capabilities')) { if (!guest) state.nativeCapabilities++; value = { text: true, map: true, voice: true, saved_searches: false, save_handoff: true, budget_suggestions: state.apartmentRequest } }
       else if (path.endsWith('/quota')) value = { limit: guest ? 3 : 200, remaining: guest ? 0 : 200 - state.queries }
       else if (path.endsWith('/identity')) { expect(guest).toBe(false); value = { ready: true } }
       else if (path.endsWith('/sessions')) {
@@ -207,7 +212,21 @@ async function surface(page: Page, guestReturn = false, language = 'es') {
         value = { operation: { status: 'succeeded', remaining: 199, receipt: { result_ref: ref, count: 0 } }, cards: { cards: { items: [], total: 0, nextCursor: null, previousCursor: null }, intent_hash: 'native-hash' } }
       } else if (path.endsWith('/sessions/' + (guest ? guestSid : sid))) value = { intent: intent(guest), expires_at: '2099-01-01T00:00:00Z' }
       else if (path.endsWith('/results/' + currentRef)) value = { result_ref: currentRef, count: 0, intent_hash: 'native-hash', intent: intent(guest) }
-      else if (path.endsWith('/cards')) value = { cards: { items: [], total: 0, nextCursor: null, previousCursor: null }, intent_hash: 'native-hash' }
+      else if (path.endsWith('/cards')) {
+        const items = []
+        const budgetPrices = []
+        if (request.postDataJSON().nearby_budget) {
+          state.suggestionReads++
+          const id = '00000000-0000-4000-8000-000000000041'
+          items.push({ id, title: 'Test Tenerife studio', city: 'Adeje', area: '', approximateAddress: 'Adeje',
+            rentalMode: 'long', price: 720, roomType: 'Estudio', currentResidents: 0, roomCapacity: 1,
+            roomSizeM2: 30, availableFrom: null, billsIncluded: null, restrictions: [], isExternal: false,
+            publishedAt: '2026-10-27', promoted: false, description: '', imageUrls: [] })
+          budgetPrices.push({ listing_id: id, matched_amount: 720, matched_period: 'monthly',
+            display_amount: 720, display_period: 'monthly', currency: 'EUR', confirmation: 'current_source_proof' })
+        }
+        value = { cards: { items, total: items.length, nextCursor: null, previousCursor: null }, budget_prices: budgetPrices, intent_hash: 'native-hash' }
+      }
       else if (path.endsWith('/map')) { expect(guest).toBe(false); state.nativeMapReads++; value = { map: { items: [] }, intent_hash: 'native-hash' } }
       else if (path.endsWith('/save-token')) { if (guest) state.guestIssues++; else state.nativeIssues++; value = { token: 'in-memory-save-token', expires_in: 300 } }
       else throw Error('Unexpected AI request: ' + path)

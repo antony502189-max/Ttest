@@ -193,6 +193,36 @@ async def test_customer_transcript_filters_verified_cards_after_intent_roundtrip
     assert {card.id for card in result.cards.items} == {str(ids[0]), str(ids[1])}
 
 
+async def test_over_budget_suggestions_preserve_other_conditions_and_exact_receipt():
+    from app.schemas.ai_search_intent import apply_patch
+    from app.schemas.ai_search_quota import QuotaOperation, ResultReceipt
+    from app.services.ai_housing_input import housing_patch
+
+    query, subject, session_id, ids, _ = await setup("long", price=720, housing=[
+        ("one_bedroom", "38001"), ("studio", "38038"), ("room", "38001"), ("one_bedroom", "38037"),
+    ])
+    current = (await query.sessions.get(subject, session_id)).intent
+    patch = housing_patch("Квартира на Тенерифе до 700 евро в месяц", current, query.sessions.vocabulary)
+    candidate = apply_patch(current, patch)
+    operation = QuotaOperation(idempotency_key=uuid4(), channel="text", payload_sha256="a" * 64,
+        session_id=session_id, expected_session_version=current.version)
+    await query.sessions.ledger.reserve(subject, operation)
+    await query.sessions.ledger.claim(subject, operation)
+    exact = await query.query_candidate(subject, current, candidate, ListingCardSearchRequest())
+    assert exact.cards.total == 0
+    receipt = ResultReceipt(result_ref=uuid4(), count=0)
+    await query.sessions.finalize_patch(subject, operation, 1, patch, receipt)
+
+    nearby = await query.suggest_budget(subject, receipt.result_ref)
+    assert nearby and nearby.intent_hash == exact.intent_hash
+    assert [card.id for card in nearby.cards.items] == [str(ids[1])]
+    assert nearby.budget_prices[0].matched_amount == 720
+    stored = await query.sessions.result(subject, receipt.result_ref)
+    assert stored.count == 0 and stored.intent == candidate
+    async with SessionLocal() as session:
+        assert await session.scalar(select(func.sum(AIUsageDay.used))) == 1
+
+
 async def test_explicit_foreground_cohort_filters_before_coverage_count_limit_map_and_cursor():
     from app.repositories.ai_verified_cards import SourceCoverageUnavailable
     from app.schemas.listings import ListingMapRequest
