@@ -21,6 +21,31 @@ import { pilotInput } from '@/lab/pilot-input'
 import { AIResultMap as PublicAIMap } from '@/lab/ai-synthetic-map'
 import { readAIContinuation, storeAIContinuation } from '@/api/ai-continuation'
 
+const clarificationMessages: Readonly<Record<string, string>> = {
+  budget_period: 'Indica si el presupuesto es por noche, semana o mes.',
+  budget: 'Indica un presupuesto válido en euros por noche, semana o mes.',
+  rental_mode: 'Indica si buscas alquiler vacacional o de larga duración.',
+  balcony_requirement: 'Aclara si necesitas un balcón privado o te sirve una terraza compartida.',
+  location: 'No reconocimos la zona. Indica un municipio o una provincia de España.',
+  dates: 'Indica fechas válidas. La salida debe ser posterior a la entrada.',
+  accommodation: 'Indica el tipo de vivienda: habitación, habitación compartida, estudio o piso de un dormitorio.',
+  pets: 'Para buscar con mascotas, indica cuántos perros o gatos vivirán contigo.',
+  alternatives: 'Elige una sola opción para cada condición. La búsqueda no admite alternativas.',
+  conflict: 'Hay condiciones contradictorias. Revisa cuáles quieres mantener.',
+  deposit: 'Indica la fianza en euros o en meses completos.',
+  party: 'Revisa cuántas personas vivirán allí. Si indicas adultos y niños, los números deben coincidir con el total.',
+  amenities: 'La búsqueda no permite comprobar uno de los servicios indicados. Revisa los servicios solicitados.',
+  unsupported: 'No reconocimos una de las condiciones. Intenta expresarla de otra forma.',
+}
+
+function clarificationNotice(code: string | null, clarification?: { reason: string } | string | null) {
+  const reason = typeof clarification === 'string' ? clarification : clarification?.reason
+  const key = reason ?? (code?.startsWith('CLARIFY_') ? code.slice('CLARIFY_'.length).toLowerCase() : undefined)
+  if (key && Object.hasOwn(clarificationMessages, key)) return clarificationMessages[key]
+  return code === 'INTENT_CLARIFICATION_REQUIRED' || code === 'INTENT_UNSUPPORTED' || key
+    ? clarificationMessages.unsupported : undefined
+}
+
 const publicAI = import.meta.env.VITE_PUBLIC_AI_BETA === '1'
 
 // Keying by identity discards private in-memory conversation on login/logout.
@@ -117,7 +142,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
         // locator against today's cookie/bearer and current session lifetime.
         let resultRef = saved.resultRef
         let receipt: { result_ref: string; count: number } | null = null
-        let failedOperation = false
+        let failedNotice = ''
         if (saved.operation) {
           operationLocator.current = saved.operation
           const status = await getAIOperation(saved.operation.key, controller.signal, authority)
@@ -134,10 +159,10 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
             receipt = status.receipt
             resultRef = receipt.result_ref
           } else {
-            failedOperation = true
+            failedNotice = clarificationNotice(status.failure_code) ?? 'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.'
+            setNotice(failedNotice)
             operationLocator.current = null
             storeAIContinuation(identity, { sessionId: saved.sessionId })
-            setNotice('Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.')
           }
         }
         const owned = await getAISession(saved.sessionId, controller.signal, authority)
@@ -159,7 +184,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
         operationLocator.current = null
         storeAIContinuation(identity, { sessionId: saved.sessionId, ...(resultRef ? { resultRef } : {}) })
         setRestoreFailed(false)
-        setNotice(failedOperation ? 'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.' : '')
+        setNotice(failedNotice)
       } catch (error) {
         if (!controller.signal.aborted) {
           if ((error instanceof ApiError && (error.status === 0 || error.status === 429 || error.status >= 500 ||
@@ -413,25 +438,18 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
         }
       } else {
         operationLocator.current = null
-        const questions: Record<string, string> = {
-          budget_period: '¿El presupuesto es por noche, semana o mes?',
-          rental_mode: '¿Buscas alquiler vacacional o de larga duración?',
-          balcony_requirement: '¿Necesitas un balcón privado o también sirve una terraza compartida?',
-          location: '¿En qué localidad o zona quieres buscar?',
-          dates: '¿Qué fechas necesitas?',
-          unsupported: inputPolicy?.hint ?? 'Reformula la petición con ubicación, presupuesto y requisitos de la vivienda.',
-        }
         const code = answer.operation.failure_code
-        setNotice(answer.clarification ? questions[answer.clarification]
-          : code === 'INTENT_CLARIFICATION_REQUIRED' ? (publicAI ? 'Revisa tu solicitud e inténtalo de nuevo.' : 'Aclara la ubicación, el presupuesto o los requisitos antes de continuar.')
-          : code === 'INTENT_NO_CHANGE' ? 'La petición no cambia los criterios. Añade un requisito nuevo.'
-          : code === 'INTENT_UNSUPPORTED' ? (message.audio_base64 ? 'No pudimos interpretar las condiciones de la grabación. Repite o escribe tu búsqueda. No se ha descontado ninguna búsqueda.' : questions.unsupported)
+        const clarification = code === 'INTENT_UNSUPPORTED' && message.audio_base64 && !answer.clarification
+          ? 'No pudimos interpretar las condiciones de la grabación. Repite o escribe tu búsqueda. No se ha descontado ninguna búsqueda.'
+          : clarificationNotice(code, answer.clarification)
+        setNotice(clarification ?? (
+          code === 'INTENT_NO_CHANGE' ? 'La petición no cambia los criterios. Añade un requisito nuevo.'
           : code === 'SOURCE_COVERAGE_UNAVAILABLE' ? (inputPolicy ? 'El catálogo actual no tiene suficientes datos verificados recientes para todas estas condiciones. Esto no significa que no exista una vivienda adecuada. Conservamos las condiciones anteriores y no descontamos ninguna búsqueda. Cambia tu búsqueda o usa los filtros.' : 'No hay fuentes verificadas recientes disponibles. Prueba la búsqueda con filtros.')
           : code === 'ASR_FAILURE' ? 'No pudimos transcribir la grabación. Repite o escribe tu búsqueda. No se ha descontado ninguna búsqueda.'
           : code === 'VOICE_CAPACITY_LIMIT' ? 'El servidor de voz está ocupado. Repite la grabación más tarde. No se ha descontado ninguna búsqueda.'
           : code === 'SESSION_VERSION_CONFLICT'
           ? 'La búsqueda cambió. Revisa tu texto antes de enviarlo de nuevo.'
-          : 'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.')
+          : 'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.'))
       }
       // Missing cards do not prove the editable conversation disappeared.
       if (answer.cards_error) staleResults()
@@ -566,7 +584,8 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
       {transcribing ? <p role="status">{t('Transcribiendo la grabación…')}</p> : null}
       {publicAI && !voiceEnabled && !continuationOnly ? <p role="status">{t('La grabación no está disponible temporalmente.')}</p> : null}
       {(!publicAI || pending || showText) ? <Button type="button" className="home-ai-search__action" disabled={inputLocked || restoreFailed || (!pending && (invalidText || demoBlocked || (changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
-        onClick={() => void submit()}>{!publicAI && PRIVATE_DEMO && pending && !busy ? <span data-i18n-exempt>Проверить результат попытки</span> : t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : result ? 'Actualizar búsqueda' : publicAI ? 'Buscar por texto' : 'Buscar habitaciones')}</Button> : null}
+        onClick={() => void submit()}>{!publicAI && PRIVATE_DEMO && pending && !busy ? <span data-i18n-exempt>Проверить результат попытки</span> : t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : publicAI ? 'Buscar' : result ? 'Actualizar búsqueda' : 'Buscar habitaciones')}</Button> : null}
+      {publicAI ? <div role="status" aria-live="polite" className={notice ? undefined : 'sr-only'}>{notice ? t(notice) : null}</div> : null}
       {showGuide && example ? <section className="ai-search-guide" aria-labelledby="ai-search-guide-title">
         <h3 id="ai-search-guide-title">{t('Qué puedes indicar')}</h3>
         <dl>
@@ -595,7 +614,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
       {needsSync && session && !restoreFailed ? <Button type="button" variant="outline" disabled={syncingSession || busy}
         onClick={() => void refreshSession(session.intent.session_id, true)}>{t('Reintentar sincronización')}</Button> : null}
       {result && !pagingAvailable && !resultInvalid ? <p>{t('Los resultados anteriores siguen visibles. Inicia una nueva búsqueda para ver más páginas.')}</p> : null}
-      <div role="status" aria-live="polite">{notice ? t(notice) : null}</div>
+      {!publicAI ? <div role="status" aria-live="polite">{notice ? t(notice) : null}</div> : null}
       {remaining !== null ? <small>{t('Búsquedas disponibles hoy')}: {remaining}</small> : null}
       {result ? <section aria-label={t('Resultados confirmados')} aria-busy={busy}>
         <p>{t('Solo mostramos opciones con datos verificados recientes. Puede haber fuentes sin verificar; los resultados no cubren todo el mercado.')}</p>

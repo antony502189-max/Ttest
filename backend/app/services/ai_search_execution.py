@@ -21,7 +21,7 @@ from ..schemas.ai_listing_facts import digest
 from ..schemas.ai_search_intent import IntentPatch, SearchIntent, apply_patch
 from ..schemas.ai_search_quota import FailureCode, OperationState, QuotaOperation, QuotaSubject, ResultReceipt
 from ..schemas.listings import ListingCardSearchRequest
-from .ai_deepseek_intent import ProviderFailure
+from .ai_deepseek_intent import intent_failure_code
 from .ai_http_policy import HTTP_DEADLINE
 from .ai_observability import EXECUTION_SECONDS, OPERATIONS, PARSER_SECONDS, observe_result
 from .ai_search_attempts import AIAttemptRejected
@@ -190,9 +190,7 @@ class TextSearchExecution:
                 # Fenced PG lease recovery releases the reservation later.
             raise
         except Exception as error:  # noqa: BLE001 - map arbitrary injected service failure to a fixed private code
-            if isinstance(error, ProviderFailure) and str(error) in {
-                "INTENT_CLARIFICATION_REQUIRED", "INTENT_NO_CHANGE", "INTENT_UNSUPPORTED"}:
-                phase = FailureCode(str(error))
+            phase = intent_failure_code(error) or phase
             if isinstance(error, SourceCoverageUnavailable):
                 phase = FailureCode.SOURCE_COVERAGE_UNAVAILABLE
             if isinstance(error, (SessionError, AIAttemptRejected)) and error.code in {code.value for code in FailureCode}:

@@ -16,12 +16,29 @@ from typing import Annotated, Literal, Protocol
 import httpx
 from pydantic import Field, SecretStr
 
+from ..schemas.ai_clarification import ClarificationReason, IntentClarification
 from ..schemas.ai_search_intent import Criteria, CriterionName, IntentPatch, SearchIntent, apply_patch
-from ..schemas.ai_search_quota import StrictContract
+from ..schemas.ai_search_quota import FailureCode, StrictContract
 
 
 class ProviderFailure(ValueError):
     """Private fixed code only; never include provider body, key or transcript."""
+
+
+class IntentClarificationRequired(ProviderFailure):
+    def __init__(self, reason: ClarificationReason):
+        super().__init__("INTENT_CLARIFICATION_REQUIRED")
+        self.clarification = IntentClarification(reason=reason)
+
+
+def intent_failure_code(error: Exception) -> FailureCode | None:
+    if isinstance(error, IntentClarificationRequired):
+        return error.clarification.failure_code
+    if isinstance(error, ProviderFailure) and str(error) in {
+        "INTENT_CLARIFICATION_REQUIRED", "INTENT_NO_CHANGE", "INTENT_UNSUPPORTED",
+    }:
+        return FailureCode(str(error))
+    return None
 
 
 class OutboundIntentInput(StrictContract):

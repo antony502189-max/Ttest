@@ -80,7 +80,7 @@ for (const width of [390, 1440]) for (const ready of [true, false]) {
     if (ready) await expect(findHousing).toBeEnabled()
     else await expect(findHousing).toBeDisabled()
     const draft = page.locator('#ai-search-text')
-    const submit = page.getByRole('button',{name:'Buscar por texto',exact:true})
+    const submit = page.getByRole('dialog').getByRole('button', { name: 'Buscar', exact: true })
     await expect(draft).toHaveCount(0)
     await expect(submit).toHaveCount(0)
     if (ready) {
@@ -152,7 +152,7 @@ for (const width of [390, 1440]) {
     await page.getByRole('button', { name: 'Buscar con mi voz', exact: true }).click()
     await recordDraft(page)
     await page.locator('#ai-search-text').fill('sin muebles')
-    await page.getByRole('button', { name: 'Buscar por texto', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Buscar', exact: true }).click()
     const save = page.getByRole('button', { name: 'Guardar búsqueda y activar avisos', exact: true })
     await expect(save).toBeVisible()
     await save.click()
@@ -272,7 +272,7 @@ for(const pending of [false,true]) test(`catalog status recovers automatically w
     return route.continue()
   })
   await page.goto('/#/');await page.getByRole('button',{name:'Buscar con mi voz',exact:true}).click()
-  if(pending){await recordDraft(page); await page.locator('#ai-search-text').fill('до 600 евро в месяц'); await page.getByRole('button',{name:'Buscar por texto',exact:true}).click();await expect(page.getByRole('button',{name:'Comprobar el mismo intento',exact:true})).toBeEnabled()}
+  if(pending){await recordDraft(page); await page.locator('#ai-search-text').fill('до 600 евро в месяц'); await page.getByRole('dialog').getByRole('button', { name: 'Buscar', exact: true }).click();await expect(page.getByRole('button',{name:'Comprobar el mismo intento',exact:true})).toBeEnabled()}
   await expect(page.locator('[data-private-demo-status]')).toContainText(/actualiza|actualizando/)
   const stored=await page.evaluate(()=>sessionStorage.getItem('112233:ai-continuation:v1:public-guest'))
   const before=statusReads;ready=true;await page.clock.fastForward(5100)
@@ -284,7 +284,7 @@ for(const pending of [false,true]) test(`catalog status recovers automatically w
     await expect.poll(() => keys.length).toBe(2)
     expect(keys[0]).toBe(keys[1])
   }
-  if (pending) await expect(page.getByRole('button',{name:'Buscar por texto',exact:true})).toBeEnabled()
+  if (pending) await expect(page.getByRole('dialog').getByRole('button', { name: 'Buscar', exact: true })).toBeEnabled()
   else await expect(page.locator('#ai-search-text')).toHaveCount(0)
   await expect(page.getByRole('button',{name:pending ? 'Volver a grabar' : 'Grabar búsqueda',exact:true})).toBeEnabled()
   ready=false;await page.evaluate(()=>window.dispatchEvent(new Event('focus')))
