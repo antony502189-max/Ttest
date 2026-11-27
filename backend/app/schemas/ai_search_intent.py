@@ -66,14 +66,22 @@ class Geography(StrictContract):
         return self
 
 
+AccommodationKind = Literal["room", "shared_room", "studio", "one_bedroom", "apartment"]
+
+
 class Accommodation(StrictContract):
-    kind: Literal["room", "shared_room", "studio", "one_bedroom", "apartment", "catalog_other"]
+    kind: AccommodationKind | Literal["catalog_other", "any_of"]
     catalog_code: Code | None = None
+    alternatives: Annotated[tuple[AccommodationKind, ...], Field(min_length=2, max_length=5)] | None = None
 
     @model_validator(mode="after")
     def catalog_identity(self):
         if (self.kind == "catalog_other") != (self.catalog_code is not None):
             raise ValueError("only catalog_other requires catalog_code")
+        if (self.kind == "any_of") != (self.alternatives is not None):
+            raise ValueError("only any_of requires accommodation alternatives")
+        if self.alternatives is not None and self.alternatives != tuple(sorted(set(self.alternatives))):
+            raise ValueError("accommodation alternatives must be unique and sorted")
         return self
 
 

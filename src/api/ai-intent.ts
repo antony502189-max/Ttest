@@ -6,11 +6,13 @@ const provinceNames: Record<string, string> = provinces
 const municipalityNames: Record<string, string> = municipalities.municipalities
 
 type Criterion<T> = { strength: 'hard' | 'soft'; value: T }
+const accommodationLabels = { room: 'Habitación', shared_room: 'Habitación compartida', studio: 'Estudio', one_bedroom: 'Un dormitorio', apartment: 'Piso o estudio completo' }
+type AccommodationKind = keyof typeof accommodationLabels
 export type AICriteria = {
   rental_mode?: Criterion<RentalMode>
   budget?: Criterion<{ amount: string; currency: 'EUR'; period: 'monthly' | 'nightly' | 'weekly' }>
   geography?: Criterion<{ province_code: string; municipality_code?: string; zone_id?: string; island?: 'tenerife' }>
-  accommodation?: Criterion<{ kind: 'room' | 'shared_room' | 'studio' | 'one_bedroom' | 'apartment' | 'catalog_other'; catalog_code?: string }>
+  accommodation?: Criterion<{ kind: AccommodationKind | 'catalog_other' | 'any_of'; catalog_code?: string; alternatives?: AccommodationKind[] }>
   party?: Criterion<{ persons: number } | { adults: number; children: number; relationship: 'couple' | 'friends' | 'family' | 'unspecified' }>
   pets?: Criterion<{ species: 'dog' | 'cat' | 'other'; size: 'small' | 'medium' | 'large' | 'unspecified'; count: number }[] | { kind: 'general_permission' }>
   smoking?: Criterion<{ scope: 'indoors' | 'outdoors' | 'balcony' | 'terrace' }>
@@ -89,9 +91,15 @@ export function aiConditionRows(intent: AIIntent, t: Translate): ConditionRow[] 
         return ['Ubicación', parts.join(' · ')]
       },
       accommodation: value => {
-        const v = object(value, ['kind'], ['catalog_code'])
-        const label = choice(v.kind, { room: 'Habitación', shared_room: 'Habitación compartida', studio: 'Estudio', one_bedroom: 'Un dormitorio', apartment: 'Piso o estudio completo', catalog_other: 'Código de alojamiento' }, t)
+        const v = object(value, ['kind'], ['catalog_code', 'alternatives'])
         check((v.kind === 'catalog_other') === (v.catalog_code !== undefined))
+        check((v.kind === 'any_of') === (v.alternatives !== undefined))
+        if (v.kind === 'any_of') {
+          const alternatives = list(v.alternatives, 5)
+          check(alternatives.length >= 2 && new Set(alternatives).size === alternatives.length)
+          return ['Alojamiento', alternatives.map(kind => choice(kind, accommodationLabels, t)).join(` ${t('o')} `)]
+        }
+        const label = choice(v.kind, { ...accommodationLabels, catalog_other: 'Código de alojamiento' }, t)
         return ['Alojamiento', v.kind === 'catalog_other' ? `${label}: ${code(v.catalog_code)}` : label]
       },
       party: value => {

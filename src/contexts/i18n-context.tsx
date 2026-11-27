@@ -6,6 +6,7 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'o': { ru: 'или', en: 'or' },
   'Isla de Tenerife': { ru: 'Остров Тенерифе', en: 'Island of Tenerife' },
   'Piso o estudio completo': { ru: 'Отдельная квартира или студия', en: 'Entire apartment or studio' },
   'Se admiten mascotas': { ru: 'Можно с животными', en: 'Pets allowed' },
