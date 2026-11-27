@@ -76,10 +76,14 @@ def hard_match_predicate(features: ColumnElement, plan: HardMatchPlan, *, key_pr
             # of whether its value matches. Keep economic units/currency: a
             # monthly rent never establishes nightly price coverage.
             if coverage and test.field not in {"unit", "currency", "period"}:
+                if test.field == "municipality_code" and test.operator == "in":
+                    conditions.append(func.jsonb_typeof(value[test.field]) == "string")
                 continue
             raw = value[test.field]
             if test.operator == "eq":
                 conditions.append(raw.is_(None) if test.value is None else raw == literal(test.value, type_=JSONB))
+            elif test.operator == "in":
+                conditions.append(and_(func.jsonb_typeof(raw) == "string", raw.astext.in_(test.value)))
             else:
                 if test.field in {"amount", "value"}:
                     actual = number(test.field, money=test.field == "amount")

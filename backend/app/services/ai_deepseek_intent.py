@@ -88,7 +88,7 @@ def _criteria_state(criteria: Criteria):
     # These conjunctions have no order; equivalent numeric formatting also
     # cannot manufacture a meaningful change and consume another search.
     for key in ("pets", "amenities"):
-        if key in value:
+        if key in value and isinstance(value[key]["value"], list):
             value[key]["value"].sort(key=lambda item: json.dumps(item, sort_keys=True))
     for key in ("budget", "deposit"):
         if key in value and "amount" in value[key]["value"]:

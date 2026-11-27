@@ -95,6 +95,24 @@ async def test_owned_original_snapshot_independent_of_followup_reset_and_expiry(
         assert await list_saved_searches(SimpleNamespace(id=owner.id), conn) == []
 
 
+async def test_expanded_natural_search_criteria_survive_saved_snapshot_reads(saved_store, pg):
+    owner, initial, _ = await registered(saved_store, pg)
+    current = await saved_store.sessions.get(owner, initial.intent.session_id)
+    criteria = {
+        "accommodation": {"strength": "hard", "value": {"kind": "apartment"}},
+        "geography": {"strength": "hard", "value": {"province_code": "38", "island": "tenerife"}},
+        "pets": {"strength": "hard", "value": {"kind": "general_permission"}},
+    }
+    _, receipt, _ = await complete(saved_store.sessions, owner, current, criteria)
+    snapshot = await saved_store.save(owner, receipt.result_ref, idempotency_key=uuid4())
+    await saved_store.sessions.reset(owner, initial.intent.session_id, 2)
+    restored = await saved_store.get(owner, snapshot.id)
+    assert restored == snapshot
+    assert restored.intent.criteria.model_dump(mode="json", exclude_none=True) == (
+        {"balcony": {"strength": "hard", "value": False}} | criteria
+    )
+
+
 async def test_guest_foreign_result_and_nonregistered_subject_cannot_save(saved_store, pg):
     owner, _, receipt = await registered(saved_store, pg)
     with pytest.raises(SavedAIError, match="REGISTERED_USER_REQUIRED"):
