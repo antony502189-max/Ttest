@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AudioLines, Mic, Search, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router'
 import { ApiError, type AIAuthority } from '@/api/client'
-import { aiCapabilities, aiCardPage, aiMapCenter, aiResultPage, createAISession, getAIOperation, getAIQuota, getAIResult, getAISession, resetAISession, sendAIMessage, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
+import { aiCapabilities, aiCardPage, aiMapCenter, aiResultPage, createAISession, getAIOperation, getAIQuota, getAIResult, getAISession, resetAISession, sendAIMessage, transcribeAIVoice, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
 import { aiConditionRows, aiModeLabel, type AICommittedIntent } from '@/api/ai-intent'
 import type { RentalMode } from '@/types'
 import { AIConditions } from '@/components/ai-conditions'
@@ -55,6 +55,9 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
   const [open, setOpen] = useState(() => new URLSearchParams(location.search).get('ai') === 'save')
   const [text, setText] = useState('')
   const textInput = useRef<HTMLTextAreaElement>(null)
+  const [hasTranscript, setHasTranscript] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
+  const transcription = useRef<AbortController | null>(null)
   const invalidText = Boolean(inputPolicy && text && !inputPolicy.validate(text))
   const [session, setSession] = useState<AISession | null>(null)
   const [modeChoice, setModeChoice] = useState<'' | 'keep' | 'none' | RentalMode>(initialRentalMode ?? '')
@@ -86,7 +89,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
 
   useEffect(() => {
     if (!text || pending) return
-    const timer = window.setTimeout(() => setText(''), 15 * 60 * 1000)
+    const timer = window.setTimeout(() => { setText(''); setHasTranscript(false) }, 15 * 60 * 1000)
     return () => window.clearTimeout(timer)
   }, [text, pending])
 
@@ -190,7 +193,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
     void aiCapabilities(controller.signal, authority).then(value => {
       if (!controller.signal.aborted) { setEnabled(value.text === true); setMapEnabled(value.map === true); setVoiceEnabled(value.voice === true); setSaveEnabled(value.save_handoff === true) }
     }).catch(() => { /* Ordinary search stays available when capability lookup fails. */ })
-    return () => { controller.abort(); flight.current?.abort(); syncFlight.current?.abort() }
+    return () => { controller.abort(); flight.current?.abort(); syncFlight.current?.abort(); transcription.current?.abort() }
   }, [authority])
 
   const ownedSessionId = session?.intent.session_id
@@ -283,7 +286,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
 
   async function newConversation() {
     if (continuationOnly) { onRegisteredSearch(); return }
-    if (restoring || restoreFailed || lock.current || pending || syncingSession || needsSync) return
+    if (restoring || restoreFailed || lock.current || recording || transcription.current || pending || syncingSession || needsSync) return
     lock.current = true
     setBusy(true)
     const controller = new AbortController()
@@ -296,7 +299,8 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
       setModeChoice(initialRentalMode ? 'keep' : '')
       setPagingAvailable(false)
       setNotice(result ? 'Nueva conversación lista. Conservamos los resultados anteriores hasta tu próxima búsqueda.' : '')
-      // Draft and cards stay in memory, including when server transition fails.
+      if (publicAI) { setText(''); setHasTranscript(false) }
+      // Cards and an unsuccessful transition's draft stay in memory.
     } catch (error) {
       if (controller.signal.aborted) return
       if (unavailable(error)) lostConversation()
@@ -312,8 +316,47 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
     }
   }
 
+  function changeDialog(nextOpen: boolean) {
+    if (!nextOpen && transcription.current) {
+      transcription.current.abort()
+      transcription.current = null
+      setTranscribing(false)
+    }
+    setOpen(nextOpen)
+  }
+
+  async function reviewVoice(audio: string) {
+    if (!open || transcription.current) return
+    const controller = new AbortController()
+    transcription.current = controller
+    setTranscribing(true)
+    setNotice('')
+    try {
+      const { transcript } = await transcribeAIVoice(audio, controller.signal, authority)
+      if (controller.signal.aborted) return
+      if (typeof transcript !== 'string' || !transcript.trim()) throw new Error('Empty transcript')
+      setText(transcript.trim())
+      setHasTranscript(true)
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        if (error instanceof ApiError && error.message === 'QUOTA_EXHAUSTED') {
+          setRemaining(0)
+        } else {
+          setNotice(error instanceof ApiError && error.status === 429
+            ? 'El servidor de voz está ocupado. Repite la grabación más tarde. No se ha descontado ninguna búsqueda.'
+            : 'No pudimos transcribir la grabación. Graba de nuevo.')
+        }
+      }
+    } finally {
+      if (transcription.current === controller) {
+        transcription.current = null
+        setTranscribing(false)
+      }
+    }
+  }
+
   async function submit(audio?: string) {
-    if (continuationOnly) return
+    if (continuationOnly || transcription.current || (recording && !audio)) return
     if (restoring || restoreFailed || lock.current || (!pending && !audio && invalidText) || (!pending && (demoBlocked || remaining === 0 || (changingSession && session !== null) || needsConversation || needsSync || syncingSession || (!audio && !text.trim()) || !modeChoice || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))) return
     lock.current = true
     setBusy(true)
@@ -358,6 +401,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
           operationLocator.current = null
           storeAIContinuation(identity, { sessionId: message.session_id, resultRef: committed.result_ref })
           setText('')
+          setHasTranscript(false)
           setNotice('')
         } catch (error) {
           if (controller.signal.aborted) return
@@ -379,7 +423,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
         }
         const code = answer.operation.failure_code
         setNotice(answer.clarification ? questions[answer.clarification]
-          : code === 'INTENT_CLARIFICATION_REQUIRED' ? 'Aclara la ubicación, el presupuesto o los requisitos antes de continuar.'
+          : code === 'INTENT_CLARIFICATION_REQUIRED' ? (publicAI ? 'Revisa tu solicitud e inténtalo de nuevo.' : 'Aclara la ubicación, el presupuesto o los requisitos antes de continuar.')
           : code === 'INTENT_NO_CHANGE' ? 'La petición no cambia los criterios. Añade un requisito nuevo.'
           : code === 'INTENT_UNSUPPORTED' ? (message.audio_base64 ? 'No pudimos interpretar las condiciones de la grabación. Repite o escribe tu búsqueda. No se ha descontado ninguna búsqueda.' : questions.unsupported)
           : code === 'SOURCE_COVERAGE_UNAVAILABLE' ? (inputPolicy ? 'El catálogo actual no tiene suficientes datos verificados recientes para todas estas condiciones. Esto no significa que no exista una vivienda adecuada. Conservamos las condiciones anteriores y no descontamos ninguna búsqueda. Cambia tu búsqueda o usa los filtros.' : 'No hay fuentes verificadas recientes disponibles. Prueba la búsqueda con filtros.')
@@ -458,13 +502,13 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
 
   if (!enabled) return null
   const showGuide = publicAI && !continuationOnly && !result
-  const inputLocked = continuationOnly || recording || busy || restoring
+  const inputLocked = continuationOnly || recording || transcribing || busy || restoring
   const textDisabled = inputLocked || pending !== null
-  const primaryVoice = publicAI && voiceEnabled && !continuationOnly && !busy && !pending && !text.trim()
+  const showText = !publicAI || (hasTranscript && !continuationOnly)
   const example = showGuide ? t(modeChoice === 'holiday' || (modeChoice === 'keep' && session?.intent.criteria.rental_mode?.value === 'holiday')
     ? 'Estudio en Madrid hasta 70 euros por noche, amueblado'
     : 'Una habitación en Madrid hasta 700 euros al mes, amueblada y con gastos incluidos') : undefined
-  return <Dialog open={open} onOpenChange={setOpen}>
+  return <Dialog open={open} onOpenChange={changeDialog}>
     <section className={`home-ai-search${publicAI ? " home-ai-search--public" : ""}`} aria-label={t('Búsqueda con IA')}>
       <div className="home-ai-search__intro"><span className="home-ai-search__wave"><AudioLines aria-hidden="true" /></span><div>
         <h2>{t(publicAI ? 'Busca tu vivienda con IA' : '¿No sabes por dónde empezar?')}</h2>
@@ -472,7 +516,6 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
       </div></div>
       {publicAI ? <>
         <DialogTrigger asChild><Button type="button" className="home-ai-search__action"><Mic aria-hidden="true" />{t('Buscar con mi voz')}</Button></DialogTrigger>
-        <DialogTrigger asChild><Button type="button" variant="ghost" className="home-ai-search__text">{t('También puedes escribir tu búsqueda')}</Button></DialogTrigger>
       </> : <>
         <DialogTrigger asChild><Button type="button" className="home-ai-search__action"><Search aria-hidden="true" />{t('Escribir mi búsqueda')}</Button></DialogTrigger>
         {voiceEnabled ? <DialogTrigger asChild><Button type="button" variant="outline"><AudioLines aria-hidden="true" />{t('Buscar con la voz')}</Button></DialogTrigger> : null}
@@ -486,7 +529,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
       <DialogHeader className="ai-search-dialog__heading">
         <DialogTitle>{t(publicAI ? '¿Qué vivienda buscas?' : 'Encuentra tu habitación')}</DialogTitle>
         <DialogDescription>{t(publicAI && voiceEnabled && !continuationOnly
-          ? 'Escribe o dicta los requisitos de tu próxima vivienda.'
+          ? 'Di dónde quieres vivir y qué necesitas.'
           : 'Usamos condiciones confirmadas de los anuncios para buscar opciones.')}</DialogDescription>
       </DialogHeader>
       {authority !== 'registered' && PRIVATE_DEMO ? <div hidden={publicAI && !demoBlocked}>
@@ -498,7 +541,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
           : 'Prueba cerrada con datos y respuestas simuladas. No envíes datos personales.')}
       </p> : null}
       <label htmlFor="ai-rental-mode">{t('Modo para esta búsqueda')}</label>
-      <select id="ai-rental-mode" value={modeChoice} disabled={continuationOnly || recording || busy || restoring || restoreFailed || pending !== null || changingSession}
+      <select id="ai-rental-mode" value={modeChoice} disabled={inputLocked || restoreFailed || pending !== null || changingSession}
         onChange={event => setModeChoice(event.target.value as typeof modeChoice)}>
         <option value="" disabled>{t('Elige cómo usar el modo de alquiler')}</option>
         {session ? <option value="keep">{t('Conservar las condiciones actuales de IA')}</option> : null}
@@ -506,18 +549,23 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
         <option value={homeMode === 'long' ? 'holiday' : 'long'}>{t('Modo de alquiler')}: {aiModeLabel(homeMode === 'long' ? 'holiday' : 'long', t)}</option>
         <option value="none">{t(session ? 'Nueva conversación sin limitar el modo' : 'Sin limitar el modo de alquiler')}</option>
       </select>
-      {(!publicAI || session) ? <small>{t('El modo de inicio no cambia una conversación existente. Los demás filtros no se añaden a IA.')}</small> : null}
+      {!publicAI ? <small>{t('El modo de inicio no cambia una conversación existente. Los demás filtros no se añaden a IA.')}</small> : null}
       {session ? <AIConditions intent={session.intent} title="Condiciones para el próximo mensaje" /> : null}
-      <label htmlFor="ai-search-text">{t(result ? '¿Qué quieres cambiar?' : 'Cuéntanos qué necesitas')}</label>
-      <textarea id="ai-search-text" ref={textInput} data-i18n-exempt value={text} onChange={event => setText(event.target.value)} disabled={textDisabled}
-        aria-describedby={showGuide ? 'ai-search-guide-title' : undefined}
-        maxLength={inputPolicy?.maxLength ?? 16000} rows={3} autoComplete="off" spellCheck={false}
-        placeholder={example ?? t(inputPolicy?.placeholder ?? 'Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
-      {inputPolicy ? <small role={invalidText ? 'alert' : undefined} data-i18n-exempt>{t(invalidText || !publicAI ? inputPolicy.hint : 'Evita incluir datos personales o de contacto.')}</small> : null}
-      {voiceEnabled && (!publicAI || primaryVoice) ? <AIVoiceInput primary={primaryVoice} disabled={continuationOnly || busy || restoring || restoreFailed || demoBlocked || pending !== null || changingSession || syncingSession || needsSync || needsConversation || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)}
-        disabledReason={t(busy ? 'Procesando tu búsqueda y buscando opciones…' : demoBlocked ? demoReason : remaining === 0 ? 'Has agotado tus búsquedas. Inténtalo cuando se renueve el límite.' : !modeChoice ? 'Elige el modo de alquiler antes de grabar.' : restoreFailed ? 'No pudimos recuperar la búsqueda. Reintenta la recuperación.' : pending ? 'El resultado no está confirmado. Pulsa «Comprobar el mismo intento» abajo.' : 'Espera a que termine la operación y se sincronice la búsqueda.')}
-        onAudio={audio => { if (open) void submit(audio) }} onRecording={setRecording} /> : null}
-      {!primaryVoice ? <Button type="button" className="home-ai-search__action" disabled={inputLocked || restoreFailed || (!pending && (invalidText || demoBlocked || (changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
+      {showText ? <>
+        <label htmlFor="ai-search-text">{t(publicAI ? 'Texto de la grabación' : result ? '¿Qué quieres cambiar?' : 'Cuéntanos qué necesitas')}</label>
+        <textarea id="ai-search-text" ref={textInput} data-i18n-exempt value={text} onChange={event => setText(event.target.value)} disabled={textDisabled}
+          aria-describedby={showGuide ? 'ai-search-guide-title' : undefined}
+          maxLength={inputPolicy?.maxLength ?? 16000} rows={3} autoComplete="off" spellCheck={false}
+          placeholder={example ?? t(inputPolicy?.placeholder ?? 'Por ejemplo: una habitación en Madrid, hasta 700 € al mes, con mi gato.')} />
+        {inputPolicy && (!publicAI || invalidText) ? <small role={invalidText ? 'alert' : undefined} data-i18n-exempt>{t(publicAI ? 'Revisa el texto antes de buscar.' : inputPolicy.hint)}</small> : null}
+      </> : null}
+      {voiceEnabled && (!publicAI || (open && !continuationOnly)) ? <AIVoiceInput primary={publicAI && !hasTranscript} review={publicAI} hasDraft={hasTranscript}
+        disabled={continuationOnly || transcribing || busy || restoring || restoreFailed || demoBlocked || pending !== null || changingSession || syncingSession || needsSync || needsConversation || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)}
+        disabledReason={transcribing ? undefined : t(busy ? 'Procesando tu búsqueda y buscando opciones…' : demoBlocked ? demoReason : remaining === 0 ? 'Has agotado tus búsquedas. Inténtalo cuando se renueve el límite.' : !modeChoice ? 'Elige el modo de alquiler antes de grabar.' : restoreFailed ? 'No pudimos recuperar la búsqueda. Reintenta la recuperación.' : pending ? 'El resultado no está confirmado. Pulsa «Comprobar el mismo intento» abajo.' : 'Espera a que termine la operación y se sincronice la búsqueda.')}
+        onAudio={audio => { if (open) void (publicAI ? reviewVoice(audio) : submit(audio)) }} onRecording={setRecording} /> : null}
+      {transcribing ? <p role="status">{t('Transcribiendo la grabación…')}</p> : null}
+      {publicAI && !voiceEnabled && !continuationOnly ? <p role="status">{t('La grabación no está disponible temporalmente.')}</p> : null}
+      {(!publicAI || pending || showText) ? <Button type="button" className="home-ai-search__action" disabled={inputLocked || restoreFailed || (!pending && (invalidText || demoBlocked || (changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
         onClick={() => void submit()}>{!publicAI && PRIVATE_DEMO && pending && !busy ? <span data-i18n-exempt>Проверить результат попытки</span> : t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : result ? 'Actualizar búsqueda' : publicAI ? 'Buscar por texto' : 'Buscar habitaciones')}</Button> : null}
       {showGuide && example ? <section className="ai-search-guide" aria-labelledby="ai-search-guide-title">
         <h3 id="ai-search-guide-title">{t('Qué puedes indicar')}</h3>
@@ -529,10 +577,10 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
         </dl>
         <div className="ai-search-guide__example">
           <p id="ai-search-example">{example}</p>
-          <Button type="button" variant="outline" disabled={textDisabled} aria-describedby="ai-search-example" onClick={() => {
+          {showText ? <Button type="button" variant="outline" disabled={textDisabled} aria-describedby="ai-search-example" onClick={() => {
             setText(example)
             textInput.current?.focus()
-          }}>{t('Usar este ejemplo')}</Button>
+          }}>{t('Usar este ejemplo')}</Button> : null}
         </div>
       </section> : null}
       {busy && pending ? <Button type="button" variant="outline" onClick={() => {
@@ -542,7 +590,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
       {restoreFailed ? <Button type="button" variant="outline" disabled={restoring} onClick={() => {
         setRestoring(true); setRestoreFailed(false); setRestoreEpoch(value => value + 1)
       }}>{t('Reintentar sincronización')}</Button> : null}
-      {(continuationOnly || session || needsConversation || changingSession) ? <Button type="button" variant="outline" disabled={!continuationOnly && (recording || busy || restoring || restoreFailed || syncingSession || needsSync || pending !== null)}
+      {(continuationOnly || session || needsConversation || changingSession) ? <Button type="button" variant="outline" disabled={!continuationOnly && (inputLocked || restoreFailed || syncingSession || needsSync || pending !== null)}
         onClick={() => void newConversation()}>{t('Iniciar nueva conversación')}</Button> : null}
       {needsSync && session && !restoreFailed ? <Button type="button" variant="outline" disabled={syncingSession || busy}
         onClick={() => void refreshSession(session.intent.session_id, true)}>{t('Reintentar sincronización')}</Button> : null}
@@ -576,7 +624,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
           <Button type="button" variant="outline" disabled={busy || changingSession || pending !== null || !pagingAvailable || !result.page.nextCursor} onClick={() => void page(result.page.nextCursor!)}>{t('Siguiente')}</Button>
         </nav>
       </section> : null}
-      <Button type="button" variant="ghost" onClick={() => setOpen(false)}>{t('Volver a los filtros')}</Button>
+      {!publicAI ? <Button type="button" variant="ghost" onClick={() => changeDialog(false)}>{t('Volver a los filtros')}</Button> : null}
     </DialogContent>
   </Dialog>
 }

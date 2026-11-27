@@ -18,6 +18,15 @@ export type AIExecution = {
 
 const headers = { 'X-AI-Request': '1' }
 export const aiCapabilities = (signal: AbortSignal, authority?: AIAuthority) => api<AICapabilities>('/ai-search/capabilities', { aiAuthority: authority, signal, cache: 'no-store' })
+export async function transcribeAIVoice(audio: string, signal: AbortSignal, authority?: AIAuthority) {
+  if (authority === 'public-guest') {
+    await api('/ai-search/identity', { aiAuthority: authority, method: 'POST', headers, signal, cache: 'no-store' })
+  }
+  return api<{ transcript: string }>('/ai-search/voice', {
+    aiAuthority: authority, method: 'POST', headers, signal, cache: 'no-store', timeoutMs: 28000,
+    body: JSON.stringify({ audio_base64: audio, media_type: 'audio/wav', transcribe_only: true }),
+  })
+}
 export async function createAISession(key: string, signal: AbortSignal, rentalMode?: RentalMode, authority?: AIAuthority) {
   // Establish ownership before any session transaction can commit. Lost
   // bootstrap responses cannot strand a session behind a missing cookie.
