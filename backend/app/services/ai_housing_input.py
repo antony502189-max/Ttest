@@ -82,7 +82,9 @@ ACCOMMODATION = {
                   "un piso", "un apartamento", "pisos", "piso", "apartamentos", "apartamento",
                   "целую квартиру", "отдельную квартиру", "квартира", "квартиру", "квартиры", "квартир"),
 }
-TENERIFE = r"(?:(?:on|in|en|на) )?(?:(?:the island of|la isla de|острове|остров) )?(?:tenerife|тенерифе)"
+# The voice model can emit a Cyrillic Т followed by Latin letters in Tenerife.
+# Accept equivalent characters only in this known island name.
+TENERIFE = r"(?:(?:on|in|en|на) )?(?:(?:the island of|la isla de|острове|остров) )?[tт][eе](?:n[eе]rif|н[eе]риф)[eе]"
 TRANSCRIPT_FORMATTING = str.maketrans("", "", "\u200b\u2060\ufeff")
 GENERAL_PETS = (
     r"(?:(?:a|an) )?pet[- ]friendly|(?:where )?(?:pets are allowed|allows? pets|accepts? pets)|with pets"

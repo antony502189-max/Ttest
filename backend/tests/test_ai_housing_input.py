@@ -97,7 +97,9 @@ def test_dates_conflict_has_actionable_reason_after_followup():
     assert housing_patch("for 4 nights", current, VOCAB).set.stay.value.value == 4
 
 
-@pytest.mark.parametrize("place", ["Tenerife.", "\u200bTenerife.", "Tene\ufeffrife.", "Tenerife…", "\nTenerife."])
+@pytest.mark.parametrize("place", [
+    "Tenerife.", "Тenerife", "Теnerife", "Tенерифе", "\u200bTenerife.", "Tene\ufeffrife.", "Tenerife…", "\nTenerife.",
+])
 def test_tenerife_transcript_keeps_conditions_despite_mobile_formatting(place):
     current = state({"rental_mode": {"strength": "hard", "value": "long"}})
     patch = housing_patch(f"найти квартиру до 700 евро в месяц на {place}", current, VOCAB)
