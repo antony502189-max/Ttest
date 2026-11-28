@@ -87,6 +87,24 @@ async def test_owned_sessions_and_reads_do_not_renew_ttl(store):
             await store.reset(other, initial.intent.session_id, 0)
 
 
+async def test_recovery_keeps_owned_sessions_and_skips_inflight_and_foreign_rows(store, pg):
+    owner = QuotaSubject(kind="guest", id=uuid4())
+    first = await store.create(owner, SessionCreate(rental_mode="long"), max_active=2)
+    latest = await store.create(owner, SessionCreate(rental_mode="holiday"), max_active=2)
+    other = QuotaSubject(kind="guest", id=uuid4())
+    foreign = await store.create(other)
+    with pytest.raises(SessionError, match="SESSION_LIMIT"):
+        await store.create(owner, max_active=2)
+    await prepare(store, owner, latest)
+    recovered = await store.latest_available(owner)
+    assert recovered == first
+    assert await store.get(owner, latest.intent.session_id) == latest
+    assert await store.latest_available(other) == foreign
+    await store.close(owner, first.intent.session_id, 0)
+    with pytest.raises(SessionError, match="SESSION_NOT_FOUND"):
+        await store.latest_available(owner)
+
+
 @pytest.mark.parametrize("mode", ["long", "holiday"])
 async def test_explicit_mode_seeds_only_new_session_and_survives_followup(store, pg, mode):
     subject = QuotaSubject(kind="guest", id=uuid4())

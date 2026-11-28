@@ -215,6 +215,13 @@ class MessageBody(APIBody):
 class CreateBody(APIBody):
     idempotency_key: UUID | None = None
     rental_mode: Literal["long", "holiday"] | None = None
+    recover_active: Annotated[bool, Field(strict=True)] = False
+
+    @model_validator(mode="after")
+    def recovery_has_no_create_inputs(self):
+        if self.recover_active and (self.idempotency_key is not None or self.rental_mode is not None):
+            raise ValueError("session recovery cannot create or seed a dialog")
+        return self
 
 
 class VersionBody(APIBody):
@@ -298,7 +305,7 @@ async def capabilities(request: Request):
     configured = getattr(request.app.state, "ai_search_runtime", None)
     return {"text": active, "map": active, "voice": isinstance(configured, AISearchRuntime) and configured.voice is not None,
         "saved_searches": False, "save_handoff": isinstance(configured, AISearchRuntime) and configured.saved_handoff is not None,
-        **({"budget_suggestions": True} if active else {})}
+        **({"budget_suggestions": True, "session_recovery": True} if active else {})}
 
 
 @router.post("/identity")
@@ -311,6 +318,8 @@ async def identity(owner: QuotaSubject = Depends(subject)):
 @router.post("/sessions")
 async def create(payload: CreateBody | None = None, active: AISearchRuntime = Depends(runtime), owner: QuotaSubject = Depends(subject)):
     await active.http_gate.check(active.guests.ip_key(f"{owner.kind}:{owner.id}", purpose="ai-session-create"))
+    if payload and payload.recover_active:
+        return jsonable_encoder(await active.sessions.latest_available(owner), exclude_none=True)
     return jsonable_encoder(await active.sessions.create(owner, SessionCreate(rental_mode=payload.rental_mode) if payload else None, max_active=active.policy.max_active_sessions,
         **({"idempotency_key": payload.idempotency_key} if payload and payload.idempotency_key else {})), exclude_none=True)
 

@@ -6,6 +6,10 @@ export type Language = 'es' | 'ru' | 'en'
 type Translation = { ru: string; en: string }
 
 const translations: Record<string, Translation> = {
+  'Ya tienes varias conversaciones abiertas. Continúa una de ellas para buscar con este texto.': { ru: 'У вас уже открыто несколько диалогов. Продолжите один из них, чтобы отправить этот текст.', en: 'You already have several open conversations. Continue one to search with this text.' },
+  'Continuar una conversación abierta': { ru: 'Продолжить открытый диалог', en: 'Continue an open conversation' },
+  'Conversación recuperada. Revisa las condiciones y pulsa el botón de búsqueda.': { ru: 'Диалог восстановлен. Проверьте условия и нажмите кнопку поиска.', en: 'Conversation recovered. Review its conditions and press the search button.' },
+  'No pudimos recuperar una conversación. Tu texto sigue disponible. Inténtalo más tarde.': { ru: 'Не удалось восстановить диалог. Текст остался на экране. Попробуйте позже.', en: 'Could not recover a conversation. Your text is still here. Try again later.' },
   'o': { ru: 'или', en: 'or' },
   'Comprueba que la salida sea posterior a la entrada y que el número de noches coincida con las fechas.': { ru: 'Проверьте даты: выезд должен быть позже заезда, а число ночей должно совпадать с датами.', en: 'Check that check-out is after check-in and the number of nights matches the dates.' },
   'Puedes combinar tipos de vivienda con «o». Para otras condiciones, indica una sola opción.': { ru: 'Можно искать несколько типов жилья через «или». Для других условий укажите один вариант.', en: 'You can combine housing types with “or”. Choose one option for other conditions.' },
