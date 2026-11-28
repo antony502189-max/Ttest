@@ -99,7 +99,7 @@ async def test_expanded_natural_search_criteria_survive_saved_snapshot_reads(sav
     owner, initial, _ = await registered(saved_store, pg)
     current = await saved_store.sessions.get(owner, initial.intent.session_id)
     criteria = {
-        "accommodation": {"strength": "hard", "value": {"kind": "apartment"}},
+        "accommodation": {"strength": "hard", "value": {"kind": "any_of", "alternatives": ["room", "studio"]}},
         "geography": {"strength": "hard", "value": {"province_code": "38", "island": "tenerife"}},
         "pets": {"strength": "hard", "value": {"kind": "general_permission"}},
     }

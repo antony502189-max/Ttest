@@ -49,6 +49,7 @@ for _code in MUNICIPALITIES:
         CITY_CODES[_fold(MUNICIPALITIES[_code])] = _code
 CITY_CODES.update({"мадрид": "28079", "барселона": "08019", "валенсия": "46250",
                    "мадриде": "28079", "барселоне": "08019", "валенсии": "46250",
+                   "адехе": "38001", "арона": "38006", "ароне": "38006",
                    "санта крус де тенерифе": "38038", "санта-крус-де-тенерифе": "38038",
                    "ла лагуна": "38023", "ла-лагуна": "38023", "ла лагуне": "38023", "ла-лагуне": "38023"})
 CITY_CODES.update(_joined_city_codes(CITY_CODES, MUNICIPALITIES))
@@ -70,18 +71,32 @@ BOOL_WORDS = {
     "terrace": ("terrace", "terraza", "терраса", "террасой", "террасу", "террасы"),
 }
 ACCOMMODATION = {
-    "room": ("a room", "room", "rooms", "una habitación", "una habitacion", "habitación", "habitacion", "habitaciones", "комната", "комнату"),
-    "shared_room": ("shared room", "habitación compartida", "общая комната", "место в комнате"),
-    "studio": ("a studio", "studio", "estudio", "студия", "студию"),
-    "one_bedroom": ("1 bedroom apartment", "one-bedroom apartment", "piso de un dormitorio", "квартира с 1 спальней", "квартиру с 1 спальней"),
+    "shared_room": ("a shared room", "shared room", "una habitación compartida", "una habitacion compartida",
+                    "habitación compartida", "habitacion compartida", "общая комната", "место в комнате"),
+    "room": ("a room", "room", "rooms", "una habitación", "una habitacion", "habitación", "habitacion", "habitaciones", "комната", "комнату", "комнаты"),
+    "studio": ("a studio", "studio", "un estudio", "estudio", "студия", "студию"),
+    "one_bedroom": ("a 1 bedroom apartment", "a one-bedroom apartment", "1 bedroom apartment", "1-bedroom apartment",
+                    "one-bedroom apartment", "piso de un dormitorio", "un piso de un dormitorio",
+                    "квартира с 1 спальней", "квартиру с 1 спальней", "квартиры с 1 спальней"),
+    "apartment": ("an apartment", "a flat", "apartments", "apartment", "flats", "flat",
+                  "un piso", "un apartamento", "pisos", "piso", "apartamentos", "apartamento",
+                  "целую квартиру", "отдельную квартиру", "квартира", "квартиру", "квартиры", "квартир"),
 }
+TENERIFE = r"(?:(?:on|in|en|на) )?(?:(?:the island of|la isla de|острове|остров) )?(?:tenerife|тенерифе)"
+GENERAL_PETS = (
+    r"(?:(?:a|an) )?pet[- ]friendly|(?:where )?(?:pets are allowed|allows? pets|accepts? pets)|with pets"
+    r"|(?:que )?(?:admit[ea]n?|acept[ea]n?) mascotas|(?:con|se admiten) mascotas"
+    r"|(?:(?:где )?можно (?:ли )?|(?:с )?возможностью (?:жить|проживания) )?с (?:домашними )?животными"
+    r"|(?:где )?(?:разрешены|разрешают|принимают) (?:домашних |домашние )?животны[хе]"
+)
 PERIODS = {"monthly": ("per month", "/month", "al mes", "/mes", "в месяц", "/мес"),
            "nightly": ("per night", "/night", "por noche", "за ночь", "в сутки", "за сутки"),
            "weekly": ("per week", "/week", "por semana", "за неделю", "в неделю")}
 NUMBERS = AMOUNTS | {word: i for i, word in enumerate(["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"])}
 NUMBERS.update({word: i for i, word in enumerate(["cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez"])})
 NUMBERS.update({"ноль": 0, "двое": 2, "два": 2, "две": 2, "одна": 1, "одной": 1, "одним": 1})
-BUDGET_PREFIX = r"(?:under|up to|budget up to|hasta|menos de|до|бюджет до|не дороже)"
+BUDGET_PREFIX = r"(?:under|(?:for )?up to|budget up to|no more than|at most|hasta|menos de|máximo|maximo|до|бюджет до|не дороже|не больше|максимум)"
+ALTERNATIVE = r"(?:or|или|либо|o)"
 BUDGET_AMOUNT = r"(?:€\s*)?([1-9][0-9]{0,5}(?:[.,][0-9]{1,2})?)(?: ?(?:euros?|eur|евро|€))?"
 NUMBER_PATTERN = re.compile(r"(?<![\w-])(?:" + "|".join(re.escape(v) for v in sorted(NUMBERS, key=len, reverse=True)) + r")(?![\w-])")
 AMENITIES = {"wifi": ("wifi", "wi-fi", "вайфай"), "internet": ("internet", "интернет", "интернетом"),
@@ -104,18 +119,24 @@ def _alternatives(words):
 
 
 def _unrecognized_reason(clause: str) -> ClarificationReason:
+    if re.search(r"\b" + ALTERNATIVE + r"\b", clause):
+        return "alternatives"
     if re.match(BUDGET_PREFIX + r"\s+" + BUDGET_AMOUNT + r"(?=$|\s*[,;])", clause):
         return "budget_period"
     if re.match(BUDGET_PREFIX + r"\b|(?:budget|presupuesto|бюджет)\b", clause):
         return "budget"
-    if re.match(r"(?:(?:a|un|una) )?(?:apartments?|flats?|pisos?|apartamentos?|квартир[ауы]?|дом|villas?|casas?)\b", clause):
+    if re.match(r"(?:за |for |por )?\d+\s*(?:€|евро|euros?)", clause):
+        return "budget"
+    if re.match(r"(?:(?:a|an|un|una) )?(?:apartments?|flats?|pisos?|apartamentos?|квартир[ауы]?|дом|villas?|casas?)\b", clause):
         return "accommodation"
     if re.match(r"(?:(?:with|con|с) )?(?:pets?|mascotas?|animals?|(?:возможностью (?:проживания|жить) с )?(?:домашними )?животными|животных)\b", clause):
         return "pets"
     if re.match(r"(?:(?:from|del|с) )?\d{4}-|(?:from|del|с) \d|(?:dates?|fechas|даты)\b", clause):
         return "dates"
-    if re.match(r"(?:in|en|в|province|provincia|провинци[яи]|zone|district|район[е]?|zona)\b", clause):
+    if re.match(r"(?:in|on|en|в|на|рядом с|у моря|near|cerca de|province|provincia|провинци[яи]|zone|district|район[е]?|zona|юг|север)\b", clause):
         return "location"
+    if re.match(r"(?:(?:with|con|с) )?(?:(?:a|una) )?(?:swimming pool|pool|piscina|бассейн\w*|джакузи)\b", clause):
+        return "amenities"
     if re.match(r"(?:deposit|fianza|депозит)\b", clause):
         return "deposit"
     if re.match(r"(?:(?:for|para|для) )?\d+ (?:people|persons?|personas?|человек(?:а)?|adults?|adultos?|взрослых|children|детей)\b", clause):
@@ -128,21 +149,19 @@ def housing_patch(text, current, vocabulary):
     if (type(text) is not str or not 1 <= len(text) <= 2000
             or any(ord(c) < 32 for c in text)):
         raise ProviderFailure("INTENT_UNSUPPORTED")
-    remaining = _fold(text)
+    remaining = " ".join(_fold(text).split())
     if remaining.startswith("¿") and remaining.endswith("?"):
         remaining = remaining[1:]
     remaining = remaining.rstrip(".!?").strip()
     remaining = NUMBER_PATTERN.sub(lambda m: str(NUMBERS[m[0]]), remaining)
-    # Reject alternatives rather than choosing one side or weakening a hard rule.
-    if re.search(r"\b(?:or|или|либо|o)\b", remaining):
-        clarification("alternatives")
     # Recognize only complete search/politeness prefixes. Remaining words still
     # have to be consumed as typed conditions; no arbitrary prose is discarded.
-    prefix = (r"(?:please |пожалуйста |por favor )?(?:find(?: me)?|show(?: me)?|i need(?: to rent)?|i want(?: to rent)?|"
+    prefix = (r"(?:please |пожалуйста |por favor )?(?:find(?: me)?|show(?: me)?|i need(?: to rent)?|i want(?: to rent)?|can i rent|"
               r"i would like to rent|i'd like to rent|"
-              r"i am looking for|i'm looking for|busco|estoy buscando|necesito|quiero alquilar|quiero encontrar|quiero|me gustaría alquilar|"
-              r"(?:я )?ищу|найди(?:те)?(?: мне)?|(?:мне )?(?:нужна|нужен|нужно)|подбери(?:те)?(?: мне)?|"
-              r"(?:я )?хочу (?:снять|найти)|покажи|теперь|now|ahora)")
+              r"i am looking for|i'm looking for|looking for|busco|estoy buscando|necesito|alquilar|quiero alquilar|quiero encontrar|quiero|me gustaría alquilar|"
+              r"(?:я )?ищу|найди(?:те)?(?: мне)?|найти|снять|(?:мне )?(?:нужна|нужен|нужно|нужны)|подбери(?:те)?(?: мне)?|"
+              r"(?:я )?хочу|(?:я )?бы хотел(?:а)? (?:снять|найти)|(?:как|можно) (?:снять|найти)|"
+              r"покажи(?:те)?(?: мне)?|теперь|now|ahora)")
     remaining = re.sub(r"^(?:" + prefix + r"\s+)+", "", remaining)
     changes, removed, amenity_values = {}, set(), []
     strength = "hard"
@@ -165,6 +184,18 @@ def housing_patch(text, current, vocabulary):
 
     def take(pattern):
         return re.match("(?:" + pattern + r")(?=$|[\s,;.!])", remaining)
+
+    def accommodation_at(text):
+        for kind, words in ACCOMMODATION.items():
+            matched = re.match(_alternatives(words) + r"(?=$|[\s,;.!])", text)
+            if matched:
+                if kind == "apartment" and re.match(
+                    r"\s+(?:с (?:\d+ |\w+ )?спальн|(?:de|con) (?:\d+|dos|tres|cuatro) (?:dormitorios?|habitaciones?)|with (?:\d+ )?bedrooms?)",
+                    text[matched.end():],
+                ):
+                    clarification("accommodation")
+                return kind, matched.end()
+        return None
 
     iterations = 0
     while remaining:
@@ -202,11 +233,22 @@ def housing_patch(text, current, vocabulary):
                     put("rental_mode", mode)
                     break
         if not matched:
-            for kind, words in sorted(ACCOMMODATION.items(), key=lambda item: -max(map(len, item[1]))):
-                matched = take(_alternatives(words))
-                if matched:
-                    put("accommodation", {"kind": kind})
-                    break
+            accommodation = accommodation_at(remaining)
+            if accommodation:
+                kind, end = accommodation
+                kinds = {kind}
+                while (separator := re.match(r"\s+" + ALTERNATIVE + r"\s+", remaining[end:])):
+                    end += separator.end()
+                    alternative = accommodation_at(remaining[end:])
+                    if alternative is None:
+                        clarification("alternatives")
+                    alternate_kind, length = alternative
+                    kinds.add(alternate_kind)
+                    end += length
+                put("accommodation", {"kind": "any_of", "alternatives": sorted(kinds)} if len(kinds) > 1 else {"kind": kind})
+                remaining = remaining[end:]
+                strength = "hard"
+                continue
         if not matched:
             # Period must be explicit. No monthly/nightly conversion or mode inference.
             for period, words in PERIODS.items():
@@ -223,6 +265,10 @@ def housing_patch(text, current, vocabulary):
             if matched:
                 code = CITY_CODES[matched[1]]
                 put("geography", {"province_code": code[:2], "municipality_code": code})
+        if not matched:
+            matched = take(TENERIFE)
+            if matched:
+                put("geography", {"province_code": "38", "island": "tenerife"})
         if not matched:
             matched = take(r"(?:zone|district|район|районе|zona) ([a-z0-9][a-z0-9_-]*)")
             if matched:
@@ -319,6 +365,14 @@ def housing_patch(text, current, vocabulary):
             if matched:
                 put("stay", {"value": int(matched[1]), "unit": "nights" if matched[2] in {"night", "nights", "noches", "ночей", "ночи"} else "months"})
         if not matched:
+            matched = take(GENERAL_PETS)
+            if matched:
+                existing = current.criteria.pets
+                if "pets" in removed:
+                    clarification("conflict")
+                if not named_pets and (existing is None or not isinstance(existing.value, tuple)):
+                    put("pets", {"kind": "general_permission"})
+        if not matched:
             for species, words in {"dog": ("dog", "dogs", "perro", "perros", "собакой", "собака", "собаки"),
                                    "cat": ("cat", "cats", "gato", "gatos", "котом", "кошкой", "кошка", "кошки")}.items():
                 matched = take(r"(?:(?:with|con|с) )?(?:(?:a|my|mi|un|una|моей|моим) )?(?:(1|[2-9]|10) )?(?:(small|medium|large|маленькой|средней|большой) )?" + _alternatives(words))
@@ -328,7 +382,10 @@ def housing_patch(text, current, vocabulary):
                     if (species, size) in named_pets and named_pets[species, size] != pet:
                         clarification("conflict")
                     named_pets[species, size] = pet
-                    previous = changes.get("pets", {}).get("value", [p.model_dump() for p in current.criteria.pets.value] if current.criteria.pets else [])
+                    previous = changes.get("pets", {}).get("value")
+                    if not isinstance(previous, list):
+                        existing_pets = current.criteria.pets.value if current.criteria.pets else ()
+                        previous = [p.model_dump() for p in existing_pets] if isinstance(existing_pets, tuple) else []
                     if "pets" in removed:
                         clarification("conflict")
                     # A new species does not erase an existing other pet. A
@@ -386,6 +443,8 @@ def housing_patch(text, current, vocabulary):
             "set": changes, "remove": sorted(removed)}))
         candidate = apply_patch(current, patch)
         vocabulary.validate(candidate.criteria)
+    except ValidationError as error:
+        clarification("dates" if any(item["type"] == "dates_stay_conflict" for item in error.errors()) else "unsupported")
     except (ValueError, TypeError):
         clarification()
     if _criteria_state(candidate.criteria) == _criteria_state(current.criteria):

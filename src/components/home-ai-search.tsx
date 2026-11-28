@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AudioLines, Mic, Search, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router'
 import { ApiError, type AIAuthority } from '@/api/client'
-import { aiCapabilities, aiCardPage, aiMapCenter, aiResultPage, createAISession, getAIOperation, getAIQuota, getAIResult, getAISession, resetAISession, sendAIMessage, transcribeAIVoice, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
+import { aiBudgetSuggestions, aiCapabilities, aiCardPage, aiMapCenter, aiResultPage, createAISession, getAIOperation, getAIQuota, getAIResult, getAISession, resetAISession, sendAIMessage, transcribeAIVoice, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
 import { aiConditionRows, aiModeLabel, type AICommittedIntent } from '@/api/ai-intent'
 import type { RentalMode } from '@/types'
 import { AIConditions } from '@/components/ai-conditions'
@@ -23,19 +23,19 @@ import { readAIContinuation, storeAIContinuation } from '@/api/ai-continuation'
 
 const clarificationMessages: Readonly<Record<string, string>> = {
   budget_period: 'Indica si el presupuesto es por noche, semana o mes.',
-  budget: 'Indica un presupuesto válido en euros por noche, semana o mes.',
+  budget: 'Indica un máximo en euros y el periodo. Por ejemplo: hasta 500 euros al mes.',
   rental_mode: 'Indica si buscas alquiler vacacional o de larga duración.',
   balcony_requirement: 'Aclara si necesitas un balcón privado o te sirve una terraza compartida.',
-  location: 'No reconocimos la zona. Indica un municipio o una provincia de España.',
-  dates: 'Indica fechas válidas. La salida debe ser posterior a la entrada.',
-  accommodation: 'Indica el tipo de vivienda: habitación, habitación compartida, estudio o piso de un dormitorio.',
+  location: 'Indica un municipio, una provincia de España o toda la isla de Tenerife.',
+  dates: 'Comprueba que la salida sea posterior a la entrada y que el número de noches coincida con las fechas.',
+  accommodation: 'Indica si buscas una habitación, una plaza en habitación compartida, un estudio o un piso. Si necesitas un dormitorio, indícalo.',
   pets: 'Para buscar con mascotas, indica cuántos perros o gatos vivirán contigo.',
-  alternatives: 'Elige una sola opción para cada condición. La búsqueda no admite alternativas.',
+  alternatives: 'Puedes combinar tipos de vivienda con «o». Para otras condiciones, indica una sola opción.',
   conflict: 'Hay condiciones contradictorias. Revisa cuáles quieres mantener.',
   deposit: 'Indica la fianza en euros o en meses completos.',
   party: 'Revisa cuántas personas vivirán allí. Si indicas adultos y niños, los números deben coincidir con el total.',
-  amenities: 'La búsqueda no permite comprobar uno de los servicios indicados. Revisa los servicios solicitados.',
-  unsupported: 'No reconocimos una de las condiciones. Intenta expresarla de otra forma.',
+  amenities: 'No podemos verificar uno de los servicios indicados. Si es opcional, quítalo. Si es imprescindible, consulta la descripción del anuncio.',
+  unsupported: 'Escribe el tipo de vivienda, el lugar y el presupuesto con su periodo. Por ejemplo: una habitación en Tenerife hasta 500 euros al mes. Añade después las condiciones imprescindibles.',
 }
 
 function clarificationNotice(code: string | null, clarification?: { reason: string } | string | null) {
@@ -45,6 +45,9 @@ function clarificationNotice(code: string | null, clarification?: { reason: stri
   return code === 'INTENT_CLARIFICATION_REQUIRED' || code === 'INTENT_UNSUPPORTED' || key
     ? clarificationMessages.unsupported : undefined
 }
+
+const coverageNotice = 'El catálogo de IA no tiene datos verificados suficientes para comprobar todas tus condiciones. Prueba con un requisito menos o consulta los anuncios con los filtros. No descontamos ninguna búsqueda.'
+const pricePeriods = { monthly: 'por mes', weekly: 'por semana', nightly: 'por noche' } as const
 
 const publicAI = import.meta.env.VITE_PUBLIC_AI_BETA === '1'
 
@@ -72,6 +75,8 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
   const [mapEnabled, setMapEnabled] = useState(false)
   const [voiceEnabled, setVoiceEnabled] = useState(false)
   const [saveEnabled, setSaveEnabled] = useState(false)
+  const [budgetSuggestionsEnabled, setBudgetSuggestionsEnabled] = useState(false)
+  const [budgetSuggestions, setBudgetSuggestions] = useState<{ ref: string; items: ListingCardPage['items']; prices: AIBudgetPrice[] } | null>(null)
   const [recording, setRecording] = useState(false)
   const [mapVisible, setMapVisible] = useState(false)
   const [mapRefreshVersion, setMapRefreshVersion] = useState(0)
@@ -101,7 +106,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
   const [notice, setNotice] = useState('')
   const flight = useRef<AbortController | null>(null)
   const lock = useRef(false)
-  const command = useRef<{ key: string; source: AISession | null; mode?: RentalMode } | null>(null)
+  const command = useRef<{ key: string; source: AISession | null; mode?: RentalMode; purpose: 'search' | 'new' } | null>(null)
   const [changingSession, setChangingSession] = useState(false)
   const [restoring, setRestoring] = useState(true)
   const [restoreFailed, setRestoreFailed] = useState(false)
@@ -159,7 +164,8 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
             receipt = status.receipt
             resultRef = receipt.result_ref
           } else {
-            failedNotice = clarificationNotice(status.failure_code) ?? 'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.'
+            failedNotice = clarificationNotice(status.failure_code) ?? (status.failure_code === 'SOURCE_COVERAGE_UNAVAILABLE'
+              ? coverageNotice : 'Este intento no se completó. Puedes revisar el texto e intentarlo de nuevo.')
             setNotice(failedNotice)
             operationLocator.current = null
             storeAIContinuation(identity, { sessionId: saved.sessionId })
@@ -216,10 +222,29 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
   useEffect(() => {
     const controller = new AbortController()
     void aiCapabilities(controller.signal, authority).then(value => {
-      if (!controller.signal.aborted) { setEnabled(value.text === true); setMapEnabled(value.map === true); setVoiceEnabled(value.voice === true); setSaveEnabled(value.save_handoff === true) }
+      if (!controller.signal.aborted) {
+        setEnabled(value.text === true); setMapEnabled(value.map === true); setVoiceEnabled(value.voice === true)
+        setSaveEnabled(value.save_handoff === true); setBudgetSuggestionsEnabled(value.budget_suggestions === true)
+      }
     }).catch(() => { /* Ordinary search stays available when capability lookup fails. */ })
     return () => { controller.abort(); flight.current?.abort(); syncFlight.current?.abort(); transcription.current?.abort() }
   }, [authority])
+
+  const budget = result?.committed.intent.criteria.budget
+  const suggestionRef = open && budgetSuggestionsEnabled && pagingAvailable && !resultInvalid
+    && result?.page.total === 0 && budget?.strength === 'hard' ? result.ref : undefined
+  const resultHash = result?.hash
+  useEffect(() => {
+    setBudgetSuggestions(null)
+    if (!suggestionRef || !resultHash) return
+    const controller = new AbortController()
+    void aiBudgetSuggestions(suggestionRef, controller.signal, authority).then(response => {
+      if (!controller.signal.aborted && response?.intent_hash === resultHash) {
+        setBudgetSuggestions({ ref: suggestionRef, items: aiCardPage(response).items, prices: response.budget_prices ?? [] })
+      }
+    }).catch(() => { /* The verified exact results remain available. */ })
+    return () => controller.abort()
+  }, [authority, resultHash, suggestionRef, mapRefreshVersion])
 
   const ownedSessionId = session?.intent.session_id
   useEffect(() => {
@@ -267,9 +292,9 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
     setChangingSession(false)
   }
 
-  async function changeSession(source: AISession | null, signal: AbortSignal, mode?: RentalMode) {
+  async function changeSession(source: AISession | null, signal: AbortSignal, purpose: 'search' | 'new', mode?: RentalMode) {
     // Preserve exact key, source and version through ambiguous HTTP failures.
-    const attempt = command.current ?? { key: crypto.randomUUID(), source, mode }
+    const attempt = command.current ?? { key: crypto.randomUUID(), source, mode, purpose }
     command.current = attempt
     setChangingSession(true)
     const fresh = attempt.source
@@ -286,6 +311,27 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
     setNeedsSync(false)
     setPagingAvailable(false)
     setNotice('El intento terminó, pero el diálogo no está disponible. Inicia una nueva conversación para continuar.')
+  }
+
+  function sessionChangeFailed(error: unknown, purpose: 'search' | 'new') {
+    if (unavailable(error)) {
+      lostConversation()
+      return
+    }
+    if (error instanceof ApiError && ['SESSION_VERSION_CONFLICT', 'SESSION_COMMAND_CONFLICT'].includes(error.message) && session) {
+      forgetCommand()
+      void refreshSession(session.intent.session_id)
+      return
+    }
+    if (error instanceof ApiError && error.message === 'SESSION_LIMIT') {
+      forgetCommand()
+      setNotice('Hay demasiadas conversaciones activas. Conservamos tu texto y resultados. Inténtalo más tarde.')
+      return
+    }
+    setNotice(purpose === 'search'
+      ? publicAI ? 'No pudimos iniciar la búsqueda. Tu texto sigue disponible. Pulsa «Buscar» para reintentar el mismo inicio.'
+        : 'No pudimos iniciar la búsqueda. Tu texto sigue disponible. Vuelve a pulsar el botón de búsqueda.'
+      : 'No pudimos iniciar el diálogo. Pulsa «Iniciar nueva conversación» para reintentar.')
   }
 
   async function refreshSession(id: string, clearNotice = false) {
@@ -311,30 +357,24 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
 
   async function newConversation() {
     if (continuationOnly) { onRegisteredSearch(); return }
-    if (restoring || restoreFailed || lock.current || recording || transcription.current || pending || syncingSession || needsSync) return
+    if (restoring || restoreFailed || lock.current || recording || transcription.current || pending || syncingSession || needsSync || command.current?.purpose === 'search') return
     lock.current = true
     setBusy(true)
     const controller = new AbortController()
     flight.current = controller
     try {
-      const fresh = await changeSession(session && !needsConversation ? session : null, controller.signal, initialRentalMode)
+      const fresh = await changeSession(session && !needsConversation ? session : null, controller.signal, 'new', initialRentalMode)
       if (controller.signal.aborted) return
       setSession(fresh)
       setNeedsConversation(false)
       setModeChoice(initialRentalMode ? 'keep' : '')
       setPagingAvailable(false)
       setNotice(result ? 'Nueva conversación lista. Conservamos los resultados anteriores hasta tu próxima búsqueda.' : '')
-      if (publicAI) { setText(''); setHasTranscript(false) }
+      if (publicAI && !needsConversation) { setText(''); setHasTranscript(false) }
       // Cards and an unsuccessful transition's draft stay in memory.
     } catch (error) {
       if (controller.signal.aborted) return
-      if (unavailable(error)) lostConversation()
-      else if (error instanceof ApiError && ['SESSION_VERSION_CONFLICT', 'SESSION_COMMAND_CONFLICT'].includes(error.message) && session) {
-        forgetCommand()
-        void refreshSession(session.intent.session_id)
-      } else setNotice(error instanceof ApiError && error.message === 'SESSION_LIMIT'
-        ? 'Hay demasiadas conversaciones activas. Conservamos tu texto y resultados. Inténtalo más tarde.'
-        : 'No se pudo iniciar una nueva conversación. Conservamos tu texto y resultados.')
+      sessionChangeFailed(error, 'new')
     } finally {
       lock.current = false
       if (!controller.signal.aborted) setBusy(false)
@@ -382,7 +422,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
 
   async function submit(audio?: string) {
     if (continuationOnly || transcription.current || (recording && !audio)) return
-    if (restoring || restoreFailed || lock.current || (!pending && !audio && invalidText) || (!pending && (demoBlocked || remaining === 0 || (changingSession && session !== null) || needsConversation || needsSync || syncingSession || (!audio && !text.trim()) || !modeChoice || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))) return
+    if (restoring || restoreFailed || lock.current || (!pending && !audio && invalidText) || (!pending && (demoBlocked || remaining === 0 || command.current?.purpose === 'new' || needsConversation || needsSync || syncingSession || (!audio && !text.trim()) || !modeChoice || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))) return
     lock.current = true
     setBusy(true)
     setNotice('Buscando opciones con condiciones confirmadas…')
@@ -390,7 +430,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
     flight.current = controller
     try {
       const owned = (pending || modeChoice === 'keep') && session ? session : await changeSession(
-        session && !needsConversation ? session : null, controller.signal,
+        session && !needsConversation ? session : null, controller.signal, 'search',
         modeChoice === 'long' || modeChoice === 'holiday' ? modeChoice : undefined)
       setSession(owned)
       setModeChoice('keep')
@@ -444,7 +484,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
           : clarificationNotice(code, answer.clarification)
         setNotice(clarification ?? (
           code === 'INTENT_NO_CHANGE' ? 'La petición no cambia los criterios. Añade un requisito nuevo.'
-          : code === 'SOURCE_COVERAGE_UNAVAILABLE' ? (inputPolicy ? 'El catálogo actual no tiene suficientes datos verificados recientes para todas estas condiciones. Esto no significa que no exista una vivienda adecuada. Conservamos las condiciones anteriores y no descontamos ninguna búsqueda. Cambia tu búsqueda o usa los filtros.' : 'No hay fuentes verificadas recientes disponibles. Prueba la búsqueda con filtros.')
+           : code === 'SOURCE_COVERAGE_UNAVAILABLE' ? coverageNotice
           : code === 'ASR_FAILURE' ? 'No pudimos transcribir la grabación. Repite o escribe tu búsqueda. No se ha descontado ninguna búsqueda.'
           : code === 'VOICE_CAPACITY_LIMIT' ? 'El servidor de voz está ocupado. Repite la grabación más tarde. No se ha descontado ninguna búsqueda.'
           : code === 'SESSION_VERSION_CONFLICT'
@@ -480,8 +520,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
             : 'La grabación se rechazó antes de iniciar la búsqueda. Graba de nuevo o escribe tu búsqueda. No se ha descontado ninguna búsqueda.'
           : 'Acorta o revisa el texto antes de enviarlo de nuevo.')
       } else if (command.current) {
-        if (unavailable(error)) lostConversation()
-        else setNotice('No se pudo iniciar una nueva conversación. Conservamos tu texto y resultados.')
+        sessionChangeFailed(error, 'search')
       } else {
         setNotice('No se pudo confirmar el resultado. Reintenta el mismo intento para comprobar su estado.')
       }
@@ -579,19 +618,19 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
       </> : null}
       {voiceEnabled && (!publicAI || (open && !continuationOnly)) ? <AIVoiceInput primary={publicAI && !hasTranscript} review={publicAI} hasDraft={hasTranscript}
         disabled={continuationOnly || transcribing || busy || restoring || restoreFailed || demoBlocked || pending !== null || changingSession || syncingSession || needsSync || needsConversation || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)}
-        disabledReason={transcribing ? undefined : t(busy ? 'Procesando tu búsqueda y buscando opciones…' : demoBlocked ? demoReason : remaining === 0 ? 'Has agotado tus búsquedas. Inténtalo cuando se renueve el límite.' : !modeChoice ? 'Elige el modo de alquiler antes de grabar.' : restoreFailed ? 'No pudimos recuperar la búsqueda. Reintenta la recuperación.' : pending ? 'El resultado no está confirmado. Pulsa «Comprobar el mismo intento» abajo.' : 'Espera a que termine la operación y se sincronice la búsqueda.')}
+        disabledReason={transcribing || (changingSession && !busy) ? undefined : t(busy ? 'Procesando tu búsqueda y buscando opciones…' : demoBlocked ? demoReason : remaining === 0 ? 'Has agotado tus búsquedas. Inténtalo cuando se renueve el límite.' : !modeChoice ? 'Elige el modo de alquiler antes de grabar.' : restoreFailed ? 'No pudimos recuperar la búsqueda. Reintenta la recuperación.' : pending ? 'El resultado no está confirmado. Pulsa «Comprobar el mismo intento» abajo.' : 'Espera a que termine la operación y se sincronice la búsqueda.')}
         onAudio={audio => { if (open) void (publicAI ? reviewVoice(audio) : submit(audio)) }} onRecording={setRecording} /> : null}
       {transcribing ? <p role="status">{t('Transcribiendo la grabación…')}</p> : null}
       {publicAI && !voiceEnabled && !continuationOnly ? <p role="status">{t('La grabación no está disponible temporalmente.')}</p> : null}
-      {(!publicAI || pending || showText) ? <Button type="button" className="home-ai-search__action" disabled={inputLocked || restoreFailed || (!pending && (invalidText || demoBlocked || (changingSession && session !== null) || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
+      {(!publicAI || pending || showText) ? <Button type="button" className="home-ai-search__action" disabled={inputLocked || restoreFailed || (!pending && (invalidText || demoBlocked || command.current?.purpose === 'new' || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
         onClick={() => void submit()}>{!publicAI && PRIVATE_DEMO && pending && !busy ? <span data-i18n-exempt>Проверить результат попытки</span> : t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : publicAI ? 'Buscar' : result ? 'Actualizar búsqueda' : 'Buscar habitaciones')}</Button> : null}
       {publicAI ? <div role="status" aria-live="polite" className={notice ? undefined : 'sr-only'}>{notice ? t(notice) : null}</div> : null}
       {showGuide && example ? <section className="ai-search-guide" aria-labelledby="ai-search-guide-title">
         <h3 id="ai-search-guide-title">{t('Qué puedes indicar')}</h3>
         <dl>
-          <div><dt>{t('Lugar y vivienda')}</dt><dd>{t('Municipio o provincia. Habitación, habitación compartida, estudio o piso de un dormitorio.')}</dd></div>
+          <div><dt>{t('Lugar y vivienda')}</dt><dd>{t('Municipio, provincia o isla de Tenerife. Habitación, plaza compartida, estudio o piso.')}</dd></div>
           <div><dt>{t('Precio y fechas')}</dt><dd>{t('Presupuesto mensual, semanal o por noche. Fianza, fechas y duración de la estancia.')}</dd></div>
-          <div><dt>{t('Quién se muda')}</dt><dd>{t('Número de personas. Para mascotas, indica perro o gato y cuántos.')}</dd></div>
+          <div><dt>{t('Quién se muda')}</dt><dd>{t('Número de personas. Puedes pedir que se admitan mascotas o indicar el animal y cuántos son.')}</dd></div>
           <div><dt>{t('Equipamiento y gastos')}</dt><dd>{t('Muebles, gastos incluidos, balcón, terraza, wifi o aparcamiento.')}</dd></div>
         </dl>
         <div className="ai-search-guide__example">
@@ -609,7 +648,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
       {restoreFailed ? <Button type="button" variant="outline" disabled={restoring} onClick={() => {
         setRestoring(true); setRestoreFailed(false); setRestoreEpoch(value => value + 1)
       }}>{t('Reintentar sincronización')}</Button> : null}
-      {(continuationOnly || session || needsConversation || changingSession) ? <Button type="button" variant="outline" disabled={!continuationOnly && (inputLocked || restoreFailed || syncingSession || needsSync || pending !== null)}
+      {(continuationOnly || session || needsConversation || command.current?.purpose === 'new') ? <Button type="button" variant="outline" disabled={!continuationOnly && (inputLocked || restoreFailed || syncingSession || needsSync || pending !== null || command.current?.purpose === 'search')}
         onClick={() => void newConversation()}>{t('Iniciar nueva conversación')}</Button> : null}
       {needsSync && session && !restoreFailed ? <Button type="button" variant="outline" disabled={syncingSession || busy}
         onClick={() => void refreshSession(session.intent.session_id, true)}>{t('Reintentar sincronización')}</Button> : null}
@@ -626,14 +665,13 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
         <p>{t('Los anuncios y su orden pueden cambiar entre páginas. Actualiza la lista para ver cambios desde el principio.')}</p>
         <Button type="button" variant="outline" disabled={busy || changingSession || pending !== null || !pagingAvailable} onClick={() => void page()}>{t('Actualizar resultados sin gastar una búsqueda')}</Button>
         {mapEnabled ? <Button type="button" variant="outline" aria-pressed={mapVisible} onClick={() => setMapVisible(value => !value)}>{t(mapVisible ? 'Ver lista' : 'Ver mapa')}</Button> : null}
-        {!result.page.total ? <p>{t('No encontramos opciones con todas las condiciones confirmadas. Puedes ajustar tu búsqueda.')}</p> : null}
+        {!result.page.total ? <p>{t('No hay anuncios verificados que cumplan todas las condiciones. Prueba a ampliar la zona, subir el presupuesto o quitar un requisito opcional.')}</p> : null}
         {mapVisible ? <ResultMap key={`${result.ref}:${result.hash}`} resultRef={result.ref} intentHash={result.hash} refreshVersion={mapRefreshVersion}
           center={result.center} total={result.page.total} authority={authority} /> : null}
         <div className="ai-search-dialog__cards" hidden={mapVisible} style={{ display: mapVisible ? 'none' : undefined }}>{result.page.items.map(listing => {
           const price = result.prices.find(value => value.listing_id === listing.id)
-          const periods = { monthly: 'por mes', weekly: 'por semana', nightly: 'por noche' } as const
           return <div key={listing.id} className="ai-search-dialog__card">
-            {price && periods[price.matched_period] ? <p>{t('Precio confirmado para tu presupuesto')}: {price.matched_amount} € {t(periods[price.matched_period])}</p> : null}
+            {price && pricePeriods[price.matched_period] ? <p>{t('Precio confirmado para tu presupuesto')}: {price.matched_amount} € {t(pricePeriods[price.matched_period])}</p> : null}
             <PropertyCard listing={listing} />
           </div>
         })}</div>
@@ -642,6 +680,18 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
           <Button type="button" variant="outline" disabled={busy || changingSession || pending !== null || !pagingAvailable || !result.page.previousCursor} onClick={() => void page(result.page.previousCursor!)}>{t('Anterior')}</Button>
           <Button type="button" variant="outline" disabled={busy || changingSession || pending !== null || !pagingAvailable || !result.page.nextCursor} onClick={() => void page(result.page.nextCursor!)}>{t('Siguiente')}</Button>
         </nav>
+      </section> : null}
+      {budgetSuggestions && budgetSuggestions.ref === suggestionRef && budget && !mapVisible && budgetSuggestions.items.length > 0 ? <section aria-label={t('Opciones por encima del presupuesto')}>
+        <h3>{t('Opciones por encima del presupuesto')}</h3>
+        <div className="ai-search-dialog__cards">{budgetSuggestions.items.map(listing => {
+          const price = budgetSuggestions.prices.find(value => value.listing_id === listing.id)
+          const difference = (price?.matched_amount ?? 0) - Number(budget.value.amount)
+          if (!price || price.matched_period !== budget.value.period || difference <= 0) return null
+          return <div key={listing.id} className="ai-search-dialog__card">
+            <p>{price.matched_amount} € {t(pricePeriods[price.matched_period])} · {t('Por encima del presupuesto')}: +{Number(difference.toFixed(2))} €</p>
+            <PropertyCard listing={listing} />
+          </div>
+        })}</div>
       </section> : null}
       {!publicAI ? <Button type="button" variant="ghost" onClick={() => changeDialog(false)}>{t('Volver a los filtros')}</Button> : null}
     </DialogContent>

@@ -13,7 +13,8 @@ alter totals/order without rejecting a cursor. Restart without a cursor to
 discover rows newly eligible or moved before the seek point. No stale card is
 kept merely to preserve an earlier page's total or order.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from decimal import ROUND_DOWN, Decimal
 from math import isfinite
 from uuid import UUID
 
@@ -149,6 +150,31 @@ class VerifiedCardSearch:
             await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
             await self.sessions._read(session, subject, committed.intent.session_id)
             return await self._query_intent(session, subject, committed.intent, payload)
+
+    async def suggest_budget(self, subject: QuotaSubject, result_ref: UUID) -> VerifiedCardResult | None:
+        committed = await self.sessions.result(subject, result_ref)
+        budget = committed.intent.criteria.budget
+        if budget is None or budget.strength != "hard":
+            return None
+        amount = Decimal(budget.value.amount)
+        ceiling = (amount + min(amount / 10, Decimal(50))).quantize(Decimal(".01"), rounding=ROUND_DOWN)
+        if ceiling <= amount or len(str(ceiling)) > 16:
+            return None
+        higher_budget = budget.model_copy(update={"value": budget.value.model_copy(update={"amount": str(ceiling)})})
+        higher_intent = committed.intent.model_copy(update={
+            "criteria": committed.intent.criteria.model_copy(update={"budget": higher_budget}),
+        })
+        async with self.pipeline.sessions() as session, session.begin():
+            await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+            await self.sessions._read(session, subject, committed.intent.session_id)
+            exact = await self._query_intent(session, subject, committed.intent, ListingCardSearchRequest(limit=1))
+            if exact.cards.total:
+                return None
+            nearby = await self._query_intent(session, subject, higher_intent, ListingCardSearchRequest(limit=3, sort="price_asc"))
+            if not nearby.cards.items:
+                return None
+            cards = nearby.cards.model_copy(update={"nextCursor": None, "previousCursor": None})
+            return replace(nearby, cards=cards, intent_hash=committed.intent_hash)
 
     async def _query_intent(self, session, subject: QuotaSubject, intent: SearchIntent,
                             payload: ListingCardSearchRequest) -> VerifiedCardResult:

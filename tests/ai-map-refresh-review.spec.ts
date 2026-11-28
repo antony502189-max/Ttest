@@ -224,7 +224,7 @@ for (const fault of ['cross-auto', 'cross-manual', 'zero', 'epoch-change']) {
         await expect(map.locator('[data-listing-id="fresh-source"]')).toBeVisible()
       }
     } else {
-      await expect(page.getByText('No encontramos opciones con todas las condiciones confirmadas.', { exact: false })).toBeVisible()
+      await expect(page.getByText('No hay anuncios verificados que cumplan todas las condiciones.', { exact: false })).toBeVisible()
       await expect(map.getByRole('button', { name: lab ? 'Показать область результатов' : 'Mostrar el área de resultados' })).toHaveCount(0)
     }
     if (lab) expect(await mapHandle!.evaluate(element => element.isConnected)).toBe(true)

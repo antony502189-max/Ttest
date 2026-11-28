@@ -6,6 +6,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import Field, field_validator, model_validator
+from pydantic_core import PydanticCustomError
 
 from ..spain_islands import ISLAND_MUNICIPALITIES
 from ..spain_municipalities import MUNICIPALITIES
@@ -202,7 +203,7 @@ class Criteria(StrictContract):
                 date.fromisoformat(self.dates.value.check_out) - date.fromisoformat(self.dates.value.check_in)
             ).days
             if nights != self.stay.value.value:
-                raise ValueError("dates contradict requested nights")
+                raise PydanticCustomError("dates_stay_conflict", "dates contradict requested nights")
             # Months are never implicitly converted to 30 nights.
         return self
 

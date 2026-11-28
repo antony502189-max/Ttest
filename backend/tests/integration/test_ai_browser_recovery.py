@@ -84,7 +84,7 @@ async def test_real_http_browser_recovers_without_stranded_session(active, monke
                 search = page.get_by_role("button", name="Buscar habitaciones", exact=True)
                 await search.click()
                 if phase == "create":
-                    await expect(page.get_by_text("No se pudo iniciar una nueva conversación.", exact=False)).to_be_visible()
+                    await expect(page.get_by_text("No pudimos iniciar la búsqueda.", exact=False)).to_be_visible()
                     await search.click()
                 if phase == "query":
                     retry = page.get_by_role("button", name="Comprobar el mismo intento")
@@ -104,7 +104,7 @@ async def test_real_http_browser_recovers_without_stranded_session(active, monke
                     await page.locator("#ai-search-text").fill("Con balcón")
                     reset = page.get_by_role("button", name="Iniciar nueva conversación")
                     await reset.click()
-                    await expect(page.get_by_text("No se pudo iniciar una nueva conversación.", exact=False)).to_be_visible()
+                    await expect(page.get_by_text("No pudimos iniciar el diálogo.", exact=False)).to_be_visible()
                     await reset.click()
                     await expect(page.get_by_text("Nueva conversación lista.", exact=False)).to_be_visible()
                     await expect(page.locator("#ai-search-text")).to_have_value("Con balcón")

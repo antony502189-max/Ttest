@@ -3,7 +3,7 @@ import { toCardListing, type ListingCardDto, type ListingCardPage, type ListingM
 import type { AICommittedIntent, AIIntent } from '@/api/ai-intent'
 import type { RentalMode } from '@/types'
 
-export type AICapabilities = { text: boolean; map: boolean; voice: boolean; saved_searches: boolean; save_handoff?: boolean }
+export type AICapabilities = { text: boolean; map: boolean; voice: boolean; saved_searches: boolean; save_handoff?: boolean; budget_suggestions?: boolean }
 export type AISession = { intent: AIIntent; expires_at: string }
 export type AIMessage = { idempotency_key: string; session_id: string; expected_version: number; text: string; audio_base64?: string }
 export type AIBudgetPrice = { listing_id: string; matched_amount: number; matched_period: 'monthly' | 'weekly' | 'nightly'; display_amount: number | null; display_period: 'monthly' | 'nightly'; currency: 'EUR'; confirmation: 'current_source_proof' }
@@ -52,6 +52,10 @@ export async function aiResultPage(ref: string, cursor: string | undefined, sign
     aiAuthority: authority, method: 'POST', headers, body: JSON.stringify({ search: { limit: 6, cursor } }), signal, cache: 'no-store',
   })
 }
+export const aiBudgetSuggestions = (ref: string, signal: AbortSignal, authority?: AIAuthority) =>
+  api<CardResponse | null>(`/ai-search/results/${encodeURIComponent(ref)}/cards`, {
+    aiAuthority: authority, method: 'POST', headers, body: JSON.stringify({ nearby_budget: true }), signal, cache: 'no-store',
+  })
 export const aiResultMap = (ref: string, viewport: { north: number; south: number; east: number; west: number; zoom: number }, signal: AbortSignal, authority?: AIAuthority) =>
   api<{ map: { items: ListingMapMarker[] }; intent_hash: string }>(`/ai-search/results/${encodeURIComponent(ref)}/map`, {
     aiAuthority: authority, method: 'POST', headers, body: JSON.stringify({ search: viewport }), signal, cache: 'no-store',

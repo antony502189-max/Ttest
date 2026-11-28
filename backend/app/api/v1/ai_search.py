@@ -297,7 +297,8 @@ async def capabilities(request: Request):
     active = isinstance(getattr(request.app.state, "ai_search_runtime", None), AISearchRuntime)
     configured = getattr(request.app.state, "ai_search_runtime", None)
     return {"text": active, "map": active, "voice": isinstance(configured, AISearchRuntime) and configured.voice is not None,
-        "saved_searches": False, "save_handoff": isinstance(configured, AISearchRuntime) and configured.saved_handoff is not None}
+        "saved_searches": False, "save_handoff": isinstance(configured, AISearchRuntime) and configured.saved_handoff is not None,
+        **({"budget_suggestions": True} if active else {})}
 
 
 @router.post("/identity")
@@ -389,11 +390,14 @@ async def voice_message(payload: VoiceBody | VoiceDraftBody, active: AISearchRun
 
 class ResultPageBody(APIBody):
     search: AICardView = Field(default_factory=AICardView)
+    nearby_budget: bool = False
 
 
 @router.post("/results/{result_ref}/cards")
 async def result_page(result_ref: UUID, payload: ResultPageBody, active: AISearchRuntime = Depends(runtime),
                       owner: QuotaSubject = Depends(subject)):
+    if payload.nearby_budget:
+        return jsonable_encoder(await active.cards.suggest_budget(owner, result_ref))
     return jsonable_encoder(await active.cards.query_result(owner, result_ref, payload.search.to_request()))
 
 

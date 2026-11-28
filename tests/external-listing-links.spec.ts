@@ -23,10 +23,13 @@ async function finishOnboarding(page: Page) {
 async function expectExternalPopup(page: Page, action: () => Promise<void>) {
   const popup = page.waitForEvent('popup')
   await action()
-  await expect.poll(async () => (await popup).url()).toBe(externalListing.sourceUrl)
+  const opened = await popup
+  await expect(opened).toHaveURL(externalListing.sourceUrl)
+  await opened.close()
 }
 
 test('external mobile result uses the same lime source CTA treatment as requirement chips', async ({ page }) => {
+  await page.context().route('https://www.idealista.com/**', route => route.fulfill({ body: 'External listing fixture' }))
   await page.addInitScript((listing) => {
     localStorage.setItem('112233:listings:v3', JSON.stringify({ version: 3, data: [listing] }))
   }, externalListing)
