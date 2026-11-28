@@ -3,7 +3,7 @@ import { toCardListing, type ListingCardDto, type ListingCardPage, type ListingM
 import type { AICommittedIntent, AIIntent } from '@/api/ai-intent'
 import type { RentalMode } from '@/types'
 
-export type AICapabilities = { text: boolean; map: boolean; voice: boolean; saved_searches: boolean; save_handoff?: boolean; budget_suggestions?: boolean }
+export type AICapabilities = { text: boolean; map: boolean; voice: boolean; saved_searches: boolean; save_handoff?: boolean; budget_suggestions?: boolean; session_recovery?: boolean }
 export type AISession = { intent: AIIntent; expires_at: string }
 export type AIMessage = { idempotency_key: string; session_id: string; expected_version: number; text: string; audio_base64?: string }
 export type AIBudgetPrice = { listing_id: string; matched_amount: number; matched_period: 'monthly' | 'weekly' | 'nightly'; display_amount: number | null; display_period: 'monthly' | 'nightly'; currency: 'EUR'; confirmation: 'current_source_proof' }
@@ -38,6 +38,9 @@ export const resetAISession = (session: AISession, key: string, signal: AbortSig
   aiAuthority: authority, method: 'POST', headers, body: JSON.stringify({ expected_version: session.intent.version, idempotency_key: key, ...(rentalMode ? { rental_mode: rentalMode } : {}) }), signal, cache: 'no-store',
 })
 export const getAISession = (id: string, signal: AbortSignal, authority?: AIAuthority) => api<AISession>(`/ai-search/sessions/${encodeURIComponent(id)}`, { aiAuthority: authority, signal, cache: 'no-store' })
+export const recoverAISession = (signal: AbortSignal, authority?: AIAuthority) => api<AISession>('/ai-search/sessions', {
+  aiAuthority: authority, method: 'POST', headers, body: JSON.stringify({ recover_active: true }), signal, cache: 'no-store',
+})
 export const getAIResult = (ref: string, signal: AbortSignal, authority?: AIAuthority) => api<AICommittedIntent>(`/ai-search/results/${encodeURIComponent(ref)}`, { aiAuthority: authority, signal, cache: 'no-store' })
 export const getAIQuota = (signal: AbortSignal, authority?: AIAuthority) => api<{ remaining: number }>('/ai-search/quota', { aiAuthority: authority, signal, cache: 'no-store' })
 export const getAIOperation = (key: string, signal: AbortSignal, authority?: AIAuthority) => api<AIExecution['operation'] & { idempotency_key: string }>(`/ai-search/operations/${encodeURIComponent(key)}`, { aiAuthority: authority, signal, cache: 'no-store' })

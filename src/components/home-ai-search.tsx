@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AudioLines, Mic, Search, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router'
 import { ApiError, type AIAuthority } from '@/api/client'
-import { aiBudgetSuggestions, aiCapabilities, aiCardPage, aiMapCenter, aiResultPage, createAISession, getAIOperation, getAIQuota, getAIResult, getAISession, resetAISession, sendAIMessage, transcribeAIVoice, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
+import { aiBudgetSuggestions, aiCapabilities, aiCardPage, aiMapCenter, aiResultPage, createAISession, getAIOperation, getAIQuota, getAIResult, getAISession, recoverAISession, resetAISession, sendAIMessage, transcribeAIVoice, type AIBudgetPrice, type AIMessage, type AISession } from '@/api/ai-search'
 import { aiConditionRows, aiModeLabel, type AICommittedIntent } from '@/api/ai-intent'
 import type { RentalMode } from '@/types'
 import { AIConditions } from '@/components/ai-conditions'
@@ -76,6 +76,8 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
   const [voiceEnabled, setVoiceEnabled] = useState(false)
   const [saveEnabled, setSaveEnabled] = useState(false)
   const [budgetSuggestionsEnabled, setBudgetSuggestionsEnabled] = useState(false)
+  const [sessionRecoveryEnabled, setSessionRecoveryEnabled] = useState(false)
+  const [sessionLimitReached, setSessionLimitReached] = useState(false)
   const [budgetSuggestions, setBudgetSuggestions] = useState<{ ref: string; items: ListingCardPage['items']; prices: AIBudgetPrice[] } | null>(null)
   const [recording, setRecording] = useState(false)
   const [mapVisible, setMapVisible] = useState(false)
@@ -225,6 +227,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
       if (!controller.signal.aborted) {
         setEnabled(value.text === true); setMapEnabled(value.map === true); setVoiceEnabled(value.voice === true)
         setSaveEnabled(value.save_handoff === true); setBudgetSuggestionsEnabled(value.budget_suggestions === true)
+        setSessionRecoveryEnabled(value.session_recovery === true)
       }
     }).catch(() => { /* Ordinary search stays available when capability lookup fails. */ })
     return () => { controller.abort(); flight.current?.abort(); syncFlight.current?.abort(); transcription.current?.abort() }
@@ -301,6 +304,7 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
       ? await resetAISession(attempt.source, attempt.key, signal, attempt.mode, authority)
       : await createAISession(attempt.key, signal, attempt.mode, authority)
     forgetCommand()
+    setSessionLimitReached(false)
     return fresh
   }
 
@@ -325,13 +329,39 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
     }
     if (error instanceof ApiError && error.message === 'SESSION_LIMIT') {
       forgetCommand()
-      setNotice('Hay demasiadas conversaciones activas. Conservamos tu texto y resultados. Inténtalo más tarde.')
+      setSessionLimitReached(true)
+      setNotice(sessionRecoveryEnabled
+        ? 'Ya tienes varias conversaciones abiertas. Continúa una de ellas para buscar con este texto.'
+        : 'Hay demasiadas conversaciones activas. Conservamos tu texto y resultados. Inténtalo más tarde.')
       return
     }
     setNotice(purpose === 'search'
       ? publicAI ? 'No pudimos iniciar la búsqueda. Tu texto sigue disponible. Pulsa «Buscar» para reintentar el mismo inicio.'
         : 'No pudimos iniciar la búsqueda. Tu texto sigue disponible. Vuelve a pulsar el botón de búsqueda.'
       : 'No pudimos iniciar el diálogo. Pulsa «Iniciar nueva conversación» para reintentar.')
+  }
+
+  async function recoverConversation() {
+    if (!sessionLimitReached || lock.current || recording || transcription.current || pending) return
+    lock.current = true
+    setBusy(true)
+    const controller = new AbortController()
+    flight.current = controller
+    try {
+      const recovered = await recoverAISession(controller.signal, authority)
+      if (controller.signal.aborted) return
+      setSession(recovered)
+      setNeedsConversation(false)
+      setModeChoice('keep')
+      setPagingAvailable(false)
+      setSessionLimitReached(false)
+      setNotice('Conversación recuperada. Revisa las condiciones y pulsa el botón de búsqueda.')
+    } catch {
+      if (!controller.signal.aborted) setNotice('No pudimos recuperar una conversación. Tu texto sigue disponible. Inténtalo más tarde.')
+    } finally {
+      lock.current = false
+      if (!controller.signal.aborted) setBusy(false)
+    }
   }
 
   async function refreshSession(id: string, clearNotice = false) {
@@ -625,6 +655,8 @@ function AISearchPanel({ homeMode, identity, initialRentalMode, inputPolicy, aut
       {(!publicAI || pending || showText) ? <Button type="button" className="home-ai-search__action" disabled={inputLocked || restoreFailed || (!pending && (invalidText || demoBlocked || command.current?.purpose === 'new' || syncingSession || needsSync || needsConversation || !text.trim() || !modeChoice || remaining === 0 || (modeChoice === 'keep' && session !== null && aiConditionRows(session.intent, t) === null)))}
         onClick={() => void submit()}>{!publicAI && PRIVATE_DEMO && pending && !busy ? <span data-i18n-exempt>Проверить результат попытки</span> : t(busy ? 'Buscando…' : pending ? 'Comprobar el mismo intento' : publicAI ? 'Buscar' : result ? 'Actualizar búsqueda' : 'Buscar habitaciones')}</Button> : null}
       {publicAI ? <div role="status" aria-live="polite" className={notice ? undefined : 'sr-only'}>{notice ? t(notice) : null}</div> : null}
+      {sessionRecoveryEnabled && sessionLimitReached ? <Button type="button" variant="outline" disabled={inputLocked || pending !== null}
+        onClick={() => void recoverConversation()}>{t('Continuar una conversación abierta')}</Button> : null}
       {showGuide && example ? <section className="ai-search-guide" aria-labelledby="ai-search-guide-title">
         <h3 id="ai-search-guide-title">{t('Qué puedes indicar')}</h3>
         <dl>

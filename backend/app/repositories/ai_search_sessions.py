@@ -249,6 +249,29 @@ class SearchSessions:
             row, intent = await self._read(conn, subject, session_id)
             return SessionSnapshot(intent=intent, expires_at=self.expiry(row))
 
+    async def latest_available(self, subject: QuotaSubject) -> SessionSnapshot:
+        """Recover owned criteria when a browser has lost its session locator."""
+        async with self.ledger.sessions.begin() as conn:
+            await self.lock_subject(conn, subject)
+            now = await _now(conn)
+            in_flight = select(AISearchRequest.idempotency_key).where(
+                AISearchRequest.subject_kind == subject.kind,
+                AISearchRequest.subject_id == subject.id,
+                AISearchRequest.session_id == AISearchSession.id,
+                AISearchRequest.status.in_(("reserved", "running")),
+            ).exists()
+            row = await conn.scalar(select(AISearchSession).where(
+                AISearchSession.subject_kind == subject.kind,
+                AISearchSession.subject_id == subject.id,
+                AISearchSession.closed_at.is_(None),
+                AISearchSession.expires_at > now,
+                AISearchSession.created_at > now - timedelta(seconds=self.policy.absolute_seconds),
+                ~in_flight,
+            ).order_by(AISearchSession.updated_at.desc(), AISearchSession.id).limit(1))
+            if row is None:
+                raise SessionError("SESSION_NOT_FOUND")
+            return SessionSnapshot(intent=self._decode(row), expires_at=self.expiry(row))
+
     async def reset(self, subject: QuotaSubject, session_id: UUID, expected_version: int, *, seed: SessionCreate | None = None, max_active: int | None = None,
                     idempotency_key: UUID | None = None) -> SessionSnapshot:
         """Explicit caller command only. Never inferred from missing patch fields."""

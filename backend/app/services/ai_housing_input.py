@@ -83,6 +83,7 @@ ACCOMMODATION = {
                   "целую квартиру", "отдельную квартиру", "квартира", "квартиру", "квартиры", "квартир"),
 }
 TENERIFE = r"(?:(?:on|in|en|на) )?(?:(?:the island of|la isla de|острове|остров) )?(?:tenerife|тенерифе)"
+TRANSCRIPT_FORMATTING = str.maketrans("", "", "\u200b\u2060\ufeff")
 GENERAL_PETS = (
     r"(?:(?:a|an) )?pet[- ]friendly|(?:where )?(?:pets are allowed|allows? pets|accepts? pets)|with pets"
     r"|(?:que )?(?:admit[ea]n?|acept[ea]n?) mascotas|(?:con|se admiten) mascotas"
@@ -147,12 +148,12 @@ def _unrecognized_reason(clause: str) -> ClarificationReason:
 def housing_patch(text, current, vocabulary):
     """Parse all clauses atomically; unrelated committed criteria survive patching."""
     if (type(text) is not str or not 1 <= len(text) <= 2000
-            or any(ord(c) < 32 for c in text)):
+            or any(ord(c) < 32 and c not in "\t\r\n" for c in text)):
         raise ProviderFailure("INTENT_UNSUPPORTED")
-    remaining = " ".join(_fold(text).split())
+    remaining = " ".join(_fold(text.translate(TRANSCRIPT_FORMATTING)).split())
     if remaining.startswith("¿") and remaining.endswith("?"):
         remaining = remaining[1:]
-    remaining = remaining.rstrip(".!?").strip()
+    remaining = remaining.rstrip(".!?…").strip()
     remaining = NUMBER_PATTERN.sub(lambda m: str(NUMBERS[m[0]]), remaining)
     # Recognize only complete search/politeness prefixes. Remaining words still
     # have to be consumed as typed conditions; no arbitrary prose is discarded.

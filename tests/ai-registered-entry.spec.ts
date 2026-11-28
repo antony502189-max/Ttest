@@ -117,6 +117,30 @@ test('microphone disconnect cancels capture and a new recording can be submitted
   expect(state.queries).toBe(1)
 })
 
+test('session limit lets mobile users recover previous conditions without losing or sending the transcript', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 850 })
+  const state = await surface(page, false, 'ru')
+  state.sessionLimit = true
+  state.transcript = 'найти квартиру до 700 евро в месяц на Tenerife.'
+  await page.goto('/#/')
+  await page.getByRole('button', { name: 'Искать голосом', exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('button', { name: 'Записать запрос', exact: true }).click()
+  await expect(dialog.getByText('Идёт запись…', { exact: true })).toBeVisible()
+  await page.waitForTimeout(300)
+  await dialog.getByRole('button', { name: 'Завершить запись', exact: true }).click()
+  const draft = dialog.getByRole('textbox', { name: 'Текст записи' })
+  await expect(draft).toHaveValue(state.transcript)
+  await dialog.getByRole('button', { name: 'Поиск', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Продолжить открытый диалог', exact: true }).click()
+  await expect(dialog.getByText('Диалог восстановлен. Проверьте условия и нажмите кнопку поиска.')).toBeVisible()
+  await expect(draft).toHaveValue(state.transcript)
+  await expect(dialog.getByText('Условия для следующего сообщения', { exact: true })).toBeVisible()
+  expect(state.nativeCreates).toBe(1)
+  expect(state.recoveries).toBe(1)
+  expect(state.queries).toBe(0)
+})
+
 test('Russian voice search retries a failed session start and keeps the apartment request', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 850 })
   const state = await surface(page, false, 'ru')
@@ -158,7 +182,7 @@ async function surface(page: Page, guestReturn = false, language = 'es') {
     localStorage.setItem('112233:has-session', '1')
     if (guestReturn) sessionStorage.setItem('112233:ai-continuation:v1:public-guest', JSON.stringify({ sessionId: guestSid, resultRef: guestRef }))
   }, { guestReturn, guestSid, guestRef, language })
-  const state = { queries: 0, saves: 0, guestIssues: 0, nativeIssues: 0, nativeCreates: 0, nativeCapabilities: 0, nativeMapReads: 0, transcriptions: 0, failTranscription: false, clarifyBudget: false, transcript: 'a room under 700 euros per month', apartmentRequest: false, failNextCreate: false, sessionCommands: [] as unknown[], suggestionReads: 0 }
+  const state = { queries: 0, saves: 0, guestIssues: 0, nativeIssues: 0, nativeCreates: 0, nativeCapabilities: 0, nativeMapReads: 0, transcriptions: 0, failTranscription: false, clarifyBudget: false, transcript: 'a room under 700 euros per month', apartmentRequest: false, failNextCreate: false, sessionCommands: [] as unknown[], suggestionReads: 0, sessionLimit: false, recoveries: 0 }
   const intent = (guest = false) => ({ schema_version: 'ai-search.v1', taxonomy_version: 'rental.v1', session_id: guest ? guestSid : sid,
     version: guest ? 1 : state.queries, criteria: { rental_mode: { strength: 'hard', value: 'long' },
       ...(guest || state.queries ? { budget: { strength: 'hard', value: { amount: '700', currency: 'EUR', period: 'monthly' } }, furnished: { strength: 'hard', value: false } } : {}),
@@ -178,13 +202,18 @@ async function surface(page: Page, guestReturn = false, language = 'es') {
       expect(request.headers().authorization).toBe(guest ? undefined : 'Bearer native-account-token')
       const currentRef = guest ? guestRef : ref
       let value: unknown
-      if (path.endsWith('/capabilities')) { if (!guest) state.nativeCapabilities++; value = { text: true, map: true, voice: true, saved_searches: false, save_handoff: true, budget_suggestions: state.apartmentRequest } }
+      if (path.endsWith('/capabilities')) { if (!guest) state.nativeCapabilities++; value = { text: true, map: true, voice: true, saved_searches: false, save_handoff: true, budget_suggestions: state.apartmentRequest, session_recovery: state.sessionLimit } }
       else if (path.endsWith('/quota')) value = { limit: guest ? 3 : 200, remaining: guest ? 0 : 200 - state.queries }
       else if (path.endsWith('/identity')) { expect(guest).toBe(false); value = { ready: true } }
       else if (path.endsWith('/sessions')) {
         expect(guest).toBe(false)
+        if (request.postDataJSON().recover_active) {
+          state.recoveries++
+          return route.fulfill({ json: { intent: intent(), expires_at: '2099-01-01T00:00:00Z' } })
+        }
         state.nativeCreates++
         state.sessionCommands.push(request.postDataJSON())
+        if (state.sessionLimit) return route.fulfill({ status: 429, json: { detail: 'SESSION_LIMIT' } })
         if (state.failNextCreate) {
           state.failNextCreate = false
           return route.fulfill({ status: 503, json: { detail: 'AI_SERVICE_UNAVAILABLE' } })

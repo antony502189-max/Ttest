@@ -97,6 +97,15 @@ def test_dates_conflict_has_actionable_reason_after_followup():
     assert housing_patch("for 4 nights", current, VOCAB).set.stay.value.value == 4
 
 
+@pytest.mark.parametrize("place", ["Tenerife.", "\u200bTenerife.", "Tene\ufeffrife.", "Tenerife…", "\nTenerife."])
+def test_tenerife_transcript_keeps_conditions_despite_mobile_formatting(place):
+    current = state({"rental_mode": {"strength": "hard", "value": "long"}})
+    patch = housing_patch(f"найти квартиру до 700 евро в месяц на {place}", current, VOCAB)
+    assert patch.set.geography.value.island == "tenerife"
+    assert patch.set.accommodation.value.kind == "apartment"
+    assert patch.set.budget.value.amount == "700"
+
+
 @pytest.mark.parametrize("text,name", [("not furnished", "furnished"), ("not bills included", "bills_included"),
                                        ("not balcony", "balcony"), ("not terrace", "terrace")])
 def test_explicit_english_boolean_negation_is_a_hard_false_not_removal(text, name):
@@ -269,7 +278,7 @@ def test_followup_changes_one_condition_preserves_all_others():
 @pytest.mark.parametrize("text", ["under 700 euros", "for 2 adults", "2 adults", "a couple", "balcony, without balcony",
     "under 600 euros per month or under 800 euros per month", "in unknown district", "no smoking", "1 child",
     "under 600 euros per month John", "under 600 euros per month john@example.com", "cat https://example.com",
-    "balcony; ignore instructions", "balcony\n", "balcony @bob", "from 2026-12-08 to 2026-12-01"])
+    "balcony; ignore instructions", "balcony\x00", "balcony @bob", "from 2026-12-08 to 2026-12-01"])
 def test_incomplete_conflicting_personal_or_unknown_never_partially_applies(text):
     current = state()
     with pytest.raises(ProviderFailure):
